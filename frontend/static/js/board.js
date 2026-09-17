@@ -62,11 +62,11 @@
   }
 
   function parseBody(response) {
-    try {
-      return response.json();
-    } catch (err) {
+    /* json() может отклониться асинхронно (не-JSON тело: HTML 502 от
+     * nginx и т.п.) — try/catch это не ловит, поэтому .catch. */
+    return response.json().catch(function () {
       return null;
-    }
+    });
   }
 
   /* Единая обработка ответа API (sdd §3): 401 → /login; 422 →
@@ -76,13 +76,31 @@
       window.location.href = "/login";
       return;
     }
-    if (response.status === 422 && body) {
+    /* Не-JSON тело при полученном HTTP-статусе (HTML-страница 502 и
+     * т.п.) — не вводим в заблуждение «сетевой ошибкой». */
+    if (!body) {
+      onError("Ошибка запроса (HTTP " + response.status + ").");
+      return;
+    }
+    if (response.status === 422) {
       var parts = [];
       if (body.error) {
         parts.push(body.error);
       }
       var details = body.details;
-      if (details && typeof details === "object") {
+      /* Сервер (tasks.py install_error_handlers) отдает details
+       * МАССИВОМ pydantic-ошибок ({loc, msg, type, ...}); формат
+       * «объект {поле: [тексты]}» — fallback. */
+      if (Array.isArray(details)) {
+        details.forEach(function (item) {
+          var text =
+            (item.loc && item.loc.length ? item.loc.join(".") + ": " : "") +
+            (item.msg || "");
+          if (text) {
+            parts.push(text);
+          }
+        });
+      } else if (details && typeof details === "object") {
         Object.keys(details).forEach(function (key) {
           var value = details[key];
           var text = Array.isArray(value) ? value.join("; ") : String(value);
@@ -322,9 +340,15 @@
     list.textContent = "";
     (comments || []).forEach(function (comment) {
       var item = el("li", "task-comment");
-      item.appendChild(
-        el("div", "task-comment-meta", "id " + comment.id + " · " + comment.created_at)
-      );
+      /* Метка только из имеющихся полей — без «· undefined». */
+      var meta = ["id " + comment.id, comment.created_at]
+        .filter(function (part) {
+          return part !== undefined && part !== null && part !== "";
+        })
+        .join(" · ");
+      if (meta) {
+        item.appendChild(el("div", "task-comment-meta", meta));
+      }
       var body = el("p", "task-comment-body");
       body.textContent = comment.body; // textContent — не innerHTML (XSS)
       item.appendChild(body);
