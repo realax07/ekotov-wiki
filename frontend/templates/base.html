@@ -1,0 +1,30 @@
+{# Базовый каркас страниц функционала (tasks.md 3.1; FR-13; дельта navigation;
+   sdd.md §3.6, §1). Сайдбар — навигация по разделам; активный раздел
+   подсвечивается классом `active` (задается из шаблонов через active_page).
+   Кнопка «Выйти» — POST /api/auth/logout (sdd.md §3.1) из frontend/static/js/app.js
+   (fetch, затем redirect на /login). #}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ekotov-wiki{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="app-shell">
+  <aside class="sidebar" aria-label="Разделы">
+    <nav class="sidebar-nav">
+      <a href="/board" class="nav-item{% if active_page == 'board' %} active{% endif %}">Доска</a>
+      <a href="/search" class="nav-item{% if active_page == 'search' %} active{% endif %}">Поиск</a>
+      <a href="/wiki" class="nav-item{% if active_page == 'wiki' %} active{% endif %}">Wiki <span class="todo-badge">todo</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <button type="button" id="logout-button" class="logout-button">Выйти</button>
+    </div>
+  </aside>
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

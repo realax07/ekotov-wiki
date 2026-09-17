@@ -1,0 +1,72 @@
+/* Каркас интерфейса (tasks.md 3.1; sdd.md §3.6): сайдбар + контент.
+   Минимально: вертикальный сайдбар, подсветка активного раздела (.active),
+   бейдж todo у Wiki. */
+* { box-sizing: border-box; }
+
+body.app-shell {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: #2c3e50;
+  color: #ecf0f1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 0;
+}
+
+.sidebar-nav { display: flex; flex-direction: column; }
+
+.nav-item {
+  display: block;
+  padding: 10px 20px;
+  color: #ecf0f1;
+  text-decoration: none;
+}
+
+.nav-item:hover { background: #34495e; }
+
+.nav-item.active { background: #1abc9c; font-weight: bold; }
+
+.todo-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: normal;
+  background: #e67e22;
+  color: #fff;
+  border-radius: 8px;
+  vertical-align: middle;
+}
+
+.sidebar-footer { padding: 0 20px; }
+
+.logout-button {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  color: #ecf0f1;
+  border: 1px solid #7f8c8d;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.logout-button:hover { background: #34495e; }
+
+.content { flex: 1; padding: 24px; }
+
+.todo-note {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #e67e22;
+  color: #fff;
+  border-radius: 4px;
+  font-weight: bold;
+}
