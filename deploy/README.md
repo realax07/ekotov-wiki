@@ -59,14 +59,23 @@ sudo chgrp wiki /opt/ekotov-wiki/.env && chmod 640 /opt/ekotov-wiki/.env
 
 ### 5. Миграция (схема БД) и seed пользователей
 
-Запускать от пользователя `wiki`, чтобы БД создалась с его владельцем:
+Обе команды выполняются от пользователя `wiki` (через `sudo -u wiki`), чтобы БД
+и WAL-файлы (`wiki.db-wal`, `wiki.db-shm`) создались сразу с его владельцем —
+без последующего `chown`. `SECRET_KEY=x` здесь — заглушка только для разового
+запуска миграции/seed (config.py требует лишь наличие переменной); прод-значение
+живет в `.env` (шаг 3) и в команды ниже не подставляется.
 
 ```bash
+cd /opt/ekotov-wiki/backend
+
+# миграция: применяет схему (идемпотентна)
 sudo -u wiki env DB_PATH=/var/lib/ekotov-wiki/wiki.db SECRET_KEY=x \
-  /opt/ekotov-wiki/backend/.venv/bin/python -m app.db --workdir=/opt/ekotov-wiki/backend
-# точный вызов миграции/seed — см. отчеты задач 1.2/1.3 (python -m app.db, app.seed_users);
-# seed интерактивный — запустите один раз под своим пользователем и поправьте владельца:
-sudo chown wiki:wiki /var/lib/ekotov-wiki/wiki.db*
+  .venv/bin/python -m app.db
+
+# seed: заводит РОВНО 2 учетки — owner (владелец) и wife (жена); интерактивный:
+# пароль для каждой вводится с терминала без эха (запускать в интерактивной сессии)
+sudo -u wiki env DB_PATH=/var/lib/ekotov-wiki/wiki.db SECRET_KEY=x \
+  .venv/bin/python -m app.seed_users
 ```
 
 ### 6. systemd
@@ -101,9 +110,9 @@ sudo certbot renew --dry-run   # автопродление по таймеру
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Если `options-ssl-nginx.conf`/`ssl-dhparams.pem` отсутствуют (не ставились
-nginx-пакетом certbot'а) — уберите `include`/`ssl_dhparam` из конфига или
-установите `sudo apt install -y libnginx-mod-http-headers-more-filter` и
+Если `options-ssl-nginx.conf`/`ssl-dhparams.pem` отсутствуют (обычно их ставит
+пакет python3-certbot-nginx) — уберите `include`/`ssl_dhparam` из конфига либо
+сгенерируйте dhparam самостоятельно:
 `sudo openssl dhparam -out /etc/letsencrypt/ssl-dhparams.pem 2048`.
 
 ### 9. Проверка
