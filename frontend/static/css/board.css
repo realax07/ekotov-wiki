@@ -1,0 +1,101 @@
+/* Доска (tasks.md 4.3; FR-1, FR-2): три фиксированных столбца, карточки
+ * задач (title, priority-индикатор, category, due_date — FR-9).
+ * Выделенная линия fast line (светло-синяя подсветка) — задача 5.2;
+ * здесь только data-fast-атрибут и бейдж fast в карточке. */
+
+.board {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.board-column {
+  flex: 1;
+  min-width: 220px;
+  background: #f4f6f8;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.board-column-title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: #2c3e50;
+}
+
+.board-column-done {
+  background: #eef1f4;
+}
+
+.board-done-note {
+  margin: 0;
+  font-size: 13px;
+  color: #7f8c8d;
+}
+
+.board-error {
+  color: #c0392b;
+}
+
+.task-card {
+  background: #fff;
+  border: 1px solid #dfe4e8;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.task-card-header {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.task-priority-badge {
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #fff;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.priority-high { background: #c0392b; }
+.priority-medium { background: #e67e22; }
+.priority-low { background: #27ae60; }
+
+/* Индикатор приоритета на самой карточке (цветная левая полоса). */
+.task-priority-high { border-left: 4px solid #c0392b; }
+.task-priority-medium { border-left: 4px solid #e67e22; }
+.task-priority-low { border-left: 4px solid #27ae60; }
+
+.task-fast-badge {
+  font-size: 11px;
+  font-weight: bold;
+  color: #2980b9;
+  border: 1px solid #2980b9;
+  border-radius: 4px;
+  padding: 0 5px;
+}
+
+.task-card-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.task-card-meta {
+  margin-top: 6px;
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: #7f8c8d;
+  flex-wrap: wrap;
+}
+
+.task-category {
+  background: #ecf0f1;
+  border-radius: 4px;
+  padding: 1px 6px;
+}

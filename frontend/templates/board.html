@@ -1,6 +1,30 @@
+{# Доска (tasks.md 4.3; FR-1, FR-2; дельта board — «Отображение канбан-доски»,
+   «Три фиксированных столбца»; sdd.md §3.6). Три неизменяемых столбца
+   «Ожидает» / «В работе» / «Выполнено» (ОГР-3); данные — GET /api/board
+   (sdd.md §3.3) из frontend/static/js/board.js при открытии страницы.
+   Карточки: title, priority-индикатор, category, due_date (FR-9);
+   детали карточки (описание, теги, комментарии, формы) — задача 4.5.
+   Столбец «Выполнено» список задач не содержит — примечание done_note
+   (sdd.md §3.3): задачи после «Выполнено» уходят в архив (FR-4).
+   Fast line (выделенная линия, светло-синяя подсветка) — задача 5.2. #}
 {% extends "base.html" %}
 {% block title %}Доска{% endblock %}
 {% block content %}
 <h1>Доска</h1>
-<p>Канбан-доска (Ожидает / В работе / Выполнено) — будет реализована позже (задачи 4.x).</p>
+<div id="board" class="board" data-loaded="false">
+  <section class="board-column" id="column-todo" data-status="todo">
+    <h2 class="board-column-title">Ожидает</h2>
+    <div class="board-column-cards" data-cards></div>
+  </section>
+  <section class="board-column" id="column-in_progress" data-status="in_progress">
+    <h2 class="board-column-title">В работе</h2>
+    <div class="board-column-cards" data-cards></div>
+  </section>
+  <section class="board-column board-column-done" id="column-done" data-status="done">
+    <h2 class="board-column-title">Выполнено</h2>
+    <p class="board-done-note" data-done-note></p>
+  </section>
+</div>
+<p id="board-error" class="board-error" hidden></p>
+<script src="/static/js/board.js"></script>
 {% endblock %}

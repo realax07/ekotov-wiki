@@ -5,6 +5,7 @@ from starlette.responses import JSONResponse
 
 from app.auth import SESSION_COOKIE_NAME
 from app.auth import router as auth_router
+from app.board import router as board_router
 from app.comments import router as comments_router
 from app.config import settings  # noqa: F401 — валидация конфига на старте
 from app.db import get_connection
@@ -18,6 +19,7 @@ app.include_router(auth_router)
 app.include_router(pages_router)
 app.include_router(tasks_router)
 app.include_router(comments_router)
+app.include_router(board_router)
 install_error_handlers(app)
 register_auth_middleware(app)
 
