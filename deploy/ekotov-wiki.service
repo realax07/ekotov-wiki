@@ -1,0 +1,45 @@
+# systemd-юнит ekotov-wiki (задача 1.4, sdd.md §1 «Развертывание», NFR-6).
+#
+# Установка на VPS:
+#   sudo cp deploy/ekotov-wiki.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now ekotov-wiki
+#
+# Путь репозитория на VPS — /opt/ekotov-wiki (см. deploy/README.md).
+# Приложение слушает ТОЛЬКО 127.0.0.1 — наружу доступ только через nginx.
+
+[Unit]
+Description=ekotov-wiki (FastAPI/uvicorn, behind nginx)
+After=network.target
+
+[Service]
+Type=simple
+
+# Непривилегированный пользователь (создается один раз при развертывании,
+# см. deploy/README.md шаг 4). Не root, без shell-логина.
+User=wiki
+Group=wiki
+
+# Рабочая директория — backend/ (пакет app импортируется как app.main).
+WorkingDirectory=/opt/ekotov-wiki/backend
+
+# Секреты и пути — только через EnvironmentFile (в репозиторий не попадают,
+# NFR-5; переменные: DB_PATH, SECRET_KEY — см. .env.example).
+# VPS: /opt/ekotov-wiki/.env (в локальной dev-машине — /home/openclaw/ekotov-wiki/.env).
+EnvironmentFile=/opt/ekotov-wiki/.env
+
+# app слушает только localhost:8377; TLS терминирует nginx.
+ExecStart=/opt/ekotov-wiki/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8377
+
+Restart=on-failure
+RestartSec=5
+
+# Минимальный хардening (NFR-7): процесс не привилегирован, запись только туда,
+# куда явно разрешено (файл SQLite по DB_PATH — вне репозитория).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target
