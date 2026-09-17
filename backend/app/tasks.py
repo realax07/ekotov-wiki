@@ -10,6 +10,10 @@
 - PATCH: частичное обновление — только переданные поля; 200 Task; ошибки 404, 422.
   status в PATCH не входит: статус меняется через POST /{id}/move (sdd §3.2),
   ручная простановка обошла бы archived_at (задача 4.4/6.1).
+- POST /{id}/move: {"status": "todo|in_progress|done"}; 200 Task;
+  при done — archived_at проставлен (задача уходит в архив, с доски
+  исчезает); при обратном переводе — archived_at снимается (FR-6 «и
+  обратно»); ошибки 404, 422 (недопустимый статус).
 - DELETE: физическое удаление; каскады task_tags/comments — FK ON DELETE
   CASCADE (sdd §4), foreign_keys=ON включен в get_connection (app/db.py).
 
@@ -93,6 +97,15 @@ class TaskUpdate(BaseModel):
         if value is not None and not value.strip():
             raise ValueError("title must not be empty")
         return value
+
+
+class TaskMove(BaseModel):
+    """Тело POST /api/tasks/{id}/move (sdd §3.2 дословно):
+    {"status": "todo|in_progress|done"}; иное значение — 422."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["todo", "in_progress", "done"]
 
 
 def _load_tags(conn: sqlite3.Connection, task_id: int) -> list[str]:
@@ -261,6 +274,49 @@ def delete_task(task_id: int) -> Response:
     finally:
         conn.close()
     return Response(status_code=204)
+
+
+@router.post("/{task_id}/move")
+def move_task(task_id: int, body: TaskMove) -> JSONResponse:
+    """Перевод в другой столбец (tasks.md 4.4; sdd.md §3.2 дословно).
+
+    Запрос: {"status": "todo|in_progress|done"}; ответ 200: Task;
+    ошибки: 404 — несуществующий id, 422 — недопустимый статус
+    (Literal отсекает, обработчик RequestValidationError дает тело
+    {"error", "details"} по sdd §3).
+
+    archived_at (sdd §4: NOT NULL <=> в архиве; FR-4, FR-6 «и обратно»):
+    - target done → проставляется (задача уходит в архив и исчезает
+      с доски — GET /api/board фильтрует archived_at IS NULL);
+    - target todo/in_progress → снимается (NULL): обратный перевод
+      возвращает задачу на доску (дельта board, «Обратное перемещение»).
+      Источник не проверяется — прямой перевод в «Выполнено» из любого
+      столбца разрешен (дельта board, «Быстрый доступ к действию
+      "Выполнено"»); перевод из «Выполнено» обратно разрешен контрактом
+      (все три статуса цели дают 200) и FR-6 «и обратно».
+
+    is_fast move не меняет; инвариант fast ≤1 в move не проверяется —
+    по design.md §4 место проверки: создание задачи (и перевод в fast),
+    задача 5.1. Перевод fast-задачи в done освобождает fast line сам
+    собой (design.md §4 «Освобождение»).
+    """
+    conn = get_connection()
+    try:
+        row = _get_task_row(conn, task_id)
+        if row is None:
+            return JSONResponse(status_code=404, content=NOT_FOUND_BODY)
+        now = _utcnow()
+        archived_at = now if body.status == "done" else None
+        conn.execute(
+            "UPDATE tasks SET status = ?, archived_at = ?, updated_at = ? "
+            "WHERE id = ?",
+            (body.status, archived_at, now, task_id),
+        )
+        conn.commit()
+        task = _row_to_task(conn, _get_task_row(conn, task_id))
+    finally:
+        conn.close()
+    return JSONResponse(content=task)
 
 
 def install_error_handlers(app) -> None:
