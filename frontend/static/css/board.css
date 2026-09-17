@@ -99,3 +99,122 @@
   border-radius: 4px;
   padding: 1px 6px;
 }
+
+/* --- 4.5: формы и карточка задачи (FR-5, FR-7, FR-9) --- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px 24px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.task-form label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #2c3e50;
+}
+
+.task-form input[type="text"],
+.task-form input[type="date"],
+.task-form select,
+.task-form textarea,
+.task-comments textarea {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid #dfe4e8;
+  border-radius: 4px;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.task-form-checkbox {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-form-checkbox input {
+  margin: 0;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.form-error {
+  color: #c0392b;
+  font-size: 13px;
+}
+
+.task-detail-attrs {
+  margin: 10px 0;
+}
+
+.task-detail-attrs dt {
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #7f8c8d;
+  margin-top: 8px;
+}
+
+.task-detail-attrs dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.task-detail-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.task-comments h3 {
+  margin: 16px 0 8px;
+  font-size: 14px;
+}
+
+.task-comments-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+}
+
+.task-comment {
+  border-bottom: 1px solid #ecf0f1;
+  padding: 6px 0;
+}
+
+.task-comment-meta {
+  font-size: 11px;
+  color: #95a5a6;
+}
+
+.task-comment-body {
+  margin: 2px 0 0;
+  font-size: 13px;
+  white-space: pre-wrap;
+}

@@ -1,16 +1,23 @@
-{# Доска (tasks.md 4.3; FR-1, FR-2; дельта board — «Отображение канбан-доски»,
-   «Три фиксированных столбца»; sdd.md §3.6). Три неизменяемых столбца
-   «Ожидает» / «В работе» / «Выполнено» (ОГР-3); данные — GET /api/board
-   (sdd.md §3.3) из frontend/static/js/board.js при открытии страницы.
-   Карточки: title, priority-индикатор, category, due_date (FR-9);
-   детали карточки (описание, теги, комментарии, формы) — задача 4.5.
+{# Доска (tasks.md 4.3, 4.5; FR-1, FR-2, FR-5, FR-7, FR-9; sdd.md §3.2, §3.3,
+   §3.6). Три неизменяемых столбца «Ожидает» / «В работе» / «Выполнено»
+   (ОГР-3); данные — GET /api/board из frontend/static/js/board.js.
+   Карточки: title, priority-индикатор, category, due_date (FR-9).
+   4.5 (FR-5, FR-7, FR-9): форма создания задачи (7 признаков, title
+   обязателен — UI-валидация до отправки), карточка задачи (полные
+   признаки + комментарии, GET/POST /api/tasks/{id}/comments),
+   редактирование (PATCH), удаление с confirm (DELETE), перемещение
+   (POST /{id}/move). Вся динамика — из board.js; пользовательские
+   данные (title, описание, комментарии) в HTML-разметку не входят —
+   рендер только через textContent (XSS, см. board.js).
    Столбец «Выполнено» список задач не содержит — примечание done_note
    (sdd.md §3.3): задачи после «Выполнено» уходят в архив (FR-4).
-   Fast line (выделенная линия, светло-синяя подсветка) — задача 5.2. #}
+   Визуальная выделенная линия fast line — задача 5.2 (бейдж fast уже
+   выводится из is_fast). #}
 {% extends "base.html" %}
 {% block title %}Доска{% endblock %}
 {% block content %}
 <h1>Доска</h1>
+<p><button type="button" id="create-task-button">Создать задачу</button></p>
 <div id="board" class="board" data-loaded="false">
   <section class="board-column" id="column-todo" data-status="todo">
     <h2 class="board-column-title">Ожидает</h2>
@@ -26,5 +33,81 @@
   </section>
 </div>
 <p id="board-error" class="board-error" hidden></p>
+
+{# Форма создания/редактирования задачи (4.5; FR-5, FR-7, FR-9).
+   Одна форма в двух режимах; is_fast — только при создании (sdd §3.2:
+   is_fast — опциональный флаг только при создании, PATCH его не принимает).
+   Обработка 409 «fast line occupied» — задача 5.1, здесь НЕ реализуется:
+   при 409 сработает общий обработчик ошибок API. #}
+<div id="task-form-overlay" class="modal-overlay" hidden>
+  <form id="task-form" class="modal task-form">
+    <h2 id="task-form-heading">Создание задачи</h2>
+    <p id="task-form-error" class="form-error" hidden></p>
+    <label>Название *
+      <input type="text" id="task-title" name="title" required maxlength="500">
+    </label>
+    <label>Описание
+      <textarea id="task-description" name="description" rows="3"></textarea>
+    </label>
+    <label>Приоритет
+      <select id="task-priority" name="priority">
+        <option value="">—</option>
+        <option value="low">low</option>
+        <option value="medium">medium</option>
+        <option value="high">high</option>
+      </select>
+    </label>
+    <label>Категория
+      <input type="text" id="task-category" name="category">
+    </label>
+    <label>Срок
+      <input type="date" id="task-due-date" name="due_date">
+    </label>
+    <label>Теги (через запятую)
+      <input type="text" id="task-tags" name="tags" placeholder="home, urgent">
+    </label>
+    <label class="task-form-checkbox">
+      <input type="checkbox" id="task-is-fast" name="is_fast"> fast line
+    </label>
+    <div class="form-actions">
+      <button type="submit" id="task-form-submit">Создать</button>
+      <button type="button" id="task-form-cancel">Отмена</button>
+    </div>
+  </form>
+</div>
+
+{# Карточка задачи (4.5; FR-9: все 7 признаков + комментарии).
+   Значения заполняются из JS через textContent — разметка не содержит
+   пользовательских данных. #}
+<div id="task-detail-overlay" class="modal-overlay" hidden>
+  <div class="modal task-detail">
+    <h2 id="task-detail-title"></h2>
+    <p id="task-detail-error" class="form-error" hidden></p>
+    <dl id="task-detail-attrs" class="task-detail-attrs"></dl>
+    <div class="task-detail-actions">
+      <label>Столбец
+        <select id="task-move-select">
+          <option value="todo">Ожидает</option>
+          <option value="in_progress">В работе</option>
+          <option value="done">Выполнено</option>
+        </select>
+      </label>
+      <button type="button" id="task-edit-button">Редактировать</button>
+      <button type="button" id="task-delete-button">Удалить</button>
+      <button type="button" id="task-detail-close">Закрыть</button>
+    </div>
+    <section class="task-comments">
+      <h3>Комментарии</h3>
+      <ul id="task-comments-list" class="task-comments-list"></ul>
+      <form id="comment-form">
+        <label>Новый комментарий
+          <textarea id="comment-body" rows="2" required></textarea>
+        </label>
+        <p id="comment-error" class="form-error" hidden></p>
+        <button type="submit">Добавить комментарий</button>
+      </form>
+    </section>
+  </div>
+</div>
 <script src="/static/js/board.js"></script>
 {% endblock %}
