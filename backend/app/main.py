@@ -8,9 +8,11 @@ from app.auth import router as auth_router
 from app.config import settings  # noqa: F401 — валидация конфига на старте
 from app.db import get_connection
 from app.middleware import register as register_auth_middleware
+from app.pages import router as pages_router
 
 app = FastAPI(title="ekotov-wiki", docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(auth_router)
+app.include_router(pages_router)
 register_auth_middleware(app)
 
 
