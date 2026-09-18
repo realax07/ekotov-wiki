@@ -364,6 +364,10 @@
     addDetailRow(dl, "Срок", task.due_date);
     addDetailRow(dl, "Теги", (task.tags || []).join(", "));
     addDetailRow(dl, "Fast line", task.is_fast ? "да" : null);
+    /* 6.2 (FR-4): признак «архивная» — бейдж при archived_at IS NOT NULL.
+     * Не-архивные (archived_at null) — бейдж скрыт. */
+    document.getElementById("task-detail-archive-badge").hidden =
+      !task.archived_at;
     document.getElementById("task-move-select").value = task.status;
     hideError("task-detail-error");
     hideError("comment-error");

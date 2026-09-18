@@ -85,6 +85,10 @@
 <div id="task-detail-overlay" class="modal-overlay" hidden>
   <div class="modal task-detail">
     <h2 id="task-detail-title"></h2>
+    {# 6.2 (FR-4): бейдж архивной задачи — показывается при
+       archived_at IS NOT NULL (тогглится в JS, renderTaskDetail).
+       Текст статический — пользовательских данных нет (XSS-safe). #}
+    <span id="task-detail-archive-badge" class="task-archive-badge" hidden>Архивная</span>
     <p id="task-detail-error" class="form-error" hidden></p>
     <dl id="task-detail-attrs" class="task-detail-attrs"></dl>
     <div class="task-detail-actions">
