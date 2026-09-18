@@ -1,0 +1,124 @@
+/* Поиск (tasks.md 7.3): стили вкладки поиска. Палитра, карточки и бейджи
+ * наследуются от board.css (подключен в base.html): .task-card,
+ * .task-priority-badge/.priority-*, .task-category, .task-archive-badge,
+ * .form-error/.form-actions. Здесь — только компоновка, специфичная для
+ * поиска: переключатель режимов, сетка полей конструктора, поле advanced,
+ * строка normalized_query, контейнер результатов. */
+
+/* --- Переключатель режимов (Конструктор | Advanced) --- */
+
+.search-mode-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.search-mode-button {
+  padding: 6px 14px;
+  background: #f4f6f8;
+  border: 1px solid #dfe4e8;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  color: #2c3e50;
+}
+
+.search-mode-button:hover {
+  background: #ecf0f1;
+}
+
+.search-mode-button.active {
+  background: #1abc9c;
+  border-color: #1abc9c;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* --- Конструктор (FR-11) --- */
+
+.search-builder {
+  background: #f4f6f8;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.search-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.search-builder label {
+  display: block;
+  font-size: 13px;
+  color: #2c3e50;
+}
+
+.search-builder input[type="text"],
+.search-builder input[type="date"],
+.search-builder select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid #dfe4e8;
+  border-radius: 4px;
+  font: inherit;
+}
+
+/* --- Advanced (FR-12) --- */
+
+.search-advanced {
+  background: #f4f6f8;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.search-advanced label {
+  display: block;
+  font-size: 13px;
+  color: #2c3e50;
+}
+
+.search-advanced textarea {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid #dfe4e8;
+  border-radius: 4px;
+  font: inherit;
+  font-family: monospace;
+  box-sizing: border-box;
+}
+
+.search-normalized {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #7f8c8d;
+  font-family: monospace;
+  word-break: break-all;
+}
+
+/* --- Результаты --- */
+
+.search-results {
+  margin-top: 8px;
+}
+
+.search-results .task-card {
+  max-width: 640px;
+}
+
+/* Тег в карточке результата — в стиле категории board.css. */
+.task-tag {
+  background: #ecf0f1;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.search-empty {
+  color: #7f8c8d;
+}

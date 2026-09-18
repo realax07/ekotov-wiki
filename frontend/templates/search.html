@@ -1,6 +1,93 @@
+{# Поиск (tasks.md 7.3; FR-10, FR-11, FR-12; sdd.md §3.5, §3.6). Вкладка
+   поиска по старым задачам: два режима.
+   1) Конструктор (FR-11): селекты/инпуты по признакам задачи — priority
+      (любой/low/medium/high), category (свободный ввод, пусто = любая),
+      tags (через запятую, многозначный), due_before/due_after (date),
+      archived (все/только архивные/только активные). «Найти» →
+      GET /api/search с query-параметрами (sdd §3.5) из search.js.
+   2) Advanced (FR-12): переключатель → текстовое поле с SQL-подобным
+      фильтром → POST /api/search/advanced {"query": ...}; 400 (ошибка
+      синтаксиса) — текст error показывается как есть (search.js).
+   Результаты — общий список карточек вне секций режимов: переключение
+   режимов не очищает результаты последнего поиска. Вся динамика — из
+   frontend/static/js/search.js; пользовательские данные (title,
+   категория, теги) в HTML-разметку не входят — рендер только через
+   textContent (XSS, см. search.js; паттерн board.js).
+   Стили — frontend/static/css/search.css (подключается здесь; палитра и
+   бейджи — переиспользованные классы board.css, который грузит base.html). #}
 {% extends "base.html" %}
 {% block title %}Поиск{% endblock %}
 {% block content %}
+<link rel="stylesheet" href="/static/css/search.css">
 <h1>Поиск</h1>
-<p>Поиск по старым задачам (фильтр-конструктор, advanced) — будет реализован позже (задачи 7.x).</p>
+
+{# Переключатель режимов (FR-12): Конструктор ↔ Advanced. #}
+<div class="search-mode-switch">
+  <button type="button" id="search-mode-builder" class="search-mode-button active" aria-pressed="true">Конструктор</button>
+  <button type="button" id="search-mode-advanced" class="search-mode-button" aria-pressed="false">Advanced</button>
+</div>
+
+{# Режим 1: фильтр-конструктор (FR-11). Все поля опциональны: пустая
+   форма = пустой фильтр = все задачи (спека search, Scenario
+   «Поиск без заданных условий»). #}
+<section id="search-builder" class="search-builder">
+  <form id="search-builder-form">
+    <div class="search-fields">
+      <label>Приоритет
+        <select id="search-priority">
+          <option value="">любой</option>
+          <option value="low">low</option>
+          <option value="medium">medium</option>
+          <option value="high">high</option>
+        </select>
+      </label>
+      <label>Категория
+        <input type="text" id="search-category" placeholder="любая">
+      </label>
+      <label>Теги (через запятую)
+        <input type="text" id="search-tags" placeholder="home, urgent">
+      </label>
+      <label>Срок не позднее
+        <input type="date" id="search-due-before">
+      </label>
+      <label>Срок не ранее
+        <input type="date" id="search-due-after">
+      </label>
+      <label>Архивность
+        <select id="search-archived">
+          <option value="">все</option>
+          <option value="true">только архивные</option>
+          <option value="false">только активные</option>
+        </select>
+      </label>
+    </div>
+    <div class="form-actions">
+      <button type="submit" id="search-builder-submit">Найти</button>
+    </div>
+  </form>
+</section>
+
+{# Режим 2: advanced (FR-12) — текстовое поле с SQL-подобным фильтром,
+   доступное для просмотра и правки. При переключении из конструктора
+   поле заполняется текстом собранного фильтра (search.js,
+   buildFilterText); 200 ответ показывает normalized_query (sdd §3.5). #}
+<section id="search-advanced" class="search-advanced" hidden>
+  <form id="search-advanced-form">
+    <label>Фильтр (SQL-подобный синтаксис)
+      <textarea id="search-advanced-query" rows="3" placeholder='priority = "high" AND tag IN ("home")'></textarea>
+    </label>
+    <p id="search-advanced-normalized" class="search-normalized" hidden></p>
+    <div class="form-actions">
+      <button type="submit" id="search-advanced-submit">Найти</button>
+    </div>
+  </form>
+</section>
+
+<p id="search-error" class="form-error" hidden></p>
+
+{# Результаты поиска — общие для обоих режимов: карточки title,
+   priority, category, due_date, tags + бейдж «Архивная» при
+   archived_at IS NOT NULL (FR-10; паттерн карточки board.html). #}
+<section id="search-results" class="search-results" aria-live="polite"></section>
+<script src="/static/js/search.js"></script>
 {% endblock %}
