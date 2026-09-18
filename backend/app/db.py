@@ -71,8 +71,11 @@ CREATE INDEX IF NOT EXISTS idx_comments_task_id ON comments(task_id);
 
 # Миграция существующих БД до sdd r5 (FR-4, новая редакция): колонка done_at.
 # Для свежих БД колонку создает SCHEMA_SQL; ALTER для уже существующей
-# tasks — идемпотентен по ошибке duplicate column. Индекс done_at — в
-# SCHEMA_SQL (IF NOT EXISTS), применяется к обеим.
+# tasks выполняется ТОЛЬКО если PRAGMA table_info(tasks) не показала
+# done_at (проверка в init_db) — поэтому повторный запуск не пытается
+# добавлять колонку второй раз. Сам ALTER идемпотентным не является:
+# без этой проверки повторный init падал бы на duplicate column.
+# Индекс done_at — в SCHEMA_SQL (IF NOT EXISTS), применяется к обеим.
 MIGRATION_SQL_6_1 = """
 ALTER TABLE tasks ADD COLUMN done_at TEXT;
 """

@@ -1,9 +1,15 @@
 """Смоук-проверка задач 4.4 (переработка) + 6.1 (sdd r5, FR-4 новая редакция).
 
-7 проверок постановки: move в done; done_at сегодня на доске; ленивая
-автоархивация по сдвинутому done_at; обратный move; TZ-независимость
-(эмуляция done_at за минуту до полуночи МСК); регрессия
-(login/health/CRUD/comments/fast-инвариант); миграция done_at.
+Проверки постановки: move в done (реальный done_at из API); done_at
+сегодня на доске; ленивая автоархивация по done_at вчера (сдвиг
+внутри формата +03:00); обратный move; границы МСК-дня (23:59:59.999
+вчера — архив; 00:00:00.000 сегодня — доска; БЛОКЕР-КЕЙС: done в
+01:00 МСК по подмененным часам — задача остается на доске);
+регрессия (login/health/CRUD/comments/fast-инвариант); миграция done_at.
+
+Все подменяемые done_at — ТОЛЬКО в продакшн-формате «...+03:00»
+(msk_now_iso/сдвиг datetime от него): строка «+00:00» маскировала
+blocker review-6.1-001 (#2 review).
 
 Запуск: DB_PATH=/tmp/... SECRET_KEY=... python backend/smoke_6_1.py
 """
@@ -21,10 +27,10 @@ import bcrypt
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.auth import create_session  # noqa: E402
+from app.board import msk_now_iso  # noqa: E402
 from app.db import get_connection, init_db  # noqa: E402
 from app.main import app  # noqa: E402
 
-MSK = timezone(timedelta(hours=3))
 DB_PATH = os.environ["DB_PATH"]
 
 init_db()
@@ -64,6 +70,13 @@ def make_task(title, **extra):
 
 
 def set_done_at(task_id, iso):
+    """Подмена done_at в БД ТОЛЬКО строками формата продакшн-пути
+    («...+03:00», тик msk_now_iso): лексикографическое сравнение в
+    autoarchive корректно внутри одного формата; негативные кейсы
+    (вчера/граница) строятся сдвигом datetime внутри этого же формата.
+    Строкой «+00:00» done_at больше не подставляется никогда — такой
+    формат маскировал blocker review-6.1-001 (#2 review)."""
+    assert iso.endswith("+03:00"), f"done_at обязан быть в +03:00, got {iso!r}"
     c = get_connection()
     try:
         c.execute(
@@ -72,6 +85,13 @@ def set_done_at(task_id, iso):
         c.commit()
     finally:
         c.close()
+
+
+def msk_shift_iso(**kwargs):
+    """Момент now по msk_now_iso, сдвинутый на kwargs (timedelta),
+    в том же формате «...+03:00» — для негативных кейсов."""
+    base = datetime.fromisoformat(msk_now_iso())
+    return (base + timedelta(**kwargs)).isoformat()
 
 
 results = []
@@ -107,18 +127,24 @@ r = client.get("/api/board", **CK)
 still = [t["id"] for t in r.json()["columns"]["done"]]
 check("2. done_at сегодня → задача на доске", t1 in still, f"board.done={still}")
 
-# --- Проверка 3: done_at = вчера → GET /api/board → archived_at лениво,
-# --- задача исчезла.
+# --- Проверка 3: done_at = вчера 23:59 МСК (сдвиг ВНУТРИ формата +03:00)
+# --- → GET /api/board → archived_at лениво, задача исчезла.
 t3 = make_task("П3: архивация вчера")
-client.post(f"/api/tasks/{t3}/move", json={"status": "done"}, **CK)
-yesterday = (datetime.now(MSK) - timedelta(days=1)).isoformat()
-set_done_at(t3, yesterday)
+r = client.post(f"/api/tasks/{t3}/move", json={"status": "done"}, **CK)
+assert r.status_code == 200, (r.status_code, r.text)
+# «Вчера 23:59:59 МСК» относительно текущего момента (работает в любой
+# час МСК-дня: сейчас - 24ч - (текущее время - 23:59:59)).
+now_msk = datetime.fromisoformat(msk_now_iso())
+yesterday_2359 = (now_msk - timedelta(days=1)).replace(
+    hour=23, minute=59, second=59, microsecond=0
+)
+set_done_at(t3, yesterday_2359.isoformat())
 r = client.get("/api/board", **CK)
 columns = r.json()["columns"]
 everywhere = [t["id"] for col in columns.values() for t in col]
 status_db, done_db, arch_db = db_task(t3)
 check(
-    "3. done_at вчера: ленивая автоархивация, исчез с доски",
+    "3. done_at вчера 23:59 МСК: ленивая автоархивация, исчез с доски",
     arch_db is not None
     and t3 not in everywhere
     and columns.get("done_note") is None,
@@ -144,35 +170,86 @@ check(
     f"db: done_at={done_db} archived_at={arch_db}",
 )
 
-# --- Проверка 5: TZ-независимость — done_at за минуту до полуночи МСК
-# --- архивируется «после полуночи» (эмуляция сдвигом done_at).
+# --- Проверка 5: негативные кейсы границы — done_at сдвигом ВНУТРИ
+# --- формата +03:00 (не строкой чужого формата, см. set_done_at).
+# --- 5а: вчера 23:59:59.999 МСК → архивируется «после полуночи».
 t5 = make_task("П5: граница полуночи МСК")
-client.post(f"/api/tasks/{t5}/move", json={"status": "done"}, **CK)
-now_msk = datetime.now(MSK)
-just_before_midnight = (now_msk - timedelta(days=1)).replace(
-    hour=23, minute=59, second=0, microsecond=0
-)
+r = client.post(f"/api/tasks/{t5}/move", json={"status": "done"}, **CK)
+assert r.status_code == 200, (r.status_code, r.text)
+just_before_midnight = (
+    datetime.fromisoformat(msk_now_iso()) - timedelta(days=1)
+).replace(hour=23, minute=59, second=59, microsecond=999000)
 set_done_at(t5, just_before_midnight.isoformat())
 r = client.get("/api/board", **CK)
 columns = r.json()["columns"]
 everywhere = [t["id"] for col in columns.values() for t in col]
 status_db, done_db, arch_db = db_task(t5)
 check(
-    "5. done_at 23:59 МСК вчера → архивируется после полуночи",
+    "5. done_at 23:59:59.999 МСК вчера → архивируется после полуночи",
     arch_db is not None and t5 not in everywhere,
     f"done_at={done_db} (23:59 МСК вчера) → archived_at={arch_db}",
 )
-# Симметрично: done_at сегодня 00:00 МСК — НЕ архивируется.
+# 5б: done_at ровно 00:00:00.000000 МСК сегодня — НЕ архивируется
+# (граница включена: сравнение строгое done_at < day_start).
 t5b = make_task("П5б: граница 00:00 сегодня")
-client.post(f"/api/tasks/{t5b}/move", json={"status": "done"}, **CK)
-midnight_today = now_msk.replace(hour=0, minute=0, second=0, microsecond=0)
+r = client.post(f"/api/tasks/{t5b}/move", json={"status": "done"}, **CK)
+assert r.status_code == 200, (r.status_code, r.text)
+midnight_today = datetime.fromisoformat(msk_now_iso()).replace(
+    hour=0, minute=0, second=0, microsecond=0
+)
 set_done_at(t5b, midnight_today.isoformat())
 client.get("/api/board", **CK)
 status_db, done_db, arch_db = db_task(t5b)
 check(
-    "5б. done_at 00:00 МСК сегодня → НЕ архивируется (граница включена)",
+    "5б. done_at 00:00:00.000 МСК сегодня → НЕ архивируется (граница включена)",
     arch_db is None,
     f"done_at={done_db} archived_at={arch_db}",
+)
+
+# --- Проверка 5в (blocker review-6.1-001, часы 00:00–03:59 МСК):
+# --- эмуляция «сейчас 01:00 МСК»: done_at = msk_now_iso от
+# --- подмененных часов (01:00 МСК СЕГОДНЯ, реальный продакшн-код) →
+# --- GET /api/board → задача ОСТАЕТСЯ в done-столбце, архивации нет.
+t5c = make_task("П5в: done в 01:00 МСК")
+r = client.post(f"/api/tasks/{t5c}/move", json={"status": "done"}, **CK)
+assert r.status_code == 200, (r.status_code, r.text)
+# Прямой вызов msk_now_iso при подмене datetime в модуле — тот же
+# продакшн-код, что в move; подмена часов, не подмена формата.
+import app.board as board_mod  # noqa: E402
+
+# Реальный тик ДО подмены часов — база эмуляции.
+_real_now_msk = datetime.fromisoformat(msk_now_iso())
+_fake_now = _real_now_msk.replace(
+    hour=1, minute=0, second=0, microsecond=0
+)  # «Сейчас» = сегодня 01:00:00 МСК (UTC+03:00)
+
+
+class _FakeDT(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return _fake_now.astimezone(tz) if tz is not None else _fake_now
+
+
+_orig_datetime = board_mod.datetime
+board_mod.datetime = _FakeDT
+try:
+    done_at_1am = board_mod.msk_now_iso()
+    day_start_1am = board_mod._msk_day_start_iso()
+finally:
+    board_mod.datetime = _orig_datetime
+set_done_at(t5c, done_at_1am)
+r = client.get("/api/board", **CK)
+columns = r.json()["columns"]
+in_done = [t["id"] for t in columns["done"]]
+status_db, done_db, arch_db = db_task(t5c)
+check(
+    "5в. move→done в 01:00 МСК (подмененные часы) → задача НА доске, не архивирована",
+    done_at_1am.endswith("+03:00")
+    and done_at_1am[:10] == day_start_1am[:10]
+    and arch_db is None
+    and t5c in in_done,
+    f"done_at={done_db} (01:00 МСК сегодня, формат {done_at_1am[-6:]}); "
+    f"граница дня={day_start_1am}; archived_at={arch_db}; в done-столбце: {t5c in in_done}",
 )
 
 # --- Проверка 6: регрессия login/health/CRUD/comments/fast-инвариант.

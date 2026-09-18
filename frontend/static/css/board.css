@@ -27,12 +27,6 @@
   background: #eef1f4;
 }
 
-.board-done-note {
-  margin: 0;
-  font-size: 13px;
-  color: #7f8c8d;
-}
-
 .board-error {
   color: #c0392b;
 }

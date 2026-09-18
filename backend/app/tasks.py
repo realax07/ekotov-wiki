@@ -43,6 +43,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.board import msk_now_iso
 from app.db import get_connection
 
 router = APIRouter(prefix="/api/tasks")
@@ -79,6 +80,12 @@ def _begin_immediate(conn: sqlite3.Connection) -> None:
 
 
 def _utcnow() -> str:
+    """Момент now для updated_at/created_at (UTC, ...+00:00).
+
+    Для КАЛЕНДАРНО-СРАВНИВАЕМОГО done_at не используется: он пишется
+    через app.board.msk_now_iso (фиксированный UTC+3, тот же формат, что
+    у границы дня в autoarchive — см. докстринг msk_now_iso).
+    """
     return datetime.now(timezone.utc).isoformat()
 
 
@@ -340,7 +347,9 @@ def move_task(task_id: int, body: TaskMove) -> JSONResponse:
     {"error", "details"} по sdd §3).
 
     done_at/archived_at (sdd r5 §3.2 move; sdd §4 инвариант FR-4):
-    - target done → done_at = now; archived_at НЕ трогается: задача
+    - target done → done_at = msk_now_iso() (момент в фиксированном
+      UTC+3 — тот же формат, что у границы дня в autoarchive; источник
+      app.board.msk_now_iso); archived_at НЕ трогается: задача
       ОСТАЕТСЯ на доске в столбце «Выполнено» до ленивой автоархивации
       следующим МСК-днем (GET /api/board, app/board.py, design.md §5);
     - target todo/in_progress (обратный перевод из done) → снимаются
@@ -366,7 +375,11 @@ def move_task(task_id: int, body: TaskMove) -> JSONResponse:
             return JSONResponse(status_code=404, content=NOT_FOUND_BODY)
         now = _utcnow()
         if body.status == "done":
-            done_at = now  # момент перевода в done (FR-4, точка отсчета)
+            # done_at — момент перевода в done в фиксированном МСК
+            # (msk_now_iso, формат ...+03:00): ленивая автоархивация
+            # сравнивает его с границей дня ЛЕКСИКОГРАФИЧЕСКИ, форматы
+            # обязаны совпадать (blocker review-6.1-001).
+            done_at = msk_now_iso()
             # archived_at НЕ трогается (sdd r5 §3.2) — записываем как было.
             archived_at = row[9]
         else:
