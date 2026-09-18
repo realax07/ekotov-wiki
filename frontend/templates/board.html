@@ -11,8 +11,10 @@
    рендер только через textContent (XSS, см. board.js).
    Столбец «Выполнено» список задач не содержит — примечание done_note
    (sdd.md §3.3): задачи после «Выполнено» уходят в архив (FR-4).
-   Визуальная выделенная линия fast line — задача 5.2 (бейдж fast уже
-   выводится из is_fast). #}
+   5.2 (FR-3): выделенная линия fast line — светло-синяя прозрачная
+   подсветка столбца с fast-задачей и ее карточки (CSS-классы
+   has-fast / task-card-fast ставит board.js); сообщение «fast line
+   занята» при 409 выводится в task-form-error рядом с чекбоксом. #}
 {% extends "base.html" %}
 {% block title %}Доска{% endblock %}
 {% block content %}
@@ -37,8 +39,9 @@
 {# Форма создания/редактирования задачи (4.5; FR-5, FR-7, FR-9).
    Одна форма в двух режимах; is_fast — только при создании (sdd §3.2:
    is_fast — опциональный флаг только при создании, PATCH его не принимает).
-   Обработка 409 «fast line occupied» — задача 5.1, здесь НЕ реализуется:
-   при 409 сработает общий обработчик ошибок API. #}
+   5.2 (FR-3): при 409 «fast line occupied» в task-form-error (над
+   формой, рядом с чекбоксом fast) показывается «fast line занята»,
+   задача НЕ создается — обработка в board.js. #}
 <div id="task-form-overlay" class="modal-overlay" hidden>
   <form id="task-form" class="modal task-form">
     <h2 id="task-form-heading">Создание задачи</h2>

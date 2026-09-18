@@ -1,19 +1,26 @@
-/* Доска (tasks.md 4.3, 4.5; FR-1, FR-2, FR-5, FR-7, FR-9; sdd.md §3.2,
- * §3.3): при открытии страницы GET /api/board и рендер задач по трем
- * столбцам. Веб-морда — клиент REST API (ОГР-2, design.md §7): данные
- * только через API, сессионная кука — credentials: "same-origin".
- *
- * 4.3: доска, карточки (title, priority-индикатор, category, due_date —
- * FR-9); визуальная fast line — задача 5.2 (бейдж fast уже здесь).
+/* Доска (tasks.md 4.3, 4.5, 5.2; FR-1, FR-2, FR-3, FR-5, FR-7, FR-9;
+* sdd.md §3.2, §3.3): при открытии страницы GET /api/board и рендер
+* задач по трем столбцам. Веб-морда — клиент REST API (ОГР-2,
+* design.md §7): данные только через API, сессионная кука —
+* credentials: "same-origin".
+*
+* 4.3: доска, карточки (title, priority-индикатор, category, due_date —
+* FR-9).
+* 5.2 (FR-3): fast line подсвечена светло-синим прозрачным (столбец с
+* fast-задачей — класс has-fast, карточка — task-card-fast); fast-задачи
+* приходят с сервера уже отсортированными по приоритету (sdd §3.3) —
+* рендер сохраняет порядок ответа. 409 «fast line occupied» при
+* создании — сообщение «fast line занята» рядом с чекбоксом fast;
+* задача не создается, форма остается открытой.
  * 4.5: форма создания (7 полей FR-9 + is_fast, title обязателен —
  * UI-валидация до отправки), карточка с полными признаками и
  * комментариями, редактирование (PATCH), удаление с confirm (DELETE),
  * перемещение (POST /{id}/move).
  *
  * Обработка ошибок API: 401 → redirect /login; 422 → показ
- * error.details; прочие (сеть/сервер) → общее сообщение. После каждой
- * мутации — рефреш доски. Обработку 409 «fast line occupied» НЕ делаем
- * (задача 5.1) — сработает общий обработчик ошибок.
+ * error.details; 409 «fast line occupied» → «fast line занята»
+ * (5.2); прочие (сеть/сервер) → общее сообщение. После каждой
+ * мутации — рефреш доски.
  *
  * XSS (ОГР-11 базовый уровень): весь рендер пользовательских данных
  * (title, описание, комментарии, теги, категория) — через
@@ -110,6 +117,17 @@
       onError(parts.length ? parts.join(". ") : "Ошибка валидации (422).");
       return;
     }
+    /* 409 «fast line occupied» (sdd §3.2) — человекочитаемое сообщение
+     * рядом с чекбоксом fast (5.2, FR-3): форма остается открытой,
+     * задача НЕ создается, пользователь может снять флаг или отменить. */
+    if (response.status === 409) {
+      onError(
+        body && body.error === "fast line occupied"
+          ? "fast line занята"
+          : "Ошибка запроса (HTTP 409)."
+      );
+      return;
+    }
     onError("Ошибка запроса (HTTP " + response.status + ").");
   }
 
@@ -142,6 +160,11 @@
     var card = el("article", "task-card");
     card.dataset.taskId = task.id;
     card.dataset.fast = task.is_fast ? "true" : "false";
+    if (task.is_fast) {
+      /* 5.2 (FR-3): fast-карточка визуально выделена подсветкой
+       * (плюс бейдж fast ниже). */
+      card.classList.add("task-card-fast");
+    }
 
     if (task.priority) {
       card.classList.add("task-priority-" + task.priority);
@@ -185,9 +208,19 @@
         '.board-column[data-status="' + status + '"] [data-cards]'
       );
       container.textContent = "";
+      var hasFast = false;
+      /* Порядок ответа сервера сохраняется: сервер (sdd §3.3) уже
+       * отсортировал задачи в столбце по приоритету (fast — первыми). */
       (columns[status] || []).forEach(function (task) {
+        if (task.is_fast) {
+          hasFast = true;
+        }
         container.appendChild(renderCard(task));
       });
+      /* 5.2 (FR-3): столбец с fast-задачей = подсвеченная fast line. */
+      container
+        .closest(".board-column")
+        .classList.toggle("has-fast", hasFast);
     });
     var note = document.querySelector("[data-done-note]");
     if (note) {
