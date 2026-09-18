@@ -325,12 +325,16 @@ def _expect_value(tokens: list[_Tok], i: int) -> _Tok:
     return tok
 
 
-def _parse_condition(tokens: list[_Tok], i: int) -> tuple[str, str, object, int]:
-    """Одно условие `field op value` → (field, op, значение, next_i).
+def _parse_condition(
+    tokens: list[_Tok], i: int
+) -> tuple[str, str, object, int, int]:
+    """Одно условие `field op value` → (field, op, значение, next_i, field_pos).
 
     Значение: для одиночного условия — (сорт, текст); для IN — список
-    строк. Дальнейшую валидацию (какие операторы у какого поля) делает
-    _apply_predicate — ошибки получают позицию поля.
+    строк. field_pos — позиция токена поля в исходном тексте: ошибки
+    валидации значения/оператора получают её напрямую (без повторного
+    поиска по токенам). Дальнейшую валидацию (какие операторы у какого
+    поля) делает _apply_predicate.
     """
     field_tok = _expect(tokens, i, "word", "field name")
     if field_tok.value not in _FIELDS:
@@ -360,11 +364,11 @@ def _parse_condition(tokens: list[_Tok], i: int) -> tuple[str, str, object, int]
             break
         _expect(tokens, i, "rpar", "')' closing IN (...)")
         i += 1
-        return field_tok.value, op, values, i
+        return field_tok.value, op, values, i, field_tok.pos
 
     vt, sort = _parse_single_value(tokens, i)
     i += 1
-    return field_tok.value, op, (sort, vt.value), i
+    return field_tok.value, op, (sort, vt.value), i, field_tok.pos
 
 
 def parse(query: str) -> SearchFilters:
@@ -382,8 +386,8 @@ def parse(query: str) -> SearchFilters:
 
     i = 0
     while True:
-        fname, op, value, i = _parse_condition(tokens, i)
-        _apply_predicate(filters, fname, op, value, tokens)
+        fname, op, value, i, field_pos = _parse_condition(tokens, i)
+        _apply_predicate(filters, fname, op, value, field_pos)
         if i < len(tokens):
             connector = tokens[i]
             if connector.kind == "word" and connector.value == "AND":
@@ -414,24 +418,22 @@ def _parse_pred_date(pos: int, sort: str, raw: str) -> date:
 
 
 def _apply_predicate(
-    f: SearchFilters, fname: str, op: str, value: object, tokens: list[_Tok]
+    f: SearchFilters, fname: str, op: str, value: object, pos: int
 ) -> None:
     """Предикат → поля SearchFilters + валидация значений/операторов.
 
     Инъекционный текст в значении — обычная строка: он будет сравнен
     с содержимым БД через bind-параметр и просто не совпадет.
+    pos — позиция токена поля в исходном тексте (от _parse_condition),
+    к ней привязываются ошибки значений/операторов.
+
+    Повтор поля — синтаксическая ошибка «duplicate field X»: молчаливое
+    «последний побеждает» маскирует ошибку пользователя (единообразно
+    с tag, где дубликат был 400 изначально). Исключение — диапазон дат
+    `due >= A AND due <= B`: предикаты пишут РАЗНЫЕ слоты фильтра
+    (due_after/due_before), это не дубликат. Дубликат = попытка
+    перезаписать уже заданный слот.
     """
-    # Позиция для ошибок значения: у _apply_predicate нет исходного токена,
-    # ошибки значений привязываем к полю (достаточно для пользователя).
-
-    def field_pos() -> int:
-        for t in tokens:
-            if t.kind == "word" and t.value == fname:
-                return t.pos
-        return 0
-
-    pos = field_pos()
-
     if fname == "tag":
         if op != "IN":
             raise FilterSyntaxError(pos, "tag supports only IN (...)")
@@ -449,6 +451,8 @@ def _apply_predicate(
             raise FilterSyntaxError(
                 pos, f"archived must be true|false|all, got {raw!r}"
             )
+        if f.archived != "all":
+            raise FilterSyntaxError(pos, "duplicate field archived")
         f.archived = raw
         return
 
@@ -464,16 +468,24 @@ def _apply_predicate(
             )
         if op == "=":
             if fname == "priority":
+                if f.priority is not None or f.priority_ne is not None:
+                    raise FilterSyntaxError(pos, "duplicate field priority")
                 f.priority = raw
             else:
+                if f.category is not None or f.category_ne is not None:
+                    raise FilterSyntaxError(pos, "duplicate field category")
                 f.category = raw
         else:
             # NULL-семантика SQL: != не матчит NULL — в build_where
             # «не равно» трактуется как «не равно ИЛИ признака нет»
             # (задача без признака условию не равна).
             if fname == "priority":
+                if f.priority_ne is not None or f.priority is not None:
+                    raise FilterSyntaxError(pos, "duplicate field priority")
                 f.priority_ne = raw
             else:
+                if f.category_ne is not None or f.category is not None:
+                    raise FilterSyntaxError(pos, "duplicate field category")
                 f.category_ne = raw
         return
 
@@ -482,11 +494,17 @@ def _apply_predicate(
     d = _parse_pred_date(pos, sort, raw)
     if fname == "due":
         if op in ("<", "<="):
+            if f.due_before is not None:
+                raise FilterSyntaxError(pos, "duplicate field due")
             f.due_before = d
         elif op in (">", ">="):
+            if f.due_after is not None:
+                raise FilterSyntaxError(pos, "duplicate field due")
             f.due_after = d
         elif op == "=":
             # Фиксированный день = диапазон [D, D] (границы включительны).
+            if f.due_after is not None or f.due_before is not None:
+                raise FilterSyntaxError(pos, "duplicate field due")
             f.due_after = d
             f.due_before = d
         else:
@@ -494,10 +512,14 @@ def _apply_predicate(
     elif fname == "due_before":
         if op not in ("<", "<=", "="):
             raise FilterSyntaxError(pos, "due_before supports < <= and =")
+        if f.due_before is not None:
+            raise FilterSyntaxError(pos, "duplicate field due_before")
         f.due_before = d
     else:  # due_after
         if op not in (">", ">=", "="):
             raise FilterSyntaxError(pos, "due_after supports > >= and =")
+        if f.due_after is not None:
+            raise FilterSyntaxError(pos, "duplicate field due_after")
         f.due_after = d
 
 
@@ -548,10 +570,18 @@ async def search_advanced(request: Request) -> JSONResponse:
     - 200: {"results": [Task], "normalized_query": build(фильтра)}.
     - 400 {"error": "filter syntax: position N: причина"} — синтаксическая
       ошибка; запрос к БД не выполняется (parse до get_connection).
+      Невалидное JSON-тело тоже 400 (формат ошибок этого эндпоинта,
+      sdd §3.5), не 500: битый JSON = нечитаемый фильтр.
     - 401 без сессии — middleware.
-    - 422 (нет/невалидное тело) — обработчик sdd §3.
+    - 422 (тело читается, но query — не строка) — обработчик sdd §3.
     """
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:  # json.JSONDecodeError и не-JSON-тело вообще
+        return JSONResponse(
+            status_code=400,
+            content={"error": "filter syntax: invalid JSON body"},
+        )
     query = body.get("query") if isinstance(body, dict) else None
     if not isinstance(query, str):
         return JSONResponse(

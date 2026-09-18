@@ -139,6 +139,38 @@ check("2:пустой", "пустой текст → 200, все задачи",
       r.status_code == 200 and len(r.json()["results"]) == 5
       and r.json()["normalized_query"] == "")
 
+# --- 2b) битый JSON → 400 (не 500); дубликаты полей → 400 --------------
+r = client.post(ADV, content="{not json",
+                headers={"Content-Type": "application/json"}, **CK)
+check("2:битый-json", "битый JSON {not json → 400 (не 500), формат error",
+      r.status_code == 400 and r.json().get("error", "").startswith("filter syntax:"),
+      f"({r.status_code}, {r.text[:200]})")
+dups = [
+    ("дубликат priority =", 'priority = "high" AND priority = "low"'),
+    ("дубликат category =", 'category = "work" AND category = "home"'),
+    ("дубликат priority !=", 'priority != "low" AND priority = "high"'),
+    ("дубликат tag IN", 'tag IN ("home") AND tag IN ("car")'),
+    ("дубликат archived", 'archived = false AND archived = true'),
+    ("дубликат due =", "due = 2026-09-21 AND due = 2026-09-25"),
+    ("дубликат due >=", "due >= 2026-09-21 AND due >= 2026-09-25"),
+    ("дубликат due_before", "due_before <= 2026-09-21 AND due_before <= 2026-09-25"),
+]
+for name, q in dups:
+    r = adv(q)
+    ok = (r.status_code == 400
+          and "duplicate field" in r.json().get("error", ""))
+    check(f"2:{name}", f"{q!r} → 400 duplicate field", ok,
+          f"({r.status_code}, {r.json()})")
+# диапазон due (>= A AND <= B) — НЕ дубликат: разные слоты due_after/due_before
+r = adv("due >= 2026-09-21 AND due <= 2026-09-25")
+check("2:диапазон-due", "due >= A AND due <= B → 200 (не дубликат)",
+      r.status_code == 200, f"({r.status_code}, {r.text[:200]})")
+# одиночные поля по-прежнему валидны (регрессия семантики дубликатов)
+r = adv('priority = "high" AND category = "work" AND archived = false '
+        'AND tag IN ("home") AND due >= 2026-01-01')
+check("2:не-дубликаты", "разные поля в одном запросе по-прежнему → 200",
+      r.status_code == 200, f"({r.status_code}, {r.text[:200]})")
+
 # --- 3) parse(build(x)) == x (круговая согласованность) ----------------
 def as_tuple(f: SearchFilters):
     return (f.priority, f.category, tuple(sorted(f.tags)),
