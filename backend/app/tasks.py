@@ -4,8 +4,9 @@
 
 Контракты — дословно sdd.md §3.2:
 - POST: обязателен title; остальные признаки опциональны; ответ 201 Task.
-  Ошибки: 422 — нет названия. 409 «fast line occupied» — НЕ здесь: это
-  задача 5.1 (инвариант ≤1); флаг is_fast принимается без инварианта.
+  Ошибки: 422 — нет названия. 409 {"error": "fast line occupied"} —
+  is_fast=true при наличии активной (todo/in_progress) fast-задачи
+  (задача 5.1; проверка + вставка — одна транзакция, design.md §4).
 - GET: Task; 404 на несуществующий id.
 - PATCH: частичное обновление — только переданные поля; 200 Task; ошибки 404, 422.
   status в PATCH не входит: статус меняется через POST /{id}/move (sdd §3.2),
@@ -13,7 +14,9 @@
 - POST /{id}/move: {"status": "todo|in_progress|done"}; 200 Task;
   при done — archived_at проставлен (задача уходит в архив, с доски
   исчезает); при обратном переводе — archived_at снимается (FR-6 «и
-  обратно»); ошибки 404, 422 (недопустимый статус).
+  обратно»); ошибки 404, 422 (недопустимый статус). Возврат archived
+  fast-задачи в todo/in_progress проверяет инвариант fast ≤1 (409,
+  задача 5.1 — расширение сверх спеки fastline, дыра из review-4.4-001).
 - DELETE: физическое удаление; каскады task_tags/comments — FK ON DELETE
   CASCADE (sdd §4), foreign_keys=ON включен в get_connection (app/db.py).
 
@@ -50,6 +53,26 @@ TASK_COLUMNS = (
 )
 
 NOT_FOUND_BODY = {"error": "not found"}
+
+# Инвариант fast line ≤1 (FR-3, ОГР-5; design.md §4): в активных статусах
+# (todo/in_progress — «Ожидает»/«В работе») не более одной fast-задачи.
+# Тело 409 — дословно sdd.md §3.2.
+FAST_LINE_OCCUPIED_BODY = {"error": "fast line occupied"}
+
+# Активные статусы «Ожидает»/«В работе» (ОГР-3); done = архив, линию не занимает.
+ACTIVE_STATUSES = ("todo", "in_progress")
+
+
+def _begin_immediate(conn: sqlite3.Connection) -> None:
+    """BEGIN IMMEDIATE: захват блокировки записи ДО проверочного SELECT.
+
+    Иначе «проверка + запись» не одна транзакция: SELECT в autocommit не
+    держит снапшот, два параллельных is_fast-POST оба видят 0 и оба
+    вставляют (воспроизведено смоуком). С BEGIN IMMEDIATE второй запрос
+    ждет блокировку и его проверка видит уже закоммиченную первую
+    fast-задачу — инвариант детерминирован (design.md §4 «Гонки»).
+    """
+    conn.execute("BEGIN IMMEDIATE")
 
 
 def _utcnow() -> str:
@@ -161,13 +184,39 @@ def _set_tags(conn: sqlite3.Connection, task_id: int, names: list[str]) -> None:
         )
 
 
+def _fast_line_busy(conn: sqlite3.Connection) -> bool:
+    """Есть ли активная fast-задача (инвариант ≤1, FR-3/ОГР-5; design.md §4)."""
+    placeholders = ", ".join("?" for _ in ACTIVE_STATUSES)
+    row = conn.execute(
+        f"SELECT COUNT(*) FROM tasks "
+        f"WHERE is_fast = 1 AND status IN ({placeholders})",
+        ACTIVE_STATUSES,
+    ).fetchone()
+    return row[0] >= 1
+
+
 @router.post("", status_code=201)
 def create_task(body: TaskCreate) -> JSONResponse:
-    """Создание задачи (sdd §3.2): 201 + Task; 422 — нет/пустое название."""
+    """Создание задачи (sdd §3.2): 201 + Task; 422 — нет/пустое название;
+    409 {"error": "fast line occupied"} — is_fast=true при активной fast-задаче.
+
+    Проверка инварианта fast ≤1 и INSERT — одна транзакция (design.md §4):
+    SQLite WAL, один writer — между SELECT и INSERT сторонняя запись не
+    вклинивается; при 409 rollback ничего не оставляет в БД.
+    """
     conn = get_connection()
     try:
         now = _utcnow()
         try:
+            if body.is_fast:
+                # Инвариант до вставки; BEGIN IMMEDIATE делает «проверка +
+                # вставка» атомарными (design.md §4 «Гонки»).
+                _begin_immediate(conn)
+                if _fast_line_busy(conn):
+                    conn.rollback()
+                    return JSONResponse(
+                        status_code=409, content=FAST_LINE_OCCUPIED_BODY
+                    )
             cur = conn.execute(
                 "INSERT INTO tasks (title, description, priority, category, "
                 "due_date, is_fast, status, archived_at, created_at, updated_at) "
@@ -295,10 +344,15 @@ def move_task(task_id: int, body: TaskMove) -> JSONResponse:
       "Выполнено"»); перевод из «Выполнено» обратно разрешен контрактом
       (все три статуса цели дают 200) и FR-6 «и обратно».
 
-    is_fast move не меняет; инвариант fast ≤1 в move не проверяется —
-    по design.md §4 место проверки: создание задачи (и перевод в fast),
-    задача 5.1. Перевод fast-задачи в done освобождает fast line сам
-    собой (design.md §4 «Освобождение»).
+    is_fast move не меняет. Перевод fast-задачи в done освобождает fast
+    line сам собой (design.md §4 «Освобождение»).
+
+    Инвариант fast ≤1 в move (расширение сверх спеки fastline — там
+    прописан только сценарий создания; дыра из review-4.4-001):
+    возврат архивной fast-задачи (done → todo/in_progress) при активной
+    другой fast-задаче создал бы две активные fast → 409. Проверка и
+    UPDATE — одна транзакция (design.md §4). is_fast при PATCH
+    невозможен (задача 4.1), иных путей перевода в fast нет.
     """
     conn = get_connection()
     try:
@@ -307,6 +361,24 @@ def move_task(task_id: int, body: TaskMove) -> JSONResponse:
             return JSONResponse(status_code=404, content=NOT_FOUND_BODY)
         now = _utcnow()
         archived_at = now if body.status == "done" else None
+        # Инвариант ≤1: возвращаемая в активный статус задача должна быть
+        # fast, а линия — уже занята другой fast (не этой же: она archived).
+        if (
+            bool(row[6])
+            and body.status in ACTIVE_STATUSES
+            and row[7] not in ACTIVE_STATUSES
+        ):
+            _begin_immediate(conn)
+            others = conn.execute(
+                "SELECT COUNT(*) FROM tasks "
+                "WHERE is_fast = 1 AND status IN (?, ?) AND id != ?",
+                (*ACTIVE_STATUSES, task_id),
+            ).fetchone()[0]
+            if others >= 1:
+                conn.rollback()
+                return JSONResponse(
+                    status_code=409, content=FAST_LINE_OCCUPIED_BODY
+                )
         conn.execute(
             "UPDATE tasks SET status = ?, archived_at = ?, updated_at = ? "
             "WHERE id = ?",
