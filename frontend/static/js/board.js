@@ -1,8 +1,10 @@
-/* Доска (tasks.md 4.3, 4.5, 5.2; FR-1, FR-2, FR-3, FR-5, FR-7, FR-9;
+/* Доска (tasks.md 4.3, 4.5, 5.2, 6.1; FR-1, FR-2, FR-3, FR-5, FR-7, FR-9;
 * sdd.md §3.2, §3.3): при открытии страницы GET /api/board и рендер
-* задач по трем столбцам. Веб-морда — клиент REST API (ОГР-2,
-* design.md §7): данные только через API, сессионная кука —
-* credentials: "same-origin".
+* задач по трем столбцам — todo, in_progress и done (sdd r5 §3.3:
+* «Выполнено» — реальный список done-задач текущего МСК-дня;
+* автоархивация выполняется сервером при GET /api/board). Веб-морда —
+* клиент REST API (ОГР-2, design.md §7): данные только через API,
+* сессионная кука — credentials: "same-origin".
 *
 * 4.3: доска, карточки (title, priority-индикатор, category, due_date —
 * FR-9).
@@ -29,7 +31,7 @@
 (function () {
   "use strict";
 
-  var COLUMNS = ["todo", "in_progress"];
+  var COLUMNS = ["todo", "in_progress", "done"];
   var STATUSES = ["todo", "in_progress", "done"];
   var currentTaskId = null;
 
@@ -222,10 +224,9 @@
         .closest(".board-column")
         .classList.toggle("has-fast", hasFast);
     });
-    var note = document.querySelector("[data-done-note]");
-    if (note) {
-      note.textContent = columns.done_note || "";
-    }
+    /* Столбец «Выполнено» (sdd r5 §3.3) — реальный список задач: done
+     * сегодня по МСК; автоархивация — на сервере (GET /api/board).
+     * done_note прежней редакции больше не существует. */
     document.getElementById("board").dataset.loaded = "true";
   }
 

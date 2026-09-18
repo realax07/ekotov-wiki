@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   is_fast     INTEGER NOT NULL DEFAULT 0,-- fast line (FR-3)
   status      TEXT NOT NULL DEFAULT 'todo'
               CHECK(status IN ('todo','in_progress','done')),  -- Ожидает/В работе/Выполнено (ОГР-3)
-  archived_at TEXT,                      -- NOT NULL <=> в архиве (FR-4)
+  done_at     TEXT,                      -- момент перевода в done; NULL <=> не в done (FR-4, новая редакция)
+  archived_at TEXT,                      -- NOT NULL <=> в архиве; ленивая автоархивация (FR-4), НЕ при move
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 );
@@ -62,9 +63,18 @@ CREATE TABLE IF NOT EXISTS comments (
 
 CREATE INDEX IF NOT EXISTS idx_tasks_status_is_fast ON tasks(status, is_fast);
 CREATE INDEX IF NOT EXISTS idx_tasks_archived_at ON tasks(archived_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_done_at ON tasks(done_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
 CREATE INDEX IF NOT EXISTS idx_task_tags_tag_id ON task_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_comments_task_id ON comments(task_id);
+"""
+
+# Миграция существующих БД до sdd r5 (FR-4, новая редакция): колонка done_at.
+# Для свежих БД колонку создает SCHEMA_SQL; ALTER для уже существующей
+# tasks — идемпотентен по ошибке duplicate column. Индекс done_at — в
+# SCHEMA_SQL (IF NOT EXISTS), применяется к обеим.
+MIGRATION_SQL_6_1 = """
+ALTER TABLE tasks ADD COLUMN done_at TEXT;
 """
 
 
@@ -78,10 +88,21 @@ def get_connection(db_path: str | None = None) -> sqlite3.Connection:
 
 
 def init_db(db_path: str | None = None) -> None:
-    """Создает схему, если ее еще нет. Безопасен при повторном запуске."""
+    """Создает схему, если ее еще нет. Безопасен при повторном запуске.
+
+    Миграции (sdd r5, FR-4 новая редакция): done_at в tasks — для БД,
+    созданных до r5 (ALTER); свежая БД получает колонку из SCHEMA_SQL.
+    """
     path = db_path or settings.db_path
     conn = get_connection(path)
     try:
+        existing_columns = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info(tasks)").fetchall()
+        }
+        if existing_columns and "done_at" not in existing_columns:
+            # БД прежней редакции (без done_at) — миграция 6.1.
+            conn.executescript(MIGRATION_SQL_6_1)
         conn.executescript(SCHEMA_SQL)
         conn.commit()
     finally:

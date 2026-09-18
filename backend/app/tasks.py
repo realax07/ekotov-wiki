@@ -12,11 +12,14 @@
   status в PATCH не входит: статус меняется через POST /{id}/move (sdd §3.2),
   ручная простановка обошла бы archived_at (задача 4.4/6.1).
 - POST /{id}/move: {"status": "todo|in_progress|done"}; 200 Task;
-  при done — archived_at проставлен (задача уходит в архив, с доски
-  исчезает); при обратном переводе — archived_at снимается (FR-6 «и
-  обратно»); ошибки 404, 422 (недопустимый статус). Возврат archived
-  fast-задачи в todo/in_progress проверяет инвариант fast ≤1 (409,
-  задача 5.1 — расширение сверх спеки fastline, дыра из review-4.4-001).
+  при done — done_at проставлен (задача ОСТАЕТСЯ на доске в столбце
+  «Выполнено», archived_at не ставится — sdd r5 §3.2); при обратном
+  переводе из done снимаются ОБА (done_at, archived_at — NULL);
+  ошибки 404, 422 (недопустимый статус). Ленивая автоархивация —
+  GET /api/board (app/board.py, задача 6.1, design.md §5). Возврат
+  fast-задачи из done в todo/in_progress проверяет инвариант fast ≤1
+  (409, задача 5.1 — расширение сверх спеки fastline, дыра из
+  review-4.4-001).
 - DELETE: физическое удаление; каскады task_tags/comments — FK ON DELETE
   CASCADE (sdd §4), foreign_keys=ON включен в get_connection (app/db.py).
 
@@ -49,7 +52,7 @@ Priority = Literal["low", "medium", "high"]
 
 TASK_COLUMNS = (
     "id, title, description, priority, category, due_date, "
-    "is_fast, status, archived_at"
+    "is_fast, status, done_at, archived_at"
 )
 
 NOT_FOUND_BODY = {"error": "not found"}
@@ -142,7 +145,7 @@ def _load_tags(conn: sqlite3.Connection, task_id: int) -> list[str]:
 
 
 def _row_to_task(conn: sqlite3.Connection, row: tuple) -> dict:
-    """Строка tasks → Task-объект по схеме sdd §3.2."""
+    """Строка tasks → Task-объект по схеме sdd §3.2 (r5: с done_at)."""
     return {
         "id": row[0],
         "title": row[1],
@@ -153,7 +156,8 @@ def _row_to_task(conn: sqlite3.Connection, row: tuple) -> dict:
         "tags": _load_tags(conn, row[0]),
         "is_fast": bool(row[6]),
         "status": row[7],
-        "archived_at": row[8],
+        "done_at": row[8],
+        "archived_at": row[9],
     }
 
 
@@ -219,8 +223,9 @@ def create_task(body: TaskCreate) -> JSONResponse:
                     )
             cur = conn.execute(
                 "INSERT INTO tasks (title, description, priority, category, "
-                "due_date, is_fast, status, archived_at, created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, 'todo', NULL, ?, ?)",
+                "due_date, is_fast, status, done_at, archived_at, "
+                "created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'todo', NULL, NULL, ?, ?)",
                 (
                     body.title,
                     body.description,
@@ -327,29 +332,29 @@ def delete_task(task_id: int) -> Response:
 
 @router.post("/{task_id}/move")
 def move_task(task_id: int, body: TaskMove) -> JSONResponse:
-    """Перевод в другой столбец (tasks.md 4.4; sdd.md §3.2 дословно).
+    """Перевод в другой столбец (tasks.md 4.4/6.1; sdd.md r5 §3.2 дословно).
 
     Запрос: {"status": "todo|in_progress|done"}; ответ 200: Task;
     ошибки: 404 — несуществующий id, 422 — недопустимый статус
     (Literal отсекает, обработчик RequestValidationError дает тело
     {"error", "details"} по sdd §3).
 
-    archived_at (sdd §4: NOT NULL <=> в архиве; FR-4, FR-6 «и обратно»):
-    - target done → проставляется (задача уходит в архив и исчезает
-      с доски — GET /api/board фильтрует archived_at IS NULL);
-    - target todo/in_progress → снимается (NULL): обратный перевод
-      возвращает задачу на доску (дельта board, «Обратное перемещение»).
-      Источник не проверяется — прямой перевод в «Выполнено» из любого
-      столбца разрешен (дельта board, «Быстрый доступ к действию
-      "Выполнено"»); перевод из «Выполнено» обратно разрешен контрактом
-      (все три статуса цели дают 200) и FR-6 «и обратно».
+    done_at/archived_at (sdd r5 §3.2 move; sdd §4 инвариант FR-4):
+    - target done → done_at = now; archived_at НЕ трогается: задача
+      ОСТАЕТСЯ на доске в столбце «Выполнено» до ленивой автоархивации
+      следующим МСК-днем (GET /api/board, app/board.py, design.md §5);
+    - target todo/in_progress (обратный перевод из done) → снимаются
+      ОБА: done_at = NULL, archived_at = NULL (sdd §3.2 дословно;
+      archived_at снимается «на случай ручного возврата», design §5).
+    Переходы todo↔in_progress колонки не меняют (оба поля остаются
+    NULL — POST создает с NULL, иные пути простановки нет).
 
     is_fast move не меняет. Перевод fast-задачи в done освобождает fast
     line сам собой (design.md §4 «Освобождение»).
 
     Инвариант fast ≤1 в move (расширение сверх спеки fastline — там
     прописан только сценарий создания; дыра из review-4.4-001):
-    возврат архивной fast-задачи (done → todo/in_progress) при активной
+    возврат done fast-задачи (→ todo/in_progress) при активной
     другой fast-задаче создал бы две активные fast → 409. Проверка и
     UPDATE — одна транзакция (design.md §4). is_fast при PATCH
     невозможен (задача 4.1), иных путей перевода в fast нет.
@@ -360,9 +365,16 @@ def move_task(task_id: int, body: TaskMove) -> JSONResponse:
         if row is None:
             return JSONResponse(status_code=404, content=NOT_FOUND_BODY)
         now = _utcnow()
-        archived_at = now if body.status == "done" else None
+        if body.status == "done":
+            done_at = now  # момент перевода в done (FR-4, точка отсчета)
+            # archived_at НЕ трогается (sdd r5 §3.2) — записываем как было.
+            archived_at = row[9]
+        else:
+            # Обратный перевод: снимаются ОБА поля (sdd r5 §3.2).
+            done_at = None
+            archived_at = None
         # Инвариант ≤1: возвращаемая в активный статус задача должна быть
-        # fast, а линия — уже занята другой fast (не этой же: она archived).
+        # fast, а линия — уже занята другой fast (не этой же: она done).
         if (
             bool(row[6])
             and body.status in ACTIVE_STATUSES
@@ -380,9 +392,9 @@ def move_task(task_id: int, body: TaskMove) -> JSONResponse:
                     status_code=409, content=FAST_LINE_OCCUPIED_BODY
                 )
         conn.execute(
-            "UPDATE tasks SET status = ?, archived_at = ?, updated_at = ? "
-            "WHERE id = ?",
-            (body.status, archived_at, now, task_id),
+            "UPDATE tasks SET status = ?, done_at = ?, archived_at = ?, "
+            "updated_at = ? WHERE id = ?",
+            (body.status, done_at, archived_at, now, task_id),
         )
         conn.commit()
         task = _row_to_task(conn, _get_task_row(conn, task_id))
