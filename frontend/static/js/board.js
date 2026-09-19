@@ -407,7 +407,14 @@
     );
   }
 
+  function isValidTaskId(value) {
+    return typeof value === "number" && isFinite(value);
+  }
+
   function openTaskDetail(taskId) {
+    if (!isValidTaskId(taskId)) {
+      return;
+    }
     currentTaskId = taskId;
     document.getElementById("task-detail-overlay").hidden = false;
     renderComments([]);
@@ -432,6 +439,17 @@
   function submitComment(event) {
     event.preventDefault();
     hideError("comment-error");
+
+    /* Guard (integer-баг): комментарий можно отправить только из
+     * открытой карточки. Без задачи в currentTaskId путь был бы
+     * /api/tasks/null/comments → 422 int_parsing от сервера. */
+    if (!isValidTaskId(currentTaskId)) {
+      showFormError(
+        "comment-error",
+        "Карточка задачи не открыта — откройте задачу и попробуйте еще раз."
+      );
+      return;
+    }
 
     var body = document.getElementById("comment-body").value.trim();
     /* UI-валидация до отправки: текст обязателен (sdd §3.2, 422). */
@@ -482,7 +500,7 @@
   }
 
   function moveCurrentTask() {
-    if (currentTaskId === null) {
+    if (!isValidTaskId(currentTaskId)) {
       return;
     }
     var status = document.getElementById("task-move-select").value;

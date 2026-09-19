@@ -126,6 +126,13 @@
 
 /* --- 4.5: формы и карточка задачи (FR-5, FR-7, FR-9) --- */
 
+/* Стандартный паттерн: атрибут hidden должен побеждать любой
+ * авторский display (например .modal-overlay { display:flex }), иначе
+ * оверлеи с hidden видны при загрузке страницы. */
+[hidden] {
+  display: none !important;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
