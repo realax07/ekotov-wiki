@@ -20,8 +20,8 @@ python -m pytest tests/ -q
 ```
 
 Вход теста:
-- `EKOTOV_WIKI_BASE_URL` — корень приложения (дефолт `http://127.0.0.1:8080`;
-  либо флаг `--base-url`). VPS: домен из deploy/README.md (там же запросы идут
+- `EKOTOV_WIKI_BASE_URL` — корень приложения (дефолт `http://127.0.0.1:8080`).
+  VPS: домен из deploy/README.md (там же запросы идут
   по https — Secure-кука отправляется штатно).
 - `EKOTOV_WIKI_DB_PATH` — путь SQLite-БД приложения. Нужен ТОЛЬКО кейсам с
   прямой правкой/чтением БД (смещение done_at, истечение сессии, bcrypt-осмотр):
@@ -114,3 +114,117 @@ python -m pytest tests/ -q
 
 Падение теста при верном коде теста = кандидат в дефекты продукта →
 баг-репорт в `test-model/bugs/` (формат: BUG-N: кейс, ожидание, факт, окружение).
+
+---
+
+# Web-сьют E2E-G1 (tests/web, Playwright)
+
+Playwright-сьют по 18 approved-кейсам критического пути
+`test-model/approved/e2e-critical-path/ui-01.md` (TC-UI-001…018, CHK-E-1…18,
+все Must). Regression-кейсы продовых дефектов 2026-09-19 — TC-UI-006/013/015.
+
+## Структура
+
+```
+tests/web/
+├── conftest.py                    # стенд (uvicorn+static+временная БД+seed), браузер, хелперы
+├── test_auth_ui.py                # TC-UI-001…005 (auth: редиректы, вход, ошибка, сессия, выход)
+├── test_board_tasks_ui.py         # TC-UI-006…009, 012…015 (доска, задачи, комментарии, 2 регрессии)
+├── test_fastline_ui.py            # TC-UI-010, 011 (fast line)
+└── test_navigation_search_ui.py   # TC-UI-016, 017, 018 (навигация, поиск, финал пути)
+```
+
+Правила сьюта: 1 кейс = 1 тест, `TC-UI-…` в docstring, маркеры
+`e2e`+`web`+`must` (по приоритету кейса), селекторы — рольные/семантические из
+кейсов (ID-локаторы `#task-form-overlay`/`#task-detail-overlay` — только для
+скрытых модалок без ARIA-роли, соглашение п.3 кейсов), автожидания `expect`,
+`time.sleep` = 0.
+
+## Тестовый стенд (фикстура `web_server`, сессия)
+
+Сьют поднимает стенд сам — прод и API-сьют не затрагиваются:
+- uvicorn `app.main:app` на свободном порту + `python -m http.server` на
+  соседнем (докрут `frontend/static`) — воспроизведение продовой топологии
+  «nginx раздает статику → proxy на app» (design §8; в app статика не
+  смонтирована, review 2.3-002); Playwright-маршрут перебрасывает `/static/*`
+  на static-сервер, куки работают (единый origin страниц);
+- временная пустая SQLite-БД (tmp dir): схема (`python -m app.db`) + seed
+  owner/wife с тестовыми паролями кейсов (bcrypt);
+- `EKOTOV_WIKI_DB_PATH` выставляется на сессию — DB-крюки TC-UI-017/018
+  (смещение done_at эмуляцией прошедшего МСК-дня, вариант Б) работают из
+  коробки, skip-семантика не срабатывает;
+- playwright: headless chromium, новый контекст на тест (чистые куки).
+
+## Изоляция
+
+- БД пустая на сессию; каждый тест создает свои предусловия сам (цепочки
+  кейсов вида «создана в TC-UI-010» заменены setup-помощником в самом тесте);
+- teardown: `web_cleanup_created` удаляет созданные тестом задачи через API
+  (`DELETE /api/tasks/{id}`, физическое удаление — включая архивированные);
+- Secure-кука по http: teardown-сессия повторяет браузерное поведение
+  trustworthy origin (`LocalhostSession`, как в tests/api).
+
+## Запуск
+
+```bash
+# 1. Зависимости (однократно; playwright уже в backend/requirements.txt):
+pip install playwright
+python -m playwright install chromium     # браузер (~115 МБ, ~/.cache/ms-playwright)
+
+# 2. Прогон (стенд поднимается автоматически):
+python -m pytest tests/web -q
+#   эталон локально: 17 passed, 1 failed (BUG-001, см. ниже), ~45 c
+
+# Прогон против внешнего стенда (например, прод-подобного) вместо автостенда:
+EKOTOV_WIKI_BASE_URL=https://<host> EKOTOV_WIKI_DB_PATH=<путь БД> python -m pytest tests/web -q
+# (без EKOTOV_WIKI_DB_PATH DB-крюк-кейсы TC-UI-017/018 skip — как в tests/api)
+
+# Выбор наборов: -m web / -m e2e / -m must (маркеры в tests/web/conftest-модулях).
+```
+
+Примечание: плагин pytest-base-url (транзитивная зависимость pytest-playwright)
+регистрирует pytest-опцию `--base-url`; чтобы не конфликтовать с ней, API-сьют
+не объявляет собственную одноименную опцию — базовый URL везде через env
+`EKOTOV_WIKI_BASE_URL` (совместный прогон `pytest tests/` работает).
+
+Вход теста (все опциональны):
+- `EKOTOV_WIKI_BASE_URL` — задан → внешний стенд, автоподъем отключен;
+- `EKOTOV_WIKI_DB_PATH` — путь SQLite-БД (DB-крюки; на автостенде задается сам);
+- `EKOTOV_WIKI_OWNER_PASSWORD` / `EKOTOV_WIKI_WIFE_PASSWORD` — переопределение
+  тестовых паролей seed.
+
+## Матрица кейс→тест (E2E-G1)
+
+| CHK | TC | Тест | Примечание |
+|---|---|---|---|
+| CHK-E-1 | TC-UI-001 | test_auth_ui::test_unauthenticated_redirects_to_login | |
+| CHK-E-2 | TC-UI-002 | test_auth_ui::test_owner_login_success_board_and_sidebar | |
+| CHK-E-3 | TC-UI-003 | test_auth_ui::test_wrong_password_and_unknown_login_same_error | |
+| CHK-E-4 | TC-UI-004 | test_auth_ui::test_session_survives_reload | |
+| CHK-E-5 | TC-UI-005 | test_auth_ui::test_logout_invalidates_session | |
+| CHK-E-6 | TC-UI-006 | test_board_tasks_ui::test_modals_hidden_on_board_load | REGRESSION 2026-09-19(a) |
+| CHK-E-7 | TC-UI-007 | test_board_tasks_ui::test_create_task_title_only | |
+| CHK-E-8 | TC-UI-008 | test_board_tasks_ui::test_create_task_without_title_rejected | |
+| CHK-E-9 | TC-UI-009 | test_board_tasks_ui::test_all_attributes_create_view_edit | |
+| CHK-E-10 | TC-UI-010 | test_fastline_ui::test_fast_task_create_and_highlight | скриншот в tests/web/artifacts/ |
+| CHK-E-11 | TC-UI-011 | test_fastline_ui::test_second_fast_task_rejected | |
+| CHK-E-12 | TC-UI-012 | test_board_tasks_ui::test_move_between_columns_and_quick_done | |
+| CHK-E-13 | TC-UI-013 | test_board_tasks_ui::test_move_without_selected_card_no_request | REGRESSION 2026-09-19(c) |
+| CHK-E-14 | TC-UI-014 | test_board_tasks_ui::test_add_comment_persists | |
+| CHK-E-15 | TC-UI-015 | test_board_tasks_ui::test_comment_submit_without_card_no_request | REGRESSION 2026-09-19(b) |
+| CHK-E-16 | TC-UI-016 | test_navigation_search_ui::test_sidebar_all_pages_and_wiki_stub | |
+| CHK-E-17 | TC-UI-017 | test_navigation_search_ui::test_search_archived_task_builder_advanced_card | падение = BUG-001 |
+| CHK-E-18 | TC-UI-018 | test_navigation_search_ui::test_final_path_autoarchive_and_fast_release | DB-крюк, вариант Б |
+
+## Известные падения (дефекты продукта, не теста)
+
+- **BUG-001** (`test-model/bugs/BUG-001-search-card-click.md`): TC-UI-017
+  шаг 7 — клик по карточке в результатах поиска не открывает карточку:
+  `renderCard()` в `frontend/static/js/search.js` не вешает click-обработчик
+  (в `board.js` — вешает, строка 199). FR-10/CHK-E-17 не выполняется.
+
+## Зависимости
+
+`playwright` добавлен в `backend/requirements.txt` (секция tests/) —
+выбран основной файл, отдельного requirements-dev в репозитории нет.
+Браузер ставится командой `python -m playwright install chromium`.

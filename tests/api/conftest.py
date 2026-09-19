@@ -32,18 +32,16 @@ TITLE_PREFIX = "QAT-"  # префикс автотестов: безопасна
 
 
 def pytest_addoption(parser):
-    parser.addoption(
-        "--base-url",
-        action="store",
-        default=None,
-        help="Базовый URL приложения (иначе env EKOTOV_WIKI_BASE_URL / локальный дефолт)",
-    )
+    # --base-url здесь НЕ регистрируется: плагин pytest-base-url (транзитивная
+    # зависимость pytest-playwright из web-сьюта) уже регистрирует опцию с тем
+    # же именем — повторная регистрация роняет сбор (ValueError). Базовый URL
+    # задается env EKOTOV_WIKI_BASE_URL (поведение не меняется).
+    pass
 
 
 def _resolve_base_url(config) -> str:
     return (
-        config.getoption("--base-url")
-        or os.environ.get(BASE_URL_ENV)
+        os.environ.get(BASE_URL_ENV)
         or DEFAULT_BASE_URL
     )
 
