@@ -89,5 +89,35 @@
    priority, category, due_date, tags + бейдж «Архивная» при
    archived_at IS NOT NULL (FR-10; паттерн карточки board.html). #}
 <section id="search-results" class="search-results" aria-live="polite"></section>
+
+{# Карточка задачи из результатов (BUG-001; FR-10 / CHK-E-17).
+   Разметка повторяет board.html (#task-detail-overlay): значения
+   заполняются из search.js через textContent — разметка не содержит
+   пользовательских данных (XSS). Просмотр read-only: редактирование/
+   удаление/перемещение — функции доски (board.js), кнопок нет. #}
+<div id="task-detail-overlay" class="modal-overlay" hidden>
+  <div class="modal task-detail">
+    <h2 id="task-detail-title"></h2>
+    {# 6.2 (FR-4): бейдж архивной задачи — показывается при
+       archived_at IS NOT NULL (тогглится в JS, renderTaskDetail).
+       Текст статический — пользовательских данных нет (XSS-safe). #}
+    <span id="task-detail-archive-badge" class="task-archive-badge" hidden>Архивная</span>
+    <p id="task-detail-error" class="form-error" hidden></p>
+    <dl id="task-detail-attrs" class="task-detail-attrs"></dl>
+    <div class="task-detail-actions">
+      <button type="button" id="task-detail-close">Закрыть</button>
+    </div>
+    <section class="task-comments">
+      <h3>Комментарии</h3>
+      <ul id="task-comments-list" class="task-comments-list"></ul>
+      <form id="comment-form">
+        <label>Новый комментарий
+          <textarea id="comment-body" rows="2" required></textarea>
+        </label>
+        <button type="submit">Добавить комментарий</button>
+      </form>
+    </section>
+  </div>
+</div>
 <script src="/static/js/search.js"></script>
 {% endblock %}

@@ -16,8 +16,17 @@
  * 422 → error + details; сеть/сервер → общее сообщение. Пустой
  * результат → «Ничего не найдено» (не ошибка).
  *
+ * Карточка задачи из результатов (BUG-001; FR-10 / CHK-E-17): клик по
+ * карточке открывает модалку #task-detail-overlay (разметка в
+ * search.html) с полными признаками (GET /api/tasks/{id}) и
+ * комментариями (GET/POST /api/tasks/{id}/comments) — та же механика,
+ * что в board.js. Просмотр read-only: редактирование/удаление/
+ * перемещение — функции доски (форма задачи и рефреш столбцов живут
+ * в board.js), из поиска они недоступны.
+ *
  * XSS (ОГР-11): весь рендер пользовательских данных (title, категория,
- * теги) — createElement + textContent; innerHTML не используется.
+ * теги, комментарии) — createElement + textContent; innerHTML не
+ * используется.
  */
 (function () {
   "use strict";
@@ -166,7 +175,131 @@
     if (meta.childNodes.length) {
       card.appendChild(meta);
     }
+
+    /* BUG-001 (FR-10 / CHK-E-17): клик по карточке открывает карточку
+     * задачи — та же механика, что в board.js renderCard (строка 199):
+     * модалка #task-detail-overlay + GET /api/tasks/{id} + комментарии
+     * (openTaskDetail ниже). */
+    card.addEventListener("click", function () {
+      openTaskDetail(task.id);
+    });
+
     return card;
+  }
+
+  /* --- Карточка задачи из результатов (BUG-001; FR-9/FR-10) --- */
+
+  function addDetailRow(dl, term, value) {
+    if (value === null || value === undefined || value === "") {
+      return;
+    }
+    dl.appendChild(el("dt", null, term));
+    var dd = el("dd");
+    dd.textContent = String(value); // textContent — не innerHTML (XSS)
+    dl.appendChild(dd);
+  }
+
+  function renderTaskDetail(task) {
+    document.getElementById("task-detail-title").textContent = task.title;
+
+    var dl = document.getElementById("task-detail-attrs");
+    dl.textContent = "";
+    addDetailRow(dl, "Описание", task.description);
+    addDetailRow(dl, "Приоритет", task.priority);
+    addDetailRow(dl, "Категория", task.category);
+    addDetailRow(dl, "Срок", task.due_date);
+    addDetailRow(dl, "Теги", (task.tags || []).join(", "));
+    addDetailRow(dl, "Fast line", task.is_fast ? "да" : null);
+    /* 6.2 (FR-4): бейдж «Архивная» при archived_at IS NOT NULL. */
+    document.getElementById("task-detail-archive-badge").hidden =
+      !task.archived_at;
+    hideError();
+  }
+
+  function renderComments(comments) {
+    var list = document.getElementById("task-comments-list");
+    list.textContent = "";
+    (comments || []).forEach(function (comment) {
+      var item = el("li", "task-comment");
+      var meta = ["id " + comment.id, comment.created_at]
+        .filter(function (part) {
+          return part !== undefined && part !== null && part !== "";
+        })
+        .join(" · ");
+      if (meta) {
+        item.appendChild(el("div", "task-comment-meta", meta));
+      }
+      var body = el("p", "task-comment-body");
+      body.textContent = comment.body; // textContent — не innerHTML (XSS)
+      item.appendChild(body);
+      list.appendChild(item);
+    });
+  }
+
+  function loadComments(taskId) {
+    api(
+      "/api/tasks/" + taskId + "/comments",
+      {},
+      showError,
+      function (body) {
+        renderComments(body && body.comments);
+      }
+    );
+  }
+
+  function openTaskDetail(taskId) {
+    if (typeof taskId !== "number" || !isFinite(taskId)) {
+      return;
+    }
+    var overlay = document.getElementById("task-detail-overlay");
+    overlay.dataset.taskId = String(taskId);
+    overlay.hidden = false;
+    renderComments([]);
+    /* GET /api/tasks/{id} — полный Task (sdd §3.2), затем комментарии. */
+    api(
+      "/api/tasks/" + taskId,
+      {},
+      showError,
+      function (task) {
+        renderTaskDetail(task);
+        loadComments(taskId);
+      }
+    );
+  }
+
+  function closeTaskDetail() {
+    document.getElementById("task-detail-overlay").hidden = true;
+  }
+
+  function submitComment(event) {
+    event.preventDefault();
+    var textarea = document.getElementById("comment-body");
+    var body = textarea.value.trim();
+    /* UI-валидация до отправки: текст обязателен (sdd §3.2, 422). */
+    if (!body) {
+      showError("Комментарий не может быть пустым.");
+      return;
+    }
+    var taskId = Number(
+      document.getElementById("task-detail-overlay").dataset.taskId
+    );
+    if (!isFinite(taskId)) {
+      showError("Карточка задачи не открыта.");
+      return;
+    }
+    api(
+      "/api/tasks/" + taskId + "/comments",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: body }),
+      },
+      showError,
+      function () {
+        textarea.value = "";
+        loadComments(taskId);
+      }
+    );
   }
 
   /* --- Режим 1: конструктор → GET /api/search --- */
@@ -346,5 +479,19 @@
     .getElementById("search-mode-advanced")
     .addEventListener("click", function () {
       setMode("advanced");
+    });
+  document
+    .getElementById("comment-form")
+    .addEventListener("submit", submitComment);
+  document
+    .getElementById("task-detail-close")
+    .addEventListener("click", closeTaskDetail);
+  /* Клик по подложке модалки (вне .modal) — закрыть (паттерн board.js). */
+  document
+    .getElementById("task-detail-overlay")
+    .addEventListener("click", function (event) {
+      if (event.target === event.currentTarget) {
+        closeTaskDetail();
+      }
     });
 })();
