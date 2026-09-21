@@ -20,6 +20,8 @@ pytestmark = [pytest.mark.api]
 
 
 @pytest.fixture
+# regression: keep — данные теста TC-API-SUGG-001 (FR-15/СЦ-1), постоянное
+# спек-поведение; fixture для keep-теста архивированию не подлежит.
 def sugg_fixtures(api):
     """Фикстура данных: задача с тегом и категорией (уникальный префикс —
     изоляция от чужих данных на общей БД стенда)."""
@@ -30,6 +32,8 @@ def sugg_fixtures(api):
 
 
 @pytest.mark.must
+# regression: keep — постоянное спек-поведение FR-15/СЦ-1 (формат ответа
+# и членство значений); эндпоинт постоянный, не разовый (impact-001 п.1).
 def test_suggestions_200_and_format(base_url, owner_session, sugg_fixtures):
     """TC-API-SUGG-001: GET /api/suggestions с сессией — 200, JSON-объект
     с единственным ключом "suggestions", значение — список строк; созданные
@@ -45,6 +49,8 @@ def test_suggestions_200_and_format(base_url, owner_session, sugg_fixtures):
 
 
 @pytest.mark.must
+# regression: keep — негатив 401 (FR-18, следствие NFR-7); безопасность
+# не подлежит архивированию никогда (impact-001 п.1).
 def test_suggestions_unauthorized(base_url):
     """TC-API-SUGG-002 (негативный): GET /api/suggestions без сессии — 401
     {"error": "unauthorized"} (единый текст middleware, sdd §3)."""
@@ -56,6 +62,8 @@ def test_suggestions_unauthorized(base_url):
 
 
 @pytest.mark.must
+# regression: keep — set-семантика (FR-16/СЦ-3), контрактное поведение
+# ответа; QAT-изоляция делает тест устойчивым к чужим данным (impact-001 п.1).
 def test_suggestions_unique(api, base_url, owner_session):
     """TC-API-SUGG-003 (set-семантика): пересечение тега и категории —
     значение входит в ответ ОДИН раз; дублей в списке нет."""
@@ -72,6 +80,8 @@ def test_suggestions_unique(api, base_url, owner_session):
 
 
 @pytest.mark.must
+# regression: keep — сортировка (FR-16/СЦ-4): инвариант списка, устойчив
+# к изменению состава данных стенда (impact-001 п.1).
 def test_suggestions_sorted(api, base_url, owner_session):
     """TC-API-SUGG-004 (сортировка): ответ отсортирован по возрастанию."""
     api.create_ok(
@@ -89,6 +99,8 @@ def test_suggestions_sorted(api, base_url, owner_session):
 
 
 @pytest.mark.must
+# regression: keep — объединение источников (FR-16/17/СЦ-5): membership-
+# ассерты по уникальным значениям двух задач, не хрупко (impact-001 п.1).
 def test_suggestions_union_of_tags_and_categories(api, base_url, owner_session):
     """TC-API-SUGG-005 (объединение): suggestion-list содержит И теги,
     И категории существующих задач; значения другой задачи не теряются."""

@@ -28,6 +28,8 @@ def _search_page(logged_in_page, web_base_url):
     return logged_in_page
 
 
+# regression: keep — FR-15/СЦ-8: привязка datalist к обоим полям + заполнение
+# option из живого ответа API; захардкоженных ожиданий нет (impact-001 п.1).
 def test_tag_hints_datalist_bound_and_filled(
     logged_in_page, web_base_url, web_owner_session, web_cleanup_created
 ):
@@ -72,6 +74,8 @@ def test_tag_hints_datalist_bound_and_filled(
     assert "QAT-UI-Тег" in actual
 
 
+# regression: keep — FR-16 в UI: дубль пересечения + порядок option;
+# источник истины — живой ответ API, QAT-значения изолированы (impact-001 п.1).
 def test_tag_hints_set_semantics_and_order(
     logged_in_page, web_base_url, web_owner_session, web_cleanup_created
 ):
@@ -106,3 +110,71 @@ def test_tag_hints_set_semantics_and_order(
         options.nth(i).text_content().strip() for i in range(options.count())
     ]
     assert actual_order == expected_sorted, "option'ы не в отсортированном порядке"
+
+
+# regression: keep — устойчивое поведение FR-17 (Scenario 7 спеки:
+# свободный ввод легитимен, источник подсказок не меняется).
+def test_free_input_does_not_change_suggestions_source(
+    logged_in_page, web_base_url, web_owner_session
+):
+    """TC-sugg-007 (CHK-S-7, негативный): свободный ввод вне datalist не
+    меняет источник подсказок — снимок S0 до == после (Scenario 7 спеки
+    add-suggestions)."""
+    # Предусловие: снимок S0 подсказок (HTTP 200).
+    snapshot = web_owner_session.get(f"{web_base_url}/api/suggestions")
+    assert snapshot.status_code == 200
+    s0 = snapshot.json()["suggestions"]
+
+    page = _search_page(logged_in_page, web_base_url)
+
+    # Шаг 1: поле «Теги» (доступное имя дословно «Теги (через запятую)» —
+    # minor №2 ревью-001; атрибут list="tag-hints", id #search-tags):
+    # ввод значения, которого нет в datalist. ARIA-роль input'а с атрибутом
+    # list — combobox (не textbox, как в тексте кейса).
+    tags_input = page.get_by_role("combobox", name="Теги (через запятую)")
+    expect(tags_input).to_have_attribute("list", "tag-hints")
+    tags_input.fill("QAT-SUGG-Новый-Свободный")
+    assert tags_input.input_value() == "QAT-SUGG-Новый-Свободный", (
+        "свободный ввод в поле «Теги» не принят (ввод не должен блокироваться)"
+    )
+
+    # Шаг 2: поле «Категория» (доступное имя «Категория», list="tag-hints",
+    # id #search-category) — аналогичный свободный ввод (ARIA-роль combobox).
+    category_input = page.get_by_role("combobox", name="Категория")
+    expect(category_input).to_have_attribute("list", "tag-hints")
+    category_input.fill("QAT-SUGG-Новая-Кат-Свободная")
+    assert category_input.input_value() == "QAT-SUGG-Новая-Кат-Свободная", (
+        "свободный ввод в поле «Категория» не принят"
+    )
+
+    # Шаг 3: перезагрузить страницу — loadSuggestions() выполнится повторно;
+    # в datalist нет опций со свободными значениями шагов 1–2.
+    page.reload()
+    expect(
+        page.get_by_role("button", name="Конструктор")
+    ).to_be_visible()
+    options = page.locator("#tag-hints option")
+    expect(options.filter(has_text="QAT-SUGG-Новый-Свободный")).to_have_count(0)
+    expect(options.filter(has_text="QAT-SUGG-Новая-Кат-Свободная")).to_have_count(0)
+
+    # Шаг 4: API-контроль — снимок идентичен S0 (подвыборка QAT-SUGG:
+    # ничего не появилось и не исчезло; префиксное сравнение — minor №3
+    # ревью-001, полный список на общем стенде может меняться посторонне).
+    after = web_owner_session.get(f"{web_base_url}/api/suggestions")
+    assert after.status_code == 200
+    s_after = after.json()["suggestions"]
+    assert sorted(s_after) == s_after
+
+    def subset(items):
+        return [s for s in items if s.startswith("QAT-SUGG")]
+
+    free_values = {"QAT-SUGG-Новый-Свободный", "QAT-SUGG-Новая-Кат-Свободная"}
+    assert not (set(subset(s_after)) - set(subset(s0))), (
+        "свободный ввод создал новые значения в источнике подсказок"
+    )
+    assert not (set(subset(s0)) - set(subset(s_after))), (
+        "значения подсказок исчезли после свободного ввода"
+    )
+    assert free_values.isdisjoint(s_after), (
+        "свободные значения шагов 1–2 попали в подсказки"
+    )
