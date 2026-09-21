@@ -30,6 +30,16 @@ jobs:
       - name: Flow check
         run: python3 scripts/flow_check.py .
 
+      - name: Lint Python (ruff)
+        run: |
+          pip install ruff==0.8.4
+          ruff check backend/app/
+
+      - name: Lint JS (eslint)
+        run: |
+          cd frontend
+          npx --yes eslint@8.57.0 -c .eslintrc.cjs --env browser,es2022 --parser-options=ecmaVersion:2022,sourceType:module static/js/
+
       - name: PR artifact validation (I3/I4)
         if: github.event_name == 'pull_request'
         run: |
