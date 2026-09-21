@@ -1,19 +1,20 @@
 {# Доска (tasks.md 4.3, 4.5; FR-1, FR-2, FR-5, FR-7, FR-9; sdd.md §3.2, §3.3,
    §3.6). Три неизменяемых столбца «Ожидает» / «В работе» / «Выполнено»
-   (ОГР-3); данные — GET /api/board из frontend/static/js/board.js.
+   (ОГР-3); данные — GET /api/board из ES-модулей
+   frontend/static/js/board/ (точка входа board-init.js).
    Карточки: title, priority-индикатор, category, due_date (FR-9).
    4.5 (FR-5, FR-7, FR-9): форма создания задачи (7 признаков, title
    обязателен — UI-валидация до отправки), карточка задачи (полные
    признаки + комментарии, GET/POST /api/tasks/{id}/comments),
    редактирование (PATCH), удаление с confirm (DELETE), перемещение
-   (POST /{id}/move). Вся динамика — из board.js; пользовательские
+   (POST /{id}/move). Вся динамика — из модулей board/; пользовательские
    данные (title, описание, комментарии) в HTML-разметку не входят —
-   рендер только через textContent (XSS, см. board.js).
+   рендер только через textContent (XSS, см. dom.js).
    Столбец «Выполнено» — реальный список задач (sdd r5 §3.3): done
-   сегодня по МСК; рендерит его тот же цикл board.js по data-cards.
+   сегодня по МСК; рендерит его тот же цикл cards.js по data-cards.
    5.2 (FR-3): выделенная линия fast line — светло-синяя прозрачная
    подсветка столбца с fast-задачей и ее карточки (CSS-классы
-   has-fast / task-card-fast ставит board.js); сообщение «fast line
+   has-fast / task-card-fast ставит cards.js); сообщение «fast line
    занята» при 409 выводится в task-form-error рядом с чекбоксом. #}
 {% extends "base.html" %}
 {% block title %}Доска{% endblock %}
@@ -116,5 +117,5 @@
     </section>
   </div>
 </div>
-<script src="/static/js/board.js"></script>
+<script type="module" src="/static/js/board/board-init.js"></script>
 {% endblock %}
