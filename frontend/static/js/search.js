@@ -462,6 +462,44 @@
     /* Результаты последнего поиска НЕ очищаются (задание 7.3, п.4). */
   }
 
+  /* --- Подсказки (Релиз 1, 1.3 / P4) --- */
+
+  /* GET /api/suggestions → {"suggestions": [...]} — множество (set,
+   * без дублей, отсортировано) из объединения тегов и категорий
+   * существующих задач (уточнение Заказчика). Заполняет datalist
+   * #tag-hints, привязанный к полям «Категория» и «Теги» конструктора.
+   * Сбой загрузки подсказки поиску не мешает: сообщение об ошибке не
+   * показываем, просто остается пустой datalist. */
+  function loadSuggestions() {
+    fetch("/api/suggestions")
+      .then(function (response) {
+        if (!response.ok) {
+          return null;
+        }
+        return response.json().catch(function () {
+          return null;
+        });
+      })
+      .then(function (body) {
+        if (!body || !Array.isArray(body.suggestions)) {
+          return;
+        }
+        var datalist = document.getElementById("tag-hints");
+        /* set-семантика на клиенте тоже: дубли из ответа в option не пишем. */
+        var seen = {};
+        body.suggestions.forEach(function (value) {
+          if (typeof value !== "string" || seen[value]) {
+            return;
+          }
+          seen[value] = true;
+          datalist.appendChild(el("option", null, value));
+        });
+      })
+      .catch(function () {
+        /* Подсказки — необязательное украшение: тихо остаемся без них. */
+      });
+  }
+
   /* --- Инициализация --- */
 
   document
@@ -494,4 +532,8 @@
         closeTaskDetail();
       }
     });
+
+  /* Подсказки тегов/категорий (Релиз 1, 1.3 / P4): загрузка множества
+   * при открытии вкладки поиска. */
+  loadSuggestions();
 })();

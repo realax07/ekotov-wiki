@@ -33,6 +33,12 @@
 <section id="search-builder" class="search-builder">
   <form id="search-builder-form">
     <div class="search-fields">
+      {# Подсказки (Релиз 1, 1.3 / P4): один datalist на оба текстовых поля
+         конструктора (категория, теги) — заполняется из GET /api/suggestions
+         (tags ∪ categories, set-семантика) в search.js; только уже
+         заведенные значения проекта, ввод новых datalist не запрещает
+         (фильтр свободный), но список всегда из существующего. #}
+      <datalist id="tag-hints"></datalist>
       <label>Приоритет
         <select id="search-priority">
           <option value="">любой</option>
@@ -42,10 +48,10 @@
         </select>
       </label>
       <label>Категория
-        <input type="text" id="search-category" placeholder="любая">
+        <input type="text" id="search-category" placeholder="любая" list="tag-hints">
       </label>
       <label>Теги (через запятую)
-        <input type="text" id="search-tags" placeholder="home, urgent">
+        <input type="text" id="search-tags" placeholder="home, urgent" list="tag-hints">
       </label>
       <label>Срок не позднее
         <input type="date" id="search-due-before">
