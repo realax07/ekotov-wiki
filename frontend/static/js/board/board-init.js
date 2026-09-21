@@ -16,7 +16,6 @@ import { refreshBoard, setCardClickHandler } from "./cards.js";
 import { openCreateForm, submitTaskForm, closeTaskForm } from "./task-form.js";
 import {
   openTaskDetail,
-  closeTaskDetail,
   initTaskDetailControls,
 } from "./task-detail.js";
 

@@ -577,7 +577,7 @@ async def search_advanced(request: Request) -> JSONResponse:
     """
     try:
         body = await request.json()
-    except Exception:  # json.JSONDecodeError и не-JSON-тело вообще
+    except Exception:  # noqa: BLE001 — прием любого тела; невалидный JSON = 400 (задача 7.2)
         return JSONResponse(
             status_code=400,
             content={"error": "filter syntax: invalid JSON body"},

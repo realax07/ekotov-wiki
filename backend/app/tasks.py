@@ -38,8 +38,8 @@ from datetime import date, datetime, timezone
 from typing import Any, Literal
 
 from fastapi import APIRouter, Request
-from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 

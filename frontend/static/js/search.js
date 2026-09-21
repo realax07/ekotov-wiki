@@ -32,7 +32,6 @@
   "use strict";
 
   var mode = "builder"; // активный режим: builder | advanced
-  var lastSearchMode = null; // каким режимом получены текущие результаты
 
   function el(tag, className, text) {
     var node = document.createElement(tag);
@@ -129,10 +128,10 @@
 
   /* --- Рендер результатов (общий для обоих режимов; XSS-safe) --- */
 
-  function renderResults(tasks, searchMode) {
+    /* searchMode — параметр API рендера (advanced/builder); отображение режима — future P8 */
+  function renderResults(tasks, searchMode) { // eslint-disable-line no-unused-vars
     var container = document.getElementById("search-results");
     container.textContent = "";
-    lastSearchMode = searchMode;
     if (!tasks || !tasks.length) {
       container.appendChild(
         el("p", "search-empty", "Ничего не найдено")

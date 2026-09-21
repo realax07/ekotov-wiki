@@ -30,7 +30,7 @@ Scenario «Комментарии к задаче»).
 
 import sqlite3
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
