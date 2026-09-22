@@ -58,3 +58,17 @@ def wiki_page(request: Request):
     return templates.TemplateResponse(
         request=request, name="wiki.html", context={"active_page": "wiki"}
     )
+
+
+@router.get("/settings")
+def settings_page(request: Request):
+    """Настройки (tasks.md 2.1 пакета add-r2-categories-settings; FR-23,
+    дельта settings): управление справочником категорий через
+    /api/categories. Без сессии — редирект на /login middleware'ом
+    (дельта settings, Scenario «Негативный: неавторизованный доступ»),
+    здесь не дублируется. Настройки общие (FR-24): состояние — общая
+    таблица categories, user_id не используется; состав — только категории
+    (FR-25, Won't остального)."""
+    return templates.TemplateResponse(
+        request=request, name="settings.html", context={"active_page": "settings"}
+    )

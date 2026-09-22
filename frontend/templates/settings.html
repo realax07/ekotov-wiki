@@ -1,0 +1,34 @@
+{# Настройки (tasks.md 2.1 пакета add-r2-categories-settings; FR-23…FR-25,
+   дельта settings). Состав страницы — только управление справочником
+   категорий (FR-25, Scenario «В настройках доступно только управление
+   категориями»); профиля, смены пароля, справочника тегов нет (Won't).
+   Список — GET /api/categories; создание/переименование/удаление —
+   POST/PATCH/DELETE того же API (существующий CRUD, задач 1.1).
+   409 «используется» (Д-1) — сообщение с числом задач из details.tasks.
+   Пользовательские данные (имена категорий) — только через textContent
+   (XSS-паттерн search.js/dom.js). Настройки общие (FR-24): справочник
+   один на систему, состояние в общей таблице — без user_id. #}
+{% extends "base.html" %}
+{% block title %}Настройки{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/settings.css">
+<h1>Настройки</h1>
+
+<section class="settings-section" aria-labelledby="settings-categories-title">
+  <h2 id="settings-categories-title">Категории</h2>
+  <p class="settings-hint">Общий справочник категорий задач. Переименование применяется ко всем задачам; удаление используемой категории блокируется.</p>
+
+  <form id="category-create-form" class="category-create">
+    <label>Новая категория
+      <input type="text" id="category-new-name" placeholder="например, home">
+    </label>
+    <button type="submit" id="category-create-submit">Создать</button>
+  </form>
+  <p id="settings-error" class="form-error" hidden></p>
+  <p id="settings-success" class="form-success" hidden></p>
+
+  <ul id="category-list" class="category-list"></ul>
+</section>
+
+<script src="/static/js/settings.js"></script>
+{% endblock %}
