@@ -73,7 +73,11 @@ def test_search_archived_task_builder_advanced_card(
     """TC-UI-017: поиск архивной задачи — конструктор (только совпавшие,
     бейдж «Архивная») → advanced (SQL-текст фильтра, правка применяется,
     нормализованный фильтр показан) → карточка архивной задачи открывается
-    с признаками."""
+    с признаками.
+
+    CHK-146/TC-UI-017-update: категория в фильтре-конструкторе — select из
+    справочника (FR-19/FR-30), ввод только select_option (ни одного .fill()
+    на поле категории); «Дом» гарантирована seed'ом (CHK-139)."""
     today, yesterday = _msk_dates()
 
     # Подготовка (вариант Б): задача → done → done_at вчера → автоархивация.
@@ -99,9 +103,10 @@ def test_search_archived_task_builder_advanced_card(
     expect(fast_card).to_be_visible()
     web_cleanup_created(int(fast_card.get_attribute("data-task-id")))
 
-    # Шаг 1–2: конструктор — категория «Дом», только архивные.
+    # Шаг 1–2: конструктор — категория «Дом» (select из справочника,
+    # select_option вместо fill — CHK-146), только архивные.
     page.goto(f"{web_base_url}/search")
-    page.get_by_label("Категория").fill("Дом")
+    page.get_by_label("Категория").select_option("Дом")
     page.get_by_label("Архивность").select_option("true")
     page.locator("#search-builder").get_by_role("button", name="Найти").click()
 
