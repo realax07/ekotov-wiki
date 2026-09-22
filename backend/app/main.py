@@ -6,6 +6,7 @@ from starlette.responses import JSONResponse
 from app.auth import SESSION_COOKIE_NAME
 from app.auth import router as auth_router
 from app.board import router as board_router
+from app.categories import router as categories_router
 from app.comments import router as comments_router
 from app.config import settings  # noqa: F401 — валидация конфига на старте
 from app.db import get_connection
@@ -20,6 +21,7 @@ app = FastAPI(title="ekotov-wiki", docs_url=None, redoc_url=None, openapi_url=No
 app.include_router(auth_router)
 app.include_router(pages_router)
 app.include_router(tasks_router)
+app.include_router(categories_router)
 app.include_router(comments_router)
 app.include_router(board_router)
 app.include_router(search_router)

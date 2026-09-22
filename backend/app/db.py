@@ -42,6 +42,11 @@ CREATE TABLE IF NOT EXISTS tasks (
   updated_at  TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS categories (
+  id   INTEGER PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL              -- справочник един (ОГР-7, Д-2: дубль по регистру — другая запись)
+);
+
 CREATE TABLE IF NOT EXISTS tags (
   id    INTEGER PRIMARY KEY,
   name  TEXT UNIQUE NOT NULL
@@ -65,6 +70,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_status_is_fast ON tasks(status, is_fast);
 CREATE INDEX IF NOT EXISTS idx_tasks_archived_at ON tasks(archived_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_done_at ON tasks(done_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
+CREATE INDEX IF NOT EXISTS idx_tasks_category ON tasks(category); -- Д-1 (проверка использования), NFR-8 (сверка миграции), sdd r2 §2
 CREATE INDEX IF NOT EXISTS idx_task_tags_tag_id ON task_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_comments_task_id ON comments(task_id);
 """
