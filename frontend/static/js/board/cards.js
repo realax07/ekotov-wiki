@@ -1,5 +1,9 @@
 /* Рендер доски и карточек (P6: извлечено из board.js; tasks.md 4.3,
- * 4.5, 5.2; FR-1, FR-2, FR-9).
+ * 4.5, 5.2 Релиза 1, 2.5; FR-1, FR-2, FR-9, FR-29).
+ *
+ * 2.5 (FR-29, ОГР-8): бейдж приоритета на карточке — пилюля с цветом,
+ * inline SVG-иконкой (↓/=/↑, priority-icons.js) и текстом «Низкий/
+ * Средний/Высокий» — различим без цвета; без внешних библиотек.
  *
  * 4.3: карточки (title, priority-индикатор, category, due_date — FR-9).
  * 5.2 (FR-3): fast line подсвечена светло-синим прозрачным (столбец с
@@ -18,6 +22,7 @@
 import { el, showBoardError } from "./dom.js";
 import { api } from "./api.js";
 import { COLUMNS } from "./state.js";
+import { createPriorityIcon, priorityLabel } from "./priority-icons.js";
 
 export { showBoardError } from "./dom.js";
 
@@ -47,9 +52,14 @@ export function renderCard(task) {
 
   var header = el("div", "task-card-header");
   if (task.priority) {
-    header.appendChild(
-      el("span", "task-priority-badge priority-" + task.priority, task.priority)
+    /* 5.2 (FR-29, ОГР-8): бейдж приоритета — пилюля «цвет + inline SVG
+     * (↓/=/↑) + текст»; различим без цвета (иконка + текст). */
+    var badge = el("span", "task-priority-badge priority-" + task.priority);
+    badge.appendChild(createPriorityIcon(task.priority, 10, 2.5));
+    badge.appendChild(
+      document.createTextNode(priorityLabel(task.priority))
     );
+    header.appendChild(badge);
   }
   if (task.is_fast) {
     header.appendChild(el("span", "task-fast-badge", "fast"));

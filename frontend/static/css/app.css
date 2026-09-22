@@ -1,24 +1,101 @@
-/* Каркас интерфейса (tasks.md 3.1; sdd.md §3.6): сайдбар + контент.
-   Минимально: вертикальный сайдбар, подсветка активного раздела (.active),
-   бейдж todo у Wiki. */
+/* Каркас интерфейса (задача 2.5, tasks.md 5.1–5.3; FR-28, FR-29, Д-5):
+ * единый стиль V3 «Бумага» на ВСЮ доску (карточки + колонки + форма —
+ * решение Заказчика Д-5), эталон — design/form-style-v3.html + design/README.md.
+ * Дизайн-токены V3 — CSS custom properties в :root (primitives → semantic);
+ * страница целиком на системных шрифтах (ОГР-8: без внешних зависимостей).
+ * focus-visible, prefers-reduced-motion — на всех контролах. */
+
+:root {
+  /* primitives (V3 «Бумага») */
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;   /* терракотовый акцент, AA на бумажном фоне */
+  --p-clay-700: #93391f;   /* hover акцента */
+  --p-clay-050: #f7e8e4;
+  --p-red-700: #9c3524;
+  --p-red-050: #f8ecea;
+  --p-olive-700: #5f6f34;
+  --p-amber-700: #8a5a1e;
+  --p-blue-700: #33608c;   /* fast line */
+  --p-blue-050: #eef2f6;
+  --p-blue-200: #c9d6e2;
+
+  /* semantic */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-text-on-accent: #fff;
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-bg-subtle: var(--p-paper-100);
+  --color-border-default: var(--p-paper-200);
+  --color-border-strong: var(--p-ink-600);
+  --color-accent: var(--p-clay-600);
+  --color-accent-hover: var(--p-clay-700);
+  --color-accent-soft: var(--p-clay-050);
+  --status-error: var(--p-red-700);
+  --status-error-bg: var(--p-red-050);
+  --status-success: var(--p-olive-700);
+  --priority-high: var(--p-red-700);
+  --priority-medium: var(--p-amber-700);
+  --priority-low: var(--p-olive-700);
+  --priority-high-soft: #f6ebe8;
+  --priority-medium-soft: #f4ecdf;
+  --priority-low-soft: #eff1e4;
+
+  /* spacing — 8px сетка */
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+
+  /* geometry */
+  --radius-field: 6px;
+  --radius-card: 10px;
+
+  /* elevation */
+  --shadow-modal: 0 16px 40px rgba(61, 54, 48, 0.18);
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+
+  /* typography */
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --speed-fast: 160ms;
+  --speed-modal: 220ms;
+}
+
 * { box-sizing: border-box; }
 
 body.app-shell {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
   display: flex;
   min-height: 100vh;
 }
 
+/* --- Сайдбар (V3: глубокий «чернильный», активный раздел — терракота) --- */
+
 .sidebar {
   width: 200px;
   flex-shrink: 0;
-  background: #2c3e50;
-  color: #ecf0f1;
+  background: var(--p-ink-900);
+  color: var(--p-paper-050);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 16px 0;
+  padding: var(--space-2) 0;
 }
 
 .sidebar-nav { display: flex; flex-direction: column; }
@@ -26,23 +103,33 @@ body.app-shell {
 .nav-item {
   display: block;
   padding: 10px 20px;
-  color: #ecf0f1;
+  color: var(--p-paper-050);
   text-decoration: none;
+  opacity: 0.85;
 }
 
-.nav-item:hover { background: #34495e; }
+.nav-item:hover { background: rgba(255, 253, 249, 0.08); opacity: 1; }
 
-.nav-item.active { background: #1abc9c; font-weight: bold; }
+.nav-item.active {
+  background: var(--color-accent);
+  opacity: 1;
+  font-weight: bold;
+}
+
+.nav-item:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
 
 .todo-badge {
   display: inline-block;
   margin-left: 6px;
   padding: 1px 6px;
-  font-size: 11px;
+  font-size: var(--font-size-micro);
   font-weight: normal;
-  background: #e67e22;
+  background: var(--p-amber-700);
   color: #fff;
-  border-radius: 8px;
+  border-radius: 999px;
   vertical-align: middle;
 }
 
@@ -52,20 +139,43 @@ body.app-shell {
   width: 100%;
   padding: 8px;
   background: transparent;
-  color: #ecf0f1;
-  border: 1px solid #7f8c8d;
-  border-radius: 4px;
+  color: var(--p-paper-050);
+  border: 1px solid var(--p-ink-600);
+  border-radius: var(--radius-field);
   cursor: pointer;
+  font: inherit;
 }
 
-.logout-button:hover { background: #34495e; }
+.logout-button:hover { background: rgba(255, 253, 249, 0.08); }
 
-.content { flex: 1; padding: 24px; }
+.logout-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.content {
+  flex: 1;
+  padding: var(--space-3);
+  min-width: 0;
+}
+
+/* Заголовки страниц — серифные (V3). */
+.content h1 {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 26px;
+  margin: 0 0 var(--space-2);
+}
+
+.content h2 {
+  font-family: var(--font-family-display);
+  font-weight: 600;
+}
 
 .todo-note {
   display: inline-block;
   padding: 2px 8px;
-  background: #e67e22;
+  background: var(--p-amber-700);
   color: #fff;
   border-radius: 4px;
   font-weight: bold;

@@ -19,12 +19,17 @@
    3.1 (FR-19, FR-21, FR-29, FR-30): поле категории формы — select,
    опции из GET /api/categories (task-form.js); при 422 жесткой
    валидации категории поле подсвечивается как невалидное
-   (класс field-invalid, текст в task-category-error). #}
+   (класс field-invalid, текст в task-category-error).
+   2.5 (FR-28, FR-29, Д-5): единый стиль V3 «Бумага» на всю доску
+   (app.css/board.css); крестик закрытия формы 40×40px в правом
+   верхнем углу (task-form-close, board-init.js); селект приоритета —
+   в пилюле .priority-field-pill с цветом выбранного значения;
+   SVG-иконки/бейджи приоритетов на карточках — cards.js (5.2). #}
 {% extends "base.html" %}
 {% block title %}Доска{% endblock %}
 {% block content %}
-<h1>Доска</h1>
-<p><button type="button" id="create-task-button">Создать задачу</button></p>
+<h1 class="page-title">Доска</h1>
+<p><button type="button" id="create-task-button" class="btn btn-primary">Создать задачу</button></p>
 <div id="board" class="board" data-loaded="false">
   <section class="board-column" id="column-todo" data-status="todo">
     <h2 class="board-column-title">Ожидает</h2>
@@ -49,6 +54,14 @@
    задача НЕ создается — обработка в board.js. #}
 <div id="task-form-overlay" class="modal-overlay" hidden>
   <form id="task-form" class="modal task-form">
+    {# 5.1 (FR-28): крестик закрытия в правом верхнем углу, зона клика
+       40×40px (стиль .modal-close); закрывает окно без сохранения
+       (тот же closeTaskForm, что и «Отмена» — board-init.js). #}
+    <button type="button" id="task-form-close" class="modal-close" aria-label="Закрыть форму без сохранения">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <path d="M3 3l10 10M13 3L3 13"/>
+      </svg>
+    </button>
     <h2 id="task-form-heading">Создание задачи</h2>
     <p id="task-form-error" class="form-error" hidden></p>
     <label>Название *
@@ -57,13 +70,19 @@
     <label>Описание
       <textarea id="task-description" name="description" rows="3"></textarea>
     </label>
+    {# 5.2 (FR-29): приоритеты — цвет + иконка. Нативный select сохранен
+       (контракт task-form.js 4.5 и e2e), обернут в .priority-field-pill:
+       цвет пилюли следует выбранному значению (:has(:checked)); текст
+       опций («Низкий/Средний/Высокий») — различимость без цвета. #}
     <label>Приоритет
-      <select id="task-priority" name="priority">
-        <option value="">—</option>
-        <option value="low">low</option>
-        <option value="medium">medium</option>
-        <option value="high">high</option>
-      </select>
+      <span class="priority-field-pill">
+        <select id="task-priority" name="priority">
+          <option value="">—</option>
+          <option value="low">Низкий</option>
+          <option value="medium">Средний</option>
+          <option value="high">Высокий</option>
+        </select>
+      </span>
     </label>
     <label>Категория
       <select id="task-category" name="category">
