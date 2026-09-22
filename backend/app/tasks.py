@@ -263,6 +263,22 @@ def _priority_lock_422(is_fast: bool, priority: str | None) -> JSONResponse | No
     return None
 
 
+def _explicit_null_priority_422(body: Any) -> JSONResponse | None:
+    """BUG-002 (TC-fast2-004, CHK-130): «явный null» ≠ «поле отсутствует».
+
+    pydantic не различает их в значении (None в обоих случаях) — единственный
+    источник различия: model_fields_set. Если "priority" передан в теле со
+    значением null и is_fast=true — это явное значение ≠ high → 422
+    FAST_REQUIRES_HIGH_422 (sdd r2 §3.2; эскалация (а) impact-001).
+    Используется только в create_task: у TaskUpdate null-очистка приоритета
+    обычной задачи легальна, а PATCH на fast-задаче уже отклоняет любое
+    значение ≠ high, включая null («priority» in model_fields_set).
+    """
+    if "priority" in body.model_fields_set and body.priority is None:
+        return JSONResponse(status_code=422, content=FAST_REQUIRES_HIGH_422)
+    return None
+
+
 @router.post("", status_code=201)
 def create_task(body: TaskCreate) -> JSONResponse:
     """Создание задачи (sdd §3.2): 201 + Task; 422 — нет/пустое название;
@@ -282,6 +298,12 @@ def create_task(body: TaskCreate) -> JSONResponse:
         # приоритетом ≠ high → 422 (отклонение, не молчаливая правка);
         # fast без priority → приоритет 'high' (инвариант is_fast ⇒ high).
         invalid = _priority_lock_422(body.is_fast, body.priority)
+        if invalid is not None:
+            return invalid
+        # BUG-002: явный null при is_fast — тоже «значение ≠ high» (CHK-130);
+        # проверка в той же группе валидаций тела, ДО 409 fast line (порядок
+        # как в TC-fast2-012/CHK-138: валидации priority — до занятости линии).
+        invalid = _explicit_null_priority_422(body) if body.is_fast else None
         if invalid is not None:
             return invalid
         priority = "high" if body.is_fast else body.priority
