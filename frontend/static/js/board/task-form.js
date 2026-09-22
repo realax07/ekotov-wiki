@@ -13,6 +13,17 @@
  * селект-полях»). При 422 жесткой валидации категории (FR-21) поле
  * подсвечивается как невалидное с сообщением (подсветка снимается при
  * изменении значения и при следующем открытии формы).
+ *
+ * 4.1 (FR-26, Д-3): поле «Теги» — автодополнение через datalist
+ * task-tag-hints, заполняемый из существующего GET /api/suggestions
+ * (set() из тегов+категорий существующих задач; механизм един с
+ * подсказками поиска — изменений эндпоинта нет, sdd r2 §3.2). Выбор
+ * существующего значения ИЛИ ввод нового: datalist не ограничивает
+ * ввод, новое значение сохраняется как тег обычным образом
+ * (_set_tags, get-or-create). Подсказки перезагружаются при каждом
+ * открытии формы (следуют за заведенными значениями). Сбой загрузки
+ * оставляет datalist пустым — автодополнение не работает, ввод тегов
+ * не блокируется.
  */
 "use strict";
 
@@ -40,6 +51,40 @@ function splitTags(raw) {
 
 function categoryField() {
   return document.getElementById(CATEGORY_FIELD_ID);
+}
+
+/* --- Автодополнение тегов: datalist из GET /api/suggestions (4.1, FR-26/Д-3) --- */
+
+function fillTagHints(values) {
+  /* Опции datalist — только через textContent (XSS, dom.js); полная
+   * перезагрузка при каждом открытии формы (следует за заведенными
+   * значениями, как и select категории за справочником). */
+  var datalist = document.getElementById("task-tag-hints");
+  datalist.textContent = "";
+  values.forEach(function (value) {
+    var option = el("option", null, value);
+    option.value = value;
+    datalist.appendChild(option);
+  });
+}
+
+function loadTagHints() {
+  /* Источник — существующий GET /api/suggestions (Д-3: механизм един
+   * с подсказками поиска; sdd r2 §3.2 — эндпоинт без изменений).
+   * Ответ 200: {"suggestions": [...]} — set() тегов+категорий
+   * существующих задач, без дублей, отсортировано. Сбой (в т.ч. 401
+   * при истекшей сессии) — datalist пустой: подсказки не показываются,
+   * свободный ввод тегов сохраняется (новое значение — тег, FR-26). */
+  api(
+    "/api/suggestions",
+    {},
+    function () {
+      fillTagHints([]);
+    },
+    function (body) {
+      fillTagHints((body && body.suggestions) || []);
+    }
+  );
 }
 
 /* --- Категория: select из GET /api/categories (3.1, FR-19/FR-30) --- */
@@ -143,6 +188,7 @@ function fillTaskForm(task) {
 function clearTaskForm() {
   fillTaskForm({ tags: [] });
   loadCategoryOptions(null);
+  loadTagHints();
 }
 
 export function openCreateForm() {
@@ -171,6 +217,9 @@ export function openEditForm(task) {
    * Сохранение такой задачи в прежнем виде отклонится 422 (FR-21) —
    * с подсветкой поля. */
   loadCategoryOptions(task.category);
+  /* Подсказки тегов — и в режиме редактирования: те же заведенные
+   * значения (FR-26 действует на форму в обоих режимах). */
+  loadTagHints();
   hideError("task-form-error");
   clearCategoryInvalid();
   /* Закрыть карточку, если открыта (тело closeTaskDetail дословно;

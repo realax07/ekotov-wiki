@@ -7,6 +7,11 @@
   Ошибки: 422 — нет названия. 409 {"error": "fast line occupied"} —
   is_fast=true при наличии активной (todo/in_progress) fast-задачи
   (задача 5.1; проверка + вставка — одна транзакция, design.md §4).
+  Priority-lock (Релиз 2, 4.2; FR-27, ОГР-10): is_fast=true с явным
+  priority ≠ high → 422 {"error": "validation", "details": {"priority":
+  "fast requires high"}} (дословно sdd r2 §3.2); is_fast=true без
+  priority → приоритет 'high'. PATCH: изменение priority существующей
+  fast-задачи — тот же 422 (инвариант is_fast ⇒ high).
 - GET: Task; 404 на несуществующий id.
 - PATCH: частичное обновление — только переданные поля; 200 Task; ошибки 404, 422.
   status в PATCH не входит: статус меняется через POST /{id}/move (sdd §3.2),
@@ -234,6 +239,30 @@ def _category_not_in_directory_422(
     return None
 
 
+# Тело 422 priority-lock (FR-27, ОГР-10) — дословно sdd r2 §3.2.
+FAST_REQUIRES_HIGH_422 = {
+    "error": "validation",
+    "details": {"priority": "fast requires high"},
+}
+
+
+def _priority_lock_422(is_fast: bool, priority: str | None) -> JSONResponse | None:
+    """Priority-lock fast line (FR-27, ОГР-10; tasks.md 4.2; design.md §4).
+
+    Инвариант is_fast ⇒ priority='high': явный приоритет, отличный от
+    high, при is_fast=true отклоняется 422 FAST_REQUIRES_HIGH_422
+    (дословно sdd r2 §3.2) — отклонение, а НЕ молчаливая правка
+    (наблюдаемое поведение дельты fastline, негативные сценарии «fast-задача
+    с приоритетом не-high через API» и «снятие блокировки в UI не меняет
+    приоритет»). is_fast=true без priority (NULL) проходит — приоритет
+    устанавливается 'high' вызывающим кодом (sdd r2 §3.2).
+    Обычная (не fast) задача любым приоритетом не ограничена.
+    """
+    if is_fast and priority is not None and priority != "high":
+        return JSONResponse(status_code=422, content=FAST_REQUIRES_HIGH_422)
+    return None
+
+
 @router.post("", status_code=201)
 def create_task(body: TaskCreate) -> JSONResponse:
     """Создание задачи (sdd §3.2): 201 + Task; 422 — нет/пустое название;
@@ -249,6 +278,13 @@ def create_task(body: TaskCreate) -> JSONResponse:
         invalid = _category_not_in_directory_422(conn, body.category)
         if invalid is not None:
             return invalid
+        # Priority-lock (FR-27, ОГР-10; design.md §4): fast с явным
+        # приоритетом ≠ high → 422 (отклонение, не молчаливая правка);
+        # fast без priority → приоритет 'high' (инвариант is_fast ⇒ high).
+        invalid = _priority_lock_422(body.is_fast, body.priority)
+        if invalid is not None:
+            return invalid
+        priority = "high" if body.is_fast else body.priority
         now = _utcnow()
         try:
             if body.is_fast:
@@ -268,7 +304,7 @@ def create_task(body: TaskCreate) -> JSONResponse:
                 (
                     body.title,
                     body.description,
-                    body.priority,
+                    priority,
                     body.category,
                     body.due_date.isoformat() if body.due_date is not None else None,
                     int(body.is_fast),
@@ -326,6 +362,15 @@ def update_task(task_id: int, body: TaskUpdate) -> JSONResponse:
             invalid = _category_not_in_directory_422(conn, body.category)
             if invalid is not None:
                 return invalid
+
+        # Priority-lock в PATCH (FR-27, ОГР-10 — инвариант is_fast ⇒ high):
+        # is_fast в PATCH не входит (fast назначается только при создании,
+        # ОГР-5), но PATCH может ИЗМЕНИТЬ приоритет существующей fast-задачи.
+        # Любое значение ≠ high — включая NULL («очистить признак») —
+        # отклоняется 422: NULL не равен high (дельта fastline считает
+        # отклоняемым «low», «medium» ИЛИ NULL). Обычные задачи не ограничены.
+        if "priority" in body.model_fields_set and bool(row[6]) and body.priority != "high":
+            return JSONResponse(status_code=422, content=FAST_REQUIRES_HIGH_422)
 
         updates: dict[str, Any] = {}
         for name in ("title", "description", "priority", "category"):
