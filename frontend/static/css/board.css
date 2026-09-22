@@ -197,6 +197,20 @@
   font-size: 13px;
 }
 
+/* Состояние ошибки поля (3.1, FR-29: подсветка невалидной категории
+ * при 422 жесткой валидации; ставится task-form.js). */
+.task-form .field-invalid {
+  border-color: #c0392b;
+  outline: 1px solid #c0392b;
+}
+
+.field-error {
+  display: block;
+  color: #c0392b;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
 .task-detail-attrs {
   margin: 10px 0;
 }
