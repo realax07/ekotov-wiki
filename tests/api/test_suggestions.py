@@ -20,15 +20,21 @@ pytestmark = [pytest.mark.api]
 
 
 @pytest.fixture
-# regression: keep — данные теста TC-API-SUGG-001 (FR-15/СЦ-1), постоянное
-# спек-поведение; fixture для keep-теста архивированию не подлежит.
-def sugg_fixtures(api):
+def sugg_fixtures(api, r2_seed_categories):
     """Фикстура данных: задача с тегом и категорией (уникальный префикс —
-    изоляция от чужих данных на общей БД стенда)."""
+    изоляция от чужих данных на общей БД стенда). R2: справочник общесистемный
+    (FR-21, 422 not in categories) — фикстура заведет свою QAT-категорию в
+    справочнике и уберет ее в teardown (cleanup фикстуры r2)."""
+    category_directory = r2_seed_categories
+    created_id = category_directory.create_ok("QAT-Категория-1")["id"]
     task = api.create_ok(
         "QAT-SUGG-источник", category="QAT-Категория-1", tags=["QAT-Тег-1"]
     )
-    return task
+    try:
+        yield task
+    finally:
+        api.delete(task["id"])
+        category_directory.delete(created_id)
 
 
 @pytest.mark.must
@@ -64,10 +70,13 @@ def test_suggestions_unauthorized(base_url):
 @pytest.mark.must
 # regression: keep — set-семантика (FR-16/СЦ-3), контрактное поведение
 # ответа; QAT-изоляция делает тест устойчивым к чужим данным (impact-001 п.1).
-def test_suggestions_unique(api, base_url, owner_session):
+def test_suggestions_unique(api, base_url, owner_session, r2_seed_categories):
     """TC-API-SUGG-003 (set-семантика): пересечение тега и категории —
-    значение входит в ответ ОДИН раз; дублей в списке нет."""
-    api.create_ok(
+    значение входит в ответ ОДИН раз; дублей в списке нет.
+
+    R2: QAT-Общее заводится в справочнике (FR-21) и убирается в teardown."""
+    created_id = r2_seed_categories.create_ok("QAT-Общее")["id"]
+    task = api.create_ok(
         "QAT-SUGG-пересечение",
         category="QAT-Общее",  # категория = тегу: пересечение
         tags=["QAT-Общее"],
@@ -77,14 +86,22 @@ def test_suggestions_unique(api, base_url, owner_session):
     suggestions = resp.json()["suggestions"]
     assert len(suggestions) == len(set(suggestions)), "есть дубли"
     assert suggestions.count("QAT-Общее") == 1
+    # teardown r2: задача без категории → категория свободна → удалить
+    api.patch(task["id"], category="Дом")
+    api.delete(task["id"])
+    r2_seed_categories.untrack(created_id)
+    assert r2_seed_categories.delete(created_id).status_code == 200
 
 
 @pytest.mark.must
 # regression: keep — сортировка (FR-16/СЦ-4): инвариант списка, устойчив
 # к изменению состава данных стенда (impact-001 п.1).
-def test_suggestions_sorted(api, base_url, owner_session):
-    """TC-API-SUGG-004 (сортировка): ответ отсортирован по возрастанию."""
-    api.create_ok(
+def test_suggestions_sorted(api, base_url, owner_session, r2_seed_categories):
+    """TC-API-SUGG-004 (сортировка): ответ отсортирован по возрастанию.
+
+    R2: QAT-якорь заводится в справочнике (FR-21), cleanup в конце теста."""
+    category_id = r2_seed_categories.create_ok("QAT-якорь")["id"]
+    task = api.create_ok(
         "QAT-SUGG-сортировка",
         category="QAT-якорь",  # буква «я» — конец сортировки
         tags=["QAT-Альфа"],
@@ -96,18 +113,36 @@ def test_suggestions_sorted(api, base_url, owner_session):
     idx_alpha = suggestions.index("QAT-Альфа")
     idx_yakor = suggestions.index("QAT-якорь")
     assert idx_alpha < idx_yakor
+    # teardown r2: освободить и удалить категорию
+    api.patch(task["id"], category="Дом")
+    api.delete(task["id"])
+    r2_seed_categories.untrack(category_id)
+    assert r2_seed_categories.delete(category_id).status_code == 200
 
 
 @pytest.mark.must
 # regression: keep — объединение источников (FR-16/17/СЦ-5): membership-
 # ассерты по уникальным значениям двух задач, не хрупко (impact-001 п.1).
-def test_suggestions_union_of_tags_and_categories(api, base_url, owner_session):
+def test_suggestions_union_of_tags_and_categories(api, base_url, owner_session, r2_seed_categories):
     """TC-API-SUGG-005 (объединение): suggestion-list содержит И теги,
-    И категории существующих задач; значения другой задачи не теряются."""
-    api.create_ok("QAT-SUGG-А", category="QAT-Кат-А", tags=["QAT-Тег-А"])
-    api.create_ok("QAT-SUGG-Б", category="QAT-Кат-Б", tags=["QAT-Тег-Б"])
+    И категории существующих задач; значения другой задачи не теряются.
+
+    R2: QAT-Кат-А/Б заводятся в справочнике (FR-21), cleanup в конце."""
+    id_a = r2_seed_categories.create_ok("QAT-Кат-А")["id"]
+    id_b = r2_seed_categories.create_ok("QAT-Кат-Б")["id"]
+    task_a = api.create_ok("QAT-SUGG-А", category="QAT-Кат-А", tags=["QAT-Тег-А"])
+    task_b = api.create_ok("QAT-SUGG-Б", category="QAT-Кат-Б", tags=["QAT-Тег-Б"])
     resp = owner_session.get(f"{base_url}/api/suggestions")
     assert resp.status_code == 200
     suggestions = resp.json()["suggestions"]
     for value in ("QAT-Кат-А", "QAT-Тег-А", "QAT-Кат-Б", "QAT-Тег-Б"):
         assert value in suggestions, f"{value} отсутствует в множестве"
+    # teardown r2: освободить и удалить категории
+    api.patch(task_a["id"], category="Дом")
+    api.patch(task_b["id"], category="Дом")
+    api.delete(task_a["id"])
+    api.delete(task_b["id"])
+    r2_seed_categories.untrack(id_a)
+    r2_seed_categories.untrack(id_b)
+    assert r2_seed_categories.delete(id_a).status_code == 200
+    assert r2_seed_categories.delete(id_b).status_code == 200
