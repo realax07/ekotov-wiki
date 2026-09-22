@@ -33,6 +33,12 @@ sdd r2 §2, §5/NFR-8; design.md §1.2, §4; FR-22, NFR-8, FR-27-приведе�
 Задачи скриптом не изменяются, кроме детерминированного приведения fast
 (после первого запуска приводить нечего — ссылок на инвариант нет).
 
+Атомарность (ревью 001, замечание 3): шаги 2 (INSERT категорий) и 5
+(приведение fast) выполняются в ОДНОЙ явной транзакции — BEGIN IMMEDIATE
+перед первым INSERT, commit после приведения; краш между шагами не
+оставляет частично мигрированной БД (частичный отказ ранее доводился
+повторным запуском — теперь исключен вовсе).
+
 Выход: 0 — сверка зелёная; 1 — расхождение (внедрение не завершено).
 Отчет сверки печатается в stdout — переносится в отчет задачи.
 """
@@ -67,24 +73,29 @@ def _insert_categories(conn: sqlite3.Connection, names: list[str]) -> int:
     """Шаг 2: INSERT DISTINCT непустых category (1:1, Д-2; пустые мимо).
 
     INSERT OR IGNORE: повторный запуск не падает на UNIQUE и не создает
-    дублей — идемпотентность (design.md §1.2)."""
+    дублей — идемпотентность (design.md §1.2).
+    Открывает явную транзакцию BEGIN IMMEDIATE (ревью 001, замечание 3):
+    commit делает вызывающий код после шага 5 — INSERT и приведение fast
+    атомарны вместе, частично мигрированная БД исключена."""
+    conn.execute("BEGIN IMMEDIATE")
     inserted = 0
     for name in names:
         cur = conn.execute(
             "INSERT OR IGNORE INTO categories (name) VALUES (?)", (name,)
         )
         inserted += cur.rowcount
-    conn.commit()
     return inserted
 
 
 def _normalize_fast_priority(conn: sqlite3.Connection) -> int:
-    """Шаг 5: приведение `is_fast ⇒ priority='high'` (FR-27, design.md §4)."""
+    """Шаг 5: приведение `is_fast ⇒ priority='high'` (FR-27, design.md §4).
+
+    Выполняется в транзакции шага 2 (ревью 001, замечание 3); commit —
+    в main после этого шага."""
     cur = conn.execute(
         "UPDATE tasks SET priority = 'high' "
         "WHERE is_fast = 1 AND (priority IS NULL OR priority != 'high')"
     )
-    conn.commit()
     return cur.rowcount
 
 
@@ -173,6 +184,9 @@ def main() -> int:
         # Шаг 5: приведение fast-задач (FR-27-приведение).
         fast_normalized = _normalize_fast_priority(conn)
         print(f"fast-задач приведено к priority='high': {fast_normalized}")
+
+        # Единый commit шагов 2+5 (одна транзакция, ревью 001, замечание 3).
+        conn.commit()
 
         # Шаг 4: автосверка «после».
         mismatches = _verify_after(conn, unique_before, per_task_before)

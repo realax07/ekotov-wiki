@@ -40,9 +40,6 @@ router = APIRouter(prefix="/api/categories")
 
 NOT_FOUND_BODY = {"error": "not found"}
 
-# Тело 409 при удалении используемой категории — дословно sdd r2 §3.1.
-IN_USE_BODY = {"error": "category in use"}
-
 # Тела ошибок валидации (sdd r2 §3: 422 {"error": "validation", "details": {...}}).
 VALIDATION_ERROR = "validation"
 
@@ -157,8 +154,10 @@ def rename_category(category_id: int, body: CategoryUpdate) -> JSONResponse:
         try:
             # Сценарий FR-20 «Переименование применяется ко всем задачам»:
             # хранение по значению (design.md §1.1) само задачи не обновляет —
-            # перенос значения выполняется явным UPDATE tasks в той же
-            # транзакции (атомарность из design.md §1.4).
+            # перенос значения выполняется явным UPDATE tasks. Оба UPDATE —
+            # одна транзакция: BEGIN IMMEDIATE фиксирует атомарность из
+            # design.md §1.4 явно (не полагаясь на deferred-транзакцию).
+            conn.execute("BEGIN IMMEDIATE")
             conn.execute(
                 "UPDATE categories SET name = ? WHERE id = ?",
                 (name, category_id),
@@ -199,8 +198,10 @@ def delete_category(category_id: int) -> JSONResponse:
             "SELECT COUNT(*) FROM tasks WHERE category = ?", (name,)
         ).fetchone()[0]
         if in_use > 0:
+            # 409 дословно sdd r2 §3.1: {"error": "category in use",
+            # "details": {"tasks": N}} — тело собирается целиком здесь.
             body = {
-                "error": IN_USE_BODY["error"],
+                "error": "category in use",
                 "details": {"tasks": in_use},
             }
             return JSONResponse(status_code=409, content=body)
