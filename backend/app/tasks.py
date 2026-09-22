@@ -44,6 +44,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.board import msk_now_iso
+from app.categories import category_exists
 from app.db import get_connection
 
 router = APIRouter(prefix="/api/tasks")
@@ -206,6 +207,33 @@ def _fast_line_busy(conn: sqlite3.Connection) -> bool:
     return row[0] >= 1
 
 
+# Тело 422 жесткой валидации категории (FR-21) — дословно sdd r2 §3.2.
+CATEGORY_NOT_IN_CATEGORIES_422 = {
+    "error": "validation",
+    "details": {"category": "not in categories"},
+}
+
+
+def _category_not_in_directory_422(
+    conn: sqlite3.Connection, category: str | None
+) -> JSONResponse | None:
+    """Жесткая валидация категории (FR-21, tasks.md 1.2; design.md §1.3).
+
+    Непустая category, отсутствующая в справочнике categories → 422
+    CATEGORY_NOT_IN_CATEGORIES_422 (дословно sdd r2 §3.2); пустая
+    (NULL/пустая строка) проходит — nullable-модель данных, Д-2
+    (Scenario «Пустая категория жесткой валидацией не запрещена»).
+    Точка проверки — API-слой: обход через API невозможен (FR-21).
+    """
+    if not category:
+        return None
+    if not category_exists(conn, category):
+        return JSONResponse(
+            status_code=422, content=CATEGORY_NOT_IN_CATEGORIES_422
+        )
+    return None
+
+
 @router.post("", status_code=201)
 def create_task(body: TaskCreate) -> JSONResponse:
     """Создание задачи (sdd §3.2): 201 + Task; 422 — нет/пустое название;
@@ -217,6 +245,10 @@ def create_task(body: TaskCreate) -> JSONResponse:
     """
     conn = get_connection()
     try:
+        # Жесткая валидация категории (FR-21) до любых записей (design.md §1.3).
+        invalid = _category_not_in_directory_422(conn, body.category)
+        if invalid is not None:
+            return invalid
         now = _utcnow()
         try:
             if body.is_fast:
@@ -287,6 +319,13 @@ def update_task(task_id: int, body: TaskUpdate) -> JSONResponse:
         row = _get_task_row(conn, task_id)
         if row is None:
             return JSONResponse(status_code=404, content=NOT_FOUND_BODY)
+
+        # Жесткая валидация категории (FR-21, sdd r2 §3.2 — «та же валидация»
+        # для PATCH): проверяется только если категория передана в теле.
+        if "category" in body.model_fields_set:
+            invalid = _category_not_in_directory_422(conn, body.category)
+            if invalid is not None:
+                return invalid
 
         updates: dict[str, Any] = {}
         for name in ("title", "description", "priority", "category"):
