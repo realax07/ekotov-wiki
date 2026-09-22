@@ -78,8 +78,15 @@
       <input type="date" id="task-due-date" name="due_date">
     </label>
     <label>Теги (через запятую)
-      <input type="text" id="task-tags" name="tags" placeholder="home, urgent">
+      <input type="text" id="task-tags" name="tags" placeholder="home, urgent"
+             list="task-tag-hints">
     </label>
+    {# 4.1 (FR-26, Д-3): подсказки тегов — datalist, заполняется из
+       существующего GET /api/suggestions в task-form.js (единый механизм
+       с подсказками поиска). Опции — только через textContent (XSS);
+       ввод нового значения (отсутствующего в подсказках) допустим —
+       сохраняется как тег обычным образом. #}
+    <datalist id="task-tag-hints"></datalist>
     <label class="task-form-checkbox">
       <input type="checkbox" id="task-is-fast" name="is_fast"> fast line
     </label>
