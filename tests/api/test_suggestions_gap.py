@@ -71,11 +71,14 @@ def _suggestions(owner_session, base_url) -> list[str]:
 # regression: keep — устойчивое поведение FR-17 (Scenario 6 спеки:
 # «только заведенные» — постоянное контрактное требование, не разовое).
 def test_suggestions_exclude_orphan_tag_and_null_category(
-    owner_session, base_url, sugg_gap_tasks
+    owner_session, base_url, sugg_gap_tasks, r2_seed_categories
 ):
     """TC-sugg-006 (CHK-S-6, негативный): осиротевший тег и пустая (NULL)
     категория отсутствуют в подсказках; живой тег присутствует; пустой
-    строки нет; список отсортирован (Scenario 6 спеки add-suggestions)."""
+    строки нет; список отсортирован (Scenario 6 спеки add-suggestions).
+
+    R2: QAT-SUGG-Кат-А заводится в справочнике (FR-21), cleanup в конце."""
+    category_id = r2_seed_categories.create_ok("QAT-SUGG-Кат-А")["id"]
     # Шаг 1: задача-носитель будущего осиротевшего тега.
     carrier = sugg_gap_tasks(
         "QAT-SUGG-носитель",
@@ -109,6 +112,9 @@ def test_suggestions_exclude_orphan_tag_and_null_category(
     )
     # Инвариант сортировки (minor №3: инвариант сохранен).
     assert suggestions == sorted(suggestions)
+    # teardown r2: категория свободна (носитель удален) → удалить
+    r2_seed_categories.untrack(category_id)
+    assert r2_seed_categories.delete(category_id).status_code == 200
 
 
 # regression: keep — устойчивое поведение FR-17: граница фильтра категорий
@@ -148,12 +154,15 @@ def test_suggestions_all_categories_empty_only_tags(
 # regression: keep — устойчивое поведение FR-17 (состояние): пересчет
 # подсказок на каждый GET без кеша — постоянное контрактное свойство.
 def test_suggestions_task_delete_updates_without_restart(
-    owner_session, base_url, sugg_gap_tasks
+    owner_session, base_url, sugg_gap_tasks, r2_seed_categories
 ):
     """TC-sugg-009 (CHK-S-9, негативный): DELETE задачи убирает ее теги
     и категорию из подсказок без рестарта приложения и сброса кеша —
     состояние пересчитывается на каждый GET; прочие значения подвыборки
-    не искажены; список отсортирован."""
+    не искажены; список отсортирован.
+
+    R2: QAT-SUGG9-Кат заводится в справочнике (FR-21), cleanup в конце."""
+    category_id = r2_seed_categories.create_ok("QAT-SUGG9-Кат")["id"]
     # Шаг 1: задача с уникальными категорией и тегом (префикс QAT-SUGG9 —
     # исключает «спасение» значений другими задачами).
     task = sugg_gap_tasks(
@@ -191,3 +200,6 @@ def test_suggestions_task_delete_updates_without_restart(
         "прочие значения подвыборки QAT-SUGG9 искажены"
     )
     assert after == sorted(after)
+    # teardown r2: носитель удален (шаг 3), категория свободна → удалить
+    r2_seed_categories.untrack(category_id)
+    assert r2_seed_categories.delete(category_id).status_code == 200
