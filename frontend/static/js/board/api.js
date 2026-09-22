@@ -25,7 +25,7 @@ export function handleApiError(response, body, onError) {
   /* Не-JSON тело при полученном HTTP-статусе (HTML-страница 502 и
    * т.п.) — не вводим в заблуждение «сетевой ошибкой». */
   if (!body) {
-    onError("Ошибка запроса (HTTP " + response.status + ").", response, null);
+    onError("Ошибка запроса (HTTP " + response.status + ").");
     return;
   }
   if (response.status === 422) {
@@ -53,11 +53,7 @@ export function handleApiError(response, body, onError) {
         parts.push(key + ": " + text);
       });
     }
-    onError(
-      parts.length ? parts.join(". ") : "Ошибка валидации (422).",
-      response,
-      body
-    );
+    onError(parts.length ? parts.join(". ") : "Ошибка валидации (422).");
     return;
   }
   /* 409 «fast line occupied» (sdd §3.2) — человекочитаемое сообщение
@@ -67,19 +63,15 @@ export function handleApiError(response, body, onError) {
     onError(
       body && body.error === "fast line occupied"
         ? "fast line занята"
-        : "Ошибка запроса (HTTP 409).",
-      response,
-      body
+        : "Ошибка запроса (HTTP 409)."
     );
     return;
   }
-  onError("Ошибка запроса (HTTP " + response.status + ").", response, body);
+  onError("Ошибка запроса (HTTP " + response.status + ").");
 }
 
 /* Запрос к API: сеть (reject) → общее сообщение; HTTP-ошибка →
- * handleApiError; иначе onOk(тело). onError(message, response, body):
- * response/body передаются, когда обработчику нужен разбор ответа
- * (tasks 3.1: подсветка поля категории по details.category 422). */
+ * handleApiError; иначе onOk(тело). */
 export function api(path, options, onError, onOk) {
   fetch(path, Object.assign({ credentials: "same-origin" }, options))
     .then(function (response) {

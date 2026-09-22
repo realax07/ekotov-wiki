@@ -463,55 +463,12 @@
 
   /* --- Подсказки (Релиз 1, 1.3 / P4) --- */
 
-  /* --- Селект категории фильтра из справочника (3.1; FR-30/DEF-001) --- */
-
-  /* GET /api/categories → {"categories": [{id, name}, ...]} (sdd r2
-   * §3.1) — тот же источник, что у селекта формы задачи. Полная
-   * перезагрузка опций: список = ровно фактическое содержимое
-   * справочника, никаких статических/захардкоженных значений. Пустое
-   * значение «любая» — признак «фильтр не задан», в справочник не
-   * входит. Значения — только через textContent (XSS, ОГР-11).
-   * Сбой загрузки фильтру не мешает: остается только «любая»
-   * (пустой фильтр категории = все задачи). */
-  function loadCategoryFilterOptions() {
-    fetch("/api/categories", { credentials: "same-origin" })
-      .then(function (response) {
-        if (!response.ok) {
-          return null;
-        }
-        return response.json().catch(function () {
-          return null;
-        });
-      })
-      .then(function (body) {
-        if (!body || !Array.isArray(body.categories)) {
-          return;
-        }
-        var select = document.getElementById("search-category");
-        select.textContent = "";
-        var any = el("option", null, "любая");
-        any.value = "";
-        select.appendChild(any);
-        body.categories.forEach(function (item) {
-          var option = el("option", null, item.name);
-          option.value = item.name;
-          select.appendChild(option);
-        });
-      })
-      .catch(function () {
-        /* Справочник недоступен — фильтр по категории просто не задан. */
-      });
-  }
-
-  /* --- Подсказки тегов (Релиз 1, 1.3 / P4) --- */
-
   /* GET /api/suggestions → {"suggestions": [...]} — множество (set,
    * без дублей, отсортировано) из объединения тегов и категорий
    * существующих задач (уточнение Заказчика). Заполняет datalist
-   * #tag-hints, привязанный к полю «Теги» конструктора (поле категории —
-   * select из справочника, 3.1). Сбой загрузки подсказки поиску не
-   * мешает: сообщение об ошибке не показываем, просто остается пустой
-   * datalist. */
+   * #tag-hints, привязанный к полям «Категория» и «Теги» конструктора.
+   * Сбой загрузки подсказки поиску не мешает: сообщение об ошибке не
+   * показываем, просто остается пустой datalist. */
   function loadSuggestions() {
     fetch("/api/suggestions")
       .then(function (response) {
@@ -576,8 +533,6 @@
     });
 
   /* Подсказки тегов/категорий (Релиз 1, 1.3 / P4): загрузка множества
-   * при открытии вкладки поиска. Селект категории фильтра — из
-   * справочника (3.1, FR-30). */
+   * при открытии вкладки поиска. */
   loadSuggestions();
-  loadCategoryFilterOptions();
 })();

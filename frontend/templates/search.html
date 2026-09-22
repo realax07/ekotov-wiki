@@ -1,8 +1,7 @@
 {# Поиск (tasks.md 7.3; FR-10, FR-11, FR-12; sdd.md §3.5, §3.6). Вкладка
    поиска по старым задачам: два режима.
    1) Конструктор (FR-11): селекты/инпуты по признакам задачи — priority
-      (любой/low/medium/high), category (select из GET /api/categories,
-      3.1/FR-30/DEF-001: ровно справочник; пусто = любая),
+      (любой/low/medium/high), category (свободный ввод, пусто = любая),
       tags (через запятую, многозначный), due_before/due_after (date),
       archived (все/только архивные/только активные). «Найти» →
       GET /api/search с query-параметрами (sdd §3.5) из search.js.
@@ -49,11 +48,7 @@
         </select>
       </label>
       <label>Категория
-        <select id="search-category">
-          {# Опции заполняются из GET /api/categories в search.js (3.1,
-             FR-30/DEF-001: ровно содержимое справочника). Пустое
-             значение = «любая категория» (фильтр опционален). #}
-        </select>
+        <input type="text" id="search-category" placeholder="любая" list="tag-hints">
       </label>
       <label>Теги (через запятую)
         <input type="text" id="search-tags" placeholder="home, urgent" list="tag-hints">

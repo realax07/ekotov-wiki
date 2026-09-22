@@ -15,11 +15,7 @@
    5.2 (FR-3): выделенная линия fast line — светло-синяя прозрачная
    подсветка столбца с fast-задачей и ее карточки (CSS-классы
    has-fast / task-card-fast ставит cards.js); сообщение «fast line
-   занята» при 409 выводится в task-form-error рядом с чекбоксом.
-   3.1 (FR-19, FR-21, FR-29, FR-30): поле категории формы — select,
-   опции из GET /api/categories (task-form.js); при 422 жесткой
-   валидации категории поле подсвечивается как невалидное
-   (класс field-invalid, текст в task-category-error). #}
+   занята» при 409 выводится в task-form-error рядом с чекбоксом. #}
 {% extends "base.html" %}
 {% block title %}Доска{% endblock %}
 {% block content %}
@@ -66,13 +62,7 @@
       </select>
     </label>
     <label>Категория
-      <select id="task-category" name="category">
-        {# Опции заполняются из GET /api/categories в task-form.js (3.1,
-           FR-19/FR-30: ровно содержимое справочника, без статических
-           значений — DEF-001). Пустое значение «—» = «категория не
-           задана» (nullable, Д-2). #}
-      </select>
-      <span id="task-category-error" class="field-error" hidden></span>
+      <input type="text" id="task-category" name="category">
     </label>
     <label>Срок
       <input type="date" id="task-due-date" name="due_date">
