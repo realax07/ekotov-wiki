@@ -53,6 +53,12 @@ def _free_port() -> int:
         return sock.getsockname()[1]
 
 
+# Seed справочника категорий (CHK-139 / TC-env-001, add-r2-categories-settings):
+# «Дом», «Работа», «Личное» — заведение session-scope ДО любого прогона
+# (жесткая валидация FR-21: задача с непустой категорией вне справочника — 422).
+SEED_CATEGORIES = ("Дом", "Работа", "Личное")
+
+
 def _seed_users(db_path: str, owner_password: str, wife_password: str) -> None:
     """Заведение owner/wife с тестовыми паролями прямо в БД (bcrypt,
     как app.seed_users.seed_user, но без интерактивного getpass)."""
@@ -66,6 +72,9 @@ def _seed_users(db_path: str, owner_password: str, wife_password: str) -> None:
                 "INSERT INTO users (login, password_hash) VALUES (?, ?)",
                 (login, bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()),
             )
+        # Seed справочника (CHK-139/TC-env-001): INSERT OR IGNORE — идемпотентно.
+        for name in SEED_CATEGORIES:
+            conn.execute("INSERT OR IGNORE INTO categories (name) VALUES (?)", (name,))
         conn.commit()
     finally:
         conn.close()
@@ -287,7 +296,12 @@ def create_task_via_ui(
     tags: str | None = None,
     is_fast: bool = False,
 ) -> None:
-    """Создание задачи через UI-форму (шаги кейсов TC-UI-007/009/010)."""
+    """Создание задачи через UI-форму (шаги кейсов TC-UI-007/009/010).
+
+    Категория — select из справочника (3.1, FR-19/FR-30): выбор только
+    select_option (кейс CHK-146: ни одного .fill() на поле категории);
+    значения берутся из seed справочника (CHK-139: «Дом», «Работа»,
+    «Личное») или созданного самим тестом."""
     page.get_by_role("button", name="Создать задачу").click()
     page.get_by_label("Название").fill(title)
     if description is not None:
@@ -295,7 +309,7 @@ def create_task_via_ui(
     if priority is not None:
         page.get_by_label("Приоритет").select_option(priority)
     if category is not None:
-        page.get_by_label("Категория").fill(category)
+        page.get_by_label("Категория").select_option(category)
     if due_date is not None:
         page.get_by_label("Срок").fill(due_date)
     if tags is not None:

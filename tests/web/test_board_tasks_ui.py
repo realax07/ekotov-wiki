@@ -139,17 +139,23 @@ def test_all_attributes_create_view_edit(page, web_base_url, board_page, web_cle
     web_cleanup_created(_card_task_id(card))
 
     # Шаг 2–3: все 5 признаков в карточке ровно введенными значениями.
+    # (attrs показывает сырые значения задачи — контракт утвержденного
+    # e2e TC-UI-009; бейджи «Высокий/Средний» — карточка доски, FR-29.)
     card.click()
     attrs = board_page.locator("#task-detail-attrs")
     expect(attrs).to_be_visible()
     for value in ("Проверка признаков e2e", "high", "Дом", "2026-09-30", "дом, срочно"):
         expect(attrs.get_by_text(value, exact=True)).to_be_visible()
+    # Бейдж приоритета на карточке доски — локализованный (FR-29, CHK-144).
+    expect(card.get_by_text("Высокий", exact=True)).to_be_visible()
 
     # Шаг 4: редактирование.
     board_page.get_by_role("button", name="Редактировать").click()
     expect(board_page.get_by_role("heading", name="Редактирование задачи")).to_be_visible()
     board_page.get_by_label("Приоритет").select_option("medium")
-    board_page.get_by_label("Категория").fill("Работа")
+    # Категория — select из справочника (FR-19/FR-30; select_option вместо
+    # fill — CHK-144/TC-UI-009-update; «Работа» гарантирована seed, CHK-139).
+    board_page.get_by_label("Категория").select_option("Работа")
     board_page.get_by_label("Теги (через запятую)").fill("дом")
     board_page.get_by_role("button", name="Сохранить").click()
     expect(board_page.locator("#task-form-overlay")).to_be_hidden()
@@ -164,9 +170,11 @@ def test_all_attributes_create_view_edit(page, web_base_url, board_page, web_cle
     expect(attrs.get_by_text("срочно")).to_have_count(0)
     board_page.get_by_role("button", name="Закрыть").click()
 
-    # Шаг 7: бейдж приоритета medium на карточке доски.
+    # Шаг 7: бейдж приоритета на карточке доски — локализованный «Средний»
+    # (CHK-144/TC-UI-009-update; «medium» на карточке больше не выводится).
     board_card = board_page.get_by_role("article").filter(has_text="Полная")
-    expect(board_card.get_by_text("medium", exact=True)).to_be_visible()
+    expect(board_card.get_by_text("Средний", exact=True)).to_be_visible()
+    expect(board_card.get_by_text("Высокий", exact=True)).to_have_count(0)
 
 
 def test_move_between_columns_and_quick_done(page, web_base_url, board_page, web_cleanup_created):
