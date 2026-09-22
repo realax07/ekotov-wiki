@@ -162,24 +162,47 @@ def test_category_delete_unused_ok(category_directory, api):
 
 
 @pytest.mark.must
+@pytest.mark.xfail(
+    strict=True,
+    reason="каркас FastAPI отвечает validation error вместо sdd validation — BUG-003",
+)
 def test_category_empty_name_rejected_422(category_directory):
     """TC-cat-008: POST name="" и name="   " (три пробела) → 422
     {"error": "validation", "details": {…}}; справочник не изменился.
 
-    Примечание (фиксация факта, БУКВАЛЬНОЕ тело из sdd r2 §3.1 не сходится):
-    пустая строка "" и пробелы "   " отвергаются pydantic-валидатором —
-    FastAPI-каркас отвечает {"error": "validation error", "details": [...]}
-    (RequestValidationError handler, app/tasks.py), а не sdd-формат
-    {"error": "validation", "details": {...}}. Статус-код и отказ совпадают
-    с кейсом; тело валидации каркаса задокументировано в тесте ниже."""
+    Дословные ассерты кейса/sdd r2 §3.1 — НЕ ослаблены (дисциплина BUG-002).
+    Текущее поведение продукта: {"error": "validation error", "details": […]}
+    (RequestValidationError handler, app/main.py install_error_handlers) —
+    расхождение с sdd зафиксировано баг-репортом
+    test-model/bugs/BUG-003-empty-name-validation-body-format.md; xfail(strict):
+    при исправлении продукта тест станет XPASS и уронит прогон — сигнал снять
+    метку (прецедент TC-fast2-004/BUG-002)."""
+    before = category_directory.names()
+    for name in ("", "   "):
+        resp = category_directory.create(name)
+        assert resp.status_code == 422, f"name={name!r}: {resp.status_code} {resp.text}"
+        assert resp.json() == {"error": "validation", "details": {}}
+    assert category_directory.names() == before
+
+
+@pytest.mark.must
+@pytest.mark.xfail(
+    strict=True,
+    reason="XPASS-кандидат после исправления BUG-003; пока каркас отвечает "
+    "validation error вместо sdd validation — BUG-003",
+)
+def test_category_empty_name_422_sdd_body(category_directory):
+    """TC-cat-008 (сопутствующий): точное тело sdd r2 §3.1
+    {"error": "validation", "details": {...}} — после исправления продукта
+    (единый формат 422-валидации) тест станет зеленым; xfail(strict) не даст
+    ему молча проходить при неверном поведении."""
     before = category_directory.names()
     for name in ("", "   "):
         resp = category_directory.create(name)
         assert resp.status_code == 422, f"name={name!r}: {resp.status_code} {resp.text}"
         body = resp.json()
-        # каркасная валидация: error содержит "validation", details присутствуют
-        assert "validation" in body["error"]
-        assert "details" in body
+        assert body["error"] == "validation"
+        assert isinstance(body["details"], dict)
     assert category_directory.names() == before
 
 
