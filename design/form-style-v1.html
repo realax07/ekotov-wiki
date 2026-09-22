@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<!-- Вариант 1 «Эволюция»: развитие текущего стиля приложения (app.css/board.css)
+     без смены визуального языка. Палитра Flat-UI сохранена (#2c3e50, #1abc9c),
+     добавлены: дизайн-токены, focus-visible, состояния ошибок (FR-21),
+     приоритеты цвет+иконка inline SVG (FR-29), крестик 40px (FR-28),
+     сетка 8px, анимация окна. ОГР-8: без внешних зависимостей.
+     Трассировка: Д-5, Requirement «Визуал формы», «Крестик», «Автодополнение». -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V1 — Эволюция текущего стиля · форма задачи</title>
+<style>
+/* ================= ДИЗАЙН-ТОКЕНЫ ================= */
+:root {
+  /* primitives (сырые цвета) */
+  --p-slate-900: #2c3e50;
+  --p-slate-700: #34495e;
+  --p-teal-500: #1abc9c;
+  --p-teal-600: #0f8b70;   /* затемненный акцент для текста/кнопок (AA на белом) */
+  --p-teal-050: #e8f8f4;
+  --p-red-600: #c0392b;
+  --p-red-050: #fdeeec;
+  --p-amber-600: #b45309;
+  --p-green-600: #1e8449;
+  --p-gray-050: #f4f6f8;
+  --p-gray-100: #eef1f4;
+  --p-gray-300: #dfe4e8;
+  --p-gray-500: #7f8c8d;
+  --p-white: #ffffff;
+
+  /* semantic */
+  --color-text-primary: var(--p-slate-900);
+  --color-text-secondary: var(--p-gray-500);
+  --color-text-on-accent: var(--p-white);
+  --color-bg-page: var(--p-gray-050);
+  --color-bg-surface: var(--p-white);
+  --color-bg-subtle: var(--p-gray-100);
+  --color-border-default: var(--p-gray-300);
+  --color-accent: var(--p-teal-500);
+  --color-accent-ink: var(--p-teal-600);
+  --color-accent-soft: var(--p-teal-050);
+  --status-error: var(--p-red-600);
+  --status-error-bg: var(--p-red-050);
+  --priority-high: #c0392b;
+  --priority-medium: #b45309;  /* затемненный от #e67e22 ради контраста иконок ≥3:1 */
+  --priority-low: #1e8449;
+
+  /* spacing — сетка 8px */
+  --space-1: 8px;  --space-2: 16px; --space-3: 24px; --space-4: 32px;
+  --space-05: 4px; /* полушаг только для подписей полей */
+
+  /* radii / elevation / type / motion */
+  --radius-field: 4px;
+  --radius-card: 8px;
+  --shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+  --focus-ring: 0 0 0 3px rgba(26, 188, 156, 0.45);
+  --speed-fast: 160ms;
+  --speed-modal: 200ms;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  min-height: 100vh;
+  display: flex;
+}
+
+/* ---- уменьшенная копия сайдбара приложения (контекст, не мокап) ---- */
+.mini-sidebar {
+  width: 96px; flex-shrink: 0; background: var(--p-slate-900);
+  color: #ecf0f1; padding: var(--space-2) 0; font-size: 12px;
+}
+.mini-sidebar div { padding: var(--space-1) 12px; opacity: .55; }
+.mini-sidebar .on { background: var(--color-accent); opacity: 1; font-weight: bold; }
+
+.stage { flex: 1; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
+.stage > h1 { font-size: 15px; margin: 0; color: var(--color-text-secondary); font-weight: 600; }
+
+/* ================= МОДАЛЬНОЕ ОКНО ФОРМЫ ================= */
+.modal-overlay {
+  position: relative; /* в мокапе окно встроено в страницу; в проде — fixed, клик по подложке закрывает */
+  width: 100%; max-width: 520px;
+}
+.modal {
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-card);
+  padding: var(--space-2) var(--space-3) var(--space-2);
+  box-shadow: var(--shadow-modal);
+  position: relative;
+  animation: modal-in var(--speed-modal) ease-out;
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .modal { animation: none; } }
+
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2); }
+.modal-title { margin: 0; font-size: 16px; font-weight: 700; }
+
+/* FR-28: крестик в правом верхнем углу, зона клика 40×40px */
+.modal-close {
+  position: absolute; top: 4px; right: 4px;
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  background: transparent; border: none; border-radius: var(--radius-field);
+  color: var(--color-text-secondary); cursor: pointer;
+}
+.modal-close:hover { background: var(--color-bg-subtle); color: var(--color-text-primary); }
+.modal-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ================= ФОРМА ================= */
+.field { margin-bottom: var(--space-2); }
+.field label {
+  display: block; font-size: var(--font-size-label);
+  color: var(--color-text-primary); margin-bottom: var(--space-05);
+  font-weight: 600;
+}
+.req { color: var(--status-error); }
+.hint { font-size: 12px; color: var(--color-text-secondary); margin: var(--space-05) 0 0; }
+
+.field input[type="text"],
+.field select,
+.field input[type="date"] {
+  display: block; width: 100%;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  font: inherit; color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  transition: border-color var(--speed-fast);
+}
+.field input:hover, .field select:hover { border-color: var(--p-slate-700); }
+.field input:focus-visible, .field select:focus-visible {
+  outline: none; border-color: var(--color-accent); box-shadow: var(--focus-ring);
+}
+.field input:disabled, .field select:disabled {
+  background: var(--color-bg-subtle); color: var(--color-text-secondary); cursor: not-allowed;
+}
+
+/* FR-21: состояние ошибки — подсветка + текст рядом с полем */
+.field.is-invalid input, .field.is-invalid select {
+  border-color: var(--status-error);
+  background: var(--status-error-bg);
+}
+.field.is-invalid input:focus-visible, .field.is-invalid select:focus-visible {
+  box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.35); border-color: var(--status-error);
+}
+.error-text {
+  display: flex; align-items: center; gap: 6px;
+  color: var(--status-error); font-size: 12px; margin-top: var(--space-05);
+}
+
+/* --- теги + автодополнение (FR-26, set() из тегов+категорий) --- */
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-05); margin-top: var(--space-05); }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--color-bg-subtle); border: 1px solid var(--color-border-default);
+  border-radius: 4px; padding: 2px 6px; font-size: 12px;
+}
+.chip button {
+  border: none; background: none; cursor: pointer; padding: 0;
+  color: var(--color-text-secondary); font-size: 12px; line-height: 1;
+}
+.chip button:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: 2px; }
+.suggest {
+  margin-top: var(--space-05);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-field);
+  background: var(--color-bg-surface); box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  overflow: hidden;
+}
+.suggest div { padding: 6px var(--space-1); font-size: 13px; cursor: pointer; }
+.suggest div[aria-selected="true"], .suggest div:hover { background: var(--color-accent-soft); }
+
+/* --- приоритет: цвет + иконка inline SVG (FR-29) --- */
+.priority-group { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.priority-option { position: relative; flex: 1; min-width: 120px; }
+.priority-option input {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer;
+}
+.priority-pill {
+  display: flex; align-items: center; gap: var(--space-05);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-field);
+  padding: var(--space-05) var(--space-1); font-size: 13px; font-weight: 600;
+  justify-content: center; transition: border-color var(--speed-fast), background var(--speed-fast);
+}
+.priority-option input:hover + .priority-pill { border-color: var(--p-slate-700); }
+.priority-option input:focus-visible + .priority-pill { box-shadow: var(--focus-ring); border-color: var(--color-accent); }
+.priority-option input:checked + .priority-pill { border-width: 2px; padding: 3px 7px; }
+.prio-high .priority-pill { color: var(--priority-high); }
+.prio-medium .priority-pill { color: var(--priority-medium); }
+.prio-low .priority-pill { color: var(--priority-low); }
+.prio-high input:checked + .priority-pill { border-color: var(--priority-high); background: #fdf3f2; }
+.prio-medium input:checked + .priority-pill { border-color: var(--priority-medium); background: #fdf6ec; }
+.prio-low input:checked + .priority-pill { border-color: var(--priority-low); background: #eef7f1; }
+.prio-icon { flex-shrink: 0; display: block; }
+.priority-option input:disabled + .priority-pill { opacity: .45; cursor: not-allowed; }
+
+/* --- fast line (FR-27): отметка блокирует приоритет = высокий --- */
+.fast-row {
+  display: flex; align-items: flex-start; gap: var(--space-05);
+  padding: var(--space-1);
+  background: rgba(52, 152, 219, 0.08);
+  border: 1px solid rgba(52, 152, 219, 0.35);
+  border-radius: var(--radius-field);
+  font-size: 13px;
+}
+.fast-row input[type="checkbox"] { width: 16px; height: 16px; margin: 1px 0 0; }
+.fast-row input[type="checkbox"]:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.fast-note { font-size: 12px; color: #2471a3; margin: 2px 0 0; }
+
+.form-actions { display: flex; gap: var(--space-1); margin-top: var(--space-2); }
+.btn {
+  font: inherit; font-weight: 600; cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-field); border: 1px solid transparent;
+  transition: background var(--speed-fast);
+}
+.btn-primary { background: var(--color-accent-ink); color: var(--color-text-on-accent); }
+.btn-primary:hover { background: #0c7560; }
+.btn-secondary { background: var(--color-bg-surface); color: var(--color-text-primary); border-color: var(--color-border-default); }
+.btn-secondary:hover { background: var(--color-bg-subtle); }
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ================= МИНИ-КАРТОЧКА ЗАДАЧИ ================= */
+.cards { display: flex; flex-direction: column; gap: var(--space-1); width: 100%; max-width: 520px; }
+.cards h2 { font-size: 13px; color: var(--color-text-secondary); margin: 0 0 var(--space-05); font-weight: 600; }
+.task-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-left: 4px solid var(--color-border-default);
+  border-radius: 6px; padding: var(--space-1) 10px;
+}
+.task-card.high { border-left-color: var(--priority-high); }
+.task-card.medium { border-left-color: var(--priority-medium); }
+.task-card.low { border-left-color: var(--priority-low); }
+.task-card.fast { background: rgba(52, 152, 219, 0.14); border-color: rgba(52, 152, 219, 0.55); }
+.task-card-header { display: flex; align-items: center; gap: 6px; }
+.task-card-header h3 { margin: 0; font-size: var(--font-size-body); font-weight: 600; }
+.task-meta { display: flex; gap: var(--space-1); font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; flex-wrap: wrap; }
+.prio-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--font-size-micro); font-weight: 700; text-transform: uppercase;
+  color: var(--color-text-on-accent); border-radius: 4px; padding: 1px 6px;
+}
+.prio-badge.high { background: var(--priority-high); }
+.prio-badge.medium { background: var(--priority-medium); }
+.prio-badge.low { background: var(--priority-low); }
+.badge-fast {
+  font-size: var(--font-size-micro); font-weight: 700; color: #2471a3;
+  border: 1px solid #2471a3; border-radius: 4px; padding: 0 5px;
+}
+.badge-cat { background: var(--color-bg-subtle); border-radius: 4px; padding: 1px 6px; }
+</style>
+</head>
+<body>
+<aside class="mini-sidebar" aria-hidden="true">
+  <div>Доска</div><div>Поиск</div><div>Wiki</div><div class="on">Форма</div>
+</aside>
+
+<main class="stage">
+  <h1>V1 · «Эволюция» — форма задачи в текущей системе (Flat-UI палитра, плоские поверхности)</h1>
+
+  <div class="modal-overlay">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="tf-title">
+      <button type="button" class="modal-close" aria-label="Закрыть форму без сохранения">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M3 3l10 10M13 3L3 13"/>
+        </svg>
+      </button>
+      <div class="modal-header"><h2 class="modal-title" id="tf-title">Новая задача</h2></div>
+
+      <form class="task-form">
+        <div class="field">
+          <label for="f-title">Название <span class="req" aria-hidden="true">*</span></label>
+          <input type="text" id="f-title" required placeholder="Например: полить цветы">
+        </div>
+
+        <!-- FR-21: состояние ошибки — категория удалена из справочника -->
+        <div class="field is-invalid">
+          <label for="f-category">Категория</label>
+          <select id="f-category" aria-describedby="f-category-err" aria-invalid="true">
+            <option>home</option>
+            <option selected>work</option>
+            <option>покупки</option>
+          </select>
+          <p class="error-text" id="f-category-err">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="7" cy="7" r="6"/><path d="M7 4v3.5M7 9.8v.2" stroke-linecap="round"/>
+            </svg>
+            Выбранная категория больше не существует в справочнике — выберите другую
+          </p>
+        </div>
+
+        <!-- FR-26: автодополнение — set() из тегов и категорий существующих задач -->
+        <div class="field">
+          <label for="f-tags">Теги</label>
+          <input type="text" id="f-tags" placeholder="Начните вводить…" aria-describedby="f-tags-hint">
+          <p class="hint" id="f-tags-hint">Выберите из заведенных значений или создайте новое</p>
+          <div class="chips">
+            <span class="chip">home <button type="button" aria-label="Убрать тег home">×</button></span>
+            <span class="chip">urgent <button type="button" aria-label="Убрать тег urgent">×</button></span>
+          </div>
+          <div class="suggest" role="listbox" aria-label="Подсказки">
+            <div role="option" aria-selected="true">home</div>
+            <div role="option">urgent</div>
+            <div role="option">work</div>
+          </div>
+          <!-- DECISION: подсказки показывают объединение тегов и категорий (set) — «work»
+               присутствует один раз, хотя это и тег, и категория -->
+        </div>
+
+        <fieldset class="field" style="border:none;padding:0;margin:0 0 var(--space-2)">
+          <legend style="font-size:var(--font-size-label);font-weight:600;padding:0;margin-bottom:var(--space-05)">Приоритет</legend>
+          <div class="priority-group">
+            <label class="priority-option prio-low">
+              <input type="radio" name="prio" value="low">
+              <span class="priority-pill">
+                <svg class="prio-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 2v9M3.5 7.5L7 11l3.5-3.5"/></svg>
+                Низкий
+              </span>
+            </label>
+            <label class="priority-option prio-medium">
+              <input type="radio" name="prio" value="medium" checked>
+              <span class="priority-pill">
+                <svg class="prio-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 5h8M3 9h8"/></svg>
+                Средний
+              </span>
+            </label>
+            <label class="priority-option prio-high">
+              <input type="radio" name="prio" value="high">
+              <span class="priority-pill">
+                <svg class="prio-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 12V3M3.5 6.5L7 3l3.5 3.5"/></svg>
+                Высокий
+              </span>
+            </label>
+          </div>
+          <!-- DECISION: иконки «стрелка вниз / двойное тире / стрелка вверх» — приоритеты
+               различимы без цвета (цветовая слепота), порядок совпадает с направлением -->
+        </fieldset>
+
+        <!-- FR-27: fast line блокирует приоритет значением «высокий» -->
+        <div class="field">
+          <div class="fast-row">
+            <input type="checkbox" id="f-fast">
+            <div>
+              <label for="f-fast" style="margin:0;font-weight:600">Поставить на fast line</label>
+              <p class="fast-note">Задача займет линию быстрых задач, приоритет будет закреплен как «Высокий»</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+          <button type="button" class="btn btn-secondary">Отмена</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <section class="cards" aria-label="Мини-карточки задач">
+    <h2>Мини-карточки на доске — приоритеты цвет + иконка + бейдж (без цвета тоже различимы)</h2>
+    <article class="task-card low">
+      <div class="task-card-header">
+        <span class="prio-badge low">
+          <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 2v9M3.5 7.5L7 11l3.5-3.5"/></svg>
+          Низкий
+        </span>
+        <h3>Разобрать почту</h3>
+      </div>
+      <div class="task-meta"><span class="badge-cat">home</span><span>до 25.09</span></div>
+    </article>
+    <article class="task-card medium">
+      <div class="task-card-header">
+        <span class="prio-badge medium">
+          <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M3 5h8M3 9h8"/></svg>
+          Средний
+        </span>
+        <h3>Заказать фильтр для воды</h3>
+      </div>
+      <div class="task-meta"><span class="badge-cat">покупки</span></div>
+    </article>
+    <article class="task-card high fast">
+      <div class="task-card-header">
+        <span class="prio-badge high">
+          <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 12V3M3.5 6.5L7 3l3.5 3.5"/></svg>
+          Высокий
+        </span>
+        <h3>Оплатить счета</h3>
+        <span class="badge-fast">fast</span>
+      </div>
+      <div class="task-meta"><span class="badge-cat">work</span><span>до 23.09</span></div>
+    </article>
+  </section>
+</main>
+</body>
+</html>

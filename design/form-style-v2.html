@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<!-- Вариант 2 «Контраст»: светлая тема с повышенным контрастом и плотной
+     типографикой. Отличия от V1: темная шапка окна (инверсия), более темный
+     «чернильный» текст, толстые рамки полей, прямоугольные радиусы, акцент —
+     глубокий синий. Требования те же: FR-21 (ошибки), FR-26 (автодополнение),
+     FR-28 (крестик 40px), FR-29 (приоритеты цвет+SVG). ОГР-8: без зависимостей.
+     Трассировка: Д-5. -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V2 — Контрастная светлая · форма задачи</title>
+<style>
+/* ================= ДИЗАЙН-ТОКЕНЫ ================= */
+:root {
+  /* primitives */
+  --p-ink-900: #101828;
+  --p-ink-700: #344054;
+  --p-ink-300: #98a2b3;
+  --p-blue-700: #1d4ed8;   /* акцент-«чернила»: AA на белом даже мелким текстом */
+  --p-blue-050: #eff4ff;
+  --p-red-700: #b42318;
+  --p-red-050: #fef3f2;
+  --p-amber-700: #b54708;
+  --p-green-700: #067647;
+  --p-gray-050: #f9fafb;
+  --p-gray-100: #f2f4f7;
+  --p-gray-300: #d0d5dd;
+  --p-gray-600: #475467;
+  --p-white: #ffffff;
+
+  /* semantic */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-gray-600);
+  --color-text-on-accent: var(--p-white);
+  --color-bg-page: var(--p-gray-100);
+  --color-bg-surface: var(--p-white);
+  --color-bg-subtle: var(--p-gray-050);
+  --color-border-default: var(--p-gray-300);
+  --color-border-strong: var(--p-ink-700);
+  --color-accent: var(--p-blue-700);
+  --color-accent-soft: var(--p-blue-050);
+  --status-error: var(--p-red-700);
+  --status-error-bg: var(--p-red-050);
+  --priority-high: #b42318;
+  --priority-medium: #b54708;
+  --priority-low: #067647;
+
+  /* spacing — 8px сетка */
+  --space-1: 8px; --space-2: 16px; --space-3: 24px; --space-4: 32px; --space-05: 4px;
+
+  /* radii — контрастный стиль: почти прямоугольные поверхности */
+  --radius-field: 2px;
+  --radius-card: 4px;
+  --shadow-modal: 0 12px 32px rgba(16, 24, 40, 0.28);
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-size-body: 14px;
+  --font-size-label: 12px;
+  --font-size-micro: 11px;
+  --focus-ring: 0 0 0 2px var(--color-bg-surface), 0 0 0 4px var(--color-accent);
+  --speed-fast: 120ms;
+  --speed-modal: 180ms;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: var(--font-family);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  min-height: 100vh; display: flex;
+}
+.mini-sidebar {
+  width: 96px; flex-shrink: 0; background: var(--p-ink-900);
+  color: #fff; padding: var(--space-2) 0; font-size: 12px;
+}
+.mini-sidebar div { padding: var(--space-1) 12px; opacity: .55; }
+.mini-sidebar .on { background: var(--color-accent); opacity: 1; font-weight: bold; }
+
+.stage { flex: 1; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
+.stage > h1 { font-size: 15px; margin: 0; color: var(--color-text-secondary); font-weight: 600; }
+
+/* ================= МОДАЛЬНОЕ ОКНО ================= */
+.modal-overlay { position: relative; width: 100%; max-width: 520px; }
+.modal {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  animation: modal-in var(--speed-modal) ease-out;
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .modal { animation: none; } }
+
+.modal-head {
+  background: var(--p-ink-900); color: var(--p-white);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-3);
+  position: relative;
+}
+.modal-head h2 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: .01em; }
+
+/* FR-28: крестик в правом верхнем углу, зона клика 40×40px */
+.modal-close {
+  position: absolute; top: 3px; right: 3px;
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  background: transparent; border: none;
+  color: #d0d5dd; cursor: pointer;
+}
+.modal-close:hover { background: rgba(255,255,255,.14); color: #fff; }
+.modal-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.modal-body { padding: var(--space-3); }
+
+/* ================= ФОРМА ================= */
+.field { margin-bottom: var(--space-2); }
+.field > label, .field > legend {
+  display: block; font-size: var(--font-size-label); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--color-text-secondary); margin-bottom: var(--space-05);
+}
+.req { color: var(--status-error); }
+.hint { font-size: 12px; color: var(--color-text-secondary); margin: var(--space-05) 0 0; }
+
+.field input[type="text"],
+.field select, .field input[type="date"] {
+  display: block; width: 100%;
+  padding: 10px var(--space-1);
+  border: 1px solid var(--color-border-default);
+  border-bottom-width: 2px;              /* утяжеленная нижняя грань */
+  border-radius: var(--radius-field);
+  font: inherit; color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+}
+.field input:hover, .field select:hover { border-color: var(--p-ink-300); }
+.field input:focus-visible, .field select:focus-visible {
+  outline: none; border-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+}
+.field input:disabled, .field select:disabled {
+  background: var(--color-bg-subtle); color: var(--p-ink-300); cursor: not-allowed;
+}
+
+/* FR-21: ошибка валидации */
+.field.is-invalid input, .field.is-invalid select {
+  border-color: var(--status-error);
+  box-shadow: inset 0 -2px 0 var(--status-error);
+}
+.field.is-invalid input:focus-visible {
+  box-shadow: var(--focus-ring), inset 0 -2px 0 var(--status-error);
+}
+.error-text {
+  display: flex; align-items: center; gap: 6px;
+  color: var(--status-error); font-size: 12px; font-weight: 600;
+  margin-top: var(--space-05);
+}
+
+/* --- теги и автодополнение (FR-26) --- */
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-05); margin-top: var(--space-05); }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid var(--color-border-strong); border-radius: var(--radius-field);
+  background: var(--color-bg-subtle); padding: 2px 6px; font-size: 12px; font-weight: 600;
+}
+.chip button { border: none; background: none; cursor: pointer; padding: 0; color: var(--color-text-secondary); line-height: 1; }
+.chip button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.suggest {
+  margin-top: var(--space-05);
+  border: 1px solid var(--color-border-strong); border-radius: var(--radius-field);
+  background: var(--color-bg-surface); box-shadow: 0 4px 12px rgba(16,24,40,.12);
+  overflow: hidden;
+}
+.suggest div { padding: 8px var(--space-1); font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--p-gray-100); }
+.suggest div:last-child { border-bottom: none; }
+.suggest div[aria-selected="true"], .suggest div:hover { background: var(--color-accent-soft); color: var(--color-accent); font-weight: 600; }
+
+/* --- приоритет: цвет + иконка (FR-29) --- */
+fieldset.field { border: none; padding: 0; margin: 0 0 var(--space-2); }
+.priority-group { display: flex; gap: var(--space-05); }
+.priority-option { position: relative; flex: 1; }
+.priority-option input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.priority-pill {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-field);
+  padding: 10px var(--space-1); font-size: 13px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; font-size: 12px;
+}
+.priority-option input:hover + .priority-pill { border-color: var(--p-ink-300); }
+.priority-option input:focus-visible + .priority-pill { box-shadow: var(--focus-ring); border-color: var(--color-accent); }
+.prio-high .priority-pill { color: var(--priority-high); }
+.prio-medium .priority-pill { color: var(--priority-medium); }
+.prio-low .priority-pill { color: var(--priority-low); }
+.prio-high input:checked + .priority-pill { background: var(--priority-high); color: #fff; border-color: var(--priority-high); }
+.prio-medium input:checked + .priority-pill { background: var(--priority-medium); color: #fff; border-color: var(--priority-medium); }
+.prio-low input:checked + .priority-pill { background: var(--priority-low); color: #fff; border-color: var(--priority-low); }
+.prio-icon { flex-shrink: 0; display: block; }
+.priority-option input:disabled + .priority-pill { opacity: .4; cursor: not-allowed; }
+
+/* --- fast line (FR-27) --- */
+.fast-row {
+  display: flex; gap: var(--space-05); align-items: flex-start;
+  padding: var(--space-1);
+  background: var(--color-accent-soft);
+  border: 1px dashed var(--color-accent);
+  border-radius: var(--radius-field);
+  font-size: 13px;
+}
+.fast-row input[type="checkbox"] { width: 16px; height: 16px; margin: 1px 0 0; accent-color: var(--color-accent); }
+.fast-row input[type="checkbox"]:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.fast-note { font-size: 12px; color: var(--color-accent); margin: 2px 0 0; }
+
+.form-actions { display: flex; gap: var(--space-1); margin-top: var(--space-3); }
+.btn {
+  font: inherit; font-weight: 700; cursor: pointer;
+  padding: 10px var(--space-2);
+  border-radius: var(--radius-field); border: 1px solid transparent;
+  letter-spacing: .02em;
+}
+.btn-primary { background: var(--p-ink-900); color: #fff; border-color: var(--p-ink-900); }
+.btn-primary:hover { background: #1d2939; }
+.btn-secondary { background: var(--color-bg-surface); color: var(--color-text-primary); border-color: var(--color-border-strong); }
+.btn-secondary:hover { background: var(--color-bg-subtle); }
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ================= МИНИ-КАРТОЧКИ ================= */
+.cards { display: flex; flex-direction: column; gap: var(--space-1); width: 100%; max-width: 520px; }
+.cards h2 { font-size: 13px; color: var(--color-text-secondary); margin: 0 0 var(--space-05); font-weight: 600; }
+.task-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-strong);
+  border-left: 4px solid var(--color-border-default);
+  border-radius: var(--radius-card); padding: var(--space-1) 10px;
+}
+.task-card.high { border-left-color: var(--priority-high); }
+.task-card.medium { border-left-color: var(--priority-medium); }
+.task-card.low { border-left-color: var(--priority-low); }
+.task-card.fast { background: var(--color-accent-soft); border-color: var(--color-accent); }
+.task-card-header { display: flex; align-items: center; gap: 6px; }
+.task-card-header h3 { margin: 0; font-size: var(--font-size-body); font-weight: 700; }
+.task-meta { display: flex; gap: var(--space-1); font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; flex-wrap: wrap; }
+.prio-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--font-size-micro); font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; border: 1px solid currentColor;
+  border-radius: var(--radius-field); padding: 1px 6px;
+}
+.prio-badge.high { color: var(--priority-high); }
+.prio-badge.medium { color: var(--priority-medium); }
+.prio-badge.low { color: var(--priority-low); }
+.badge-fast { font-size: var(--font-size-micro); font-weight: 700; color: var(--color-accent); border: 1px solid var(--color-accent); border-radius: var(--radius-field); padding: 0 5px; }
+.badge-cat { background: var(--color-bg-subtle); border: 1px solid var(--color-border-default); border-radius: var(--radius-field); padding: 1px 6px; }
+</style>
+</head>
+<body>
+<aside class="mini-sidebar" aria-hidden="true">
+  <div>Доска</div><div>Поиск</div><div>Wiki</div><div class="on">Форма</div>
+</aside>
+
+<main class="stage">
+  <h1>V2 · «Контраст» — светлая тема с высокой контрастностью, темная шапка окна, почти прямоугольные поверхности</h1>
+
+  <div class="modal-overlay">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="tf-title">
+      <div class="modal-head">
+        <h2 id="tf-title">Новая задача</h2>
+        <button type="button" class="modal-close" aria-label="Закрыть форму без сохранения">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M3 3l10 10M13 3L3 13"/>
+          </svg>
+        </button>
+      </div>
+
+      <form class="task-form modal-body">
+        <div class="field">
+          <label for="f-title">Название <span class="req" aria-hidden="true">*</span></label>
+          <input type="text" id="f-title" required placeholder="Например: полить цветы">
+        </div>
+
+        <!-- FR-21: невалидная категория -->
+        <div class="field is-invalid">
+          <label for="f-category">Категория</label>
+          <select id="f-category" aria-describedby="f-category-err" aria-invalid="true">
+            <option>home</option>
+            <option selected>work</option>
+            <option>покупки</option>
+          </select>
+          <p class="error-text" id="f-category-err">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="7" cy="7" r="6"/><path d="M7 4v3.5M7 9.8v.2" stroke-linecap="round"/>
+            </svg>
+            Категория «work» удалена из справочника — выберите другую
+          </p>
+        </div>
+
+        <!-- FR-26: автодополнение -->
+        <div class="field">
+          <label for="f-tags">Теги</label>
+          <input type="text" id="f-tags" placeholder="Начните вводить…" aria-describedby="f-tags-hint">
+          <p class="hint" id="f-tags-hint">Подсказки — все заведенные теги и категории; новое значение можно создать</p>
+          <div class="chips">
+            <span class="chip">home <button type="button" aria-label="Убрать тег home">×</button></span>
+            <span class="chip">urgent <button type="button" aria-label="Убрать тег urgent">×</button></span>
+          </div>
+          <div class="suggest" role="listbox" aria-label="Подсказки">
+            <div role="option" aria-selected="true">home</div>
+            <div role="option">urgent</div>
+            <div role="option">work</div>
+          </div>
+        </div>
+
+        <fieldset class="field">
+          <legend>Приоритет</legend>
+          <div class="priority-group">
+            <label class="priority-option prio-low">
+              <input type="radio" name="prio" value="low">
+              <span class="priority-pill">
+                <svg class="prio-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 2v9M3.5 7.5L7 11l3.5-3.5"/></svg>
+                Низкий
+              </span>
+            </label>
+            <label class="priority-option prio-medium">
+              <input type="radio" name="prio" value="medium" checked>
+              <span class="priority-pill">
+                <svg class="prio-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 5h8M3 9h8"/></svg>
+                Средний
+              </span>
+            </label>
+            <label class="priority-option prio-high">
+              <input type="radio" name="prio" value="high">
+              <span class="priority-pill">
+                <svg class="prio-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 12V3M3.5 6.5L7 3l3.5 3.5"/></svg>
+                Высокий
+              </span>
+            </label>
+          </div>
+          <!-- DECISION: в V2 выбранный приоритет заливается цветом + сохраняется иконка —
+               различим и в выключенном, и во включенном состоянии -->
+        </fieldset>
+
+        <div class="field">
+          <div class="fast-row">
+            <input type="checkbox" id="f-fast">
+            <div>
+              <label for="f-fast" style="margin:0;font-weight:700">Поставить на fast line</label>
+              <p class="fast-note">Приоритет будет закреплен как «Высокий» (FR-27)</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+          <button type="button" class="btn btn-secondary">Отмена</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <section class="cards" aria-label="Мини-карточки задач">
+    <h2>Мини-карточки — бейджи-контур (цвет + текст + иконка)</h2>
+    <article class="task-card low">
+      <div class="task-card-header">
+        <span class="prio-badge low">
+          <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 2v9M3.5 7.5L7 11l3.5-3.5"/></svg>
+          Низкий
+        </span>
+        <h3>Разобрать почту</h3>
+      </div>
+      <div class="task-meta"><span class="badge-cat">home</span><span>до 25.09</span></div>
+    </article>
+    <article class="task-card medium">
+      <div class="task-card-header">
+        <span class="prio-badge medium">
+          <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M3 5h8M3 9h8"/></svg>
+          Средний
+        </span>
+        <h3>Заказать фильтр для воды</h3>
+      </div>
+      <div class="task-meta"><span class="badge-cat">покупки</span></div>
+    </article>
+    <article class="task-card high fast">
+      <div class="task-card-header">
+        <span class="prio-badge high">
+          <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 12V3M3.5 6.5L7 3l3.5 3.5"/></svg>
+          Высокий
+        </span>
+        <h3>Оплатить счета</h3>
+        <span class="badge-fast">fast</span>
+      </div>
+      <div class="task-meta"><span class="badge-cat">work</span><span>до 23.09</span></div>
+    </article>
+  </section>
+</main>
+</body>
+</html>
