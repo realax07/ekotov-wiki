@@ -327,3 +327,15 @@ def msk_dates():
     MSK = timezone(timedelta(hours=3))
     now_msk = datetime.now(MSK)
     return now_msk.date().isoformat(), (now_msk - timedelta(days=1)).date().isoformat()
+
+
+# ==========================================================================
+# Релиз 2 (change add-r2-categories-settings): фикстуры категорий, seed
+# справочника (session-scope, TC-env-001/002), миграционного контура.
+# Живут в conftest_r2.py (единый модуль набора r2); подключены star-import'ом
+# в конец этого conftest — pytest собирает фикстуры из пространства имен
+# conftest, а tests/api лежит на sys.path (нет __init__.py). Star-import
+# в КОНЦЕ файла: conftest_r2 сам импортирует имена из этого модуля.
+# ==========================================================================
+
+from conftest_r2 import *  # noqa: E402,F401,F403 - реестр фикстур r2 (см. выше)

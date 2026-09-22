@@ -117,6 +117,112 @@ python -m pytest tests/ -q
 
 ---
 
+# API-сьют Релиза 2: add-r2-categories-settings (tests/api, файлы test_r2-*)
+
+pytest + requests по 33 approved-кейсам `test-model/approved/add-r2-categories-settings/`:
+TC-cat-001…015 (категории), TC-migr-001…006 (миграция), TC-fast2-001…012
+(fast×priority), TC-env-001…002 (seed/cleanup справочника). Правила те же:
+1 кейс = 1 тест, TC-ID в docstring, маркеры MoSCoW, изоляция `QAT-*`.
+
+## Seed справочника и cleanup (TC-env-001/002)
+
+- `r2_seed_categories` (session-scope, `conftest_r2.py`): ДО любого прогона
+  создает в справочнике `Дом`, `Работа`, `Личное` (идемпотентно, 409 = уже
+  есть); ПОСЛЕ сессии убирает `QAT-*`-хвосты упавших тестов (справочник
+  общесистемный, ОГР-7; cleanup задач категорий не убирает — тесты сами
+  переводят задачи на `Дом` перед удалением своих категорий).
+- `category_directory`: хелпер `/api/categories` + track/untrack фабрика
+  гарантированного удаления QAT-категорий в teardown.
+- `r2_fast_line`: вход «активных fast нет» (негативы fast×priority) с
+  восстановлением доски после теста.
+
+## Миграционный контур (TC-migr-*, TC-fast2-010)
+
+Фикстура `migr_temp_db` копирует БД стенда во временный файл (очищенным
+справочником — предусловие кейсов), туда же пишутся данные «до внедрения»,
+запускается `python -m app.migrate_categories` (sdd r2 §5) subprocess'ом;
+рабочий стенд не затрагивается. Требует `EKOTOV_WIKI_DB_PATH` (иначе skip).
+TC-migr-006 проверяет негатив NFR-8: расхождение → exit 1 + FAIL в stdout.
+
+## Метки regression (G5)
+
+- `keep` — все тесты test_r2_categories/test_r2_fast2/test_r2_env;
+- `candidate-archive` — все тесты test_r2_migration + test_r2_fast2::test_migration_normalizes_fast_priority
+  (TC-migr-001…006, TC-fast2-010 — разовые проверки внедрения, impact §3 п.2).
+
+## Известные отклонения
+
+- **BUG-002** (`test-model/bugs/BUG-002-fast-explicit-null-priority-201.md`):
+  TC-fast2-004 — явный `priority: null` при is_fast=true дает 201
+  (priority=high), а не 422 из кейса; create_task не различает null и
+  отсутствие поля. Тест `test_fast_explicit_null_priority_422` помечен
+  `xfail(strict)` — при исправлении продукта сработает XPASS-сигнал.
+- TC-cat-008: тела 422 каркасной валидации pydantic —
+  `{"error": "validation error", ...}` (формат каркаса), статус и отказ
+  соответствуют кейсу; зафиксировано в docstring теста.
+- UI-остатки кейсов (select'ы форм, страница /settings, блокировка поля
+  приоритета — TC-cat-001/002/003/004, TC-fast2-003) — скоуп tests/web,
+  помечены `web_ui` + skip (см. матрицу ниже).
+
+## Матрица трассировки: 33 кейса → тесты
+
+| Кейсы | Тесты | Файл | Метка |
+|---|---|---|---|
+| TC-cat-001 (UI) | test_category_form_field_is_select_from_directory (web_ui-skip; API-шаг 1 — seed) | test_r2_categories.py | keep |
+| TC-cat-002 (UI) | test_category_filter_field_is_select_from_directory (web_ui-skip) | test_r2_categories.py | keep |
+| TC-cat-003 (UI+API) | test_category_outside_directory_not_selectable_anywhere (API-шаг 1; UI — tests/web) | test_r2_categories.py | keep |
+| TC-cat-004 (API+UI) | test_category_create_201_visible_in_directory (UI-шаги — tests/web) | test_r2_categories.py | keep |
+| TC-cat-005 | test_category_rename_applies_to_all_tasks | test_r2_categories.py | keep |
+| TC-cat-006 | test_category_delete_in_use_blocked_409 | test_r2_categories.py | keep |
+| TC-cat-007 | test_category_delete_unused_ok | test_r2_categories.py | keep |
+| TC-cat-008 | test_category_empty_name_rejected_422 | test_r2_categories.py | keep |
+| TC-cat-009 | test_category_duplicate_409_post_and_patch_case_sensitive | test_r2_categories.py | keep |
+| TC-cat-010 | test_category_patch_delete_missing_id_404 | test_r2_categories.py | keep |
+| TC-cat-011 | test_categories_get_401_without_session_and_200_sorted | test_r2_categories.py | keep |
+| TC-cat-012 | test_task_create_with_unknown_category_422_not_created | test_r2_categories.py | keep |
+| TC-cat-013 | test_task_patch_with_unknown_category_422_value_untouched | test_r2_categories.py | keep |
+| TC-cat-014 | test_validation_follows_current_directory | test_r2_categories.py | keep |
+| TC-cat-015 | test_empty_category_is_allowed | test_r2_categories.py | keep |
+| TC-migr-001 | test_migration_unique_values_become_categories_1to1 | test_r2_migration.py | candidate-archive |
+| TC-migr-002 | test_migration_tasks_keep_category_values | test_r2_migration.py | candidate-archive |
+| TC-migr-003 | test_migration_empty_values_create_no_records | test_r2_migration.py | candidate-archive |
+| TC-migr-004 | test_migration_all_nonempty_categories_valid | test_r2_migration.py | candidate-archive |
+| TC-migr-005 | test_migration_zero_loss_snapshot_verification | test_r2_migration.py | candidate-archive |
+| TC-migr-006 | test_migration_mismatch_fails_verification | test_r2_migration.py | candidate-archive |
+| TC-fast2-001 | test_fast_create_priority_auto_high | test_r2_fast2.py | keep |
+| TC-fast2-002 | test_regular_task_keeps_chosen_priority | test_r2_fast2.py | keep |
+| TC-fast2-003 (UI) | test_fast_priority_field_locked_in_form (web_ui-skip) | test_r2_fast2.py | keep |
+| TC-fast2-004 | test_fast_explicit_null_priority_422 (xfail strict — BUG-002) | test_r2_fast2.py | keep |
+| TC-fast2-005 | test_fast_priority_low_422 | test_r2_fast2.py | keep |
+| TC-fast2-006 | test_fast_priority_medium_422 | test_r2_fast2.py | keep |
+| TC-fast2-007 | test_forged_client_request_rejected_by_server | test_r2_fast2.py | keep |
+| TC-fast2-008 | test_fast_without_priority_key_gets_high | test_r2_fast2.py | keep |
+| TC-fast2-009 | test_regular_task_any_priority_unrestricted | test_r2_fast2.py | keep |
+| TC-fast2-010 | test_migration_normalizes_fast_priority | test_r2_fast2.py | candidate-archive |
+| TC-fast2-011 | test_patch_cases_regular_high_ok_fast_medium_rejected | test_r2_fast2.py | keep |
+| TC-fast2-012 | test_second_fast_with_invalid_priority_order_fixed | test_r2_fast2.py | keep |
+| TC-env-001 | test_seed_directory_present_before_any_run + фикстура r2_seed_categories | test_r2_env.py | keep |
+| TC-env-002 | test_directory_isolation_and_cleanup + teardown фикстуры | test_r2_env.py | keep |
+
+Итого: 33 кейса → 35 тестовых функций (каждому кейсу — минимум один тест;
+UI-шаги смешанных кейсов помечены web_ui-skip со ссылкой на tests/web).
+
+## Прогон (эталон, локально; R2)
+
+```
+EKOTOV_WIKI_BASE_URL=http://127.0.0.1:8099 EKOTOV_WIKI_DB_PATH=/tmp/r2qa_app.db \
+python -m pytest tests/api -q
+→ 115 passed, 9 skipped, 1 xfailed (BUG-002), 0 failed
+До R2-сьюта (на main): 9 failed + 8 errors — предсуществующие падения
+фикстур без seed справочника (test_tasks/test_search/test_suggestions*,
+test_archive); закрываются session-scope seed фикстурой r2.
+```
+
+Падение теста при верном коде теста = кандидат в дефекты продукта →
+баг-репорт в `test-model/bugs/`.
+
+---
+
 # Web-сьют E2E-G1 (tests/web, Playwright)
 
 Playwright-сьют по 18 approved-кейсам критического пути
