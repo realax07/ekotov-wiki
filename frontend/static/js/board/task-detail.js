@@ -34,6 +34,9 @@ function renderTaskDetail(task) {
   var dl = document.getElementById("task-detail-attrs");
   dl.textContent = "";
   addDetailRow(dl, "Описание", task.description);
+  /* Приоритет в деталях — сырым значением (FR-9, контракт утвержденного
+   * e2e TC-UI-009: attrs содержат ровно значения задачи); цвет+иконка
+   * приоритета — в форме (пилюля) и на карточке доски (бейдж, FR-29). */
   addDetailRow(dl, "Приоритет", task.priority);
   addDetailRow(dl, "Категория", task.category);
   addDetailRow(dl, "Срок", task.due_date);

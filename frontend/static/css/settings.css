@@ -1,9 +1,10 @@
-/* Настройки (tasks.md 2.1, дельта settings): страница управления
-   справочником категорий. Палитра и классы ошибок/кнопок — переиспользованы
-   из board.css/search.css (base.html грузит board.css). */
+/* Настройки (tasks.md 2.1 Релиза 2, дельта settings): страница управления
+ * справочником категорий. Стиль V3 «Бумага» (задача 2.5, Д-5) — токены
+ * из app.css :root; классы ошибок/кнопок согласованы с board.css. */
+
 .settings-section { max-width: 560px; }
 
-.settings-hint { color: #7f8c8d; font-size: 14px; }
+.settings-hint { color: var(--color-text-secondary); font-size: 14px; }
 
 .category-create {
   display: flex;
@@ -17,12 +18,26 @@
   flex-direction: column;
   flex: 1;
   gap: 4px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
 }
 
 .category-create input {
-  padding: 8px;
-  border: 1px solid #bdc3c7;
-  border-radius: 4px;
+  padding: 4px 4px 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+}
+
+.category-create input:hover { border-bottom-color: var(--color-border-strong); }
+
+.category-create input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
 }
 
 .category-list { list-style: none; padding: 0; margin: 12px 0 0; }
@@ -33,7 +48,7 @@
   align-items: center;
   gap: 12px;
   padding: 8px 0;
-  border-bottom: 1px solid #ecf0f1;
+  border-bottom: 1px solid var(--color-border-default);
 }
 
 .category-item:last-child { border-bottom: none; }
@@ -41,24 +56,40 @@
 .category-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 .category-actions button {
-  padding: 4px 10px;
-  border: 1px solid #bdc3c7;
-  border-radius: 4px;
-  background: #fff;
+  padding: 4px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
   cursor: pointer;
 }
 
-.category-actions button:hover { background: #ecf0f1; }
+.category-actions button:hover { background: var(--color-bg-subtle); }
 
-.category-delete { color: #c0392b; border-color: #c0392b !important; }
+.category-actions button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
 
-.category-delete:hover { background: #fdecea !important; }
+.category-delete { color: var(--status-error); border-color: var(--status-error) !important; }
+
+.category-delete:hover { background: var(--status-error-bg) !important; }
 
 .category-rename-input {
   flex: 1;
-  padding: 6px 8px;
-  border: 1px solid #1abc9c;
-  border-radius: 4px;
+  padding: 4px 4px 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-accent);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+}
+
+.category-rename-input:focus-visible {
+  outline: none;
+  box-shadow: 0 1px 0 var(--color-accent);
 }
 
 /* Раздел «Настройки» в сайдбаре (дельта navigation): тот же стиль, что
@@ -66,6 +97,6 @@
    соседствуют в footer (FR-23: «внизу слева, рядом с кнопкой выхода»). */
 .sidebar-footer .nav-item-settings { padding-left: 0; padding-right: 0; }
 
-.form-error { color: #c0392b; }
+.form-error { color: var(--status-error); }
 
-.form-success { color: #27ae60; }
+.form-success { color: var(--status-success); }

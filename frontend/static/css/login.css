@@ -1,8 +1,29 @@
-/* Страница входа (tasks.md 2.3) — минимализм (sdd.md §1: без SPA-фреймворков). */
+/* Страница входа (tasks.md 2.3 Релиза 1) — стиль V3 «Бумага» (задача 2.5,
+ * Д-5): токены app.css :root (login.html грузит только login.css — токены
+ * дублируются локально). Без внешних шрифтов/библиотек (ОГР-8). */
+
+:root {
+  --color-text-primary: #3d3630;
+  --color-text-secondary: #6b6158;
+  --color-bg-page: #faf7f2;
+  --color-bg-surface: #fffdf9;
+  --color-border-default: #e9e1d4;
+  --color-accent: #a8432c;
+  --color-accent-hover: #93391f;
+  --status-error: #9c3524;
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+  --radius-field: 6px;
+  --radius-card: 10px;
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+}
+
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #f5f6f8;
+  font-family: var(--font-family);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
   display: flex;
   min-height: 100vh;
   align-items: center;
@@ -10,43 +31,67 @@ body {
 }
 
 .login-box {
-  background: #fff;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
   padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
   width: 100%;
   max-width: 320px;
 }
 
 .login-box h1 {
   margin: 0 0 1rem;
-  font-size: 1.25rem;
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 1.5rem;
 }
 
 .login-box label {
   display: block;
   margin: 0.75rem 0 0.25rem;
   font-size: 0.875rem;
+  color: var(--color-text-secondary);
 }
 
+/* Бумажный прием: поле — только нижняя линия. */
 .login-box input {
   width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 0.5rem 0.25rem;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
   box-sizing: border-box;
+}
+
+.login-box input:hover { border-bottom-color: var(--color-text-secondary); }
+
+.login-box input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
 }
 
 .login-box button {
   margin-top: 1rem;
   width: 100%;
   padding: 0.5rem;
-  border: none;
-  border-radius: 4px;
-  background: #2563eb;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--color-accent);
   color: #fff;
-  font-size: 1rem;
+  font: inherit;
   cursor: pointer;
+}
+
+.login-box button:hover { background: var(--color-accent-hover); }
+
+.login-box button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .login-box button:disabled {
@@ -56,6 +101,6 @@ body {
 
 .login-error {
   margin: 0.75rem 0 0;
-  color: #b91c1c;
+  color: var(--status-error);
   font-size: 0.875rem;
 }

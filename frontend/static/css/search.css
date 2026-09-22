@@ -1,9 +1,10 @@
-/* Поиск (tasks.md 7.3): стили вкладки поиска. Палитра, карточки и бейджи
- * наследуются от board.css (подключен в base.html): .task-card,
- * .task-priority-badge/.priority-*, .task-category, .task-archive-badge,
- * .form-error/.form-actions. Здесь — только компоновка, специфичная для
- * поиска: переключатель режимов, сетка полей конструктора, поле advanced,
- * строка normalized_query, контейнер результатов. */
+/* Поиск (tasks.md 7.3 Релиза 1): стили вкладки поиска. Стиль V3 «Бумага»
+ * (задача 2.5, Д-5) — токены из app.css :root; карточки и бейджи
+ * наследуются от board.css (.task-card, .task-priority-badge/.priority-*,
+ * .task-category, .task-archive-badge, .form-error/.form-actions).
+ * Здесь — только компоновка, специфичная для поиска: переключатель
+ * режимов, сетка полей конструктора, поле advanced, строка
+ * normalized_query, контейнер результатов. */
 
 /* --- Переключатель режимов (Конструктор | Advanced) --- */
 
@@ -15,32 +16,37 @@
 
 .search-mode-button {
   padding: 6px 14px;
-  background: #f4f6f8;
-  border: 1px solid #dfe4e8;
-  border-radius: 4px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: 999px;
   cursor: pointer;
   font: inherit;
-  color: #2c3e50;
+  color: var(--color-text-primary);
 }
 
-.search-mode-button:hover {
-  background: #ecf0f1;
-}
+.search-mode-button:hover { background: var(--color-bg-subtle); }
 
 .search-mode-button.active {
-  background: #1abc9c;
-  border-color: #1abc9c;
-  color: #fff;
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-text-on-accent, #fff);
   font-weight: bold;
+}
+
+.search-mode-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 /* --- Конструктор (FR-11) --- */
 
 .search-builder {
-  background: #f4f6f8;
-  border-radius: 8px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card, 10px);
   padding: 14px;
   margin-bottom: 14px;
+  box-shadow: var(--shadow-soft);
 }
 
 .search-fields {
@@ -52,7 +58,7 @@
 .search-builder label {
   display: block;
   font-size: 13px;
-  color: #2c3e50;
+  color: var(--color-text-secondary);
 }
 
 .search-builder input[type="text"],
@@ -61,43 +67,69 @@
   display: block;
   width: 100%;
   margin-top: 4px;
-  padding: 6px 8px;
-  border: 1px solid #dfe4e8;
-  border-radius: 4px;
+  padding: 4px 4px 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
   font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+}
+
+.search-builder input:hover,
+.search-builder select:hover { border-bottom-color: var(--color-border-strong); }
+
+.search-builder input:focus-visible,
+.search-builder select:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
 }
 
 /* --- Advanced (FR-12) --- */
 
 .search-advanced {
-  background: #f4f6f8;
-  border-radius: 8px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card, 10px);
   padding: 14px;
   margin-bottom: 14px;
+  box-shadow: var(--shadow-soft);
 }
 
 .search-advanced label {
   display: block;
   font-size: 13px;
-  color: #2c3e50;
+  color: var(--color-text-secondary);
 }
 
 .search-advanced textarea {
   display: block;
   width: 100%;
   margin-top: 4px;
-  padding: 6px 8px;
-  border: 1px solid #dfe4e8;
-  border-radius: 4px;
+  padding: 4px 4px 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
   font: inherit;
   font-family: monospace;
+  color: var(--color-text-primary);
+  background: transparent;
   box-sizing: border-box;
+}
+
+.search-advanced textarea:hover { border-bottom-color: var(--color-border-strong); }
+
+.search-advanced textarea:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
 }
 
 .search-normalized {
   margin: 8px 0 0;
   font-size: 12px;
-  color: #7f8c8d;
+  color: var(--color-text-secondary);
   font-family: monospace;
   word-break: break-all;
 }
@@ -114,11 +146,11 @@
 
 /* Тег в карточке результата — в стиле категории board.css. */
 .task-tag {
-  background: #ecf0f1;
-  border-radius: 4px;
-  padding: 1px 6px;
+  background: var(--color-bg-subtle);
+  border-radius: 999px;
+  padding: 1px 8px;
 }
 
 .search-empty {
-  color: #7f8c8d;
+  color: var(--color-text-secondary);
 }

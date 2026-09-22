@@ -1,42 +1,53 @@
-/* Доска (tasks.md 4.3; FR-1, FR-2): три фиксированных столбца, карточки
- * задач (title, priority-индикатор, category, due_date — FR-9).
- * Выделенная линия fast line (светло-синяя подсветка) — задача 5.2;
- * здесь только data-fast-атрибут и бейдж fast в карточке. */
+/* Доска (задача 2.5, tasks.md 5.1–5.3; FR-28, FR-29, Д-5): единый стиль
+ * V3 «Бумага» на ВСЮ доску — колонки, карточки, форма (решение Заказчика
+ * Д-5; эталон design/form-style-v3.html, токены — app.css :root).
+ * 5.1: крестик закрытия формы — правый верхний угол, зона 40×40px (FR-28).
+ * 5.2: приоритеты — цвет + inline SVG + текст, в форме и на карточке (FR-29,
+ * ОГР-8/Д-4); различимость без цвета — иконка ↓/=/↑ + текст всегда.
+ * Состояние ошибки поля (.field-invalid) сохранено из 3.1 (FR-21/FR-29).
+ * Анимация окна + prefers-reduced-motion (FR-29-анимация).
+ * Fast line (5.2 Релиза 1, FR-3): голубая подсветка сохранена на V3-токенах. */
 
 .board {
   display: flex;
-  gap: 16px;
+  gap: var(--space-2);
   align-items: flex-start;
 }
+
+/* --- Колонки (V3: кремовые поверхности, серифные заголовки) --- */
 
 .board-column {
   flex: 1;
   min-width: 220px;
-  background: #f4f6f8;
-  border-radius: 8px;
-  padding: 12px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-1) 12px;
+  box-shadow: var(--shadow-soft);
 }
 
 .board-column-title {
   margin: 0 0 10px;
-  font-size: 15px;
-  color: #2c3e50;
+  font-family: var(--font-family-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
-.board-column-done {
-  background: #eef1f4;
-}
+.board-column-done { background: var(--color-bg-subtle); }
 
-.board-error {
-  color: #c0392b;
-}
+.board-error { color: var(--status-error); }
+
+/* --- Карточка (V3: кремовая, радиус 10px, мягкая тень, цветная левая полоса) --- */
 
 .task-card {
-  background: #fff;
-  border: 1px solid #dfe4e8;
-  border-radius: 6px;
-  padding: 8px 10px;
-  margin-bottom: 8px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-left: 4px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-1) 10px;
+  margin-bottom: var(--space-1);
+  box-shadow: var(--shadow-soft);
 }
 
 .task-card-header {
@@ -46,85 +57,87 @@
   margin-bottom: 4px;
 }
 
-.task-priority-badge {
-  font-size: 11px;
-  font-weight: bold;
-  text-transform: uppercase;
-  color: #fff;
-  border-radius: 4px;
-  padding: 1px 6px;
-}
-
-.priority-high { background: #c0392b; }
-.priority-medium { background: #e67e22; }
-.priority-low { background: #27ae60; }
-
-/* Индикатор приоритета на самой карточке (цветная левая полоса). */
-.task-priority-high { border-left: 4px solid #c0392b; }
-.task-priority-medium { border-left: 4px solid #e67e22; }
-.task-priority-low { border-left: 4px solid #27ae60; }
-
-.task-fast-badge {
-  font-size: 11px;
-  font-weight: bold;
-  color: #2980b9;
-  border: 1px solid #2980b9;
-  border-radius: 4px;
-  padding: 0 5px;
-}
-
-/* 6.2 (FR-4): бейдж «Архивная» в карточке задачи. */
-.task-archive-badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: bold;
-  color: #7f8c8d;
-  border: 1px solid #7f8c8d;
-  border-radius: 4px;
-  padding: 0 5px;
-  margin-left: 8px;
-  vertical-align: middle;
-}
-
-/* --- 5.2: fast line (FR-3, ОГР-5) --- */
-
-/* Светло-синяя прозрачная подсветка линии: столбец, в котором стоит
- * fast-задача (класс has-fast ставит board.js при рендере). */
-.board-column.has-fast {
-  background: rgba(52, 152, 219, 0.1);
-  border: 1px solid rgba(52, 152, 219, 0.35);
-}
-
-/* Карточка fast-задачи на линии: светлый голубой полупрозрачный фон
- * поверх белого + подсвеченная рамка — визуально отличима от обычных
- * карточек и дублируется бейджем «fast». */
-.task-card-fast {
-  background: rgba(52, 152, 219, 0.14);
-  border-color: rgba(52, 152, 219, 0.55);
-}
-
 .task-card-title {
   margin: 0;
-  font-size: 14px;
+  font-family: var(--font-family-display);
+  font-size: 15px;
   font-weight: 600;
 }
 
 .task-card-meta {
   margin-top: 6px;
   display: flex;
-  gap: 10px;
+  gap: var(--space-1);
   font-size: 12px;
-  color: #7f8c8d;
+  color: var(--color-text-secondary);
   flex-wrap: wrap;
 }
 
 .task-category {
-  background: #ecf0f1;
-  border-radius: 4px;
-  padding: 1px 6px;
+  background: var(--color-bg-subtle);
+  border-radius: 999px;
+  padding: 1px 8px;
 }
 
-/* --- 4.5: формы и карточка задачи (FR-5, FR-7, FR-9) --- */
+/* --- Бейдж приоритета на карточке (5.2, FR-29): пилюля с мягким фоном
+ * (эталон V3) + inline SVG-иконка (↓/=/↑) + текст — различим без цвета --- */
+
+.task-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-micro);
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.task-priority-badge .prio-icon { flex-shrink: 0; display: block; }
+
+.task-priority-badge.priority-low { color: var(--priority-low); background: var(--priority-low-soft); }
+.task-priority-badge.priority-medium { color: var(--priority-medium); background: var(--priority-medium-soft); }
+.task-priority-badge.priority-high { color: var(--priority-high); background: var(--priority-high-soft); }
+
+/* Цветная левая полоса карточки по приоритету. */
+.task-priority-high { border-left-color: var(--priority-high); }
+.task-priority-medium { border-left-color: var(--priority-medium); }
+.task-priority-low { border-left-color: var(--priority-low); }
+
+.task-fast-badge {
+  font-size: var(--font-size-micro);
+  font-weight: 700;
+  color: var(--p-blue-700);
+  border: 1px solid var(--p-blue-700);
+  border-radius: 999px;
+  padding: 0 8px;
+}
+
+/* 6.2 Релиза 1 (FR-4): бейдж «Архивная» в карточке задачи. */
+.task-archive-badge {
+  display: inline-block;
+  font-size: var(--font-size-micro);
+  font-weight: bold;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  padding: 0 8px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* --- 5.2 Релиза 1: fast line (FR-3, ОГР-5) — подсветка на V3-токенах --- */
+
+.board-column.has-fast {
+  background: var(--p-blue-050);
+  border-color: var(--p-blue-200);
+}
+
+.task-card-fast {
+  background: var(--p-blue-050);
+  border-color: var(--p-blue-200);
+}
+
+/* --- 4.5 Релиза 1: формы (FR-5, FR-7, FR-9) --- */
 
 /* Стандартный паттерн: атрибут hidden должен побеждать любой
  * авторский display (например .modal-overlay { display:flex }), иначе
@@ -136,7 +149,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(61, 54, 48, 0.4);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -146,21 +159,71 @@
 }
 
 .modal {
-  background: #fff;
-  border-radius: 8px;
-  padding: 20px 24px;
+  position: relative;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
   width: 100%;
   max-width: 520px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-modal);
+  animation: modal-in var(--speed-modal) cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
-.task-form label {
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* FR-29 (анимация): анимация открытия; при reduced-motion — без движения
+ * (окно появляется мгновенно, видимость не зависит от анимации). */
+@media (prefers-reduced-motion: reduce) {
+  .modal { animation: none; }
+}
+
+/* --- 5.1 (FR-28): крестик закрытия формы — правый верхний угол,
+ * зона клика 40×40px; закрытие без сохранения --- */
+
+.modal-close {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font: inherit;
+}
+
+.modal-close:hover { background: var(--color-bg-subtle); color: var(--color-text-primary); }
+
+.modal-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* --- Форма задачи (V3: серифный заголовок, поля с нижней линией) --- */
+
+.task-form h2 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-family-display);
+  font-size: 22px;
+  font-weight: 400;
+  /* Место под крестик в правом верхнем углу (FR-28). */
+  padding-right: 40px;
+}
+
+.task-form label,
+.task-comments label {
   display: block;
-  margin-bottom: 10px;
-  font-size: 13px;
-  color: #2c3e50;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
 }
 
+/* Бумажный прием: поля без рамки — только нижняя линия 2px. */
 .task-form input[type="text"],
 .task-form input[type="date"],
 .task-form select,
@@ -168,12 +231,31 @@
 .task-comments textarea {
   display: block;
   width: 100%;
-  margin-top: 4px;
-  padding: 6px 8px;
-  border: 1px solid #dfe4e8;
-  border-radius: 4px;
+  margin-top: var(--space-05);
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
   font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
   box-sizing: border-box;
+}
+
+.task-form input:hover,
+.task-form select:hover,
+.task-form textarea:hover,
+.task-comments textarea:hover {
+  border-bottom-color: var(--color-border-strong);
+}
+
+.task-form input:focus-visible,
+.task-form select:focus-visible,
+.task-form textarea:focus-visible,
+.task-comments textarea:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
 }
 
 .task-form-checkbox {
@@ -184,62 +266,181 @@
 
 .task-form-checkbox input {
   margin: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--p-blue-700);
 }
+
+.task-form-checkbox:focus-within { box-shadow: var(--focus-ring); border-radius: var(--space-05); }
 
 .form-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 14px;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+}
+
+.form-actions button {
+  font: inherit;
+  cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+#task-form-submit {
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+}
+
+#task-form-submit:hover { background: var(--color-accent-hover); }
+
+/* Вторичные кнопки — контурные (V3). */
+#task-form-cancel,
+#task-detail-actions button,
+.comment-form button[type="submit"],
+.task-comments button[type="submit"] {
+  background: transparent;
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+#task-form-cancel:hover,
+#task-detail-actions button:hover,
+.comment-form button[type="submit"]:hover,
+.task-comments button[type="submit"]:hover { background: var(--color-bg-subtle); }
+
+.form-actions button:focus-visible,
+.comment-form button[type="submit"]:focus-visible,
+.task-comments button[type="submit"]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .form-error {
-  color: #c0392b;
-  font-size: 13px;
+  color: var(--status-error);
+  font-size: var(--font-size-label);
 }
 
-/* Состояние ошибки поля (3.1, FR-29: подсветка невалидной категории
- * при 422 жесткой валидации; ставится task-form.js). */
+/* Состояние ошибки поля (3.1, FR-29: подсветка невалидной категории при
+ * 422 жесткой валидации; ставит task-form.js) — V3: красная нижняя линия
+ * + мягкий красный фон. */
 .task-form .field-invalid {
-  border-color: #c0392b;
-  outline: 1px solid #c0392b;
+  border-bottom-color: var(--status-error);
+  background: var(--status-error-bg);
+  border-radius: var(--radius-field) var(--radius-field) 0 0;
+}
+
+.task-form .field-invalid:focus-visible {
+  box-shadow: 0 1px 0 var(--status-error);
 }
 
 .field-error {
   display: block;
-  color: #c0392b;
+  color: var(--status-error);
   font-size: 12px;
-  margin-top: 4px;
+  margin-top: var(--space-05);
 }
 
-.task-detail-attrs {
-  margin: 10px 0;
+/* --- 5.2 (FR-29): приоритеты В ФОРМЕ — цвет + SVG + текст.
+ * Нативный select приоритета сохранен (контракт task-form.js: value,
+ * collectTaskForm, e2e select_option) и обернут в .priority-select-pill:
+ * CSS рисует поверх него пилюлю-обертку с цветом выбранного значения
+ * (:has(:checked)); сама иконка — через иконку выбранного бейджа нельзя
+ * (нативный select закрывает опции), поэтому пилюля формы несет цвет
+ * выбранного приоритета, а различимость без цвета дают текст опций
+ * («Низкий/Средний/Высокий») и иконки на карточках/в деталях. */
+
+.priority-field-pill {
+  position: relative;
+  border: 1px solid var(--color-border-default);
+  border-radius: 999px;
+  background: var(--color-bg-surface);
+  transition: border-color var(--speed-fast) ease;
 }
+
+.priority-field-pill:hover { border-color: var(--color-border-strong); }
+
+.priority-field-pill:focus-within {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+}
+
+.priority-field-pill select {
+  margin-top: 0 !important;
+  border-bottom: none !important;
+  padding: 6px var(--space-1) !important;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* Цвет пилюли по выбранному приоритету: цвет + текст опций (без цвета —
+ * текст; иконки — на карточке и в деталях). */
+.priority-field-pill:has(#task-priority option[value="low"]:checked) {
+  border-color: var(--priority-low);
+  background: var(--priority-low-soft);
+  color: var(--priority-low);
+}
+.priority-field-pill:has(#task-priority option[value="medium"]:checked) {
+  border-color: var(--priority-medium);
+  background: var(--priority-medium-soft);
+  color: var(--priority-medium);
+}
+.priority-field-pill:has(#task-priority option[value="high"]:checked) {
+  border-color: var(--priority-high);
+  background: var(--priority-high-soft);
+  color: var(--priority-high);
+}
+
+/* --- Детали задачи (карточка 4.5): серифный заголовок, поле приоритета
+ * с бейджем цвет+SVG (значения рендерит task-detail.js) --- */
+
+.task-detail h2 {
+  margin: 0 var(--space-3) 0 0;
+  font-family: var(--font-family-display);
+  font-size: 20px;
+  font-weight: 600;
+  display: inline;
+}
+
+.task-detail-attrs { margin: 10px 0; }
 
 .task-detail-attrs dt {
-  font-size: 11px;
+  font-size: var(--font-size-micro);
   font-weight: bold;
   text-transform: uppercase;
-  color: #7f8c8d;
-  margin-top: 8px;
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
 }
 
 .task-detail-attrs dd {
   margin: 2px 0 0;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   white-space: pre-wrap;
 }
 
 .task-detail-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-1);
   align-items: center;
   flex-wrap: wrap;
   margin: 12px 0;
 }
 
+.task-detail-actions label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  margin-bottom: 0;
+}
+
 .task-comments h3 {
-  margin: 16px 0 8px;
-  font-size: 14px;
+  margin: var(--space-2) 0 var(--space-1);
+  font-family: var(--font-family-display);
+  font-size: 15px;
 }
 
 .task-comments-list {
@@ -249,17 +450,17 @@
 }
 
 .task-comment {
-  border-bottom: 1px solid #ecf0f1;
+  border-bottom: 1px solid var(--color-border-default);
   padding: 6px 0;
 }
 
 .task-comment-meta {
-  font-size: 11px;
-  color: #95a5a6;
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
 }
 
 .task-comment-body {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: var(--font-size-label);
   white-space: pre-wrap;
 }

@@ -1,5 +1,6 @@
 /* Точка входа доски (P6: инициализация из board.js; tasks.md 4.3, 4.5,
- * 5.2; FR-1, FR-2, FR-3, FR-5, FR-7, FR-9; sdd.md §3.2, §3.3).
+ * 5.2 Релиза 1, 2.5; FR-1, FR-2, FR-3, FR-5, FR-7, FR-9, FR-28; sdd.md
+ * §3.2, §3.3).
  *
  * Подключение в board.html: <script type="module"
  * src="/static/js/board/board-init.js">. app.js (base.html, классический
@@ -30,6 +31,12 @@ document
   .addEventListener("submit", submitTaskForm);
 document
   .getElementById("task-form-cancel")
+  .addEventListener("click", closeTaskForm);
+
+/* 5.1 (FR-28): крестик закрытия формы — правый верхний угол; закрытие
+ * без сохранения — тот же closeTaskForm, что и «Отмена». */
+document
+  .getElementById("task-form-close")
   .addEventListener("click", closeTaskForm);
 
 initTaskDetailControls();
