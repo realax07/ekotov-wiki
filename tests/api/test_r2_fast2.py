@@ -87,21 +87,15 @@ def test_fast_priority_field_locked_in_form(owner_session, r2_seed_categories):
 
 
 @pytest.mark.must
-@pytest.mark.xfail(reason="BUG-002 (test-model/bugs/): явный priority=null при is_fast=true "
-                          "не отклоняется 422 — создается 201 с priority=high; "
-                          "create_task не различает null и отсутствие поля (model_fields_set "
-                          "не проверяется). Ожидание кейса CHK-130 подтверждено, тест не ослабляется.",
-                   strict=True)
 def test_fast_explicit_null_priority_422(api, r2_fast_line):
     """TC-fast2-004: POST is_fast=true с явным priority=null → 422
     {"error": "validation", "details": {"priority": "fast requires high"}}
     (sdd r2 §3.2: явный null — отдельный случай от отсутствия поля, CHK-130);
     fast-задача не создана (0 совпадений).
 
-    ФАКТ: 201 с priority=high — расхождение реализации с кейсом задокументировано
-    как BUG-002 (test-model/bugs/BUG-002-fast-explicit-null-priority-201.md);
-    помечен xfail(strict): при исправлении продукта тест станет XPASS и упадет
-    strict-проверка — сигнал снять метку."""
+    BUG-002 ИСПРАВЛЕН (backend/app/tasks.py: _explicit_null_priority_422,
+    различение null/отсутствие через model_fields_set): xfail(strict) снят
+    2026-09-22, тест зеленый (история дефекта — test-model/bugs/BUG-002)."""
     assert _no_active_fast(api)
     resp = api.session.post(
         f"{api.base_url}/api/tasks",
