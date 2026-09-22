@@ -20,6 +20,9 @@
       <a href="/wiki" class="nav-item{% if active_page == 'wiki' %} active{% endif %}">Wiki <span class="todo-badge">todo</span></a>
     </nav>
     <div class="sidebar-footer">
+      {# 2.1 (FR-23, дельта navigation): раздел «Настройки» — внизу слева,
+         рядом с кнопкой выхода (sidebar-footer); ведет на /settings. #}
+      <a href="/settings" class="nav-item nav-item-settings{% if active_page == 'settings' %} active{% endif %}">Настройки</a>
       <button type="button" id="logout-button" class="logout-button">Выйти</button>
     </div>
   </aside>

@@ -1,0 +1,71 @@
+/* Настройки (tasks.md 2.1, дельта settings): страница управления
+   справочником категорий. Палитра и классы ошибок/кнопок — переиспользованы
+   из board.css/search.css (base.html грузит board.css). */
+.settings-section { max-width: 560px; }
+
+.settings-hint { color: #7f8c8d; font-size: 14px; }
+
+.category-create {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  margin: 12px 0;
+}
+
+.category-create label {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 4px;
+}
+
+.category-create input {
+  padding: 8px;
+  border: 1px solid #bdc3c7;
+  border-radius: 4px;
+}
+
+.category-list { list-style: none; padding: 0; margin: 12px 0 0; }
+
+.category-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.category-item:last-child { border-bottom: none; }
+
+.category-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+.category-actions button {
+  padding: 4px 10px;
+  border: 1px solid #bdc3c7;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.category-actions button:hover { background: #ecf0f1; }
+
+.category-delete { color: #c0392b; border-color: #c0392b !important; }
+
+.category-delete:hover { background: #fdecea !important; }
+
+.category-rename-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #1abc9c;
+  border-radius: 4px;
+}
+
+/* Раздел «Настройки» в сайдбаре (дельта navigation): тот же стиль, что
+   у nav-ссылок; после кнопки выхода отступ сверху не нужен — ссылки
+   соседствуют в footer (FR-23: «внизу слева, рядом с кнопкой выхода»). */
+.sidebar-footer .nav-item-settings { padding-left: 0; padding-right: 0; }
+
+.form-error { color: #c0392b; }
+
+.form-success { color: #27ae60; }
