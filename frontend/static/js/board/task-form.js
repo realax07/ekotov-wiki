@@ -24,6 +24,13 @@
  * открытии формы (следуют за заведенными значениями). Сбой загрузки
  * оставляет datalist пустым — автодополнение не работает, ввод тегов
  * не блокируется.
+ *
+ * 4.3 (FR-27, BUG-004; fastline MODIFIED «Поле приоритета
+ * заблокировано», CHK-129/TC-fast2-003): отметка fast line подставляет
+ * в поле приоритета «высокий» (high) и блокирует его; снять блокировку
+ * можно только сняв fast line. При отправке fast-задачи priority не
+ * включается в payload вовсе — сервер сам ставит high (BUG-002: явный
+ * priority=null при is_fast отклоняется 422; ОГР-10).
  */
 "use strict";
 
@@ -36,6 +43,23 @@ import { refreshBoard } from "./cards.js";
 
 var CATEGORY_FIELD_ID = "task-category";
 var CATEGORY_FIELD_ERROR_ID = "task-category-error";
+var PRIORITY_FIELD_ID = "task-priority";
+var IS_FAST_FIELD_ID = "task-is-fast";
+
+/* --- Блокировка приоритета fast-задачи (4.3, FR-27, BUG-004) --- */
+
+function setPriorityLock(locked) {
+  /* fast line отмечена → приоритет «высокий» и поле заблокировано
+   * (сценарий «Поле приоритета заблокировано»; разблокировка — только
+   * снятием fast line). Программная установка checked у чекбокса
+   * событие change не возбуждает, поэтому при открытии/очистке формы
+   * сброс блокировки — явный setPriorityLock(false) в fillTaskForm. */
+  var select = document.getElementById(PRIORITY_FIELD_ID);
+  if (locked) {
+    select.value = "high";
+  }
+  select.disabled = locked;
+}
 
 function splitTags(raw) {
   /* Строка через запятую → массив непустых тегов. */
@@ -177,12 +201,15 @@ function handleSubmitError(message, response, body) {
 function fillTaskForm(task) {
   document.getElementById("task-title").value = task.title || "";
   document.getElementById("task-description").value = task.description || "";
-  document.getElementById("task-priority").value = task.priority || "";
+  document.getElementById(PRIORITY_FIELD_ID).value = task.priority || "";
   /* Значение задачи проставляется после загрузки опций (loadCategoryOptions):
    * пока опций нет, value селекта молча не применится. */
   document.getElementById("task-due-date").value = task.due_date || "";
   document.getElementById("task-tags").value = (task.tags || []).join(", ");
-  document.getElementById("task-is-fast").checked = false;
+  document.getElementById(IS_FAST_FIELD_ID).checked = false;
+  /* Форма открывается без fast line → приоритет разблокирован (4.3:
+   * сброс состояния предыдущего открытия формы). */
+  setPriorityLock(false);
 }
 
 function clearTaskForm() {
@@ -239,13 +266,20 @@ function collectTaskForm() {
   var payload = {
     title: document.getElementById("task-title").value.trim(),
     description: document.getElementById("task-description").value.trim(),
-    priority: document.getElementById("task-priority").value || null,
+    priority: document.getElementById(PRIORITY_FIELD_ID).value || null,
     category: categoryField().value || null,
     due_date: document.getElementById("task-due-date").value || null,
     tags: splitTags(document.getElementById("task-tags").value),
   };
   if (boardState.currentTaskId === null) {
-    payload.is_fast = document.getElementById("task-is-fast").checked;
+    var isFast = document.getElementById(IS_FAST_FIELD_ID).checked;
+    payload.is_fast = isFast;
+    if (isFast) {
+      /* BUG-004 (4.3, BUG-002): явный priority (даже null) при is_fast
+       * отклоняется сервером 422 (ОГР-10) — при fast priority не
+       * отправляется вовсе, сервер сам ставит «высокий». */
+      delete payload.priority;
+    }
   }
   return payload;
 }
@@ -283,3 +317,11 @@ export function submitTaskForm(event) {
 
 /* Сброс подсветки при изменении значения (пользователь отреагировал). */
 categoryField().addEventListener("change", clearCategoryInvalid);
+
+/* 4.3 (FR-27): отметка fast line → приоритет «высокий» и блокировка
+ * поля; снятие fast line — единственный способ разблокировать. */
+document
+  .getElementById(IS_FAST_FIELD_ID)
+  .addEventListener("change", function (event) {
+    setPriorityLock(event.target.checked);
+  });
