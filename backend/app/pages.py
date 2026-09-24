@@ -29,6 +29,11 @@ _TEMPLATES_DIR = Path(__file__).resolve().parents[2] / "frontend" / "templates"
 router = APIRouter()
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
+# Кеш-бастинг статики (DEF-003): nginx отдаёт /static/ с expires 7d; при релизах
+# URL обязан меняться, иначе браузер держит прошлую версию CSS/JS. Бампать при
+# каждом релизе, меняющем статику.
+templates.env.globals["static_v"] = "r2.1"
+
 
 @router.get("/login")
 def login_page(request: Request):
