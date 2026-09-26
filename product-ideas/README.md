@@ -12,3 +12,5 @@
 ## Идеи
 
 - `product-ideas_video.md` — IDEA-001. Личный видеохостинг (статус: идея)
+- `product-ideas_fileshare.md` — IDEA-002. Файловая шара (статус: идея)
+- `product-ideas_grafana.md` — IDEA-003. Grafana для тачки (статус: идея)
