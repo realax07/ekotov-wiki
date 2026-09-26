@@ -1,0 +1,272 @@
+{
+  "meta": {
+    "tool": "scripts/codegraph.py",
+    "py_dir": "backend/app",
+    "js_dirs": [
+      "frontend/static/js"
+    ]
+  },
+  "nodes": [
+    "backend.app.__init__",
+    "backend.app.auth",
+    "backend.app.board",
+    "backend.app.categories",
+    "backend.app.comments",
+    "backend.app.config",
+    "backend.app.db",
+    "backend.app.main",
+    "backend.app.middleware",
+    "backend.app.migrate_categories",
+    "backend.app.pages",
+    "backend.app.search",
+    "backend.app.seed_users",
+    "backend.app.suggestions",
+    "backend.app.tasks",
+    "frontend/static/js/app.js",
+    "frontend/static/js/board/api.js",
+    "frontend/static/js/board/board-init.js",
+    "frontend/static/js/board/cards.js",
+    "frontend/static/js/board/dom.js",
+    "frontend/static/js/board/priority-icons.js",
+    "frontend/static/js/board/state.js",
+    "frontend/static/js/board/task-detail.js",
+    "frontend/static/js/board/task-form.js",
+    "frontend/static/js/login.js",
+    "frontend/static/js/search.js",
+    "frontend/static/js/settings.js"
+  ],
+  "edges": [
+    {
+      "from": "backend.app.auth",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.board",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.categories",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.comments",
+      "to": "backend.app.auth",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.comments",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.db",
+      "to": "backend.app.config",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
+      "to": "backend.app.auth",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
+      "to": "backend.app.board",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
+      "to": "backend.app.categories",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
+      "to": "backend.app.comments",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
+      "to": "backend.app.config",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
+      "to": "backend.app.middleware",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
+      "to": "backend.app.pages",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
+      "to": "backend.app.search",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
+      "to": "backend.app.suggestions",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
+      "to": "backend.app.tasks",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.middleware",
+      "to": "backend.app.auth",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.middleware",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.migrate_categories",
+      "to": "backend.app.config",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.migrate_categories",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.search",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.search",
+      "to": "backend.app.tasks",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.seed_users",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.suggestions",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.tasks",
+      "to": "backend.app.board",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.tasks",
+      "to": "backend.app.categories",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.tasks",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "frontend/static/js/board/board-init.js",
+      "to": "frontend/static/js/board/cards.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/board-init.js",
+      "to": "frontend/static/js/board/state.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/board-init.js",
+      "to": "frontend/static/js/board/task-detail.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/board-init.js",
+      "to": "frontend/static/js/board/task-form.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/cards.js",
+      "to": "frontend/static/js/board/api.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/cards.js",
+      "to": "frontend/static/js/board/dom.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/cards.js",
+      "to": "frontend/static/js/board/priority-icons.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/cards.js",
+      "to": "frontend/static/js/board/state.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/task-detail.js",
+      "to": "frontend/static/js/board/api.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/task-detail.js",
+      "to": "frontend/static/js/board/cards.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/task-detail.js",
+      "to": "frontend/static/js/board/dom.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/task-detail.js",
+      "to": "frontend/static/js/board/state.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/task-detail.js",
+      "to": "frontend/static/js/board/task-form.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/task-form.js",
+      "to": "frontend/static/js/board/api.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/task-form.js",
+      "to": "frontend/static/js/board/cards.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/task-form.js",
+      "to": "frontend/static/js/board/dom.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/task-form.js",
+      "to": "frontend/static/js/board/state.js",
+      "kind": "es-import"
+    }
+  ],
+  "js_entry_points": [
+    "frontend/static/js/app.js",
+    "frontend/static/js/board/board-init.js",
+    "frontend/static/js/login.js",
+    "frontend/static/js/search.js",
+    "frontend/static/js/settings.js"
+  ]
+}
