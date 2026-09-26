@@ -137,6 +137,13 @@ CSS=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 5 "$PROD_URL/static/css
 [ "$CSS" = "200" ] || fail "Статика через прод-URL: $CSS (ожидался 200)"
 ok "CSS через прод-URL: 200"
 
+# 6b/6 Смоук статики E10: все ресурсы, на которые ссылается UI, по прод-URL
+if python3 "$SRC_DIR/scripts/smoke_static.py" --repo "$SRC_DIR" --base "$PROD_URL" --insecure; then
+  ok "Смоук статики (E10): все UI-ресурсы отдаются"
+else
+  fail "Смоук статики (E10): часть UI-ресурсов не отдается (класс DEF-002)"
+fi
+
 echo -e "\n\033[1;32m============================================"
 echo "ДЕПЛОЙ $TARGET_LABEL ЗАВЕРШЕН УСПЕШНО"
 echo "============================================\033[0m"
