@@ -50,10 +50,27 @@ def _resolve_base_url(config) -> str:
     )
 
 
+def _warn_dead_external(url: str) -> None:
+    """E6: заданный снаружи BASE_URL при недоступном стенде = верный признак
+    stale env от завершенной сессии. Warn вместо молчаливого падения тестов
+    ERR_CONNECTION_REFUSED (прецедент R2: 38 errors, 2 ложных failed)."""
+    try:
+        requests.get(f"{url}/api/health", timeout=2)
+    except requests.RequestException:
+        print(
+            f"\nWARNING [E6]: EKOTOV_WIKI_BASE_URL={url} задан, но стенд не отвечает "
+            f"на /api/health. Вероятен stale env от завершенной сессии: "
+            f"очисти env (env -u EKOTOV_WIKI_BASE_URL -u EKOTOV_WIKI_DB_PATH) "
+            f"или подними стенд по инструкции tests/README.md.\n",
+            flush=True,
+        )
+
+
 @pytest.fixture(scope="session")
 def base_url(request) -> str:
     """Корень развернутого приложения (без завершающего слеша)."""
-    url = _resolve_base_url(request.config).rstrip("/")
+    url = _resolve_base_url(request).rstrip("/")
+    _warn_dead_external(url)
     # Детерминированное ожидание готовности (без sleep: poll-цикл с таймаутом)
     deadline = 60.0
     import time

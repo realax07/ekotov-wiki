@@ -98,11 +98,28 @@ def _start_static_server() -> tuple[subprocess.Popen, int]:
     return proc, port
 
 
+def _warn_dead_external(url: str) -> None:
+    """E6: заданный снаружи BASE_URL при недоступном стенде = верный признак
+    stale env от завершенной сессии. Warn вместо молчаливого отключения
+    автоподъема (прецедент R2: 38 errors ERR_CONNECTION_REFUSED)."""
+    try:
+        requests.get(f"{url}/api/health", timeout=2)
+    except requests.RequestException:
+        print(
+            f"\nWARNING [E6]: EKOTOV_WIKI_BASE_URL={url} задан, но стенд не отвечает "
+            f"на /api/health — автоподъем стенда отключен этим env. Вероятен stale env "
+            f"от завершенной сессии: очисти env (env -u EKOTOV_WIKI_BASE_URL "
+            f"-u EKOTOV_WIKI_DB_PATH) или подними стенд по tests/README.md.\n",
+            flush=True,
+        )
+
+
 @pytest.fixture(scope="session")
 def web_server(request):
     """Тест-стенд сессии: uvicorn + static + временная БД + seed."""
     external_base_url = os.environ.get(BASE_URL_ENV)
     if external_base_url:
+        _warn_dead_external(external_base_url.rstrip("/"))
         yield {"base_url": external_base_url.rstrip("/"), "db_path": os.environ.get(DB_PATH_ENV), "static_url": None}
         return
 
