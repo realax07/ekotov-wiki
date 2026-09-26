@@ -126,7 +126,7 @@ TC-cat-001…015 (категории), TC-migr-001…006 (миграция), TC-
 
 ## Seed справочника и cleanup (TC-env-001/002)
 
-- `r2_seed_categories` (session-scope, `conftest_r2.py`): ДО любого прогона
+- `r2_seed_categories` (session-scope, `conftest.py`): ДО любого прогона
   создает в справочнике `Дом`, `Работа`, `Личное` (идемпотентно, 409 = уже
   есть); ПОСЛЕ сессии убирает `QAT-*`-хвосты упавших тестов (справочник
   общесистемный, ОГР-7; cleanup задач категорий не убирает — тесты сами
@@ -146,8 +146,8 @@ TC-migr-006 проверяет негатив NFR-8: расхождение → 
 
 ## Метки regression (G5)
 
-- `keep` — все тесты test_r2_categories/test_r2_fast2/test_r2_env;
-- `candidate-archive` — все тесты test_r2_migration + test_r2_fast2::test_migration_normalizes_fast_priority
+- `keep` — все тесты test_categories/test_fast2/test_env;
+- `candidate-archive` — все тесты test_migration + test_fast2::test_migration_normalizes_fast_priority
   (TC-migr-001…006, TC-fast2-010 — разовые проверки внедрения, impact §3 п.2).
 
 ## Известные отклонения
@@ -168,41 +168,41 @@ TC-migr-006 проверяет негатив NFR-8: расхождение → 
 
 | Кейсы | Тесты | Файл | Метка |
 |---|---|---|---|
-| TC-cat-001 (UI) | test_category_form_field_is_select_from_directory (web_ui-skip; API-шаг 1 — seed) | test_r2_categories.py | keep |
-| TC-cat-002 (UI) | test_category_filter_field_is_select_from_directory (web_ui-skip) | test_r2_categories.py | keep |
-| TC-cat-003 (UI+API) | test_category_outside_directory_not_selectable_anywhere (API-шаг 1; UI — tests/web) | test_r2_categories.py | keep |
-| TC-cat-004 (API+UI) | test_category_create_201_visible_in_directory (UI-шаги — tests/web) | test_r2_categories.py | keep |
-| TC-cat-005 | test_category_rename_applies_to_all_tasks | test_r2_categories.py | keep |
-| TC-cat-006 | test_category_delete_in_use_blocked_409 | test_r2_categories.py | keep |
-| TC-cat-007 | test_category_delete_unused_ok | test_r2_categories.py | keep |
-| TC-cat-008 | test_category_empty_name_rejected_422 | test_r2_categories.py | keep |
-| TC-cat-009 | test_category_duplicate_409_post_and_patch_case_sensitive | test_r2_categories.py | keep |
-| TC-cat-010 | test_category_patch_delete_missing_id_404 | test_r2_categories.py | keep |
-| TC-cat-011 | test_categories_get_401_without_session_and_200_sorted | test_r2_categories.py | keep |
-| TC-cat-012 | test_task_create_with_unknown_category_422_not_created | test_r2_categories.py | keep |
-| TC-cat-013 | test_task_patch_with_unknown_category_422_value_untouched | test_r2_categories.py | keep |
-| TC-cat-014 | test_validation_follows_current_directory | test_r2_categories.py | keep |
-| TC-cat-015 | test_empty_category_is_allowed | test_r2_categories.py | keep |
-| TC-migr-001 | test_migration_unique_values_become_categories_1to1 | test_r2_migration.py | candidate-archive |
-| TC-migr-002 | test_migration_tasks_keep_category_values | test_r2_migration.py | candidate-archive |
-| TC-migr-003 | test_migration_empty_values_create_no_records | test_r2_migration.py | candidate-archive |
-| TC-migr-004 | test_migration_all_nonempty_categories_valid | test_r2_migration.py | candidate-archive |
-| TC-migr-005 | test_migration_zero_loss_snapshot_verification | test_r2_migration.py | candidate-archive |
-| TC-migr-006 | test_migration_mismatch_fails_verification | test_r2_migration.py | candidate-archive |
-| TC-fast2-001 | test_fast_create_priority_auto_high | test_r2_fast2.py | keep |
-| TC-fast2-002 | test_regular_task_keeps_chosen_priority | test_r2_fast2.py | keep |
-| TC-fast2-003 (UI) | test_fast_priority_field_locked_in_form (web_ui-skip) | test_r2_fast2.py | keep |
-| TC-fast2-004 | test_fast_explicit_null_priority_422 (xfail strict — BUG-002) | test_r2_fast2.py | keep |
-| TC-fast2-005 | test_fast_priority_low_422 | test_r2_fast2.py | keep |
-| TC-fast2-006 | test_fast_priority_medium_422 | test_r2_fast2.py | keep |
-| TC-fast2-007 | test_forged_client_request_rejected_by_server | test_r2_fast2.py | keep |
-| TC-fast2-008 | test_fast_without_priority_key_gets_high | test_r2_fast2.py | keep |
-| TC-fast2-009 | test_regular_task_any_priority_unrestricted | test_r2_fast2.py | keep |
-| TC-fast2-010 | test_migration_normalizes_fast_priority | test_r2_fast2.py | candidate-archive |
-| TC-fast2-011 | test_patch_cases_regular_high_ok_fast_medium_rejected | test_r2_fast2.py | keep |
-| TC-fast2-012 | test_second_fast_with_invalid_priority_order_fixed | test_r2_fast2.py | keep |
-| TC-env-001 | test_seed_directory_present_before_any_run + фикстура r2_seed_categories | test_r2_env.py | keep |
-| TC-env-002 | test_directory_isolation_and_cleanup + teardown фикстуры | test_r2_env.py | keep |
+| TC-cat-001 (UI) | test_category_form_field_is_select_from_directory (web_ui-skip; API-шаг 1 — seed) | test_categories.py | keep |
+| TC-cat-002 (UI) | test_category_filter_field_is_select_from_directory (web_ui-skip) | test_categories.py | keep |
+| TC-cat-003 (UI+API) | test_category_outside_directory_not_selectable_anywhere (API-шаг 1; UI — tests/web) | test_categories.py | keep |
+| TC-cat-004 (API+UI) | test_category_create_201_visible_in_directory (UI-шаги — tests/web) | test_categories.py | keep |
+| TC-cat-005 | test_category_rename_applies_to_all_tasks | test_categories.py | keep |
+| TC-cat-006 | test_category_delete_in_use_blocked_409 | test_categories.py | keep |
+| TC-cat-007 | test_category_delete_unused_ok | test_categories.py | keep |
+| TC-cat-008 | test_category_empty_name_rejected_422 | test_categories.py | keep |
+| TC-cat-009 | test_category_duplicate_409_post_and_patch_case_sensitive | test_categories.py | keep |
+| TC-cat-010 | test_category_patch_delete_missing_id_404 | test_categories.py | keep |
+| TC-cat-011 | test_categories_get_401_without_session_and_200_sorted | test_categories.py | keep |
+| TC-cat-012 | test_task_create_with_unknown_category_422_not_created | test_categories.py | keep |
+| TC-cat-013 | test_task_patch_with_unknown_category_422_value_untouched | test_categories.py | keep |
+| TC-cat-014 | test_validation_follows_current_directory | test_categories.py | keep |
+| TC-cat-015 | test_empty_category_is_allowed | test_categories.py | keep |
+| TC-migr-001 | test_migration_unique_values_become_categories_1to1 | test_migration.py | candidate-archive |
+| TC-migr-002 | test_migration_tasks_keep_category_values | test_migration.py | candidate-archive |
+| TC-migr-003 | test_migration_empty_values_create_no_records | test_migration.py | candidate-archive |
+| TC-migr-004 | test_migration_all_nonempty_categories_valid | test_migration.py | candidate-archive |
+| TC-migr-005 | test_migration_zero_loss_snapshot_verification | test_migration.py | candidate-archive |
+| TC-migr-006 | test_migration_mismatch_fails_verification | test_migration.py | candidate-archive |
+| TC-fast2-001 | test_fast_create_priority_auto_high | test_fast2.py | keep |
+| TC-fast2-002 | test_regular_task_keeps_chosen_priority | test_fast2.py | keep |
+| TC-fast2-003 (UI) | test_fast_priority_field_locked_in_form (web_ui-skip) | test_fast2.py | keep |
+| TC-fast2-004 | test_fast_explicit_null_priority_422 (xfail strict — BUG-002) | test_fast2.py | keep |
+| TC-fast2-005 | test_fast_priority_low_422 | test_fast2.py | keep |
+| TC-fast2-006 | test_fast_priority_medium_422 | test_fast2.py | keep |
+| TC-fast2-007 | test_forged_client_request_rejected_by_server | test_fast2.py | keep |
+| TC-fast2-008 | test_fast_without_priority_key_gets_high | test_fast2.py | keep |
+| TC-fast2-009 | test_regular_task_any_priority_unrestricted | test_fast2.py | keep |
+| TC-fast2-010 | test_migration_normalizes_fast_priority | test_fast2.py | candidate-archive |
+| TC-fast2-011 | test_patch_cases_regular_high_ok_fast_medium_rejected | test_fast2.py | keep |
+| TC-fast2-012 | test_second_fast_with_invalid_priority_order_fixed | test_fast2.py | keep |
+| TC-env-001 | test_seed_directory_present_before_any_run + фикстура r2_seed_categories | test_env.py | keep |
+| TC-env-002 | test_directory_isolation_and_cleanup + teardown фикстуры | test_env.py | keep |
 
 Итого: 33 кейса → 35 тестовых функций (каждому кейсу — минимум один тест;
 UI-шаги смешанных кейсов помечены web_ui-skip со ссылкой на tests/web).
