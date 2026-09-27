@@ -182,7 +182,12 @@ function clearDropHighlight() {
  * прежний перевод селектом в карточке задачи — ОГР-14). Успех —
  * перерисовка доски; отказ (409 fast line занята — Д-6, иные 4xx,
  * сеть) — ошибка в #board-error и перерисовка: плитка возвращается на
- * исходное место, инварианты сервера не нарушены (2.2). */
+ * исходное место, инварианты сервера не нарушены (2.2).
+ *
+ * dragInProgress снимается по факту ответа (review-001-2.1-2.2 №2):
+ * api() в каждой ветке — ok/204, 4xx (включая 409) и сеть — вызывает
+ * ровно один из колбэков onOk/onError, так что разблокировка здесь
+ * покрывает все исходы запроса; таймер-предохранитель не нужен. */
 function moveTask(taskId, status) {
   api(
     "/api/tasks/" + taskId + "/move",
@@ -196,9 +201,11 @@ function moveTask(taskId, status) {
        * тот же, что при загрузке доски). */
       showBoardError(message);
       refreshBoard();
+      dragInProgress = false;
     },
     function () {
       refreshBoard();
+      dragInProgress = false;
     }
   );
 }
@@ -271,11 +278,6 @@ function onDrop(event) {
   }
   dragInProgress = true;
   moveTask(taskId, targetStatus);
-  /* Снимаем блокировку после перерисовки (renderBoard) или чуть позже —
-   * dragend исходной карточки мог уже не сработать (она удалена). */
-  setTimeout(function () {
-    dragInProgress = false;
-  }, 1500);
 }
 
 function onDragEnd(event) {
