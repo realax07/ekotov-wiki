@@ -273,6 +273,76 @@
 
 .task-form-checkbox:focus-within { box-shadow: var(--focus-ring); border-radius: var(--space-05); }
 
+/* --- 4.1 (FR-34, DEF-005): зоны формы по мокапу V3 --- */
+
+/* Обязательная звезда заголовка (мокап .req) — цвет ошибки. */
+.task-form .req {
+  color: var(--status-error);
+}
+
+/* Подсказка под полем (мокап .hint). */
+.task-form .hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: var(--space-05) 0 var(--space-1);
+}
+
+/* Зона «вид выбранных тегов» (мокап .chips/.chip): пилюли с крестиком
+ * удаления; значения рендерит task-form.js через textContent (XSS). */
+.task-form .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-05);
+  margin: 0 0 var(--space-2);
+}
+
+.task-form .chips[hidden] { display: none; }
+
+.task-form .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-bg-subtle);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+
+.task-form .chip button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  line-height: 1;
+  color: var(--color-text-secondary);
+}
+
+.task-form .chip button:hover { color: var(--color-text-primary); }
+
+.task-form .chip button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 50%;
+}
+
+/* Fast line — ряд-плашка на голубых токенах (мокап .fast-row, FR-3);
+ * при reduced-motion transition не заводились — только цвета. */
+.task-form .fast-row {
+  display: flex;
+  gap: var(--space-05);
+  align-items: flex-start;
+  padding: var(--space-1);
+  background: var(--p-blue-050);
+  border: 1px solid var(--p-blue-200);
+  border-radius: var(--radius-field);
+  font-size: 13px;
+  margin-bottom: var(--space-2);
+}
+
+.task-form .fast-row[hidden] { display: none; }
+
 .form-actions {
   display: flex;
   gap: var(--space-1);
@@ -370,15 +440,18 @@
 
 /* --- 5.2 (FR-29): приоритеты В ФОРМЕ — цвет + SVG + текст.
  * Нативный select приоритета сохранен (контракт task-form.js: value,
- * collectTaskForm, e2e select_option) и обернут в .priority-select-pill:
+ * collectTaskForm, e2e select_option) и обернут в .priority-field-pill:
  * CSS рисует поверх него пилюлю-обертку с цветом выбранного значения
- * (:has(:checked)); сама иконка — через иконку выбранного бейджа нельзя
- * (нативный select закрывает опции), поэтому пилюля формы несет цвет
- * выбранного приоритета, а различимость без цвета дают текст опций
- * («Низкий/Средний/Высокий») и иконки на карточках/в деталях. */
+ * (:has(:checked)); 4.1 (FR-34/DEF-005): внутри пилюли — SVG-иконка
+ * выбранного приоритета (.prio-pill-icon, рендер priority-icons.js),
+ * различимость без цвета дают текст опций («Низкий/Средний/Высокий»)
+ * и форма иконки ↓/=/↑. */
 
 .priority-field-pill {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
   border: 1px solid var(--color-border-default);
   border-radius: 999px;
   background: var(--color-bg-surface);
@@ -396,9 +469,13 @@
 .priority-field-pill select {
   margin-top: 0 !important;
   border-bottom: none !important;
-  padding: 6px var(--space-1) !important;
+  flex: 1;
+  min-width: 0;
+  padding: 6px var(--space-1) 6px 6px !important;
   appearance: none;
   -webkit-appearance: none;
+  background: transparent;
+  font: inherit;
 }
 
 /* Цвет пилюли по выбранному приоритету: цвет + текст опций (без цвета —
@@ -418,6 +495,32 @@
   background: var(--priority-high-soft);
   color: var(--priority-high);
 }
+
+/* 4.1 (FR-34/DEF-005, зона «отображение выбранного приоритета»):
+ * иконка ↓/=/↑ внутри пилюли (мокап V3 — иконка + текст, FR-29);
+ * SVG рендерит task-form.js (priority-icons.js, currentColor) —
+ * цвет дает пилюля. Без выбора иконки нет (мокап: «—»). */
+.prio-pill-icon {
+  display: flex;
+  align-items: center;
+  padding-left: var(--space-05);
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.prio-pill-icon:empty { display: none; }
+
+.prio-pill-icon .prio-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+/* Disabled (fast line закрепила приоритет): приглушение пилюли
+ * (мокап: disabled-состояние приоритетов). */
+.priority-field-pill:has(#task-priority:disabled) { opacity: 0.45; }
+.priority-field-pill:has(#task-priority:disabled) select { cursor: not-allowed; }
 
 /* --- Детали задачи (карточка 4.5): серифный заголовок, поле приоритета
  * с бейджем цвет+SVG (значения рендерит task-detail.js) --- */

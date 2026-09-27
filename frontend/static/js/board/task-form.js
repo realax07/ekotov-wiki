@@ -31,6 +31,14 @@
  * можно только сняв fast line. При отправке fast-задачи priority не
  * включается в payload вовсе — сервер сам ставит high (BUG-002: явный
  * priority=null при is_fast отклоняется 422; ОГР-10).
+ *
+ * 4.1 (FR-34, DEF-005): визуальные зоны формы по мокапу V3 — только
+ * отображение, без изменений логики/валидации:
+ * - вид выбранных тегов: чипы .chip (крестик удаления) синхронно с
+ *   input «Теги» (renderTagsChips; источник истины — input);
+ * - выбранный приоритет: SVG-иконка в пилюле (renderPriorityPillIcon,
+ *   priority-icons.js; цвет дает пилюля по :has(:checked));
+ * - скрытие fast line в режиме редактирования — весь ряд .fast-row.
  */
 "use strict";
 
@@ -38,6 +46,7 @@ import { api } from "./api.js";
 import { el, showFormError, hideError } from "./dom.js";
 import { boardState } from "./state.js";
 import { refreshBoard } from "./cards.js";
+import { createPriorityIcon, PRIORITY_LABELS } from "./priority-icons.js";
 
 /* --- Форма создания/редактирования (FR-5, FR-7, FR-9) --- */
 
@@ -59,6 +68,62 @@ function setPriorityLock(locked) {
     select.value = "high";
   }
   select.disabled = locked;
+  renderPriorityPillIcon();
+}
+
+/* --- 4.1 (FR-34/DEF-005, зона «отображение выбранного приоритета»):
+ * SVG-иконка выбранного приоритета внутри пилюли (мокап V3 — иконка +
+ * текст; FR-29: различимость без цвета). Пилюля несет цвет по
+ * :has(:checked) (board.css), иконка рисуется currentColor. Визуальный
+ * отклик на выбор — только иконка; value/коллект payload не тронуты. */
+
+var PRIORITY_PILL_ICON_ID = "task-priority-pill-icon";
+
+function renderPriorityPillIcon() {
+  var iconBox = document.getElementById(PRIORITY_PILL_ICON_ID);
+  if (!iconBox) {
+    return;
+  }
+  var priority = document.getElementById(PRIORITY_FIELD_ID).value;
+  iconBox.textContent = "";
+  if (priority && PRIORITY_LABELS[priority]) {
+    iconBox.appendChild(createPriorityIcon(priority, 14, 2));
+  }
+  /* Пустой выбор — иконки нет (мокап: «—»); :empty прячет бокс (css). */
+}
+
+/* --- 4.1 (FR-34/DEF-005, зона «вид выбранных тегов»): чипы выбранных
+ * тегов по мокапу V3 (.chip с крестиком удаления). Состояние
+ * синхронизируется с input «Теги»: ввод/удаление в поле перерисовывает
+ * чипы, крестик чипа правит строку того же input. Источник истины —
+ * input (collectTaskForm не менялся); отправка — по-прежнему строка
+ * input. Значения — только через textContent (XSS, dom.js). */
+
+var TAGS_INPUT_ID = "task-tags";
+var TAGS_CHIPS_ID = "task-tags-chips";
+
+function renderTagsChips() {
+  var input = document.getElementById(TAGS_INPUT_ID);
+  var chips = document.getElementById(TAGS_CHIPS_ID);
+  chips.textContent = "";
+  var tags = splitTags(input.value);
+  chips.hidden = tags.length === 0;
+  tags.forEach(function (tag) {
+    var chip = el("span", "chip");
+    chip.appendChild(el("span", null, tag));
+    var remove = el("button", null, "×");
+    remove.type = "button";
+    remove.setAttribute("aria-label", "Убрать тег " + tag);
+    remove.addEventListener("click", function () {
+      var rest = splitTags(input.value).filter(function (item) {
+        return item !== tag;
+      });
+      input.value = rest.join(", ");
+      renderTagsChips();
+    });
+    chip.appendChild(remove);
+    chips.appendChild(chip);
+  });
 }
 
 function splitTags(raw) {
@@ -210,6 +275,10 @@ function fillTaskForm(task) {
   /* Форма открывается без fast line → приоритет разблокирован (4.3:
    * сброс состояния предыдущего открытия формы). */
   setPriorityLock(false);
+  /* 4.1 (DEF-005): визуальные зоны — иконка приоритета и чипы тегов —
+   * перерисовываются под заполненные значения (в т.ч. при очистке). */
+  renderPriorityPillIcon();
+  renderTagsChips();
 }
 
 function clearTaskForm() {
@@ -223,7 +292,8 @@ export function openCreateForm() {
   document.getElementById("task-form-heading").textContent =
     "Создание задачи";
   document.getElementById("task-form-submit").textContent = "Создать";
-  document.getElementById("task-is-fast").closest("label").hidden = false;
+  /* is_fast назначается только при создании (sdd §3.2, ОГР-5). */
+  document.getElementById("task-is-fast").closest(".fast-row").hidden = false;
   clearTaskForm();
   hideError("task-form-error");
   clearCategoryInvalid();
@@ -236,8 +306,9 @@ export function openEditForm(task) {
   document.getElementById("task-form-heading").textContent =
     "Редактирование задачи";
   document.getElementById("task-form-submit").textContent = "Сохранить";
-  /* is_fast назначается только при создании (sdd §3.2, ОГР-5). */
-  document.getElementById("task-is-fast").closest("label").hidden = true;
+  /* is_fast назначается только при создании (sdd §3.2, ОГР-5):
+   * скрывается весь ряд fast line (.fast-row). */
+  document.getElementById("task-is-fast").closest(".fast-row").hidden = true;
   fillTaskForm(task);
   /* Категория задачи, удаленной из справочника, в списке не значится:
    * опции = ровно справочник (FR-30), значение сбрасывается на «—».
@@ -317,6 +388,16 @@ export function submitTaskForm(event) {
 
 /* Сброс подсветки при изменении значения (пользователь отреагировал). */
 categoryField().addEventListener("change", clearCategoryInvalid);
+
+/* 4.1 (FR-34/DEF-005): живой отклик визуальных зон на ввод —
+ * иконка приоритета (change) и чипы тегов (input). Логика значений
+ * (collectTaskForm) не задействована. */
+document
+  .getElementById(PRIORITY_FIELD_ID)
+  .addEventListener("change", renderPriorityPillIcon);
+document
+  .getElementById(TAGS_INPUT_ID)
+  .addEventListener("input", renderTagsChips);
 
 /* 4.3 (FR-27): отметка fast line → приоритет «высокий» и блокировка
  * поля; снятие fast line — единственный способ разблокировать. */
