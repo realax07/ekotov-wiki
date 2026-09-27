@@ -153,6 +153,40 @@ body.app-shell {
   box-shadow: var(--focus-ring);
 }
 
+/* --- Блок профиля (1.2, FR-33, Д-7): кружок с первой буквой логина +
+   логин целиком; внизу сайдбара, существующие разделы не вытесняет.
+   Цвет кружка — акцентный токен V3 (--color-accent). Без аватарок-файлов
+   и смены пароля (ОГР-13, Won't) — блок без действий. */
+.sidebar-profile {
+  display: none;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--p-ink-600);
+  color: var(--p-paper-050);
+}
+
+.sidebar-profile.profile-filled { display: flex; }
+
+.profile-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-weight: bold;
+}
+
+.profile-name {
+  font-size: var(--font-size-label);
+  overflow-wrap: anywhere;
+}
+
 .content {
   flex: 1;
   padding: var(--space-3);

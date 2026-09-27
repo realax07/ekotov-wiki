@@ -24,11 +24,19 @@
          рядом с кнопкой выхода (sidebar-footer); ведет на /settings. #}
       <a href="/settings" class="nav-item nav-item-settings{% if active_page == 'settings' %} active{% endif %}">Настройки</a>
       <button type="button" id="logout-button" class="logout-button">Выйти</button>
+      {# 1.2 (FR-33, ОГР-13, Д-7, дельта navigation): блок профиля — внизу
+         сайдбара, ПОСЛЕ существующих разделов и выхода: не вытесняет их.
+         Заполняется из GET /api/auth/me модулем profile.js; до ответа и при
+         401 скрыт CSS-ом (класс .sidebar-profile без .profile-filled).
+         Без аватарок-файлов и смены пароля (ОГР-13, Won't). #}
+      <div id="sidebar-profile" class="sidebar-profile"></div>
     </div>
   </aside>
   <main class="content">
     {% block content %}{% endblock %}
   </main>
   <script src="/static/js/app.js?v={{ static_v }}"></script>
+  {# 1.2 (FR-33): ES-модуль профиля — на всех страницах функционала (наследуют base.html). #}
+  <script type="module" src="/static/js/profile.js?v={{ static_v }}"></script>
 </body>
 </html>
