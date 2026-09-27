@@ -28,7 +28,11 @@
    3.1 (FR-32, ОГР-12): класс preset-a на контейнере доски — база
    визуальных эффектов (hover тень + терракотовая рамка, пустой
    state; мокап design/p8-presets.html); механизмом пресетов
-   предусмотрена замена на preset-b/preset-v (задача 3.2). #}
+   предусмотрена замена на preset-b/preset-v (задача 3.2).
+   4.1 (FR-34, DEF-005): зоны формы по мокапу V3 — обязательная
+   звезда .req цветом ошибки; подсказка и чипы выбранных тегов
+   (.hint/.chips, рендер task-form.js, только textContent); SVG-иконка
+   выбранного приоритета в пилюле (.prio-pill-icon, priority-icons.js). #}
 {% extends "base.html" %}
 {% block title %}Доска{% endblock %}
 {% block content %}
@@ -68,7 +72,7 @@
     </button>
     <h2 id="task-form-heading">Создание задачи</h2>
     <p id="task-form-error" class="form-error" hidden></p>
-    <label>Название *
+    <label>Название <span class="req" aria-hidden="true">*</span>
       <input type="text" id="task-title" name="title" required maxlength="500">
     </label>
     <label>Описание
@@ -80,6 +84,10 @@
        опций («Низкий/Средний/Высокий») — различимость без цвета. #}
     <label>Приоритет
       <span class="priority-field-pill">
+        {# 4.1 (FR-34/DEF-005, FR-29): иконка выбранного приоритета —
+           inline SVG (priority-icons.js, task-form.js); при пустом
+           выборе иконки нет (мокап: «—»). #}
+        <span class="prio-pill-icon" id="task-priority-pill-icon" aria-hidden="true"></span>
         <select id="task-priority" name="priority">
           <option value="">—</option>
           <option value="low">Низкий</option>
@@ -104,15 +112,27 @@
       <input type="text" id="task-tags" name="tags" placeholder="home, urgent"
              list="task-tag-hints">
     </label>
+    {# 4.1 (FR-34/DEF-005, зона «вид выбранных тегов», мокап V3):
+       подсказка поля + чипы выбранных тегов (.chips/.chip с крестиком
+       удаления). Рендер — task-form.js, значения только через
+       textContent (XSS, dom.js); удаление чипа правит строку тегов
+       того же input — новый UI-состояния, не логики сохранения. #}
+    <p id="task-tags-hint" class="hint">Через запятую; подсказки — из заведенных тегов и категорий</p>
+    <div id="task-tags-chips" class="chips" hidden></div>
     {# 4.1 (FR-26, Д-3): подсказки тегов — datalist, заполняется из
        существующего GET /api/suggestions в task-form.js (единый механизм
        с подсказками поиска). Опции — только через textContent (XSS);
        ввод нового значения (отсутствующего в подсказках) допустим —
        сохраняется как тег обычным образом. #}
     <datalist id="task-tag-hints"></datalist>
-    <label class="task-form-checkbox">
-      <input type="checkbox" id="task-is-fast" name="is_fast"> fast line
-    </label>
+    {# 4.1 (FR-34/DEF-005): оформление fast line — голубой ряд-плашка
+       .fast-row по мокапу V3 (токены --p-blue-050/--p-blue-200);
+       структура и текст сохранены (e2e get_by_label("fast line")). #}
+    <div class="fast-row">
+      <label class="task-form-checkbox">
+        <input type="checkbox" id="task-is-fast" name="is_fast"> fast line
+      </label>
+    </div>
     <div class="form-actions">
       <button type="submit" id="task-form-submit">Создать</button>
       <button type="button" id="task-form-cancel">Отмена</button>
