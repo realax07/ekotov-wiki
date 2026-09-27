@@ -13,7 +13,11 @@
 "use strict";
 
 import { COLUMNS } from "./state.js";
-import { refreshBoard, setCardClickHandler } from "./cards.js";
+import {
+  refreshBoard,
+  setCardClickHandler,
+  initCardDragAndDrop,
+} from "./cards.js";
 import { openCreateForm, submitTaskForm, closeTaskForm } from "./task-form.js";
 import {
   openTaskDetail,
@@ -53,6 +57,10 @@ initTaskDetailControls();
 /* Клик по карточке → карточка задачи (инъекция вместо импорта —
  * разрыв цикла cards ↔ task-detail, см. cards.js). */
 setCardClickHandler(openTaskDetail);
+
+/* 2.1/2.2 Релиза 3 (FR-31): drag-and-drop карточек между столбцами —
+ * обработчики на контейнере #board (делегирование, см. cards.js). */
+initCardDragAndDrop();
 
 void COLUMNS; // столбцы рендерит cards.js; список закреплен здесь (ОГР-3)
 

@@ -11,11 +11,33 @@
  * приходят с сервера уже отсортированными по приоритету (sdd §3.3) —
  * рендер сохраняет порядок ответа.
  *
- * Обработчик клика по карточке инъецируется точкой входа
- * (board-init.js), а не импортируется из task-detail.js: task-detail
- * использует refreshBoard — прямой импорт создал бы цикл
- * cards → task-detail → cards.
- * XSS (ОГР-11): рендер — createElement + textContent, не innerHTML.
+/**
+ * 2.1/2.2 Релиза 3 (FR-31, ОГР-14, Д-6): drag-and-drop карточек между
+ * столбцами — нативный HTML5 DnD, без новых зависимостей.
+ *
+ * Сценарий (design.md §1, спека board):
+ * - dragstart: карточка получает класс drag-ghost (по пресету В
+ *   «Выразительный» — визуал клона делает CSS), исходная позиция
+ *   запоминается до подтверждения ответа сервера;
+ * - dragover на столбце: preventDefault (иначе drop не сработает) +
+ *   подсветка зоны-приемника классом drop-target; dragleave снимает;
+ * - drop над столбцом: POST /api/tasks/{id}/move с целевым статусом —
+ *   тот же API, что прежний перевод через селект (ОГР-14), серверные
+ *   правила (fast line 409, архивация done) не меняются;
+ * - ошибка (409 «fast line occupied», Д-6, и иные 4xx/сеть): ошибка в
+ *   #board-error, доска перерисовывается из серверного состояния —
+ *   плитка возвращается на исходное место;
+ * - успех: перерисовка доски из ответа GET-подобного тела Task —
+ *   refreshBoard (единый источник правды, порядок столбцов с сервера);
+ * - отпускание вне зон-приемников: drop не вызывается, браузер сам
+ *   возвращает визуал, статус не отправляется;
+ * - touch не затрагивается (HTML5 DnD не срабатывает на touch — перенос
+ *   прежним способом через карточку задачи, ОВ-19).
+ *
+ * Подсветка зоны и drag-образ — по пресету В (утвержден Заказчиком
+ * 2026-09-27, design/p8-presets.html): классы drop-target/drag-ghost на
+ * столбце/карточке, стили в board.css (только transform/opacity/фон;
+ * prefers-reduced-motion отключает анимации).
  */
 "use strict";
 
@@ -25,6 +47,17 @@ import { COLUMNS } from "./state.js";
 import { createPriorityIcon, priorityLabel } from "./priority-icons.js";
 
 export { showBoardError } from "./dom.js";
+
+/* --- DnD: перетаскивание карточек между столбцами (2.1/2.2, FR-31) --- */
+
+/* Идет ли перенос: на время запроса move повторный dragstart той же
+ * карточки блокируется (защита от двойного POST). */
+let dragInProgress = false;
+
+/* Состояние активной drag-сессии (2.1): id задачи и исходный столбец;
+ * null — переноса нет. Исходная позиция восстанавливается перерисовкой
+ * доски, если сервер отклонил перевод (Д-6). */
+let dnd = null;
 
 /* --- Рендер карточки (4.3, fast-бейдж; 4.5: клик → карточка) --- */
 
@@ -37,7 +70,11 @@ export function setCardClickHandler(handler) {
 }
 
 export function renderCard(task) {
+  /* 2.1 (FR-31): карточка — источник перетаскивания (только мышь;
+   * touch-устройства HTML5 DnD не срабатывает — перенос прежним
+   * способом, ОВ-19). */
   var card = el("article", "task-card");
+  card.draggable = true;
   card.dataset.taskId = task.id;
   card.dataset.fast = task.is_fast ? "true" : "false";
   if (task.is_fast) {
@@ -117,4 +154,141 @@ export function renderBoard(data) {
 
 export function refreshBoard() {
   api("/api/board", {}, showBoardError, renderBoard);
+}
+
+/* --- 2.1/2.2 (FR-31, Д-6): HTML5 DnD --- */
+
+/* Столбец-приемник по status-атрибуту; null — вне зон. */
+function columnByStatus(status) {
+  return document.querySelector(
+    '.board-column[data-status="' + status + '"]'
+  );
+}
+
+function clearDropHighlight() {
+  COLUMNS.forEach(function (status) {
+    var column = columnByStatus(status);
+    if (column) {
+      column.classList.remove("drop-target");
+    }
+  });
+}
+
+/* Перевод задачи в столбец (тот же POST /api/tasks/{id}/move, что и
+ * прежний перевод селектом в карточке задачи — ОГР-14). Успех —
+ * перерисовка доски; отказ (409 fast line занята — Д-6, иные 4xx,
+ * сеть) — ошибка в #board-error и перерисовка: плитка возвращается на
+ * исходное место, инварианты сервера не нарушены (2.2). */
+function moveTask(taskId, status) {
+  api(
+    "/api/tasks/" + taskId + "/move",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: status }),
+    },
+    function (message) {
+      /* Д-6: отказ перевода — ошибка видима в UI (бокс под столбцами,
+       * тот же, что при загрузке доски). */
+      showBoardError(message);
+      refreshBoard();
+    },
+    function () {
+      refreshBoard();
+    }
+  );
+}
+
+function onDragStart(event) {
+  var card = event.target.closest(".task-card");
+  if (!card || dragInProgress) {
+    /* Тянуть можно только карточку; во время незавершенного перевода —
+     * никакую (dragInProgress не дает устроить двойной POST). */
+    event.preventDefault();
+    return;
+  }
+  var column = card.closest(".board-column");
+  dnd = {
+    taskId: Number(card.dataset.taskId),
+    fromStatus: column ? column.dataset.status : null,
+  };
+  /* Пресет В: перетаскиваемая карточка — drag-ghost (клон к курсору
+   * рисует браузер, визуал — CSS-класс; оригинал исчезает с места). */
+  requestAnimationFrame(function () {
+    card.classList.add("drag-ghost");
+  });
+  event.dataTransfer.effectAllowed = "move";
+  /* Firefox требует данных для старта drag-сессии. */
+  event.dataTransfer.setData("text/plain", String(dnd.taskId));
+}
+
+function onDragOver(event) {
+  var column = event.target.closest(".board-column");
+  if (!dnd || !column) {
+    return;
+  }
+  /* Без preventDefault браузер не даст drop над столбцом. */
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+  /* Подсветка зоны-приемника (пресет В): класс только на текущем
+   * столбце — dragleave-мерцание между детьми гасим перерисовкой. */
+  COLUMNS.forEach(function (status) {
+    column.classList.toggle("drop-target", status === column.dataset.status);
+  });
+}
+
+function onDragLeave(event) {
+  var column = event.target.closest(".board-column");
+  if (!dnd || !column) {
+    return;
+  }
+  /* Мерцание: dragleave летит и при входе на ребенка столбца; снимаем
+   * подсветку только если курсор реально покинул столбец. */
+  var to = event.relatedTarget;
+  if (!to || !column.contains(to)) {
+    column.classList.remove("drop-target");
+  }
+}
+
+function onDrop(event) {
+  var column = event.target.closest(".board-column");
+  if (!dnd || !column) {
+    return; /* Вне зон-приемников: статус не отправляется. */
+  }
+  event.preventDefault();
+  var targetStatus = column.dataset.status;
+  var taskId = dnd.taskId;
+  var fromStatus = dnd.fromStatus;
+  clearDropHighlight();
+  dnd = null;
+  if (targetStatus === fromStatus) {
+    /* «Перенос» в свой столбец — no-op без запроса. */
+    return;
+  }
+  dragInProgress = true;
+  moveTask(taskId, targetStatus);
+  /* Снимаем блокировку после перерисовки (renderBoard) или чуть позже —
+   * dragend исходной карточки мог уже не сработать (она удалена). */
+  setTimeout(function () {
+    dragInProgress = false;
+  }, 1500);
+}
+
+function onDragEnd(event) {
+  var card = event.target.closest(".task-card");
+  if (card) {
+    card.classList.remove("drag-ghost");
+  }
+  clearDropHighlight();
+}
+
+/* Регистрация обработчиков DnD на контейнере доски (делегирование —
+ * переживает перерисовки renderBoard). Вызывает board-init.js. */
+export function initCardDragAndDrop() {
+  var board = document.getElementById("board");
+  board.addEventListener("dragstart", onDragStart);
+  board.addEventListener("dragover", onDragOver);
+  board.addEventListener("dragleave", onDragLeave);
+  board.addEventListener("drop", onDrop);
+  board.addEventListener("dragend", onDragEnd);
 }
