@@ -137,6 +137,52 @@
   border-color: var(--p-blue-200);
 }
 
+/* --- 3.1 (FR-32, ОГР-12): база визуальных эффектов доски (обязательный
+ * минимум, мокап design/p8-presets.html — класс preset-a «Сдержанный»).
+ * Механизм пресетов: класс preset-a/b/v на контейнере .board (п. 3.2 —
+ * пресет В «Выразительный»); стили скоупятся через него, эффекты —
+ * надстройка над токенами V3, а не новая тема (ОГР-12). Только
+ * transform/opacity/box-shadow — без layout-thrashing; ноль зависимостей.
+ * Состав базы: hover-переходы карточек (тень + терракотовая рамка) и
+ * оформленный пустой state пустого столбца. */
+
+.preset-a .task-card {
+  transition: box-shadow var(--speed-fast) ease,
+    border-color var(--speed-fast) ease;
+}
+
+.preset-a .task-card:hover {
+  box-shadow: 0 2px 8px rgba(61, 54, 48, 0.14);
+  border-color: var(--p-clay-600);
+}
+
+/* Оформленный пустой state пустого столбца («красивый пустой state» —
+ * слово Заказчика): пунктирная зона на токенах V3. Ставится cards.js
+ * при рендере, когда в столбце нет задач (data-empty). */
+.board-column-empty {
+  border: 2px dashed var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-3) var(--space-2);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-label);
+  min-height: 48px;
+}
+
+.preset-a .board-column-empty::before {
+  content: "Пока пусто — задачи появятся здесь";
+}
+
+/* FR-32 (обязательное условие): при включенном уменьшении движения
+ * анимации эффектов отключаются; функциональность доски сохраняется
+ * (hover-состояние переходов — тоже, понижается до мгновенной смены). */
+@media (prefers-reduced-motion: reduce) {
+  .preset-a .task-card {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 /* --- 4.5 Релиза 1: формы (FR-5, FR-7, FR-9) --- */
 
 /* Стандартный паттерн: атрибут hidden должен побеждать любой

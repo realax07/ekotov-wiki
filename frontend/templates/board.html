@@ -24,13 +24,17 @@
    (app.css/board.css); крестик закрытия формы 40×40px в правом
    верхнем углу (task-form-close, board-init.js); селект приоритета —
    в пилюле .priority-field-pill с цветом выбранного значения;
-   SVG-иконки/бейджи приоритетов на карточках — cards.js (5.2). #}
+   SVG-иконки/бейджи приоритетов на карточках — cards.js (5.2).
+   3.1 (FR-32, ОГР-12): класс preset-a на контейнере доски — база
+   визуальных эффектов (hover тень + терракотовая рамка, пустой
+   state; мокап design/p8-presets.html); механизмом пресетов
+   предусмотрена замена на preset-b/preset-v (задача 3.2). #}
 {% extends "base.html" %}
 {% block title %}Доска{% endblock %}
 {% block content %}
 <h1 class="page-title">Доска</h1>
 <p><button type="button" id="create-task-button" class="btn btn-primary">Создать задачу</button></p>
-<div id="board" class="board" data-loaded="false">
+<div id="board" class="board preset-a" data-loaded="false">
   <section class="board-column" id="column-todo" data-status="todo">
     <h2 class="board-column-title">Ожидает</h2>
     <div class="board-column-cards" data-cards></div>
