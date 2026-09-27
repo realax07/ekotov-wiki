@@ -105,9 +105,13 @@ export function renderBoard(data) {
       container.appendChild(renderCard(task));
     });
     /* 5.2 (FR-3): столбец с fast-задачей = подсвеченная fast line. */
-    container
-      .closest(".board-column")
-      .classList.toggle("has-fast", hasFast);
+    var column = container.closest(".board-column");
+    column.classList.toggle("has-fast", hasFast);
+    /* 3.1 (FR-32): оформленный пустой state пустого столбца —
+     * пунктирная зона (board.css), текст дает CSS (::before). */
+    var isEmpty = !container.firstElementChild;
+    column.classList.toggle("board-column-empty", isEmpty);
+    container.hidden = false;
   });
   /* Столбец «Выполнено» (sdd r5 §3.3) — реальный список задач: done
    * сегодня по МСК; автоархивация — на сервере (GET /api/board).
