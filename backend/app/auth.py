@@ -16,6 +16,14 @@ TTL: 30 дней (design.md §2 «например, 30 дней бездейст
 Logout (POST /api/auth/logout) — контракт sdd.md §3.1, реализован в задаче
 2.2 в app/main.py (роутер /api/auth + зависимость от middleware-проверки
 сессии; в этом модуле намеренно не дублируется).
+
+Me (GET /api/auth/me) — контракт sdd.md §3.1-бис (tasks.md 1.1 Релиза 3,
+change add-r3-visual-foundation; FR-33). Ответ 200 {"user": "<login>"}:
+login резолвится собственным JOIN sessions→users по токену куки —
+middleware проверяет только expiry и логин не резолвит (замечание З-1
+ревью-001, test-model/reviews/add-r3-visual-foundation). Без сессии запрос
+не доходит сюда: middleware отвечает 401 {"error": "unauthorized"} —
+эндпоинт НЕ в exempt-списке (NFR-7). Read-only, изменений схемы нет (ОГР-13).
 """
 
 import secrets
@@ -25,6 +33,7 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 from fastapi import APIRouter
 from pydantic import BaseModel
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.db import get_connection
@@ -73,6 +82,30 @@ def create_session(conn: sqlite3.Connection, user_id: int) -> str:
     )
     conn.commit()
     return token
+
+
+@router.get("/me")
+def me(request: Request) -> JSONResponse:
+    """Логин текущего пользователя (sdd.md §3.1-бис; tasks.md 1.1 Релиза 3).
+
+    Сюда попадают только запросы, прошедшие middleware с действующей
+    сессией (эндпоинт вне exempt-списка, NFR-7). Login резолвится
+    собственным JOIN sessions→users по токену куки: middleware проверяет
+    только expiry и user_id→login не резолвит (З-1 ревью-001).
+    Read-only (ОГР-13): никаких INSERT/UPDATE/DELETE.
+    """
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT u.login FROM sessions s JOIN users u ON u.id = s.user_id"
+            " WHERE s.token = ?",
+            (token,),
+        ).fetchone()
+    finally:
+        conn.close()
+    login = row[0] if row is not None else ""
+    return JSONResponse(content={"user": login})
 
 
 @router.post("/login")
