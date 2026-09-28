@@ -266,10 +266,22 @@ def test_reduced_motion_disables_animations_keeps_function(
         assert "drop-target" in result["targetClass"], result
 
         # Шаг 4: drag-призрак — transform none, полупрозрачность осталась.
+        # Дефект Р3 (гонка): moveTask с шага 2 может быть еще в полете
+        # (dragInProgress=true) — onDragStart делает preventDefault, и
+        # drag-ghost не ставится. dragInProgress — переменная модуля
+        # (type="module", в окне недоступна); наблюдаемое следствие
+        # завершения move — перерисовка доски renderBoard'ом: карточка
+        # QAT-vis-rm появляется в «В работе» (новый DOM-узел). Ждем именно
+        # этого (expect-поллинг, не sleep) и берем карточку по её
+        # АКТУАЛЬНОМУ местоположению — слепой селектор «первая карточка
+        # todo» после перерисовки либо null, либо чужая карточка.
+        expect(_column(page, "in_progress").get_by_role("article").filter(
+            has_text="QAT-vis-rm"
+        )).to_be_visible()
         page.evaluate(
             """() => {
               window.__qaCard = document.querySelector(
-                '.board-column[data-status="todo"] article');
+                '.board-column[data-status="in_progress"] article');
               const ev = new DragEvent("dragstart", {bubbles: true, cancelable: true});
               Object.defineProperty(ev, "dataTransfer", {value: new DataTransfer()});
               window.__qaCard.dispatchEvent(ev);
@@ -279,14 +291,15 @@ def test_reduced_motion_disables_animations_keeps_function(
             "() => new Promise(r => requestAnimationFrame(() => r(window.__qaCard.className)))"
         )
         assert "drag-ghost" in ghost_class, ghost_class
-        ghost_transform = page.evaluate(
-            "el => getComputedStyle(el).transform", page.evaluate("window.__qaCard")
+        ghost_style = page.evaluate(
+            """() => {
+              const el = window.__qaCard;
+              const cs = getComputedStyle(el);
+              return { transform: cs.transform, opacity: cs.opacity };
+            }"""
         )
-        assert ghost_transform in ("none", ""), ghost_transform
-        ghost_opacity = page.evaluate(
-            "el => getComputedStyle(el).opacity", page.evaluate("window.__qaCard")
-        )
-        assert 0 < float(ghost_opacity) < 1, ghost_opacity
+        assert ghost_style["transform"] in ("none", ""), ghost_style
+        assert 0 < float(ghost_style["opacity"]) < 1, ghost_style
         page.evaluate(
             """() => {
               window.__qaCard.dispatchEvent(

@@ -223,5 +223,9 @@ def test_final_path_autoarchive_and_fast_release(
         has_text="Fast-новая"
     )
     expect(new_card).to_be_visible()
+    # Изоляция (дефект Р3): id регистрируется в cleanup ДО прочих ассертов —
+    # иначе упавший ассерт оставляет АКТИВНУЮ fast-задачу и роняет setup
+    # TC-dnd-103/106 («fast line occupied») в совместном прогоне сессии.
+    web_cleanup_created(int(new_card.get_attribute("data-task-id")))
     expect(page.get_by_text("fast line занята")).to_have_count(0)
     assert "task-card-fast" in new_card.get_attribute("class")

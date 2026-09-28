@@ -215,15 +215,24 @@ def test_second_done_cycle_counts_from_last_move(
 
 
 @pytest.mark.must
-def test_archived_task_found_by_search_card_opens(api, cleanup_task, shift_done_at_yesterday):
+def test_archived_task_found_by_search_card_opens(
+    api, cleanup_task, shift_done_at_yesterday, category_directory
+):
     """TC-arch-008 (API-часть): архивная задача находится поиском, карточка
     (GET /api/tasks/{id}) открывается: 200 с полным объектом — название,
-    признаки (high, Дом, архив2026), комментарий видны, archived_at не NULL.
-    UI-часть (вкладка поиска, бейдж) — tests/web."""
+    признаки (high, <своя категория>, архив2026), комментарий видны,
+    archived_at не NULL. UI-часть (вкладка поиска, бейдж) — tests/web.
+
+    Дефект Р3 (порядокозависимость): категория бралась из session-scope
+    seed («Дом») — тест падал, если другой тест сессии удалил/трогал seed.
+    Изоляция: тест создает СВОЮ категорию через category_directory
+    (идет в teardown), инвариант кейса (валидная категория из справочника)
+    не ослаблен."""
+    home = category_directory.create_ok("QAT-арх-категория")["name"]
     task = cleanup_task(
         "QAT-Арх-просмотр",
         priority="high",
-        category="Дом",
+        category=home,
         tags=["архив2026"],
     )
     api.add_comment(task["id"], "Коммент в архиве")
@@ -236,7 +245,7 @@ def test_archived_task_found_by_search_card_opens(api, cleanup_task, shift_done_
     body = resp.json()
     assert body["title"] == "QAT-Арх-просмотр"
     assert body["priority"] == "high"
-    assert body["category"] == "Дом"
+    assert body["category"] == home
     assert body["tags"] == ["архив2026"]
     assert body["archived_at"] is not None
 
@@ -245,6 +254,17 @@ def test_archived_task_found_by_search_card_opens(api, cleanup_task, shift_done_
 
     archived = api.search(archived="true").json()["results"]
     assert "QAT-Арх-просмотр" in [t["title"] for t in archived]
+
+    # Cleanup категории кейса — ЯВНО и до teardown'ов (алфавитный порядок
+    # фикстур ставит category_directory РАНЬШЕ cleanup_task): снимаем
+    # задачу-носителя, DELETE, untrack — teardown фикстуры не встретит 409.
+    home_id = next(
+        c["id"] for c in category_directory.list_all().json()["categories"]
+        if c["name"] == home
+    )
+    assert api.patch(task["id"], category="").status_code == 200
+    assert category_directory.delete(home_id).status_code == 200
+    category_directory.untrack(home_id)
 
 
 @pytest.mark.must
