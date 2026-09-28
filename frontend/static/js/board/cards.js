@@ -242,10 +242,13 @@ function onDragOver(event) {
   event.preventDefault();
   event.dataTransfer.dropEffect = "move";
   /* Подсветка зоны-приемника (пресет В): класс только на текущем
-   * столбце — dragleave-мерцание между детьми гасим перерисовкой. */
-  COLUMNS.forEach(function (status) {
-    column.classList.toggle("drop-target", status === column.dataset.status);
-  });
+   * столбце — dragleave-мерцание между детьми гасим перерисовкой.
+   * BUG-003: тогглим класс только на column (текущем приемнике),
+   * снимаем с предыдущего (баг: forEach по COLUMNS ставил/снимал
+   * класс на одном и том же элементе — подсветка удерживалась лишь
+   * на последнем столбце COLUMNS). */
+  clearDropHighlight();
+  column.classList.add("drop-target");
 }
 
 function onDragLeave(event) {
