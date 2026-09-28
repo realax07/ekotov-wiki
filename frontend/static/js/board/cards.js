@@ -41,7 +41,7 @@
  */
 "use strict";
 
-import { el, showBoardError } from "./dom.js";
+import { el, showBoardError, hideError } from "./dom.js";
 import { api } from "./api.js";
 import { COLUMNS } from "./state.js";
 import { createPriorityIcon, priorityLabel } from "./priority-icons.js";
@@ -204,6 +204,13 @@ function moveTask(taskId, status) {
       dragInProgress = false;
     },
     function () {
+      /* BUG-004 (TC-dnd-106): успех — устаревшую ошибку доски (например
+       * 409 «fast line занята» предыдущего отказа) убираем ДО
+       * перерисовки: renderBoard не трогает #board-error (скрытие здесь,
+       * а не в renderBoard — иначе onErr-ветка moveTask, которая тоже
+       * перерисовывает доску, гасила бы свежую ошибку 409 и ломала
+       * TC-dnd-103). Новый отказ снова покажет бокс через onErr. */
+      hideError("board-error");
       refreshBoard();
       dragInProgress = false;
     }
