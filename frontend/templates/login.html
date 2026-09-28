@@ -17,6 +17,10 @@
       <input type="password" id="password" name="password" autocomplete="current-password" required>
 
       <button type="submit" id="login-submit">Войти</button>
+      {# DEF-001 (FR-35, 5.2): текст ошибки входа — дефолт из JS (единый
+         «Неверный логин или пароль», NFR-7); при 401 контрольного
+         /api/auth/me после 200 логина JS подставляет сообщение
+         «Откройте сайт по https://…» ( Secure-кука не сохранилась). #}
       <p id="login-error" class="login-error" role="alert" hidden>Неверный логин или пароль</p>
     </form>
   </main>
