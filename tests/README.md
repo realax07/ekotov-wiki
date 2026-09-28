@@ -334,3 +334,96 @@ EKOTOV_WIKI_BASE_URL=https://<host> EKOTOV_WIKI_DB_PATH=<путь БД> python -
 `playwright` добавлен в `backend/requirements.txt` (секция tests/) —
 выбран основной файл, отдельного requirements-dev в репозитории нет.
 Браузер ставится командой `python -m playwright install chromium`.
+
+---
+
+# Web/API-сьют QA-этапа 5: add-r3-visual-foundation (tests/api + tests/web)
+
+pytest + playwright по 32 approved-кейсам
+`test-model/approved/add-r3-visual-foundation/` (authme 3, dnd 6, formv3 5,
+nav 5, sel 8, vis 5). Правила прежние: TC-ID в docstring, маркеры
+`api`/`web` + `must`/`should`/`could`, изоляция `QAT-*`, автожидания,
+`time.sleep` = 0 (точечные ожидания отыгрыша CSS-анимаций — по длительности
+токена, не произвольные).
+
+## Механика HTML5 DnD (урок architect-ревью)
+
+Нативные mouse-события Playwright НЕ порождают HTML5 drag-сессию:
+dragstart/dragover/drop/dragend возбуждаются `dispatchEvent` с общим
+объектом `DataTransfer` — `tests/web/dnd_helpers.py` (`dnd_dispatch`).
+Нюанс cards.js: `drag-ghost` ставится в `requestAnimationFrame` после
+dragstart — класс читается после очередного кадра.
+
+## Запуск
+
+```bash
+# API-сьют (стенд по tests/README, свободный порт + чистая БД + seed):
+DB_PATH=/tmp/app.db SECRET_KEY=<hex> uvicorn app.main:app --host 127.0.0.1 --port <порт>
+EKOTOV_WIKI_BASE_URL=http://127.0.0.1:<порт> EKOTOV_WIKI_DB_PATH=/tmp/app.db \
+  python -m pytest tests/api -q
+# Web-сьют (стенд поднимается сам: uvicorn + http.server, временная БД):
+python -m pytest tests/web -q
+# Селекция этапа 5: -m "r3" не вводился — файлы test_r3_* / test_authme_r3.py
+```
+
+## Матрица трассировки: 32 кейса → тесты
+
+| Кейсы | Тесты | Файл | Примечание |
+|---|---|---|---|
+| TC-authme-001 | test_me_parallel_sessions_keep_own_logins | tests/api/test_authme_r3.py | |
+| TC-authme-002 | test_me_401_without_session_and_expired | tests/api/test_authme_r3.py | DB-крюк expire_session |
+| TC-authme-003 | test_me_read_only_repeated_calls_stable | tests/api/test_authme_r3.py | |
+| TC-dnd-101 | test_dnd_move_card_to_another_column | tests/web/test_r3_dnd_ui.py | BUG-003 (drop-target) |
+| TC-dnd-102 | test_dnd_drop_outside_column_returns_card | tests/web/test_r3_dnd_ui.py | |
+| TC-dnd-103 | test_dnd_fast_line_occupied_409_error_and_return | tests/web/test_r3_dnd_ui.py | BUG-003 |
+| TC-dnd-104 | test_dnd_to_done_sets_done_at_no_archive | tests/web/test_r3_dnd_ui.py | |
+| TC-dnd-105 | test_touch_tap_starts_no_drag_select_move_works | tests/web/test_r3_dnd_ui.py | has_touch-контекст |
+| TC-dnd-106 | test_dnd_success_after_409_hides_board_error | tests/web/test_r3_dnd_ui.py | BUG-003 |
+| TC-formv3-101 | test_form_fields_v3_tokens_and_focus_ring | tests/web/test_r3_formv3_ui.py | |
+| TC-formv3-102 | test_selected_tags_rendered_as_chips | tests/web/test_r3_formv3_ui.py | |
+| TC-formv3-103 | test_priority_pill_color_changes_and_inline_icon | tests/web/test_r3_formv3_ui.py | |
+| TC-formv3-104 | test_edit_form_matches_v3_and_hides_fast_row | tests/web/test_r3_formv3_ui.py | |
+| TC-formv3-105 | test_all_form_interactive_elements_styled | tests/web/test_r3_formv3_ui.py | |
+| TC-nav-101 | test_profile_badge_and_login_on_all_pages | tests/web/test_r3_profile_ui.py | CHK-151+CHK-156 |
+| TC-nav-102 | test_profile_shows_session_user_wife | tests/web/test_r3_profile_ui.py | |
+| TC-nav-103 | test_profile_hidden_on_auth_me_401 | tests/web/test_r3_profile_ui.py | route 401 |
+| TC-nav-104 | test_profile_block_has_no_extra_controls | tests/web/test_r3_profile_ui.py | |
+| TC-nav-105 | test_profile_after_logout_and_sections_clickable | tests/web/test_r3_profile_ui.py | |
+| TC-sel-101 | test_task_form_category_options_from_directory | tests/web/test_r3_selects_ui.py | |
+| TC-sel-102 | test_sel_102_manual_customer_production_session | tests/web/test_r3_selects_ui.py | manual-skip: ЗАПРЕЩЕНА автоматизация (прод + сессия Заказчика) |
+| TC-sel-103 | test_suggestions_401_silent_empty_datalist | tests/web/test_r3_selects_ui.py | |
+| TC-sel-104 | test_search_filter_category_options_from_directory | tests/web/test_r3_selects_ui.py | |
+| TC-sel-105 | test_category_directory_changes_reflected_in_both_selects | tests/web/test_r3_selects_ui.py | маркер serial |
+| TC-sel-106 | test_datalists_show_task_tag_and_category_values | tests/web/test_r3_selects_ui.py | |
+| TC-sel-107 | test_single_mechanism_two_endpoints | tests/web/test_r3_selects_ui.py | |
+| TC-sel-108 | test_selects_not_empty_not_static | tests/web/test_r3_selects_ui.py | |
+| TC-vis-101 | test_card_hover_transition_and_accent_title | tests/web/test_r3_vis_ui.py | |
+| TC-vis-102 | test_empty_column_state_styled_and_cleared | tests/web/test_r3_vis_ui.py | |
+| TC-vis-103 | test_card_move_animated_v_in | tests/web/test_r3_vis_ui.py | |
+| TC-vis-104 | test_new_card_entrance_animation_v_in | tests/web/test_r3_vis_ui.py | |
+| TC-vis-105 | test_reduced_motion_disables_animations_keeps_function | tests/web/test_r3_vis_ui.py | emulateMedia reduced-motion |
+
+Итого: 32 кейса → 32 теста (31 автоматизировано + TC-sel-102 manual-skip).
+
+## Известные падения (дефекты продукта, не теста)
+
+- **BUG-003** (`test-model/bugs/BUG-003-dnd-drop-target-lost-todo-inprogress.md`):
+  `onDragOver` в `frontend/static/js/board/cards.js` тоглит `drop-target`
+  трижды на ОДНОМ столбце (по COLUMNS) — класс удерживается только на
+  `done`. Падают TC-dnd-101/103/106 и TC-vis-105 (шаг «подсветка
+  применяется»); функциональность переноса при этом работает.
+- Тест `test_settings_contains_only_category_management` (TC-set-006,
+  R2) скорректирован под R3: подстрока "profile" в HTML /settings теперь
+  легальна (sidebar-profile на всех страницах функционала, FR-33);
+  запрет профиля КАК РАЗДЕЛА настроек проверяется отсутствием
+  управляющих элементов в main.
+
+## Прогон (эталон, локально)
+
+```
+# tests/api (стенд на свободном порту, чистая БД + seed):
+EKOTOV_WIKI_BASE_URL=http://127.0.0.1:<порт> EKOTOV_WIKI_DB_PATH=/tmp/app.db \
+python -m pytest tests/api -q
+# tests/web (автостенд):
+python -m pytest tests/web -q
+```

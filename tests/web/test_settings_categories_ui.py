@@ -397,10 +397,23 @@ def test_settings_contains_only_category_management(logged_in_page, web_base_url
 
     # Шаг 4: инспекция HTML на строки password/profile/тег (допустимы
     # служебные совпадения; input[type=password] на /settings быть не должно).
+    # R3 (sidebar-profile, FR-33): блок профиля в сайдбаре — служебное
+    # совпадение "profile" на всех страницах функционала; проверяем
+    # отсутствие ПРОФИЛЯ КАК РАЗДЕЛА настроек — элементов управления
+    # профиля (кнопок/полей), а не подстроки в разметке сайдбара.
     html = page.content().lower()
     assert 'type="password"' not in html, "на /settings есть поле пароля"
-    for banned in ("profile", "справочник тегов"):
-        assert banned not in html, f"на /settings найдено {banned!r}"
+    assert "справочник тегов" not in html, "на /settings найден справочник тегов"
+    # Элементов управления профилем в main-контенте нет (блок сайдбара
+    # статичен: badge + name, без button/input — ОГР-13).
+    main_controls = page.evaluate(
+        """() => Array.from(
+          document.querySelectorAll("main button, main input, main a")
+        ).map(el => (el.textContent || "").trim().toLowerCase())
+        .filter(text => text.includes("профил") || text.includes("аватар")
+                        || text.includes("парол"))"""
+    )
+    assert main_controls == [], main_controls
 
 
 # ==========================================================================
