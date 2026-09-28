@@ -50,7 +50,7 @@ id wiki >/dev/null 2>&1 || fail "Нет пользователя wiki"
 [ -x "$APP_DIR/backend/.venv/bin/python" ] || fail "Нет venv $APP_DIR/backend/.venv"
 [ -f "$APP_DIR/backend/requirements.txt" ] || fail "Нет requirements.txt"
 
-CURRENT=$(git -C "$SRC_DIR" rev-parse --short HEAD)
+CURRENT=$(git -C "$SRC_DIR" -c safe.directory="$SRC_DIR" rev-parse --short HEAD)
 [ "$CURRENT" = "$EXPECTED_COMMIT" ] || fail "Клон на $CURRENT, ожидался EXPECTED_COMMIT=$EXPECTED_COMMIT. Сначала синхронизируй клон/обнови EXPECTED_COMMIT."
 ok "Клон на целевом коммите $CURRENT"
 
