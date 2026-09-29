@@ -37,22 +37,24 @@ from conftest import (  # noqa: E402
 @pytest.mark.must
 def test_me_parallel_sessions_keep_own_logins(base_url):
     """TC-authme-001: две параллельные сессии (owner, wife); /api/auth/me
-    в каждой — 200 с телом ТОЧНО {"user": "<логин сессии>"}; сессии не
+    в каждой — 200 с ключом "user" = логин СВОЕЙ сессии (состав ответа
+    расширен в Релизе 4 — change add-r4-user-profile-ticket-view,
+    tasks.md 2.1; ключ "user" сохранен, sdd §3.1a-кватер); сессии не
     смешиваются (шаги 2 и 4 кейса)."""
     session_a = login_session(base_url, OWNER_LOGIN, OWNER_PASSWORD)  # шаг 1
     session_b = login_session(base_url, WIFE_LOGIN, WIFE_PASSWORD)  # шаг 3
     try:
         resp_a = session_a.get(f"{base_url}/api/auth/me")  # шаг 2
         assert resp_a.status_code == 200
-        assert resp_a.json() == {"user": "owner"}
+        assert resp_a.json()["user"] == "owner"
 
         resp_b = session_b.get(f"{base_url}/api/auth/me")  # шаг 4 (B)
         assert resp_b.status_code == 200
-        assert resp_b.json() == {"user": "wife"}
+        assert resp_b.json()["user"] == "wife"
 
         resp_a2 = session_a.get(f"{base_url}/api/auth/me")  # шаг 4 (A снова)
         assert resp_a2.status_code == 200
-        assert resp_a2.json() == {"user": "owner"}
+        assert resp_a2.json()["user"] == "owner"
     finally:
         session_a.close()
         session_b.close()
@@ -91,15 +93,16 @@ def test_me_401_without_session_and_expired(base_url, owner_session, expire_sess
 @pytest.mark.must
 def test_me_read_only_repeated_calls_stable(base_url):
     """TC-authme-003: 4 вызова /api/auth/me в одной сессии — 200 с
-    идентичным телом {"user": "owner"} (read-only, никаких INSERT/UPDATE,
-    ОГР-13); повторный POST /api/auth/login с тем же паролем owner
-    успешен (пароль/профиль не затронуты)."""
+    идентичным телом и неизменным логином сессии (read-only, никаких
+    INSERT/UPDATE; состав тела расширен в Релизе 4 — ключ "user"
+    сохранен, sdd §3.1a-кватер); повторный вход owner по тому же паролю
+    работает."""
     session = login_session(base_url, OWNER_LOGIN, OWNER_PASSWORD)
     try:
         first = session.get(f"{base_url}/api/auth/me")
         assert first.status_code == 200
-        expected = {"user": "owner"}
-        assert first.json() == expected
+        expected = first.json()
+        assert expected["user"] == "owner"
 
         # Шаг 2: три повторных вызова — идентичный результат.
         for _ in range(3):
@@ -112,7 +115,7 @@ def test_me_read_only_repeated_calls_stable(base_url):
         try:
             resp = again.get(f"{base_url}/api/auth/me")
             assert resp.status_code == 200
-            assert resp.json() == expected
+            assert resp.json()["user"] == "owner"
         finally:
             again.close()
     finally:

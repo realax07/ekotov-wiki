@@ -86,26 +86,46 @@ def create_session(conn: sqlite3.Connection, user_id: int) -> str:
 
 @router.get("/me")
 def me(request: Request) -> JSONResponse:
-    """Логин текущего пользователя (sdd.md §3.1-бис; tasks.md 1.1 Релиза 3).
+    """Текущий пользователь (sdd.md §3.1-бис + §3.1a-кватер, tasks.md 2.1
+    Релиза 4 — расширение состава профилем; change
+    add-r4-user-profile-ticket-view, FR-33/36/43).
 
     Сюда попадают только запросы, прошедшие middleware с действующей
-    сессией (эндпоинт вне exempt-списка, NFR-7). Login резолвится
-    собственным JOIN sessions→users по токену куки: middleware проверяет
-    только expiry и user_id→login не резолвит (З-1 ревью-001).
-    Read-only (ОГР-13): никаких INSERT/UPDATE/DELETE.
+    сессией (эндпоинт вне exempt-списка, NFR-7). JOIN sessions→users по
+    токену куки (З-1 ревью-001). Ответ расширен составом профиля:
+    {"user", "display_name", "role", "bio", "avatar_url"}; при незаполненном
+    профиле поля профиля — null, ключ "user" (логин) сохранен всегда —
+    обратная совместимость с profile.js (sdd §3.1a-кватер).
+    Read-only: никаких INSERT/UPDATE/DELETE.
     """
     token = request.cookies.get(SESSION_COOKIE_NAME)
     conn = get_connection()
     try:
         row = conn.execute(
-            "SELECT u.login FROM sessions s JOIN users u ON u.id = s.user_id"
+            "SELECT u.login, u.display_name, u.role, u.bio,"
+            " u.avatar_path, u.avatar_updated_at, u.id"
+            " FROM sessions s JOIN users u ON u.id = s.user_id"
             " WHERE s.token = ?",
             (token,),
         ).fetchone()
     finally:
         conn.close()
-    login = row[0] if row is not None else ""
-    return JSONResponse(content={"user": login})
+    if row is None:
+        return JSONResponse(content={"user": ""})
+    avatar_url = (
+        None
+        if row[4] is None
+        else f"/avatars/{row[6]}.png?v={row[5]}"  # B-3 ревью: NULL → URL не строится
+    )
+    return JSONResponse(
+        content={
+            "user": row[0],
+            "display_name": row[1],
+            "role": row[2],
+            "bio": row[3],
+            "avatar_url": avatar_url,
+        }
+    )
 
 
 @router.post("/login")
