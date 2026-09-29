@@ -154,9 +154,12 @@ body.app-shell {
 }
 
 /* --- Блок профиля (1.2, FR-33, Д-7): кружок с первой буквой логина +
-   логин целиком; внизу сайдбара, существующие разделы не вытесняет.
-   Цвет кружка — акцентный токен V3 (--color-accent). Без аватарок-файлов
-   и смены пароля (ОГР-13, Won't) — блок без действий. */
+   подпись (Д-10: display_name, если задан, иначе логин целиком); внизу
+   сайдбара, существующие разделы не вытесняет. Цвет кружка — акцентный
+   токен V3 (--color-accent). Аватар (img.profile-avatar) отображается
+   вместо кружка при наличии (FR-42, задача 3.1). Блок кликабелен:
+   клик открывает /settings/profile (FR-39, ОГР-15/ОГР-20) — курсор
+   pointer + focus-visible. */
 .sidebar-profile {
   display: none;
   align-items: center;
@@ -167,7 +170,31 @@ body.app-shell {
   color: var(--p-paper-050);
 }
 
-.sidebar-profile.profile-filled { display: flex; }
+.sidebar-profile.profile-filled {
+  display: flex;
+  cursor: pointer;
+}
+
+.sidebar-profile.profile-filled:hover .profile-badge,
+.sidebar-profile.profile-filled:hover .profile-avatar {
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+.sidebar-profile.profile-filled:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.profile-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+}
 
 .profile-badge {
   display: inline-flex;

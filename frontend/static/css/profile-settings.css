@@ -1,0 +1,74 @@
+/* Страница настроек пользователя /settings/profile (tasks.md 3.1 пакета
+ * add-r4-user-profile-ticket-view; design §4). Стиль V3 «Бумага» —
+ * токены из app.css :root; классы согласованы с settings.css
+ * (form-error/form-success/settings-section). */
+
+.profile-section input[type="text"],
+.profile-section select,
+.profile-section textarea,
+.password-section input {
+  width: 100%;
+  margin: 4px 0 12px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  font: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+}
+
+.profile-section input:hover,
+.profile-section select:hover,
+.profile-section textarea:hover,
+.password-section input:hover {
+  border-color: var(--color-border-strong);
+}
+
+.profile-section input:focus-visible,
+.profile-section select:focus-visible,
+.profile-section textarea:focus-visible,
+.password-section input:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+}
+
+.settings-section form button[type="submit"] {
+  padding: 6px 16px;
+  border: none;
+  border-radius: var(--radius-field);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.settings-section form button[type="submit"]:hover {
+  background: var(--color-accent-hover);
+}
+
+.settings-section form button[type="submit"]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.avatar-section input[type="file"] {
+  margin: 4px 0 12px;
+  font: inherit;
+  color: var(--color-text-secondary);
+}
+
+.avatar-preview {
+  display: block;
+  width: 96px;
+  height: 96px;
+  margin-top: var(--space-1);
+  border-radius: 50%;
+  border: 1px solid var(--color-border-default);
+  object-fit: cover;
+}
+
+/* Ошибки/успех — локальные определения страницы (settings.css принадлежит
+ * /settings и сюда не подключается): те же токены V3. */
+.profile-settings-page .form-error { color: var(--status-error); }
+.profile-settings-page .form-success { color: var(--status-success); }

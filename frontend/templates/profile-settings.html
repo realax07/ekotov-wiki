@@ -1,0 +1,68 @@
+{# Страница настроек пользователя (tasks.md 3.1 пакета
+   add-r4-user-profile-ticket-view; FR-39…FR-42, ОГР-20; design §4,
+   дельта settings — Requirement «Страница настроек пользователя»).
+   Отдельная от общего раздела /settings страница (ОГР-20): справочника
+   категорий здесь НЕТ — Scenario «Независимость от общих настроек».
+   Состав: форма профиля (display_name, role-select из 2 значений ОВ-21,
+   bio), блок смены пароля (текущий + новый), загрузка аватара (png/jpg)
+   с показом ошибок API. Предзаполнение — GET /api/profile из
+   profile-settings.js. Кнопки сохранения — отдельные на каждый блок
+   (независимые операции, design §4). Имена пользователей — только через
+   textContent (XSS-дисциплина settings.js/login.js). #}
+{% extends "base.html" %}
+{% block title %}Профиль — ekotov-wiki{% endblock %}
+{% block body_class %} profile-settings-page{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/profile-settings.css?v={{ static_v }}">
+<h1>Профиль</h1>
+
+<section class="settings-section profile-section" aria-labelledby="profile-form-title">
+  <h2 id="profile-form-title">Профиль</h2>
+  <form id="profile-form">
+    <label for="profile-display-name">Отображаемое имя</label>
+    <input type="text" id="profile-display-name" name="display_name">
+
+    <label for="profile-role">Роль</label>
+    <select id="profile-role" name="role">
+      <option value="Product manager">Product manager</option>
+      <option value="Product engineer">Product engineer</option>
+    </select>
+
+    <label for="profile-bio">О себе</label>
+    <textarea id="profile-bio" name="bio" rows="4"></textarea>
+
+    <button type="submit" id="profile-save">Сохранить</button>
+  </form>
+  <p id="profile-error" class="form-error" hidden></p>
+  <p id="profile-success" class="form-success" hidden></p>
+</section>
+
+<section class="settings-section password-section" aria-labelledby="password-form-title">
+  <h2 id="password-form-title">Смена пароля</h2>
+  <form id="password-form">
+    <label for="password-current">Текущий пароль</label>
+    <input type="password" id="password-current" name="current_password" autocomplete="current-password">
+
+    <label for="password-new">Новый пароль</label>
+    <input type="password" id="password-new" name="new_password" autocomplete="new-password">
+
+    <button type="submit" id="password-save">Сменить пароль</button>
+  </form>
+  <p id="password-error" class="form-error" hidden></p>
+  <p id="password-success" class="form-success" hidden></p>
+</section>
+
+<section class="settings-section avatar-section" aria-labelledby="avatar-form-title">
+  <h2 id="avatar-form-title">Аватар</h2>
+  <form id="avatar-form">
+    <label for="avatar-file">Файл png/jpg (до 2 МБ)</label>
+    <input type="file" id="avatar-file" name="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+    <button type="submit" id="avatar-upload">Загрузить</button>
+  </form>
+  <p id="avatar-error" class="form-error" hidden></p>
+  <p id="avatar-success" class="form-success" hidden></p>
+  <img id="avatar-preview" class="avatar-preview" alt="Аватар" hidden>
+</section>
+
+<script type="module" src="/static/js/profile-settings.js?v={{ static_v }}"></script>
+{% endblock %}

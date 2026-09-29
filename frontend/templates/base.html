@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/static/css/app.css?v={{ static_v }}">
   <link rel="stylesheet" href="/static/css/board.css?v={{ static_v }}">
 </head>
-<body class="app-shell">
+<body class="app-shell{% block body_class %}{% endblock %}">
   <aside class="sidebar" aria-label="Разделы">
     <nav class="sidebar-nav">
       <a href="/board" class="nav-item{% if active_page == 'board' %} active{% endif %}">Доска</a>
@@ -24,11 +24,14 @@
          рядом с кнопкой выхода (sidebar-footer); ведет на /settings. #}
       <a href="/settings" class="nav-item nav-item-settings{% if active_page == 'settings' %} active{% endif %}">Настройки</a>
       <button type="button" id="logout-button" class="logout-button">Выйти</button>
-      {# 1.2 (FR-33, ОГР-13, Д-7, дельта navigation): блок профиля — внизу
-         сайдбара, ПОСЛЕ существующих разделов и выхода: не вытесняет их.
-         Заполняется из GET /api/auth/me модулем profile.js; до ответа и при
-         401 скрыт CSS-ом (класс .sidebar-profile без .profile-filled).
-         Без аватарок-файлов и смены пароля (ОГР-13, Won't). #}
+      {# 1.2 (FR-33, Д-7) + 3.1 R4 (дельта navigation MODIFIED): блок
+         профиля — внизу сайдбара, ПОСЛЕ существующих разделов и выхода:
+         не вытесняет их. Заполняется из GET /api/auth/me модулем
+         profile.js; подпись = display_name или логин (Д-10), аватар
+         вместо кружка при наличии (FR-42). Клик открывает страницу
+         настроек пользователя /settings/profile (FR-39, ОГР-20) —
+         не общий раздел /settings. До ответа и при 401 скрыт CSS-ом
+         (класс .sidebar-profile без .profile-filled). #}
       <div id="sidebar-profile" class="sidebar-profile"></div>
     </div>
   </aside>
