@@ -1,7 +1,7 @@
-# sdd.md — Системный дизайн: ekotov-wiki (changes add-kanban-core, add-r2-categories-settings, add-r3-visual-foundation)
+# sdd.md — Системный дизайн: ekotov-wiki (changes add-kanban-core, add-r2-categories-settings, add-r3-visual-foundation, add-r4-user-profile-ticket-view)
 
-Источник требований: `requirements.md` (r4, утвержден) и `test-model/requirements-r2.md` (r1, утвержден, решения Заказчика 2026-09-21). Пакеты: `openspec/changes/add-r3-visual-foundation/`, `openspec/changes/archive/2026-09-22-add-r2-categories-settings/`, `openspec/changes/archive/add-kanban-core/`.
-Версия sdd: r8 (2026-09-27) — Релиз 3 (change add-r3-visual-foundation, «как планируется», по дельтам пакета): эндпоинт `GET /api/auth/me` (§3.1a-бис после Health); профиль внизу сайдбара — кружок с первой буквой логина + логин (§3.6); DnD и эффекты доски — клиентские, серверная часть не меняется (§2 примечание); ссылки на design.md пакета для FR-31/FR-32/FR-34; матрица трассировки дополнена FR-31…FR-35 (§6). Предыдущая: r7 (2026-09-26) — синхронизация с дельтами Релиза 2 (change add-r2-categories-settings, «как работает сейчас», без хронологии): справочник категорий — модель (§4), эндпоинты `/api/categories*`, жесткая валидация и миграция (§3.7), страница настроек (§3.6); priority-lock fast line (§3.2, §3.4); NFR-8 в §5; матрица трассировки дополнена FR-19…FR-30/NFR-8 (§6). Предыдущая: r6 (2026-09-18) — распоряжение Заказчика: автотест-сьют `tests/` (82 теста, 80 кейсов) переходит в статус регрессионного набора — обязательный этап воркфлоу для всех следующих изменений; добавлены §8 и дельта `specs/regression/`. Предыдущая: r5 (2026-09-18) — изменение Заказчика (FR-4 в новой редакции): архивация выполненных задач отложена до следующего календарного дня по МСК (UTC+3) вместо мгновенной; добавлен done_at (§3.2, §4), GET /api/board возвращает столбец done и выполняет ленивую автоархивацию (§3.3); механика — design.md §5. Предыдущая: r4 (2026-09-17) — r3 (37a7a21) + /api/health в §3 и exempt-список авторизации (эскалация из ревью задачи 1.1, `code-reviews/add-kanban-core/review-1.1-001.md`, замечания 1–2).
+Источник требований: `requirements.md` (r4, утвержден), `test-model/requirements-r2.md` (r1, утвержден), `docs/ba/requirements-r4.md` (Релиз 4, УТВЕРЖДЕН Заказчиком 2026-09-29, ответы ОВ-21…26 — `docs/ba/answers_round4.md`). Пакеты: `openspec/changes/add-r4-user-profile-ticket-view/`, `openspec/changes/add-r3-visual-foundation/`, `openspec/changes/archive/2026-09-22-add-r2-categories-settings/`, `openspec/changes/archive/add-kanban-core/`.
+Версия sdd: r9 (2026-09-29) — Релиз 4 (change add-r4-user-profile-ticket-view, «как планируется», по дельтам пакета): схема users (+display_name, +role, +bio, +avatar_path) и tasks (+creator_id, +assigned_to_id) с бэкфиллом creator=owner, assigned=owner (ОВ-23) и ролями по умолчанию owner→PM, wife→PE (ОВ-21) — §4, §3.1a-ter (миграция `migrate_r4.py`); API профиля/пароля/аватара и расширенный `GET /api/auth/me` — §3.1a-кватер; страница настроек пользователя — §3.6; assigned/creator в контрактах задач и поиске — §3.2/§3.5; единый tooltip-механизм (ОГР-17, reduced-motion TC-vis-105) и view-модалка (FR-47, Д-9) — design.md пакета; кеш-бастинг `static_v` при релизе (урок DEF-002/003) и бэкап прода до миграции (ОГР-19) — deploy-заметки design.md §1/§9; матрица трассировки дополнена FR-36…FR-48/NFR-9/10 (§6). Предыдущая: r8 (2026-09-27) — Релиз 3 (change add-r3-visual-foundation): эндпоинт `GET /api/auth/me` (§3.1a-бис); профиль внизу сайдбара (§3.6); DnD и эффекты доски — клиентские (§2 примечание); матрица FR-31…FR-35 (§6).
 
 ## 1. Стек и обоснование
 
@@ -85,7 +85,29 @@
 - Без авторизации (входит в exempt-список выше): проверка живости выполняется до входа пользователей, монитором и деплой-скриптом.
 - Ошибок нет: тело фиксировано, БД не трогает.
 
-### 3.2 Задачи (CRUD)
+### 3.1a-ter Миграция Релиза 4 (план, change add-r4-user-profile-ticket-view)
+
+Одноразовый идемпотентный скрипт `backend/app/migrate_r4.py` (`python -m app.migrate_r4` из `backend/`): ALTER users/tasks (§4) + бэкфилл + автосверка (exit 1 при расхождении, NFR-9). Бэкфилл: `creator_id = owner` у всех задач (FR-38); `assigned_to_id = owner` у всех существующих задач (ОВ-23); `users.role`: owner → «Product manager», wife → «Product engineer» (ОВ-21). **Deploy (ОГР-19):** остановка → бэкап (путь из RUNBOOK) → миграция → сверка exit 0 → старт → смоук (`/api/health`, вход обоих пользователей); откат при неудаче — из бэкапа. Детали — design.md пакета §1.
+
+### 3.1a-кватер Профиль, пароль, аватар (Релиз 4, план; FR-36/40/41/42)
+
+| Метод/путь | Описание | Ответы |
+|---|---|---|
+| `GET /api/profile` | Профиль пользователя сессии | 200 `{"login", "display_name", "role", "bio", "avatar_url"}`; 401 |
+| `PUT /api/profile` | Сохранить display_name, role, bio | 200; 422 (role вне справочника [«Product manager», «Product engineer»], ОВ-21); 401 |
+| `POST /api/profile/password` | `{"current_password", "new_password"}` | 200 `{"ok": true}` (сессии не трогаются, Д-11); 422 (неверный текущий / пустой новый); 401 |
+| `POST /api/profile/avatar` | multipart `file` | 200 `{"ok": true, "avatar_url"}`; 422 `invalid file type` / `file too large` (≤2 МБ, NFR-10/ОВ-22); 401 |
+
+- Все — вне exempt-списка (NFR-7); оперируют только пользователем сессии (свой профиль, FR-39).
+- Аватар: png/jpg → Pillow center-crop квадрат + resize 256×256 (Д-8) → `frontend/static/avatars/<user_id>.png`; имя генерирует сервер; `avatar_url` с `?v=<updated_at>` (инверсия кеша, ОГР-16).
+- `GET /api/auth/me` (§3.1-бис) расширяется: `{"user", "display_name", "role", "bio", "avatar_url"}` (null при незаполненном профиле; ключ `user` сохранен — обратная совместимость с profile.js).
+
+### 3.2 Задачи (CRUD) — дополнение Релиза 4 (план)
+
+- Объект Task дополняется: `"creator": "<login>", "assigned": "<login>|null"` — в ответах `GET /api/tasks/{id}`, `GET /api/board`, ответах поиска (§3.5).
+- `POST /api/tasks`: опционально `assigned_to_id` (существующий пользователь или null; несуществующий → **422**; ОВ-26 — при создании опционально); `creator_id` ставит сервер = пользователю сессии, от клиента не принимается (FR-37).
+- `PATCH /api/tasks/{id}`: допускает `assigned_to_id` (select из пользователей, ОВ-26); `creator_id` в контракте не входит — creator не изменяется (FR-37).
+- Опционально (решение dev-задачи 5.1): `GET /api/users` — `200 {"users": [{"id", "login", "display_name"}]}` — источник select исполнителя; вне exempt (401). При вводе — дополнить чеклист QA (I3).
 
 | Метод/путь | Описание |
 |---|---|
@@ -154,12 +176,12 @@
 | `POST /api/search/advanced` | Поиск по SQL-подобному тексту фильтра |
 
 **GET /api/search**
-- Query-параметры (все опциональны; пустой набор = все задачи): `priority`, `category`, `tag` (повторяемый), `due_before`, `due_after`, `archived=true|false|all` (по умолчанию `all`).
-- Ответ 200: `{"results": [Task]}` — каждый Task содержит признак архивности.
+- Query-параметры (все опциональны; пустой набор = все задачи): `priority`, `category`, `tag` (повторяемый), `due_before`, `due_after`, `archived=true|false|all` (по умолчанию `all`); Релиз 4 (план): `assigned` (login | `none` = без исполнителя), `creator` (login) — FR-46, ОВ-24.
+- Ответ 200: `{"results": [Task]}` — каждый Task содержит признак архивности и (Релиз 4) creator/assigned.
 - Ошибки: `422` (невозможное значение параметра).
 
 **POST /api/search/advanced**
-- Запрос: `{"query": "priority = \"high\" AND tag IN (\"home\")"}`
+- Запрос: `{"query": "priority = \"high\" AND tag IN (\"home\")"}`; Релиз 4 (план): грамматика дополняется полями `assigned`/`creator` (`=`, `IS NULL` — поиск задач без исполнителя, FR-46/ОВ-24).
 - Ответ 200: `{"results": [Task], "normalized_query": "…"}` (normalized — сериализация распарсенного фильтра обратно, для UI).
 - Ошибки: `400 {"error": "filter syntax: <позиция/причина>"}` — синтаксическая ошибка; запрос не выполняется.
 
@@ -205,7 +227,11 @@ DnD-перемещение карточек (Релиз 3, FR-31) и визуа�
 users (
   id            INTEGER PK,
   login         TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL            -- bcrypt/argon2, не открытый пароль (NFR-7)
+  password_hash TEXT NOT NULL,            -- bcrypt/argon2, не открытый пароль (NFR-7)
+  display_name  TEXT,                     -- Релиз 4 (FR-36); NULL => показывается логин (Д-10)
+  role          TEXT,                     -- Релиз 4 (FR-36, ОВ-21): 'Product manager' | 'Product engineer' | NULL; только отображение
+  bio           TEXT,                     -- Релиз 4 (FR-36): «о себе», tooltip профиля (ОВ-25)
+  avatar_path   TEXT                      -- Релиз 4 (FR-42): static/avatars/<user_id>.png; NULL => кружок с буквой (FR-33)
 )
 
 sessions (
@@ -227,6 +253,8 @@ tasks (
               CHECK(status IN ('todo','in_progress','done')),  -- Ожидает/В работе/Выполнено (ОГР-3)
   done_at     TEXT,                      -- момент перевода в done; NULL <=> не в done (FR-4, новая редакция)
   archived_at TEXT,                      -- NOT NULL <=> в архиве; ставится ленивой автоархивацией (FR-4), НЕ при move
+  creator_id  INTEGER FK -> users.id,    -- Релиз 4 (FR-37): сервер ставит = пользователю сессии; бэкфилл = owner (FR-38)
+  assigned_to_id INTEGER FK -> users.id, -- Релиз 4 (FR-37): nullable; бэкфилл = owner (ОВ-23)
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 )
@@ -264,7 +292,7 @@ categories (
 - `tasks.category` — TEXT (nullable), ссылка **по значению** на `categories.name`; FK не вводится: хранение по значению делает переименование категории переносом значения у всех задач-ссылок одним UPDATE (§3.7), а целостность «непустая category существует в справочнике» обеспечивает серверная валидация API (FR-21) — nullable-поле её схемой не выразить.
 - Инвариант priority-lock (FR-27): `is_fast = 1 ⇒ priority = 'high'` — поддержан серверной валидацией POST/PATCH (§3.2, §3.4) и приведением существующих fast-задач при миграции (§3.7); CHECK-ограничением в схеме не выражается (зависимость между двумя колонками).
 
-Индексы: `tasks(status, is_fast)`, `tasks(archived_at)`, `tasks(priority)`, `task_tags(tag_id)`, `comments(task_id)`, `tasks(done_at)` (фильтр ленивой автоархивации и столбца done, §3.3), `tasks(category)` (проверка использования при удалении категории — Д-1, и сверка миграции — NFR-8).
+Индексы: `tasks(status, is_fast)`, `tasks(archived_at)`, `tasks(priority)`, `task_tags(tag_id)`, `comments(task_id)`, `tasks(done_at)` (фильтр ленивой автоархивации и столбца done, §3.3), `tasks(category)` (проверка использования при удалении категории — Д-1, и сверка миграции — NFR-8), `tasks(creator_id)`, `tasks(assigned_to_id)` (фильтры поиска FR-46, Релиз 4).
 
 Проверка NFR-5: `git check-ignore data/app.db` — проигнорирован.
 
@@ -352,5 +380,20 @@ categories (
 | FR-33 (r4) | Must | auth: «API текущего пользователя» (GET /api/auth/me, NFR-7); navigation: «Профиль текущего пользователя внизу сайдбара» (ОГР-13, Д-7) |
 | FR-34 (r4) | Must | tasks: «Формы создания и редактирования по дизайну V3» (DEF-005, урок DEF-004) |
 | FR-35 (r4) | Must | search: «Селект-поля и подсказки заполняются из фактических данных» (MODIFIED: доведение до фактического исполнения, диагностика на проде, единый механизм — DEF-001) |
+| FR-36 (r4, Релиз 4) | Must | auth: «API текущего пользователя» (MODIFIED: расширенный состав, FR-33/36/43); auth: «Профиль пользователя — просмотр и редактирование» (ADDED, FR-40); navigation: «Профиль текущего пользователя внизу сайдбара» (MODIFIED: display_name/аватар); auth: «Миграция пользователей и задач без потери данных» (схема users, NFR-9) |
+| FR-37 (r4) | Must | tasks: «Создание задачи» (MODIFIED: assigned опционально, creator сервером — ОВ-26); tasks: «Признаки задачи» (MODIFIED: +creator/assigned); tasks: «Редактирование задачи» (MODIFIED: select исполнителя — ОВ-26); auth: «Миграция…» (схема tasks, creator-инвариант) |
+| FR-38 (r4) | Must | auth: «Миграция пользователей и задач без потери данных» (сценарий «Бэкфилл creator = owner») |
+| FR-39 (r4) | Must | navigation: «Профиль…» (MODIFIED: клик → настройки пользователя, ОГР-15/20); settings: «Страница настроек пользователя» (ADDED, ОГР-20) |
+| FR-40 (r4) | Must | auth: «Профиль пользователя — просмотр и редактирование» (справочник ролей ОВ-21); settings: «Форма профиля…» (ADDED, ОВ-21, Д-10) |
+| FR-41 (r4) | Must | auth: «Смена пароля» (ADDED, Д-11; ОГР-13 отменено — ОГР-15) |
+| FR-42 (r4) | Must | auth: «Загрузка аватара» (ADDED: png/jpg, ≤2 МБ NFR-10, автосжатие ≤256px Д-8, ОГР-16) |
+| FR-43 (r4) | Must | board: «Отображение канбан-доски» (MODIFIED: единый механизм tooltips, ОГР-17) — tooltip профиля; data-источник — auth: «API текущего пользователя» (расширенный состав) |
+| FR-44 (r4) | Must | board: «Отображение канбан-доски» (MODIFIED: tooltip карточки assigned/creator, ОВ-25) |
+| FR-45 (r4) | Must | board: «Отображение канбан-доски» (MODIFIED: assigned/creator на карточках, «Unassigned» курсивом ОВ-24); search: «Вкладка поиска старых задач» (MODIFIED: поля в выдаче) |
+| FR-46 (r4) | Must | search: «Фильтр-конструктор» (MODIFIED: фильтры assigned/creator, «без исполнителя», подсказки из БД FR-35); search: «Режим advanced» (MODIFIED: assigned/creator, IS NULL) |
+| FR-47 (r4) | Must | board: «Просмотр карточки задачи — модальное окно read-only» (ADDED, Д-9, ОГР-18) |
+| FR-48 (r4) | Must | tasks: «Формы создания и редактирования по дизайну V3» (существующий Requirement — зоны DEF-005, урок DEF-004) |
+| NFR-9 (r4) | Must | auth: «Миграция пользователей и задач без потери данных» (0 потерь, автосверка, ОГР-19) |
+| NFR-10 (r4) | Must | auth: «Загрузка аватара» (лимит исходника ≤2 МБ, ОВ-22) |
 
-Покрытие Must: **все 13 Must-FR (FR-1…FR-7, FR-9…FR-14) и Must-NFR (NFR-3, NFR-4, NFR-7) имеют Requirements; NFR-6 (Must) — развертывание, покрыто задачей tasks 1.4** (дальнейшая детализация — не поведение системы; отмечено намеренно, не пропущено). Требования Релиза 2 (requirements-r2): **все 12 FR (FR-19…FR-30) и NFR-8 имеют Requirements** в доменах categories/settings/navigation/search/tasks/fastline master-спек. Требования Релиза 3 (requirements.md r4): **все 5 FR (FR-31…FR-35) имеют Requirements** в дельтах change-пакета `add-r3-visual-foundation` (board/auth/navigation/tasks/search); новых NFR в r4 нет (ТЗ §4). Новых зависимостей и изменений схемы Релиз 3 не вводит.
+Покрытие Must: **все 13 Must-FR (FR-1…FR-7, FR-9…FR-14) и Must-NFR (NFR-3, NFR-4, NFR-7) имеют Requirements; NFR-6 (Must) — развертывание, покрыто задачей tasks 1.4** (дальнейшая детализация — не поведение системы; отмечено намеренно, не пропущено). Требования Релиза 2 (requirements-r2): **все 12 FR (FR-19…FR-30) и NFR-8 имеют Requirements** в доменах categories/settings/navigation/search/tasks/fastline master-спек. Требования Релиза 3 (requirements.md r4): **все 5 FR (FR-31…FR-35) имеют Requirements** в дельтах change-пакета `add-r3-visual-foundation` (board/auth/navigation/tasks/search). Требования Релиза 4 (requirements-r4): **все 13 FR (FR-36…FR-48) и NFR-9/10 имеют Requirements** в дельтах change-пакета `add-r4-user-profile-ticket-view` (auth/navigation/settings/board/tasks/search).
