@@ -77,3 +77,22 @@ def settings_page(request: Request):
     return templates.TemplateResponse(
         request=request, name="settings.html", context={"active_page": "settings"}
     )
+
+
+@router.get("/settings/profile")
+def profile_settings_page(request: Request):
+    """Страница настроек пользователя (tasks.md 3.1 пакета
+    add-r4-user-profile-ticket-view; FR-39…FR-42, ОГР-20; design §4,
+    sdd §3.6): форма профиля, смена пароля, загрузка аватара — данные
+    СВОЕГО аккаунта. Отдельная страница от общего раздела /settings
+    (ОГР-20: справочник категорий здесь отсутствует). Без сессии —
+    редирект на /login middleware'ом (дельта settings, Scenario
+    «Негативный: неавторизованный доступ», NFR-7) — здесь не
+    дублируется, как у остальных страниц. static_v не бампится:
+    единый финальный бамп релиза — задача 6.3 (C-5 ревью review-001).
+    """
+    return templates.TemplateResponse(
+        request=request,
+        name="profile-settings.html",
+        context={"active_page": "settings-profile"},
+    )

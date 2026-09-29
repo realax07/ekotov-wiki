@@ -61,16 +61,26 @@ SEED_CATEGORIES = ("Дом", "Работа", "Личное")
 
 def _seed_users(db_path: str, owner_password: str, wife_password: str) -> None:
     """Заведение owner/wife с тестовыми паролями прямо в БД (bcrypt,
-    как app.seed_users.seed_user, но без интерактивного getpass)."""
+    как app.seed_users.seed_user, но без интерактивного getpass).
+    Роли по умолчанию (ОВ-21, бэкфилл migrate_r4): owner →
+    «Product manager», wife → «Product engineer» — на web-стенде
+    миграция не запускается, дефолт задается seed'ом."""
     import bcrypt
     import sqlite3
 
     conn = sqlite3.connect(db_path)
     try:
-        for login, password in (("owner", owner_password), ("wife", wife_password)):
+        for login, password, role in (
+            ("owner", owner_password, "Product manager"),
+            ("wife", wife_password, "Product engineer"),
+        ):
             conn.execute(
-                "INSERT INTO users (login, password_hash) VALUES (?, ?)",
-                (login, bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()),
+                "INSERT INTO users (login, password_hash, role) VALUES (?, ?, ?)",
+                (
+                    login,
+                    bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode(),
+                    role,
+                ),
             )
         # Seed справочника (CHK-139/TC-env-001): INSERT OR IGNORE — идемпотентно.
         for name in SEED_CATEGORIES:
@@ -125,11 +135,18 @@ def web_server(request):
 
     tmp = tempfile.TemporaryDirectory(prefix="ekotov-web-tests-")
     db_path = str(Path(tmp.name) / "app.db")
+    avatars_dir = str(Path(tmp.name) / "avatars")  # AVATARS_DIR стенда (tmp, blocker C-1)
     port = _free_port()
     base_url = f"http://127.0.0.1:{port}"
 
     # Схема + seed в отдельном процессе (модуль app из backend/).
-    env = dict(os.environ, DB_PATH=db_path, SECRET_KEY="web-tests-secret-key", TZ="UTC")
+    env = dict(
+        os.environ,
+        DB_PATH=db_path,
+        SECRET_KEY="web-tests-secret-key",
+        TZ="UTC",
+        AVATARS_DIR=avatars_dir,  # задачи 2.3/3.1: хранение аватаров — tmp
+    )
     subprocess.run(
         [sys.executable, "-m", "app.db"],
         cwd=BACKEND_DIR, env=env, check=True, capture_output=True,
@@ -163,6 +180,7 @@ def web_server(request):
         # DB-крюки кейсов (TC-UI-017/018) — env на время сессии.
         os.environ[BASE_URL_ENV] = base_url
         os.environ[DB_PATH_ENV] = db_path
+        os.environ["EKOTOV_WIKI_AVATARS_DIR"] = avatars_dir
         yield {
             "base_url": base_url,
             "db_path": db_path,
@@ -178,6 +196,7 @@ def web_server(request):
                 proc.kill()
         os.environ.pop(BASE_URL_ENV, None)
         os.environ.pop(DB_PATH_ENV, None)
+        os.environ.pop("EKOTOV_WIKI_AVATARS_DIR", None)
         tmp.cleanup()
 
 
@@ -206,7 +225,10 @@ def page(page, web_server):
             new_url = static_url + route.request.url.partition("/static")[2]
             route.fulfill(response=route.fetch(url=new_url))
 
-        page.route(f"{web_server['base_url']}/static/**", _to_static)
+        # context.route (не page.route): правило действует и на страницы,
+        # открытые тестом в том же контексте (page.context.new_page() —
+        # вторые сессии wife/fresh в test_settings_profile_r4).
+        page.context.route(f"{web_server['base_url']}/static/**", _to_static)
     yield page
 
 
