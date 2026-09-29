@@ -16,7 +16,12 @@ SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS users (
   id            INTEGER PRIMARY KEY,
   login         TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL            -- bcrypt/argon2, не открытый пароль (NFR-7)
+  password_hash TEXT NOT NULL,           -- bcrypt/argon2, не открытый пароль (NFR-7)
+  display_name  TEXT,                    -- Релиз 4 (FR-36); NULL => показывается логин (Д-10)
+  role          TEXT,                    -- Релиз 4 (FR-36, ОВ-21): 'Product manager' | 'Product engineer' | NULL; только отображение
+  bio           TEXT,                    -- Релиз 4 (FR-36): «о себе», tooltip профиля (ОВ-25)
+  avatar_path   TEXT,                    -- Релиз 4 (FR-42): /var/lib/ekotov-wiki/avatars/<user_id>.png; NULL => кружок с буквой (FR-33)
+  avatar_updated_at TEXT                  -- Релиз 4 (B-3 ревью review-001): версия аватара для ?v=; NULL => аватара нет
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -38,6 +43,8 @@ CREATE TABLE IF NOT EXISTS tasks (
               CHECK(status IN ('todo','in_progress','done')),  -- Ожидает/В работе/Выполнено (ОГР-3)
   done_at     TEXT,                      -- момент перевода в done; NULL <=> не в done (FR-4, новая редакция)
   archived_at TEXT,                      -- NOT NULL <=> в архиве; ленивая автоархивация (FR-4), НЕ при move
+  creator_id  INTEGER REFERENCES users(id),    -- Релиз 4 (FR-37): сервер ставит = пользователю сессии; бэкфилл = owner (FR-38)
+  assigned_to_id INTEGER REFERENCES users(id), -- Релиз 4 (FR-37): nullable; бэкфилл = owner (ОВ-23)
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 );
@@ -71,6 +78,8 @@ CREATE INDEX IF NOT EXISTS idx_tasks_archived_at ON tasks(archived_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_done_at ON tasks(done_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
 CREATE INDEX IF NOT EXISTS idx_tasks_category ON tasks(category); -- Д-1 (проверка использования), NFR-8 (сверка миграции), sdd r2 §2
+CREATE INDEX IF NOT EXISTS idx_tasks_creator_id ON tasks(creator_id);      -- Релиз 4: фильтры поиска assigned/creator (FR-46)
+CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to_id ON tasks(assigned_to_id); -- Релиз 4: фильтры поиска assigned/creator (FR-46)
 CREATE INDEX IF NOT EXISTS idx_task_tags_tag_id ON task_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_comments_task_id ON comments(task_id);
 """
@@ -85,6 +94,13 @@ CREATE INDEX IF NOT EXISTS idx_comments_task_id ON comments(task_id);
 MIGRATION_SQL_6_1 = """
 ALTER TABLE tasks ADD COLUMN done_at TEXT;
 """
+
+# Колонки и индексы Релиза 4 (change add-r4-user-profile-ticket-view):
+# для свежих БД их создает SCHEMA_SQL; для существующих — миграция
+# backend/app/migrate_r4.py (ALTER при отсутствии по PRAGMA table_info +
+# бэкфилл creator/assigned = owner + роли ОВ-21 + автосверка NFR-9).
+# В init_db они НЕ вносятся: бэкфилл требует логики сверок и выполняется
+# только миграционным скриптом (design.md пакета §1).
 
 
 def get_connection(db_path: str | None = None) -> sqlite3.Connection:
