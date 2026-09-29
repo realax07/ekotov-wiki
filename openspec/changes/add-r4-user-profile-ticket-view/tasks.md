@@ -9,7 +9,7 @@
 ## 2. API профиля и аватара (PLAN-R4 1.2, 1.3) — параллельная зона
 
 - [x] 2.1 [P] [M] Backend: `GET/PUT /api/profile` (вне exempt, пользователь сессии); PUT с валидацией role по фиксированному списку [«Product manager», «Product engineer»] → 422 при значении вне списка (ОВ-21); расширение `GET /api/auth/me` составом профиля (login, display_name, role, bio, avatar_url; null при незаполненном). (FR-36, FR-40, ОВ-21, Д-10 → auth: Профиль пользователя — просмотр и редактирование; auth: API текущего пользователя MODIFIED)
-- [ ] 2.2 [P] [M] Backend: `POST /api/profile/password` — проверка текущего пароля (bcrypt), хеширование нового, sessions не трогаются (Д-11); 422 при неверном текущем/пустом новом. (FR-41, Д-11, NFR-7 → auth: Смена пароля)
+- [x] 2.2 [P] [M] Backend: `POST /api/profile/password` — проверка текущего пароля (bcrypt), хеширование нового, sessions не трогаются (Д-11); 422 при неверном текущем/пустом новом. (FR-41, Д-11, NFR-7 → auth: Смена пароля)
 - [x] 2.3 [P] [M] Backend: `POST /api/profile/avatar` — валидация png/jpg и размера ≤2 МБ до декодирования (NFR-10, понятные ошибки 422), Pillow: center-crop до квадрата + resize 256×256 (Д-8), сохранение `/var/lib/ekotov-wiki/avatars/<user_id>.png` (каталог вне rsync-корня, C-1 ревью; mkdir idempotent), `avatar_path` + `avatar_updated_at` в users; отдача nginx `location /avatars/` + версионирование `?v=<avatar_updated_at>`. (FR-42, NFR-10, ОГР-16, Д-8, ОВ-22 → auth: Загрузка аватара — все 6 сценариев)
 
 ## 3. Настройки пользователя + tooltip профиля (PLAN-R4 1.4, 1.5)
