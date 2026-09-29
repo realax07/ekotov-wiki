@@ -20,6 +20,13 @@
  * Кружок — один акцентный цвет V3 (--color-accent). XSS-дисциплина:
  * только createElement + textContent (URL аватара — через свойство src,
  * не разметку).
+ *
+ * Tooltip (3.2, FR-43, ОГР-17, ОВ-25): при наведении/фокусе на блоке
+ * показывается всплывашка — аватар (или кружок-фоллбек), display_name
+ * (или логин, Д-10), логин, роль, bio (пустое bio — блок не показывается);
+ * показ с задержкой 300мс (не мешает клику), скрытие по mouseleave/
+ * blur/Escape; при prefers-reduced-motion — без анимации (TC-vis-105).
+ * Механика — общий модуль tooltip.js (переиспользуется карточками 5.1).
  */
 "use strict";
 
@@ -28,6 +35,64 @@ const SETTINGS_PROFILE_URL = "/settings/profile";
 
 export function firstLetterUpper(login) {
   return login.charAt(0).toUpperCase();
+}
+
+/* Контент tooltip профиля (3.2, ОВ-25): аватар (или кружок-фоллбек),
+ * display_name (или логин, Д-10), логин, роль, bio. Пустое bio —
+ * блок bio не показывается (ОВ-25). XSS-дисциплина: только
+ * createElement + textContent (URL аватара — через свойство src). */
+function buildProfileTooltipContent(me) {
+  const login = me.user;
+
+  const wrap = document.createElement("div");
+  wrap.className = "tooltip-profile";
+
+  const head = document.createElement("div");
+  head.className = "tooltip-profile-head";
+
+  const avatarUrl = typeof me.avatar_url === "string" ? me.avatar_url : null;
+  const name = document.createElement("span");
+  name.className = "tooltip-profile-name";
+  name.textContent = me.display_name || login; /* Д-10 */
+
+  if (avatarUrl) {
+    const avatar = document.createElement("img");
+    avatar.className = "tooltip-profile-avatar";
+    avatar.src = avatarUrl;
+    avatar.alt = "";
+    head.appendChild(avatar);
+  } else {
+    const badge = document.createElement("span");
+    badge.className = "tooltip-profile-badge";
+    badge.setAttribute("aria-hidden", "true");
+    badge.textContent = firstLetterUpper(login);
+    head.appendChild(badge);
+  }
+  head.appendChild(name);
+
+  const loginLine = document.createElement("span");
+  loginLine.className = "tooltip-profile-login";
+  loginLine.textContent = login;
+
+  wrap.append(head, loginLine);
+
+  const role = typeof me.role === "string" ? me.role : "";
+  if (role) {
+    const roleLine = document.createElement("span");
+    roleLine.className = "tooltip-profile-role";
+    roleLine.textContent = role;
+    wrap.appendChild(roleLine);
+  }
+
+  const bio = typeof me.bio === "string" ? me.bio : "";
+  if (bio) {
+    const bioLine = document.createElement("p");
+    bioLine.className = "tooltip-profile-bio";
+    bioLine.textContent = bio;
+    wrap.appendChild(bioLine);
+  }
+
+  return wrap;
 }
 
 function fillProfile(container, me) {
@@ -75,6 +140,24 @@ function fillProfile(container, me) {
       open();
     }
   });
+
+  /* Tooltip профиля (3.2, FR-43, ОГР-17): показ по hover/focus с задержкой
+   * ~300мс — всплывашка не мешает клику по блоку (клик → настройки);
+   * скрытие по mouseleave/focusout/Escape — механика attach() единого
+   * модуля tooltip.js. */
+  attachProfileTooltip(container, me);
+}
+
+function attachProfileTooltip(container, me) {
+  import("./tooltip.js")
+    .then(function (tooltip) {
+      tooltip.attach(container, function () {
+        return buildProfileTooltipContent(me);
+      }, { delay: 300 });
+    })
+    .catch(function () {
+      /* модуль недоступен — блок профиля работает без всплывашки */
+    });
 }
 
 async function loadProfile() {

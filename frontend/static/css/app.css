@@ -214,6 +214,95 @@ body.app-shell {
   overflow-wrap: anywhere;
 }
 
+/* --- Единый tooltip (3.2, FR-43, ОГР-17; design §5): один экземпляр
+   на документ, position: fixed (позиционирование JS-ом у нижнего левого
+   края target, кламп в вьюпорт, вверх при нехватке места снизу).
+   pointer-events: none — всплывашка не перехватывает клик по target
+   (клик по профилю открывает настройки при видимом tooltip). Токены V3. */
+.app-tooltip {
+  position: fixed;
+  z-index: 20;
+  max-width: 280px;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  box-shadow: var(--shadow-soft);
+  font-size: var(--font-size-label);
+  line-height: 1.5;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--speed-fast) ease;
+}
+
+.app-tooltip.tooltip-visible {
+  opacity: 1;
+}
+
+/* TC-vis-105 / ОГР-17: при уменьшении движения всплывашка появляется
+ * и исчезает мгновенно (без transition), содержание не изменяется. */
+@media (prefers-reduced-motion: reduce) {
+  .app-tooltip {
+    transition: none !important;
+  }
+}
+
+/* Состав tooltip профиля (ОВ-25): аватар, имя (Д-10), логин, роль, bio.
+ * bio — необязательная строка (пустое bio — блок не показывается). */
+.app-tooltip .tooltip-profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+}
+
+.app-tooltip .tooltip-profile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.app-tooltip .tooltip-profile-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.app-tooltip .tooltip-profile-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-weight: bold;
+}
+
+.app-tooltip .tooltip-profile-name {
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+
+.app-tooltip .tooltip-profile-login {
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.app-tooltip .tooltip-profile-role {
+  color: var(--color-text-secondary);
+}
+
+.app-tooltip .tooltip-profile-bio {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
 .content {
   flex: 1;
   padding: var(--space-3);
