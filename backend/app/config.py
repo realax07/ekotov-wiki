@@ -19,9 +19,15 @@ def _require(name: str) -> str:
 
 
 class Settings:
+    # AVATARS_DIR — необязательная переменная окружения: дефолт — продовый
+    # путь (design.md пакета §2, blocker C-1 ревью review-001, ОГР-16);
+    # в тестах/локальной разработке переопределяется на tmp-каталог.
+    _AVATARS_DIR_DEFAULT = "/var/lib/ekotov-wiki/avatars/"
+
     def __init__(self) -> None:
         self.db_path: str = _require("DB_PATH")
         self.secret_key: str = _require("SECRET_KEY")
+        self.avatars_dir: str = os.environ.get("AVATARS_DIR", self._AVATARS_DIR_DEFAULT)
 
 
 settings = Settings()

@@ -3,6 +3,7 @@
 from fastapi import FastAPI, Request
 from starlette.responses import JSONResponse
 
+from app.avatar import router as avatar_router
 from app.auth import SESSION_COOKIE_NAME
 from app.auth import router as auth_router
 from app.board import router as board_router
@@ -20,6 +21,7 @@ from app.users import router as users_router
 
 app = FastAPI(title="ekotov-wiki", docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(auth_router)
+app.include_router(avatar_router)
 app.include_router(pages_router)
 app.include_router(tasks_router)
 app.include_router(categories_router)
