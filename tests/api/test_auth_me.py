@@ -36,11 +36,15 @@ from conftest import login_session, OWNER_LOGIN  # noqa: E402
 @pytest.mark.must
 def test_me_returns_login_of_session(base_url, owner_session):
     """TC-auth-018: пользователь авторизован (действующая сессия, логин
-    owner); GET /api/auth/me — 200 {"user": "owner"}: логин соответствует
-    сессии (JOIN sessions→users по токену куки, З-1 ревью-001)."""
+    owner); GET /api/auth/me — 200 с ключом "user": "owner" (логин
+    соответствует сессии, JOIN sessions→users по токену куки, З-1
+    ревью-001). Состав ответа Р4 (change add-r4-user-profile-ticket-view,
+    tasks.md 2.1, MODIFIED-дельта) добавляет display_name/role/bio/
+    avatar_url; здесь проверяется ключевая обратная совместимость — ключ
+    "user" с логином сессии."""
     resp = owner_session.get(f"{base_url}/api/auth/me")
     assert resp.status_code == 200
-    assert resp.json() == {"user": OWNER_LOGIN}
+    assert resp.json()["user"] == OWNER_LOGIN
 
 
 # --------------------------------------------------------------------------
@@ -49,16 +53,17 @@ def test_me_returns_login_of_session(base_url, owner_session):
 @pytest.mark.must
 def test_me_second_user_gets_own_login(base_url, owner_session, wife_session):
     """TC-auth-019: wife авторизована в СВОЕЙ сессии (owner — в своей);
-    GET /api/auth/me из сессии wife — 200 {"user": "wife"}: каждый
-    пользователь получает логин своей сессии, не чужой."""
+    GET /api/auth/me из сессии wife — 200 с "user": "wife": каждый
+    пользователь получает логин своей сессии, не чужой (состав Р4 см.
+    test_auth_me.py TC-auth-018 / test_profile_r4.py)."""
     resp_wife = wife_session.get(f"{base_url}/api/auth/me")
     assert resp_wife.status_code == 200
-    assert resp_wife.json() == {"user": "wife"}
+    assert resp_wife.json()["user"] == "wife"
 
     # сессии не смешиваются: owner в этот же момент получает свой логин
     resp_owner = owner_session.get(f"{base_url}/api/auth/me")
     assert resp_owner.status_code == 200
-    assert resp_owner.json() == {"user": "owner"}
+    assert resp_owner.json()["user"] == "owner"
 
 
 # --------------------------------------------------------------------------
