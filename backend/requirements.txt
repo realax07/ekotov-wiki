@@ -2,10 +2,15 @@ fastapi==0.141.1
 uvicorn[standard]==0.53.0
 jinja2==3.1.6
 bcrypt==5.0.0
+# Релиз 4 (change add-r4-user-profile-ticket-view, design.md шапка):
+# Pillow — обработка аватара (FR-42, Д-8); wheels cpython312 — совместим с продом (Python 3.12.3)
+Pillow==12.3.0
+# python-multipart — парсинг multipart/form-data загрузки аватара (FastAPI form/file);
+# заявляется явно, не как транзитивная зависимость (минор B-2 ревью review-001)
+python-multipart==0.0.32
 
 # tests/ (pytest + requests API-набор, pytest + playwright web-набор;
 # pytest.ini в корне репозитория)
 pytest==9.1.1
 requests==2.34.2
 playwright==1.63.0
-

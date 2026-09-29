@@ -66,9 +66,16 @@ git -C /home/openclaw/ekotov-wiki log --oneline -1
 
 1. В клоне `~/ekotov-wiki` на main должен лежать целевой коммит; вписать его в `EXPECTED_COMMIT` (env или правка шапки скрипта).
 2. Прогнать dry-run (ничего не меняет): `DRY_RUN=1 bash deploy/deploy.sh` — проверить предусловия и дельту rsync.
-3. Запустить деплой. Шаги скрипта: предусловия → бэкап БД → rsync кода (exclude `.git/.env/.venv/__pycache__` и пр.) → pip install → схема `app.db` (из cwd=backend, от wiki) → рестарт → смоук.
+3. Запустить деплой. Шаги скрипта: предусловия → бэкап БД → rsync кода (exclude `.git/.env/.venv/__pycache__` и пр.) → pip install → схема `app.db` (из cwd=backend, от wiki) → **миграция релиза, если есть** (`python -m app.migrate_r4` — шаг добавляется в deploy.sh с Релиза 4, change add-r4-user-profile-ticket-view, ревью review-001 C-2: после схемы, строго до рестарта, от wiki, падение прерывает деплой; остановка uvicorn не требуется) → рестарт → смоук. Бэкап аватаров: при релизах, трогающих аватары, каталог `/var/lib/ekotov-wiki/avatars/` копируется рядом с бэкапом БД (Релиз 4, review-001 C-3).
 4. Смоук после деплоя — обязателен (урок E10), см. §4.4. Плюс один проход страницы в браузере.
-5. Если релиз трогал статику — убедиться, что забамплен `static_v` в `backend/app/pages.py` (кеш-бастинг), иначе браузеры держат старый CSS 7 дней.
+5. Если релиз трогал статику — убедиться, что забамплен `static_v` в `backend/app/pages.py` (кеш-бастинг), иначе браузеры держат старый CSS 7 дней. Дисциплина (review-001 C-5): один финальный бамп на релиз, формат `r4.x`.
+6. Релиз 4 (аватары): в nginx-конфиг `/etc/nginx/sites-enabled/ekotov-wiki` добавляется `location /avatars/` — alias `/var/lib/ekotov-wiki/avatars/`, `expires 7d`, `add_header Cache-Control "public"` (шаблон — `deploy/nginx-ekotov-wiki*.conf`, ревью review-001 blocker C-1: хранение вне rsync-корня); правка — `nginx -t` → reload. Пример шага:
+
+```bash
+sudo mkdir -p /var/lib/ekotov-wiki/avatars && sudo chown wiki:wiki /var/lib/ekotov-wiki/avatars
+# вписать location /avatars/ { alias /var/lib/ekotov-wiki/avatars/; expires 7d; add_header Cache-Control "public"; }
+sudo nginx -t && sudo systemctl reload nginx
+```
 
 ### 4.2 Рестарт / останов
 

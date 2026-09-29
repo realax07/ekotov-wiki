@@ -1,7 +1,7 @@
 # sdd.md — Системный дизайн: ekotov-wiki (changes add-kanban-core, add-r2-categories-settings, add-r3-visual-foundation, add-r4-user-profile-ticket-view)
 
 Источник требований: `requirements.md` (r4, утвержден), `test-model/requirements-r2.md` (r1, утвержден), `docs/ba/requirements-r4.md` (Релиз 4, УТВЕРЖДЕН Заказчиком 2026-09-29, ответы ОВ-21…26 — `docs/ba/answers_round4.md`). Пакеты: `openspec/changes/add-r4-user-profile-ticket-view/`, `openspec/changes/add-r3-visual-foundation/`, `openspec/changes/archive/2026-09-22-add-r2-categories-settings/`, `openspec/changes/archive/add-kanban-core/`.
-Версия sdd: r9 (2026-09-29) — Релиз 4 (change add-r4-user-profile-ticket-view, «как планируется», по дельтам пакета): схема users (+display_name, +role, +bio, +avatar_path) и tasks (+creator_id, +assigned_to_id) с бэкфиллом creator=owner, assigned=owner (ОВ-23) и ролями по умолчанию owner→PM, wife→PE (ОВ-21) — §4, §3.1a-ter (миграция `migrate_r4.py`); API профиля/пароля/аватара и расширенный `GET /api/auth/me` — §3.1a-кватер; страница настроек пользователя — §3.6; assigned/creator в контрактах задач и поиске — §3.2/§3.5; единый tooltip-механизм (ОГР-17, reduced-motion TC-vis-105) и view-модалка (FR-47, Д-9) — design.md пакета; кеш-бастинг `static_v` при релизе (урок DEF-002/003) и бэкап прода до миграции (ОГР-19) — deploy-заметки design.md §1/§9; матрица трассировки дополнена FR-36…FR-48/NFR-9/10 (§6). Предыдущая: r8 (2026-09-27) — Релиз 3 (change add-r3-visual-foundation): эндпоинт `GET /api/auth/me` (§3.1a-бис); профиль внизу сайдбара (§3.6); DnD и эффекты доски — клиентские (§2 примечание); матрица FR-31…FR-35 (§6).
+Версия sdd: r10 (2026-09-29) — Релиз 4, правки по ревью архитектора review-001 (коммит c1e9100): аватары хранятся в `/var/lib/ekotov-wiki/avatars/` (вне rsync-корня прода — blocker C-1: rsync `--delete` стирал бы файлы в `frontend/static/`), отдача nginx `location /avatars/` (§3.1a-кватер, §4); версия аватара — dedicated-колонка `users.avatar_updated_at` (minor B-3); миграция `migrate_r4.py` встроена в `deploy/deploy.sh` шагом после схемы, до рестарта, без остановки uvicorn (major C-2, §3.1a-ter); `GET /api/users` — read-only контракт, вне exempt (major B-1, §3.1a-кватер-бис); зависимости `Pillow==12.3.0` + `python-multipart==0.0.32` с пинами (minor B-2). Предыдущая: r9 (2026-09-29) — Релиз 4 (change add-r4-user-profile-ticket-view, «как планируется», по дельтам пакета): схема users (+display_name, +role, +bio, +avatar_path) и tasks (+creator_id, +assigned_to_id) с бэкфиллом creator=owner, assigned=owner (ОВ-23) и ролями по умолчанию owner→PM, wife→PE (ОВ-21) — §4, §3.1a-ter (миграция `migrate_r4.py`); API профиля/пароля/аватара и расширенный `GET /api/auth/me` — §3.1a-кватер; страница настроек пользователя — §3.6; assigned/creator в контрактах задач и поиске — §3.2/§3.5; единый tooltip-механизм (ОГР-17, reduced-motion TC-vis-105) и view-модалка (FR-47, Д-9) — design.md пакета; кеш-бастинг `static_v` при релизе (урок DEF-002/003) и бэкап прода до миграции (ОГР-19) — deploy-заметки design.md §1/§9; матрица трассировки дополнена FR-36…FR-48/NFR-9/10 (§6). Предыдущая: r8 (2026-09-27) — Релиз 3 (change add-r3-visual-foundation): эндпоинт `GET /api/auth/me` (§3.1a-бис); профиль внизу сайдбара (§3.6); DnD и эффекты доски — клиентские (§2 примечание); матрица FR-31…FR-35 (§6).
 
 ## 1. Стек и обоснование
 
@@ -87,7 +87,7 @@
 
 ### 3.1a-ter Миграция Релиза 4 (план, change add-r4-user-profile-ticket-view)
 
-Одноразовый идемпотентный скрипт `backend/app/migrate_r4.py` (`python -m app.migrate_r4` из `backend/`): ALTER users/tasks (§4) + бэкфилл + автосверка (exit 1 при расхождении, NFR-9). Бэкфилл: `creator_id = owner` у всех задач (FR-38); `assigned_to_id = owner` у всех существующих задач (ОВ-23); `users.role`: owner → «Product manager», wife → «Product engineer» (ОВ-21). **Deploy (ОГР-19):** остановка → бэкап (путь из RUNBOOK) → миграция → сверка exit 0 → старт → смоук (`/api/health`, вход обоих пользователей); откат при неудаче — из бэкапа. Детали — design.md пакета §1.
+Одноразовый идемпотентный скрипт `backend/app/migrate_r4.py` (`python -m app.migrate_r4` из `backend/`): ALTER users/tasks (§4) + бэкфилл + автосверка (exit 1 при расхождении, NFR-9). Бэкфилл: `creator_id = owner` у всех задач (FR-38); `assigned_to_id = owner` у всех существующих задач (ОВ-23); `users.role`: owner → «Product manager», wife → «Product engineer» (ОВ-21). **Deploy (ОГР-19 + major C-2 ревью review-001):** миграция — явный шаг `deploy/deploy.sh` (новый шаг «3c/6 миграция R4»): после rsync (3), pip (3b) и схемы `python -m app.db` (4), СТРОГО ДО рестарта (5), запуск от wiki с env `DB_PATH`/`SECRET_KEY` — тем же способом, что шаг схемы; падение шага прерывает деплой (fail, БД восстановима из бэкапа). Остановка uvicorn для миграции НЕ выполняется — канонический deploy.sh не останавливает сервис до рестарта, короткая транзакция ALTER/UPDATE совместима с работающим SQLite WAL. Бэкап до накатки — БД (путь из RUNBOOK) **+ каталог аватаров `/var/lib/ekotov-wiki/avatars/`** (minor C-3 ревью); откат при неудаче — из бэкапа. Смоук после рестарта: `/api/health`, вход обоих пользователей, страница настроек пользователя. `deploy/RUNBOOK.md` обновляется синхронно с deploy.sh (состав шагов); `EXPECTED_COMMIT` перед деплоем R4 — на коммит релиза (существующая процедура). Репетиция на копии прода (задача 1.1) — включая `pip install -r requirements.txt` на копии venv Python 3.12 (первая боевая установка Pillow не допускается, minor C-4 ревью). Детали — design.md пакета §1.
 
 ### 3.1a-кватер Профиль, пароль, аватар (Релиз 4, план; FR-36/40/41/42)
 
@@ -99,15 +99,25 @@
 | `POST /api/profile/avatar` | multipart `file` | 200 `{"ok": true, "avatar_url"}`; 422 `invalid file type` / `file too large` (≤2 МБ, NFR-10/ОВ-22); 401 |
 
 - Все — вне exempt-списка (NFR-7); оперируют только пользователем сессии (свой профиль, FR-39).
-- Аватар: png/jpg → Pillow center-crop квадрат + resize 256×256 (Д-8) → `frontend/static/avatars/<user_id>.png`; имя генерирует сервер; `avatar_url` с `?v=<updated_at>` (инверсия кеша, ОГР-16).
+- Аватар: png/jpg → Pillow center-crop квадрат + resize 256×256 (Д-8) → **`/var/lib/ekotov-wiki/avatars/<user_id>.png`** (blocker C-1 ревью review-001: каталог вне rsync-корня прода — `rsync --delete` в deploy.sh стирал бы файлы в `frontend/static/`; владелец wiki, mkdir idempotent приложением при первом сохранении); имя генерирует сервер. Отдача — nginx `location /avatars/` (alias `/var/lib/ekotov-wiki/avatars/`, expires 7d — правка вносится в `deploy/nginx-ekotov-wiki*.conf` и на прод с `nginx -t` + reload, шаг деплоя). `avatar_url` = `/avatars/<user_id>.png?v=<avatar_updated_at>` (инверсия кеша, ОГР-16; версия — dedicated-колонка `avatar_updated_at`, minor B-3 ревью: колонки updated_at у users нет; NULL → аватара нет, клиент рисует кружок). Зависимости: `Pillow==12.3.0` + `python-multipart==0.0.32` — в backend/requirements.txt с пинами (minor B-2 ревью).
 - `GET /api/auth/me` (§3.1-бис) расширяется: `{"user", "display_name", "role", "bio", "avatar_url"}` (null при незаполненном профиле; ключ `user` сохранен — обратная совместимость с profile.js).
+
+### 3.1a-кватер-бис Пользователи системы (Релиз 4, план; major B-1 ревью review-001)
+
+| Метод/путь | Описание | Ответы |
+|---|---|---|
+| `GET /api/users` | Пользователи системы (источник select исполнителя, ОВ-26) | 200 `{"users": [{"id": int, "login": str, "display_name": str|null}]}`; 401 |
+
+- Read-only: состояние не изменяет, прав не вводит (ОВ-21 — роль только отображение); отсортировано по login.
+- **Вне exempt-списка**: 401 без сессии (NFR-7); exempt-список не расширяется.
+- Потребители: select исполнителя в форме создания (опционально) и редактирования задачи (ОВ-26; подпись опции = display_name или логин, Д-10); валидация `assigned_to_id` в POST/PATCH — по существованию пользователя в той же таблице. Хардкод состава в клиенте отклонен (состав — данные, не код). В чеклисте QA (задача 6.1, I3).
 
 ### 3.2 Задачи (CRUD) — дополнение Релиза 4 (план)
 
 - Объект Task дополняется: `"creator": "<login>", "assigned": "<login>|null"` — в ответах `GET /api/tasks/{id}`, `GET /api/board`, ответах поиска (§3.5).
 - `POST /api/tasks`: опционально `assigned_to_id` (существующий пользователь или null; несуществующий → **422**; ОВ-26 — при создании опционально); `creator_id` ставит сервер = пользователю сессии, от клиента не принимается (FR-37).
 - `PATCH /api/tasks/{id}`: допускает `assigned_to_id` (select из пользователей, ОВ-26); `creator_id` в контракте не входит — creator не изменяется (FR-37).
-- Опционально (решение dev-задачи 5.1): `GET /api/users` — `200 {"users": [{"id", "login", "display_name"}]}` — источник select исполнителя; вне exempt (401). При вводе — дополнить чеклист QA (I3).
+- Источник select исполнителя: `GET /api/users` (§3.1a-кватер-бис, major B-1 ревью review-001 — контракт зафиксирован, не «решение dev»); чеклист QA — задача 6.1 (I3).
 
 | Метод/путь | Описание |
 |---|---|
@@ -231,7 +241,8 @@ users (
   display_name  TEXT,                     -- Релиз 4 (FR-36); NULL => показывается логин (Д-10)
   role          TEXT,                     -- Релиз 4 (FR-36, ОВ-21): 'Product manager' | 'Product engineer' | NULL; только отображение
   bio           TEXT,                     -- Релиз 4 (FR-36): «о себе», tooltip профиля (ОВ-25)
-  avatar_path   TEXT                      -- Релиз 4 (FR-42): static/avatars/<user_id>.png; NULL => кружок с буквой (FR-33)
+  avatar_path   TEXT                      -- Релиз 4 (FR-42): /var/lib/ekotov-wiki/avatars/<user_id>.png (вне rsync-корня, blocker C-1 ревью review-001); NULL => кружок с буквой (FR-33)
+  avatar_updated_at TEXT                  -- Релиз 4 (minor B-3 ревью): версия аватара для кеш-бастинга ?v=; ставится при сохранении аватара; NULL => аватара нет
 )
 
 sessions (
