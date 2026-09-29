@@ -106,6 +106,22 @@ else
   ok "Схема применена"
 fi
 
+# --- 4b/6 Миграция R4 (change add-r4-user-profile-ticket-view, review-001 C-2;
+#     метка «4b» — review-002 M-1: шаг после схемы (4), до рестарта (5)).
+#     Идемпотентна (повторный запуск — no-op); ALTER/UPDATE в короткой
+#     транзакции совместимы с работающим SQLite WAL — остановка uvicorn
+#     не требуется. Падение шага прерывает деплой: БД восстановима из
+#     $BACKUP_FILE (ОГР-19), после восстановления шаг можно повторять.
+log "4b/6 Миграция R4 (python -m app.migrate_r4 из cwd=backend)"
+if [ "$DRY_RUN" = "1" ]; then
+  echo "   [DRY-RUN] ( cd $APP_DIR/backend && sudo -u wiki env DB_PATH=$DB_PATH SECRET_KEY=[REDACTED] .venv/bin/python -m app.migrate_r4 )"
+else
+  ( cd "$APP_DIR/backend" && sudo -u wiki env DB_PATH="$DB_PATH" SECRET_KEY="x" \
+      .venv/bin/python -m app.migrate_r4 ) \
+    || fail "Миграция R4 не прошла (exit 1 = расхождение сверки NFR-9) — деплой прерван. БД восстанови из бэкапа $BACKUP_FILE и повтори деплой после устранения причины."
+  ok "Миграция R4 применена (сверка NFR-9 зеленая)"
+fi
+
 # --- 5/6 Рестарт сервиса ------------------------------------------------------
 log "5/6 Рестарт $SERVICE"
 run sudo systemctl restart "$SERVICE"
