@@ -1,6 +1,6 @@
 """Миграция схемы Релиза 4: профиль пользователя + creator/assigned задач
-(tasks.md 1.1; design.md пакета §1; sdd r10 §3.1a-ter, §4; FR-36, FR-37,
-FR-38, NFR-9, ОВ-21, ОВ-23).
+(tasks.md 1.1; design.md пакета §1; sdd r10 §3.1a-ter, §4; review-001-1.1;
+FR-36, FR-37, FR-38, NFR-9, ОВ-21, ОВ-23).
 
 Одноразовый идемпотентный скрипт внедрения Релиза 4 (ОГР-19) — по образцу
 `migrate_categories.py` (Релиз 2, NFR-8). Запуск из каталога backend/
@@ -17,9 +17,12 @@ FR-38, NFR-9, ОВ-21, ОВ-23).
    создает SCHEMA_SQL — здесь они не отсутствуют, шаг пропускается.
 3. ALTER tasks: + creator_id INTEGER REFERENCES users(id),
    + assigned_to_id INTEGER REFERENCES users(id) — аналогично; плюс
-   служебная колонка r4_backfill (метка первого наката, МСК — граница
-   «существующие на момент накатки» для повторных прогонов; в контракты
-   API не входит).
+   служебная колонка r4_backfill — постоянная часть схемы, в tasks.md
+   отсутствует: введена задачей 1.1 (минимальное решение недоопределенности
+   сверки (г) design §1), отражена в sdd §4 и design §1, атрибуция —
+   review-001-1.1. Метка первого наката (МСК) — граница «существующие
+   на момент накатки» для повторных прогонов; в контракты API не входит;
+   SCHEMA_SQL не создает — колонка появляется только миграцией.
    Индексы tasks(creator_id), tasks(assigned_to_id) (фильтры поиска
    FR-46) — CREATE INDEX IF NOT EXISTS, применяется к обеим редакциям.
 4. Бэкфилл (одна транзакция с ALTER, design.md §1):
@@ -89,7 +92,8 @@ NEW_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
             "assigned_to_id",
             "ALTER TABLE tasks ADD COLUMN assigned_to_id INTEGER REFERENCES users(id)",
         ),
-        # Служебная метка первого наката (tasks.md 1.1, внутренняя): момент
+        # Служебная метка первого наката (review-001-1.1; sdd §4, design §1):
+        # момент
         # миграции (МСК) — граница «существующие на момент накатки» для
         # повторных прогонов; после задачи 5.1 (creator ставит сервер)
         # не бэкфиллятся повторным запуском. Не входит в контракты API.
@@ -196,7 +200,13 @@ def _backfill(conn: sqlite3.Connection, first_run: bool) -> dict[str, int]:
 
     stats: dict[str, int] = {"columns_altered": 0}
     if owner_id is not None:
-        scope = "r4_backfill IS NOT NULL AND created_at <= r4_backfill"
+        # Граница «существующие на момент накатки» — сама метка r4_backfill
+        # (review-001-1.1, R-3): маркированные задачи существовали при накатке,
+        # немаркированные отсечены проверкой IS NOT NULL. Сравнение
+        # created_at <= r4_backfill НЕ используется: created_at хранится в UTC,
+        # метка — в МСК, лексикографическое сравнение строк с разными
+        # смещениями недостоверно, а по семантике метки терм избыточен.
+        scope = "r4_backfill IS NOT NULL"
         if first_run:
             scope = "1"  # первый накат: существующие = все задачи
         cur = conn.execute(

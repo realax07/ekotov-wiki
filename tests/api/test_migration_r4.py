@@ -285,7 +285,10 @@ def test_r4_foreign_key_check_empty(r4_pre_release_db):
 @pytest.mark.must
 def test_r4_rerun_is_noop(r4_pre_release_db):
     """Повторный запуск (сценарий «Идемпотентность миграции»): значения
-    creator/assigned/ролей и прежних полей не меняются, exit 0."""
+    creator/assigned/ролей и прежних полей не меняются, exit 0.
+    no-op проверяется по состоянию БД (review-001-1.1, R-5а: не по
+    человекочитаемому stdout) — creator/assigned остаются owner у всех,
+    счетчик измененных строк = 0."""
     db_path = r4_pre_release_db
     first = _run_migrate_r4(db_path)
     assert first.returncode == 0, f"первый прогон упал: {first.stdout} {first.stderr}"
@@ -298,9 +301,21 @@ def test_r4_rerun_is_noop(r4_pre_release_db):
 
     second = _run_migrate_r4(db_path)
     assert second.returncode == 0, f"повторный прогон упал: {second.stdout} {second.stderr}"
-    assert "0, " in second.stdout or "assigned_to_id=0" in second.stdout, (
-        "повторный прогон должен сообщать 0 измененных значений (no-op)"
+
+    # no-op по состоянию БД (R-5а): все задачи по-прежнему creator=assigned=owner,
+    # метки r4_backfill проставлены всем и не перезаписаны новым моментом.
+    owner_id = _execute(db_path, "SELECT id FROM users WHERE login = 'owner'")[0][0]
+    rows = _execute(
+        db_path, "SELECT id, creator_id, assigned_to_id FROM tasks ORDER BY id"
     )
+    assert len(rows) == 4
+    for task_id, creator_id, assigned_id in rows:
+        assert creator_id == owner_id, f"задача {task_id}: creator перезаписан повтором"
+        assert assigned_id == owner_id, f"задача {task_id}: assigned перезаписан повтором"
+    marks = _execute(
+        db_path, "SELECT COUNT(DISTINCT r4_backfill) FROM tasks WHERE r4_backfill IS NOT NULL"
+    )[0][0]
+    assert marks == 1, f"метка r4_backfill должна быть одна (фактически {marks} разных)"
 
     assert (
         _execute(
@@ -313,6 +328,31 @@ def test_r4_rerun_is_noop(r4_pre_release_db):
         _execute(db_path, "SELECT id, login, role FROM users ORDER BY id")
         == roles_before
     ), "повторный запуск изменил роли"
+
+
+# ---------------------------------------------------------------------------
+# Кейс 6b (review-001-1.1, R-5б): «owner» отсутствует при ПУСТОМ tasks —
+# допустимый путь owner_id=None: бэкфиллить некого и нечего, миграция
+# завершается успешно (exit 0), роли не проставляются (некому).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.must
+def test_r4_owner_missing_empty_tasks_ok(r4_tmp_db):
+    """Свежая БД без задач и без пользователя «owner» (допустимая ветка
+    owner_id=None в _backfill): миграция проходит, exit 0, сверка зеленая,
+    задач не появляется."""
+    db_path = r4_tmp_db
+    _execute(db_path, "DELETE FROM users WHERE login = 'owner'")
+    assert _execute(db_path, "SELECT COUNT(*) FROM tasks")[0][0] == 0
+    assert _execute(db_path, "SELECT COUNT(*) FROM users WHERE login = 'owner'")[0][0] == 0
+
+    result = _run_migrate_r4(db_path)
+    assert result.returncode == 0, (
+        f"ветка owner_id=None должна проходить: {result.stdout} {result.stderr}"
+    )
+    assert "ОК" in result.stdout
+    assert _execute(db_path, "SELECT COUNT(*) FROM tasks")[0][0] == 0
 
 
 # ---------------------------------------------------------------------------

@@ -266,6 +266,7 @@ tasks (
   archived_at TEXT,                      -- NOT NULL <=> в архиве; ставится ленивой автоархивацией (FR-4), НЕ при move
   creator_id  INTEGER FK -> users.id,    -- Релиз 4 (FR-37): сервер ставит = пользователю сессии; бэкфилл = owner (FR-38)
   assigned_to_id INTEGER FK -> users.id, -- Релиз 4 (FR-37): nullable; бэкфилл = owner (ОВ-23)
+  r4_backfill TEXT,                      -- Релиз 4 (служебная, review-001-1.1): метка первого наката migrate_r4 — граница «существующие на момент накатки» для повторных прогонов; вне API-контрактов; не создается SCHEMA_SQL — появляется только миграцией (задача 5.1 ее не трогает)
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 )
