@@ -108,6 +108,17 @@
       </select>
       <span id="task-category-error" class="field-error" hidden></span>
     </label>
+    {# 5.1 (ОВ-26, Д-10): поле исполнителя — select из GET /api/users
+       (заполняется task-form.js при каждом открытии формы; состав —
+       данные, не код). Опция «Не назначено» (value="") = «без
+       исполнителя» (nullable, FR-37); подпись опции = display_name или
+       логин (Д-10). Поле сразу по мокапу V3 — наследует .task-form
+       select (4.2, DEF-005: новое поле не создает нового расхождения,
+       FR-48). Поле creator в форме НЕТ — creator ставит сервер
+       (FR-37, сценарий «Creator не выбирается в форме»). #}
+    <label>Исполнитель
+      <select id="task-assigned" name="assigned_to_id"></select>
+    </label>
     <label>Срок
       <input type="date" id="task-due-date" name="due_date">
     </label>

@@ -187,6 +187,56 @@ function loadTagHints() {
 
 /* --- Категория: select из GET /api/categories (3.1, FR-19/FR-30) --- */
 
+/* --- Исполнитель: select из GET /api/users (5.1, ОВ-26, Д-10) --- */
+
+var ASSIGNED_FIELD_ID = "task-assigned";
+
+function assignedField() {
+  return document.getElementById(ASSIGNED_FIELD_ID);
+}
+
+function fillAssignedSelect(users, selectedId) {
+  /* Полная перезагрузка опций при каждом открытии формы (следует за
+   * составом пользователей; состав — данные, не код — хардкод
+   * отклонен ревью B-1). Первая опция «Не назначено» (value="") —
+   * признак «без исполнителя» (nullable, FR-37/ОВ-26), не элемент
+   * списка пользователей. Подпись опции = display_name или логин
+   * (Д-10, сервер display_name НЕ подставляет — fallback на клиенте).
+   * Значения — только через textContent (XSS, dom.js). */
+  var select = assignedField();
+  select.textContent = "";
+  var none = el("option", null, "Не назначено");
+  none.value = "";
+  select.appendChild(none);
+  (users || []).forEach(function (user) {
+    var label = user.display_name || user.login;
+    var option = el("option", null, label);
+    option.value = String(user.id);
+    select.appendChild(option);
+  });
+  select.value = selectedId === null || selectedId === undefined
+    ? ""
+    : String(selectedId);
+}
+
+function loadAssignedOptions(selectedId) {
+  /* Источник — read-only GET /api/users (sdd §3.1a-кватер-бис, ОВ-26):
+   * 200 {"users": [{id, login, display_name}]}, отсортированы по login.
+   * Сбой загрузки список не подменяет: select остается с одним «Не
+   * назначено» — назначить исполнителя нельзя, но и произвольного
+   * значения не появляется (значения только из пользователей). */
+  api(
+    "/api/users",
+    {},
+    function () {
+      fillAssignedSelect([], null);
+    },
+    function (body) {
+      fillAssignedSelect((body && body.users) || [], selectedId);
+    }
+  );
+}
+
 function fillCategorySelect(names, selected) {
   /* Полная перезагрузка опций: «ровно содержимое справочника», никаких
    * статических option в разметке (DEF-001). Пустое значение «—» —
@@ -281,6 +331,10 @@ function fillTaskForm(task) {
   document.getElementById("task-due-date").value = task.due_date || "";
   document.getElementById("task-tags").value = (task.tags || []).join(", ");
   document.getElementById(IS_FAST_FIELD_ID).checked = false;
+  /* 5.1: исполнителя в select ставит loadAssignedOptions (по task.assigned_to_id
+   * — сервер возвращает его в ответе задачи; до 5.1 ответ поля не имел —
+   * select открывается на «Не назначено»). */
+  document.getElementById("task-assigned").value = "";
   /* Форма открывается без fast line → приоритет разблокирован (4.3:
    * сброс состояния предыдущего открытия формы). */
   setPriorityLock(false);
@@ -293,6 +347,7 @@ function fillTaskForm(task) {
 function clearTaskForm() {
   fillTaskForm({ tags: [] });
   loadCategoryOptions(null);
+  loadAssignedOptions(null);
   loadTagHints();
 }
 
@@ -476,6 +531,10 @@ export function openEditForm(task) {
    * Сохранение такой задачи в прежнем виде отклонится 422 (FR-21) —
    * с подсветкой поля. */
   loadCategoryOptions(task.category);
+  /* 5.1: select исполнителя — текущее значение задачи (ОВ-26).
+   * assigned_to_id возвращается в ответе задачи (5.1, sdd §3.2);
+   * смена/очистка — тем же селектом, отправка через PATCH. */
+  loadAssignedOptions(task.assigned_to_id !== undefined ? task.assigned_to_id : null);
   /* Подсказки тегов — и в режиме редактирования: те же заведенные
    * значения (FR-26 действует на форму в обоих режимах). */
   loadTagHints();
@@ -513,6 +572,14 @@ function collectTaskForm() {
     category: categoryField().value || null,
     due_date: document.getElementById("task-due-date").value || null,
     tags: splitTags(document.getElementById("task-tags").value),
+    /* 5.1 (ОВ-26): пустой select = «без исполнителя» → null (легально);
+     * выбранное значение — id пользователя. assigned_to_id допустим и в
+     * POST (опционально), и в PATCH; creator_id не отправляется — его
+     * ставит сервер (FR-37). */
+    assigned_to_id:
+      document.getElementById(ASSIGNED_FIELD_ID).value === ""
+        ? null
+        : Number(document.getElementById(ASSIGNED_FIELD_ID).value),
   };
   if (boardState.currentTaskId === null) {
     var isFast = document.getElementById(IS_FAST_FIELD_ID).checked;

@@ -79,6 +79,27 @@
   padding: 1px 8px;
 }
 
+/* --- 5.1 (FR-45, ОВ-24): строка «assigned · creator» на карточке.
+ * Отображается ВСЕГДА (все столбцы и fast line одинаково); пустой
+ * assigned — курсивом «Unassigned» (em.task-card-unassigned, ОВ-24);
+ * creator — всегда. Приглушенный вторичный цвет, как meta. --- */
+
+.task-card-users {
+  margin-top: 4px;
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.task-card-unassigned {
+  /* Курсив дает семантика em; здесь закрепляем цвет вторичного текста
+   * (в т.ч. внутри tooltip, где наследование дает первичный цвет). */
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
 /* --- Бейдж приоритета на карточке (5.2, FR-29): пилюля с мягким фоном
  * (эталон V3) + inline SVG-иконка (↓/=/↑) + текст — различим без цвета --- */
 
@@ -668,6 +689,21 @@
 /* Пустой assigned — курсивом «Unassigned» (ОВ-24; заодно — семантика
  * em: элемент addDetailRow не используется, ряд строит task-detail.js). */
 .task-view-unassigned { color: var(--color-text-secondary); }
+
+/* --- 5.1 (FR-44, ОВ-25): состав tooltip карточки (модуль card-tooltip.js,
+ * механизм единый с профилем — tooltip.js/#app-tooltip, app.css).
+ * Ряд «метка: значение»; пустой assigned — em.task-card-unassigned
+ * (курсив, цвет выше). --- */
+
+.tooltip-task-row {
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+}
+
+.tooltip-task-label {
+  color: var(--color-text-secondary);
+}
 
 .task-view-comments h3 {
   margin: var(--space-2) 0 var(--space-1);

@@ -45,6 +45,7 @@ import { el, showBoardError, hideError } from "./dom.js";
 import { api } from "./api.js";
 import { COLUMNS } from "./state.js";
 import { createPriorityIcon, priorityLabel } from "./priority-icons.js";
+import { attachCardTooltip } from "./card-tooltip.js";
 
 export { showBoardError } from "./dom.js";
 
@@ -67,6 +68,33 @@ let onClickCard = null;
  * прямой вызов openTaskDetail из замыкания). */
 export function setCardClickHandler(handler) {
   onClickCard = handler;
+}
+
+/* --- 5.1 (FR-45, ОВ-24): строка «assigned · creator» на карточке --- */
+
+/* Подпись пользователя: display_name или логин — на карточке доступны
+ * только логины из API (creator/assigned, sdd §3.2), Д-10 применяется
+ * к данным, которые есть. */
+function userLabel(login) {
+  return login ? String(login) : "—";
+}
+
+function buildAssigneeLine(task) {
+  var line = el("div", "task-card-users");
+  var assigned = el("span", "task-card-assigned");
+  if (task.assigned) {
+    assigned.textContent = userLabel(task.assigned);
+  } else {
+    /* Пустой assigned — курсивом «Unassigned» (ОВ-24; строка
+     * отображается ВСЕГДА — в т.ч. без исполнителя). */
+    assigned.appendChild(el("em", "task-card-unassigned", "Unassigned"));
+  }
+  line.appendChild(assigned);
+  line.appendChild(el("span", "task-card-users-sep", "·"));
+  var creator = el("span", "task-card-creator");
+  creator.textContent = userLabel(task.creator);
+  line.appendChild(creator);
+  return line;
 }
 
 export function renderCard(task) {
@@ -114,6 +142,24 @@ export function renderCard(task) {
   }
   if (meta.childNodes.length) {
     card.appendChild(meta);
+  }
+
+  /* 5.1 (FR-45, ОВ-24): строка «assigned · creator» — ВСЕГДА (все
+   * столбцы и fast line одинаково). Пустой assigned — курсивом
+   * «Unassigned»; creator отображается всегда (задача без creator
+   * в данных — прочерк «—», данные не выдумываются). Поля появляются
+   * в ответах API с задачей 5.1 — до тех пор строка не строится
+   * (гвард hasOwnProperty, как в task-detail.js). */
+  if (
+    Object.prototype.hasOwnProperty.call(task, "assigned") ||
+    Object.prototype.hasOwnProperty.call(task, "creator")
+  ) {
+    card.appendChild(buildAssigneeLine(task));
+    /* 5.1 (FR-44, ОГР-17): tooltip карточки (assigned + creator) —
+     * единый механизм tooltip.js (attach, задержка 300мс, reduced-motion
+     * отключает анимацию CSS-ом app.css). Модуль недоступен — карточка
+     * работает без всплывашки (строка assigned · creator остается). */
+    attachCardTooltip(card, task);
   }
 
   card.addEventListener("click", function () {

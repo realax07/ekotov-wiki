@@ -29,8 +29,18 @@
   CASCADE (sdd §4), foreign_keys=ON включен в get_connection (app/db.py).
 
 Task-объект — по схеме sdd §3.2 (id, title, description, priority, category,
-due_date, tags, is_fast, status, archived_at). Владельца у задачи нет — модель
-sdd §4 не имеет колонки user_id в tasks (общая доска, sdd §7 допущения).
+due_date, tags, is_fast, status, archived_at; Релиз 4: + done_at, + creator,
++ assigned). Владельца у задачи нет — модель sdd §4 не имеет колонки user_id
+в tasks (общая доска, sdd §7 допущения).
+
+Релиз 4 (FR-37, ОВ-23/26; sdd r10 §3.2): ответы содержат creator и assigned —
+логины (LEFT JOIN users). POST опционально принимает assigned_to_id
+(существующий пользователь или null; несуществующий → 422), creator_id
+ставит сервер = пользователю сессии и от клиента НЕ принимается
+(TaskCreate extra="forbid" — creator_id в теле → 422). PATCH допускает
+assigned_to_id (та же валидация; null = очистить исполнителя); creator_id
+в контракте не входит — creator не изменяется. Базовый TASK_COLUMNS
+не расширяется: search.py (задача 5.2) импортирует его для своей выборки.
 
 Тела ошибок: 401 — middleware (app/middleware.py); 422 —
 {"error", "details"} по sdd §3 (обработчик RequestValidationError,
@@ -48,6 +58,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.auth import SESSION_COOKIE_NAME
 from app.board import msk_now_iso
 from app.categories import category_exists
 from app.db import get_connection
@@ -71,6 +82,66 @@ FAST_LINE_OCCUPIED_BODY = {"error": "fast line occupied"}
 
 # Активные статусы «Ожидает»/«В работе» (ОГР-3); done = архив, линию не занимает.
 ACTIVE_STATUSES = ("todo", "in_progress")
+
+
+# Тело 422 несуществующего исполнителя (Релиз 4, FR-37/ОВ-26) — в форме
+# {"error": "validation", "details": {...}}, как остальные жесткие 422.
+ASSIGNED_NOT_FOUND_422 = {
+    "error": "validation",
+    "details": {"assigned_to_id": "user not found"},
+}
+
+
+def _assigned_not_found_422() -> JSONResponse:
+    return JSONResponse(status_code=422, content=ASSIGNED_NOT_FOUND_422)
+
+
+def _user_exists(conn: sqlite3.Connection, user_id: int | None) -> bool:
+    """Есть ли пользователь с таким id (валидация assigned_to_id, sdd §3.2)."""
+    if user_id is None:
+        return True  # null = «без исполнителя» — легально (FR-37 nullable)
+    row = conn.execute(
+        "SELECT 1 FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+    return row is not None
+
+
+def _assigned_to_id_422(
+    conn: sqlite3.Connection, body: Any
+) -> JSONResponse | None:
+    """Валидация assigned_to_id POST/PATCH (Релиз 4, FR-37, ОВ-26).
+
+    Проверяется только если поле передано в теле; null = очистить
+    исполнителя — легально; несуществующий пользователь → 422
+    ASSIGNED_NOT_FOUND_422 (сценарий «Негативный: assigned — только
+    существующий пользователь»). Проверка ДО любых записей — при 422
+    задача не создается/не изменяется.
+    """
+    if "assigned_to_id" not in body.model_fields_set:
+        return None
+    if not _user_exists(conn, body.assigned_to_id):
+        return _assigned_not_found_422()
+    return None
+
+
+def _session_user_id(request: Request) -> int | None:
+    """id пользователя сессии (Релиз 4, FR-37: creator_id ставит сервер).
+
+    Запрос уже прошел middleware (401 без сессии) — сессия валидна;
+    токен без строки в sessions здесь практически невозможен, но
+    None-возврат страховкой дает creator_id = NULL, а не падение.
+    """
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
+        return None
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT user_id FROM sessions WHERE token = ?", (token,)
+        ).fetchone()
+    finally:
+        conn.close()
+    return row[0] if row is not None else None
 
 
 def _begin_immediate(conn: sqlite3.Connection) -> None:
@@ -107,6 +178,12 @@ class TaskCreate(BaseModel):
     due_date: date | None = None  # YYYY-MM-DD (sdd §4); иное — 422
     tags: list[str] = Field(default_factory=list)
     is_fast: bool = False  # ручное назначение только при создании (ОГР-5)
+    # Релиз 4 (FR-37, ОВ-26): опционально; null = без исполнителя;
+    # несуществующий пользователь → 422 (проверка _assigned_to_id_422).
+    assigned_to_id: int | None = None
+    # creator_id от клиента НЕ принимается (FR-37): extra="forbid" дает
+    # 422 (creator_id не входит в контракт создания); сервер ставит
+    # creator_id = пользователю сессии (_session_user_id).
 
     @field_validator("title")
     @classmethod
@@ -129,6 +206,11 @@ class TaskUpdate(BaseModel):
     category: str | None = None
     due_date: date | None = None
     tags: list[str] | None = None
+    # Релиз 4 (ОВ-26): допускается; null = очистить исполнителя;
+    # несуществующий пользователь → 422 (_assigned_to_id_422).
+    assigned_to_id: int | None = None
+    # creator_id в контракте PATCH не входит (FR-37) — extra="forbid"
+    # отклоняет его 422; creator задачи не изменяется никем.
 
     @field_validator("title")
     @classmethod
@@ -157,9 +239,31 @@ def _load_tags(conn: sqlite3.Connection, task_id: int) -> list[str]:
     return [row[0] for row in rows]
 
 
-def _row_to_task(conn: sqlite3.Connection, row: tuple) -> dict:
-    """Строка tasks → Task-объект по схеме sdd §3.2 (r5: с done_at)."""
-    return {
+def _task_with_users_sql(select_cols: str) -> str:
+    """SELECT tasks-колонок с JOIN users (Релиз 4, sdd §3.2 дословно:
+    creator/assigned в ответах — логины; LEFT JOIN — задача может быть
+    без creator/assigned (NULL в схеме nullable). tasks.* первым —
+    порядок колонок row соответствует TASK_COLUMNS/_row_to_task.
+    Используется всеми чтениями задач этого модуля."""
+    return (
+        f"SELECT {select_cols} "
+        "FROM tasks "
+        "LEFT JOIN users creator ON creator.id = tasks.creator_id "
+        "LEFT JOIN users assigned ON assigned.id = tasks.assigned_to_id "
+    )
+
+
+def _row_to_task(
+    conn: sqlite3.Connection, row: tuple, users: tuple | None = None
+) -> dict:
+    """Строка tasks → Task-объект по схеме sdd §3.2 (r5: с done_at;
+    Релиз 4: с creator/assigned — логины, sdd r10 §3.2).
+
+    users — (creator_login, assigned_login) из JOIN; None (старый
+    вызов без JOIN) → поля creator/assigned НЕ включаются (гвард
+    hasOwnProperty в task-detail.js не оживит ряды без данных —
+    данные не выдумываются)."""
+    task = {
         "id": row[0],
         "title": row[1],
         "description": row[2],
@@ -172,12 +276,38 @@ def _row_to_task(conn: sqlite3.Connection, row: tuple) -> dict:
         "done_at": row[8],
         "archived_at": row[9],
     }
+    if users is not None:
+        task["creator"] = users[0]
+        task["assigned"] = users[1]
+    return task
 
 
 def _get_task_row(conn: sqlite3.Connection, task_id: int) -> tuple | None:
     return conn.execute(
         f"SELECT {TASK_COLUMNS} FROM tasks WHERE id = ?", (task_id,)
     ).fetchone()
+
+
+def _get_task_row_with_users(
+    conn: sqlite3.Connection, task_id: int
+) -> tuple[tuple, tuple] | None:
+    """(строка задачи, (creator_login, assigned_login)) одним запросом
+    (Релиз 4, sdd r10 §3.2: GET-ответы содержат creator и assigned).
+
+    Плейн-колонки TASK_COLUMNS квалифицируются tasks. — после LEFT JOIN
+    users они без префикса двусмысленны (title/priority есть только в
+    tasks, но id есть в обеих таблицах)."""
+    plain = ", ".join(f"tasks.{name.strip()}" for name in TASK_COLUMNS.split(","))
+    row = conn.execute(
+        _task_with_users_sql(
+            f"{plain}, creator.login, assigned.login"
+        )
+        + "WHERE tasks.id = ?",
+        (task_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return row[: len(TASK_COLUMNS.split(","))], (row[-2], row[-1])
 
 
 def _set_tags(conn: sqlite3.Connection, task_id: int, names: list[str]) -> None:
@@ -280,9 +410,14 @@ def _explicit_null_priority_422(body: Any) -> JSONResponse | None:
 
 
 @router.post("", status_code=201)
-def create_task(body: TaskCreate) -> JSONResponse:
+def create_task(body: TaskCreate, request: Request) -> JSONResponse:
     """Создание задачи (sdd §3.2): 201 + Task; 422 — нет/пустое название;
     409 {"error": "fast line occupied"} — is_fast=true при активной fast-задаче.
+
+    Релиз 4 (FR-37, ОВ-26; sdd r10 §3.2): assigned_to_id опционально —
+    существующий пользователь или null, несуществующий → 422;
+    creator_id ставит сервер = пользователю сессии (клиентом не
+    принимается — TaskCreate extra="forbid").
 
     Проверка инварианта fast ≤1 и INSERT — одна транзакция (design.md §4):
     SQLite WAL, один writer — между SELECT и INSERT сторонняя запись не
@@ -292,6 +427,11 @@ def create_task(body: TaskCreate) -> JSONResponse:
     try:
         # Жесткая валидация категории (FR-21) до любых записей (design.md §1.3).
         invalid = _category_not_in_directory_422(conn, body.category)
+        if invalid is not None:
+            return invalid
+        # Валидация исполнителя (Релиз 4, FR-37/ОВ-26): до любых записей,
+        # в той же группе валидаций тела, что категория/приоритет.
+        invalid = _assigned_to_id_422(conn, body)
         if invalid is not None:
             return invalid
         # Priority-lock (FR-27, ОГР-10; design.md §4): fast с явным
@@ -308,6 +448,14 @@ def create_task(body: TaskCreate) -> JSONResponse:
             return invalid
         priority = "high" if body.is_fast else body.priority
         now = _utcnow()
+        # creator_id = пользователь сессии (FR-37, сервер ставит сам;
+        # assigned_to_id — проверенный выше id или NULL).
+        creator_id = _session_user_id(request)
+        assigned_to_id = (
+            body.assigned_to_id
+            if "assigned_to_id" in body.model_fields_set
+            else None
+        )
         try:
             if body.is_fast:
                 # Инвариант до вставки; BEGIN IMMEDIATE делает «проверка +
@@ -321,8 +469,8 @@ def create_task(body: TaskCreate) -> JSONResponse:
             cur = conn.execute(
                 "INSERT INTO tasks (title, description, priority, category, "
                 "due_date, is_fast, status, done_at, archived_at, "
-                "created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, 'todo', NULL, NULL, ?, ?)",
+                "creator_id, assigned_to_id, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'todo', NULL, NULL, ?, ?, ?, ?)",
                 (
                     body.title,
                     body.description,
@@ -330,6 +478,8 @@ def create_task(body: TaskCreate) -> JSONResponse:
                     body.category,
                     body.due_date.isoformat() if body.due_date is not None else None,
                     int(body.is_fast),
+                    creator_id,
+                    assigned_to_id,
                     now,
                     now,
                 ),
@@ -345,7 +495,8 @@ def create_task(body: TaskCreate) -> JSONResponse:
                 status_code=422,
                 content={"error": "invalid task data", "details": {}},
             )
-        task = _row_to_task(conn, _get_task_row(conn, task_id))
+        pair = _get_task_row_with_users(conn, task_id)
+        task = _row_to_task(conn, pair[0], (pair[1], pair[2]))
     finally:
         conn.close()
     return JSONResponse(status_code=201, content=task)
@@ -353,13 +504,17 @@ def create_task(body: TaskCreate) -> JSONResponse:
 
 @router.get("/{task_id}")
 def get_task(task_id: int) -> JSONResponse:
-    """Карточка задачи (sdd §3.2): 200 + Task; 404 — несуществующий id."""
+    """Карточка задачи (sdd §3.2): 200 + Task; 404 — несуществующий id.
+
+    Релиз 4 (sdd r10 §3.2): Task содержит creator и assigned (логины,
+    LEFT JOIN users; null — поле nullable).
+    """
     conn = get_connection()
     try:
-        row = _get_task_row(conn, task_id)
-        if row is None:
+        pair = _get_task_row_with_users(conn, task_id)
+        if pair is None:
             return JSONResponse(status_code=404, content=NOT_FOUND_BODY)
-        task = _row_to_task(conn, row)
+        task = _row_to_task(conn, pair[0], (pair[1], pair[2]))
     finally:
         conn.close()
     return JSONResponse(content=task)
@@ -385,6 +540,13 @@ def update_task(task_id: int, body: TaskUpdate) -> JSONResponse:
             if invalid is not None:
                 return invalid
 
+        # Валидация исполнителя (Релиз 4, FR-37/ОВ-26 — «та же валидация»
+        # для PATCH): null = очистить (легально), несуществующий → 422;
+        # проверяется до любых записей.
+        invalid = _assigned_to_id_422(conn, body)
+        if invalid is not None:
+            return invalid
+
         # Priority-lock в PATCH (FR-27, ОГР-10 — инвариант is_fast ⇒ high):
         # is_fast в PATCH не входит (fast назначается только при создании,
         # ОГР-5), но PATCH может ИЗМЕНИТЬ приоритет существующей fast-задачи.
@@ -402,6 +564,8 @@ def update_task(task_id: int, body: TaskUpdate) -> JSONResponse:
             updates["due_date"] = (
                 body.due_date.isoformat() if body.due_date is not None else None
             )
+        if "assigned_to_id" in body.model_fields_set:
+            updates["assigned_to_id"] = body.assigned_to_id
 
         try:
             if updates:
@@ -420,7 +584,8 @@ def update_task(task_id: int, body: TaskUpdate) -> JSONResponse:
                 status_code=422,
                 content={"error": "invalid task data", "details": {}},
             )
-        task = _row_to_task(conn, _get_task_row(conn, task_id))
+        pair = _get_task_row_with_users(conn, task_id)
+        task = _row_to_task(conn, pair[0], (pair[1], pair[2]))
     finally:
         conn.close()
     return JSONResponse(content=task)
@@ -516,7 +681,8 @@ def move_task(task_id: int, body: TaskMove) -> JSONResponse:
             (body.status, done_at, archived_at, now, task_id),
         )
         conn.commit()
-        task = _row_to_task(conn, _get_task_row(conn, task_id))
+        pair = _get_task_row_with_users(conn, task_id)
+        task = _row_to_task(conn, pair[0], (pair[1], pair[2]))
     finally:
         conn.close()
     return JSONResponse(content=task)
