@@ -191,6 +191,18 @@ function loadTagHints() {
 
 var ASSIGNED_FIELD_ID = "task-assigned";
 
+/* 5.1 (review-008 major): select исполнителя наполняется асинхронно
+ * (GET /api/users). Пока список не загружен,assigned_to_id в
+ * PATCH/POST НЕ включается (model_fields_set на сервере: поле без
+ * ключа — исполнитель не тронут); иначе сбой/задержка загрузки
+ * превращали бы сохранение в молчаливую очистку исполнителя.
+ * assignedLoaded сбрасывается при каждом открытии формы;
+ * assignedLoadGen — токен против stale-ответов при быстрой смене
+ * открытой задачи (поздний ответ по первой не перетирает select
+ * второй). */
+var assignedLoaded = false;
+var assignedLoadGen = 0;
+
 function assignedField() {
   return document.getElementById(ASSIGNED_FIELD_ID);
 }
@@ -226,16 +238,23 @@ function loadAssignedOptions(selectedLogin) {
    * «creator/assigned — логины»; id в ответе задачи нет): id для
    * select.value резолвится по загруженному списку; неизвестный логин
    * → «Не назначено» (значения только из пользователей).
-   * Сбой загрузки список не подменяет: select остается с одним «Не
-   * назначено» — назначить исполнителя нельзя, но и произвольного
-   * значения не появляется. */
+   * assignedLoaded/assignedLoadGen (review-008 major): флаг «список
+   * готов» gating'ает включение assigned_to_id в payload (см.
+   * collectTaskForm); token отсекает stale-ответы при переоткрытии
+   * формы на другой задаче. Сбой загрузки: select с одним «Не
+   * назначено», флаг НЕ поднимается — сохранение не тронет
+   * исполнителя (поле не уйдет в payload), назначить нельзя. */
+  assignedLoaded = false;
+  var gen = ++assignedLoadGen;
   api(
     "/api/users",
     {},
     function () {
+      if (gen !== assignedLoadGen) return;
       fillAssignedSelect([], null);
     },
     function (body) {
+      if (gen !== assignedLoadGen) return;
       var users = (body && body.users) || [];
       var selectedId = null;
       if (selectedLogin) {
@@ -244,6 +263,7 @@ function loadAssignedOptions(selectedLogin) {
         });
       }
       fillAssignedSelect(users, selectedId);
+      assignedLoaded = true;
     }
   );
 }
@@ -585,14 +605,21 @@ function collectTaskForm() {
     due_date: document.getElementById("task-due-date").value || null,
     tags: splitTags(document.getElementById("task-tags").value),
     /* 5.1 (ОВ-26): пустой select = «без исполнителя» → null (легально);
-     * выбранное значение — id пользователя. assigned_to_id допустим и в
-     * POST (опционально), и в PATCH; creator_id не отправляется — его
-     * ставит сервер (FR-37). */
-    assigned_to_id:
+     * выбранное значение — id пользователя. creator_id не отправляется —
+     * его ставит сервер (FR-37). */
+  };
+  /* review-008 major: assigned_to_id включается ТОЛЬКО когда список
+   * пользователей загружен (assignedLoaded). Иначе (задержка/сбой
+   * GET /api/users) пустой select означал бы «не знаем», а не «без
+   * исполнителя» — безусловный null молча очищал бы исполнителя
+   * задачи при сохранении. Поле не в payload → PATCH его не трогает
+   * (model_fields_set), POST создаст без исполнителя (легально). */
+  if (assignedLoaded) {
+    payload.assigned_to_id =
       document.getElementById(ASSIGNED_FIELD_ID).value === ""
         ? null
-        : Number(document.getElementById(ASSIGNED_FIELD_ID).value),
-  };
+        : Number(document.getElementById(ASSIGNED_FIELD_ID).value);
+  }
   if (boardState.currentTaskId === null) {
     var isFast = document.getElementById(IS_FAST_FIELD_ID).checked;
     payload.is_fast = isFast;
