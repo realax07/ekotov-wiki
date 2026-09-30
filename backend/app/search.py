@@ -210,6 +210,9 @@ def _row_to_task_with_users(conn: sqlite3.Connection, row: tuple) -> dict:
     Поля 0…9 — в точности _row_to_task из tasks.py (нумерация TASK_COLUMNS);
     creator/assigned добавляются поверх (sdd §3.2: creator: login,
     assigned: login|null). tasks.py не трогается — своя проекция.
+    Теги грузятся по id ЗАДАЧИ (row[0]) — row[10]/row[11] после JOIN 5.2
+    суть ЛОГИНЫ creator/assigned (дефект волны 5.2: передача row[10]
+    давала пустой tags в каждой строке выдачи поиска).
     """
     return {
         "id": row[0],
@@ -218,7 +221,7 @@ def _row_to_task_with_users(conn: sqlite3.Connection, row: tuple) -> dict:
         "priority": row[3],
         "category": row[4],
         "due_date": row[5],
-        "tags": _load_search_tags(conn, row[10]),
+        "tags": _load_search_tags(conn, row[0]),
         "is_fast": bool(row[6]),
         "status": row[7],
         "done_at": row[8],

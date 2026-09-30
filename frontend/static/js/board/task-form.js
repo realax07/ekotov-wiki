@@ -219,12 +219,16 @@ function fillAssignedSelect(users, selectedId) {
     : String(selectedId);
 }
 
-function loadAssignedOptions(selectedId) {
+function loadAssignedOptions(selectedLogin) {
   /* Источник — read-only GET /api/users (sdd §3.1a-кватер-бис, ОВ-26):
    * 200 {"users": [{id, login, display_name}]}, отсортированы по login.
+   * Аргумент — ЛОГИН исполнителя (Task-контракт несет имена: sdd §3.2
+   * «creator/assigned — логины»; id в ответе задачи нет): id для
+   * select.value резолвится по загруженному списку; неизвестный логин
+   * → «Не назначено» (значения только из пользователей).
    * Сбой загрузки список не подменяет: select остается с одним «Не
    * назначено» — назначить исполнителя нельзя, но и произвольного
-   * значения не появляется (значения только из пользователей). */
+   * значения не появляется. */
   api(
     "/api/users",
     {},
@@ -232,7 +236,14 @@ function loadAssignedOptions(selectedId) {
       fillAssignedSelect([], null);
     },
     function (body) {
-      fillAssignedSelect((body && body.users) || [], selectedId);
+      var users = (body && body.users) || [];
+      var selectedId = null;
+      if (selectedLogin) {
+        users.forEach(function (user) {
+          if (user.login === selectedLogin) selectedId = user.id;
+        });
+      }
+      fillAssignedSelect(users, selectedId);
     }
   );
 }
@@ -532,9 +543,10 @@ export function openEditForm(task) {
    * с подсветкой поля. */
   loadCategoryOptions(task.category);
   /* 5.1: select исполнителя — текущее значение задачи (ОВ-26).
-   * assigned_to_id возвращается в ответе задачи (5.1, sdd §3.2);
+   * Task несет ЛОГИН исполнителя (assigned, sdd §3.2 — id в ответе нет);
+   * id для select резолвит loadAssignedOptions по /api/users;
    * смена/очистка — тем же селектом, отправка через PATCH. */
-  loadAssignedOptions(task.assigned_to_id !== undefined ? task.assigned_to_id : null);
+  loadAssignedOptions(task.assigned !== undefined ? task.assigned : null);
   /* Подсказки тегов — и в режиме редактирования: те же заведенные
    * значения (FR-26 действует на форму в обоих режимах). */
   loadTagHints();

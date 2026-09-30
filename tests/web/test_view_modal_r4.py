@@ -245,9 +245,10 @@ def test_user_rows_when_api_provides(board_page, web_base_url,
 
 def test_unassigned_em_when_empty(board_page, web_base_url,
                                   web_owner_session, web_cleanup_created):
-    """TC-view-107 (негатив к 106): без полей assigned/creator в ответе API
-    (текущий контракт до задачи 5.1) ряды НЕ выводятся вовсе — ни имен,
-    ни «Unassigned» (данные не выдумываются)."""
+    """TC-view-107 (после 5.1): задача создана без исполнителя →
+    в view-модалке ряд «Исполнитель» показывает курсивный
+    «Unassigned» (ОВ-24), ряд «Создатель» — логин создателя
+    (контракт 5.1: creator/assigned в ответе всегда)."""
     page = board_page
     create_task_via_ui(page, "QAT-view-без-юзеров")
     card = _card(page, "QAT-view-без-юзеров")
@@ -255,9 +256,10 @@ def test_unassigned_em_when_empty(board_page, web_base_url,
 
     _open_view(page, "QAT-view-без-юзеров")
     attrs = page.locator("#task-detail-attrs")
-    expect(attrs.get_by_text("Исполнитель")).to_have_count(0)
-    expect(attrs.get_by_text("Создатель")).to_have_count(0)
-    expect(page.locator(f"{OVERLAY} em.task-view-unassigned")).to_have_count(0)
+    unassigned = attrs.locator("em.task-view-unassigned")
+    expect(unassigned).to_have_text("Unassigned")
+    expect(unassigned).to_have_css("font-style", "italic")
+    expect(attrs.get_by_text("owner")).to_be_visible()
 
 
 # --------------------------------------------------------------------------

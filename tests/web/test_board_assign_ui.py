@@ -270,6 +270,11 @@ def test_edit_form_assigned_current_and_clear(
     new_card = _card(page, "QAT-u-create-select")
     expect(_users_line(new_card).locator(".task-card-assigned")
            ).to_have_text(WIFE_LOGIN)
+    # Вторая задача тоже под cleanup (изоляция стенда: без этого она
+    # переживает teardown и ломает count-ожидания соседних search-тестов —
+    # assigned=none/wife возвращали лишнюю карточку).
+    new_task_id = int(new_card.get_attribute("data-task-id"))
+    web_cleanup_created(new_task_id)
 
     # Редактирование: select показывает текущего исполнителя (wife),
     # очистка «Не назначено» → сохранение → «Unassigned» на карточке.
