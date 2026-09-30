@@ -73,7 +73,11 @@
      модалки, форма внутри — без собственной рамки (task-form--bare).
      Клик-вне-закрытие (board-init.js: event.target === overlay) работает
      как прежде — обертка не меняет механизм. #}
-  <div class="modal sheet task-form-sheet">
+  {# Крестик .modal-close якорится к форме (ближайший .modal relative) —
+     отступ от края листа ~32px против прежних 8px: осознанно принято
+     (пороги TC-form-006 проходят); перенос на лист — при следующем
+     касании. #}
+  <div class="modal task-form-sheet">
     <form id="task-form" class="modal task-form task-form--bare">
     {# 5.1 (FR-28): крестик закрытия в правом верхнем углу, зона клика
        40×40px (стиль .modal-close); закрывает окно без сохранения
