@@ -486,8 +486,12 @@
 }
 
 /* Вторичные кнопки — контурные (V3). Геометрия общая с .form-actions button —
-   без неё кнопки деталей/комментариев были «сырыми» (padding/radius по дефолту Браузера). */
+   без неё кнопки деталей/комментариев были «сырыми» (padding/radius по дефолту Браузера).
+   4.2 (FR-48, DEF-005, урок DEF-004): #task-delete-button («Удалить», режим
+   редактирования) — интерактивный элемент формы, был с дефолтным браузерным
+   оформлением; покрыт вторичным контуром V3 (как .btn-secondary мокапа). */
 #task-form-cancel,
+#task-delete-button,
 #task-detail-actions button,
 .comment-form button[type="submit"],
 .task-comments button[type="submit"] {
@@ -502,11 +506,13 @@
 }
 
 #task-form-cancel:hover,
+#task-delete-button:hover,
 #task-detail-actions button:hover,
 .comment-form button[type="submit"]:hover,
 .task-comments button[type="submit"]:hover { background: var(--color-bg-subtle); }
 
 .form-actions button:focus-visible,
+#task-delete-button:focus-visible,
 .comment-form button[type="submit"]:focus-visible,
 .task-comments button[type="submit"]:focus-visible {
   outline: none;
