@@ -54,7 +54,7 @@
 
 ## 7. Поиск: фильтры и advanced (FR-46, ОВ-24)
 
-- Конструктор: два новых поля фильтра — assigned (значения из БД + «без исполнителя») и creator (значения из БД); подсказки — из уникальных значений столбцов (join tasks→users) — тот же механизм «значения из данных», что `GET /api/suggestions`/категории (FR-35/DEF-001). Виртуальное значение «без исполнителя» маппится в `assigned IS NULL`.
+- Конструктор: два новых поля фильтра — assigned (значения из БД + «без исполнителя») и creator (значения из БД); подсказки — из уникальных значений столбцов (join tasks→users) — новый эндпоинт `GET /api/suggestions/users` (DISTINCT логины tasks.creator_id ∪ assigned_to_id, вне exempt 401), тот же механизм «значения из данных», что `GET /api/suggestions`/категории (FR-35/DEF-001); контракт старого /api/suggestions не расширяется (единственный ключ "suggestions"). Виртуальное значение «без исполнителя» маппится в `assigned IS NULL`.
 - `GET /api/search` — новые query-параметры `assigned` (login | «none») и `creator` (login); `POST /api/search/advanced` — расширение грамматики полями `assigned`/`creator` с операторами `=` и `IS NULL` (парсер уже параметризованный — SQL-инъекции исключены, sdd NFR-7). `normalized_query` синхронно отражает новые условия.
 - Выдача (UI и API) — assigned/creator в каждой строке; «Unassigned» курсивом (ОВ-24).
 
