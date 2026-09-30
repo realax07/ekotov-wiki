@@ -92,8 +92,12 @@
     <label>Название <span class="req" aria-hidden="true">*</span>
       <input type="text" id="task-title" name="title" required maxlength="500">
     </label>
-    <label>Описание
-      <textarea id="task-description" name="description" rows="3"></textarea>
+    {# Р5 polish (прод-репорт): textarea описания — авто-высота (старт ~2
+       строки, рост по вводу, потолок ~10 строк + скролл; auto-textarea.js),
+       placeholder-подсказка внутри поля; label над полем — компактной. #}
+    <label class="field-compact">Описание
+      <textarea id="task-description" name="description" rows="2"
+                placeholder="Описание задачи…"></textarea>
     </label>
     {# 5.2 (FR-29): приоритеты — цвет + иконка. Нативный select сохранен
        (контракт task-form.js 4.5 и e2e), обернут в .priority-field-pill:
@@ -190,8 +194,10 @@
     <h3>Комментарии</h3>
     <ul id="task-form-comments-list" class="task-comments-list"></ul>
     <form id="comment-form">
-      <label>Новый комментарий
-        <textarea id="comment-body" rows="2" required></textarea>
+      {# Р5 polish: авто-высота (auto-textarea.js) + placeholder внутри. #}
+      <label class="field-compact">Новый комментарий
+        <textarea id="comment-body" rows="2" required
+                  placeholder="Новый комментарий…"></textarea>
       </label>
       <p id="task-comment-error" class="form-error" hidden></p>
       <button type="submit">Добавить комментарий</button>

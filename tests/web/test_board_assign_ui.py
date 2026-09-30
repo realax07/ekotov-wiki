@@ -10,8 +10,9 @@ board, Scenario «Строка исполнителя на карточке с a
 - строка «assigned · creator» на карточках всех столбцов и fast line
   (FR-45)                          → TC-assignu-102 test_card_users_line_all_columns;
 board, Scenario «Tooltip карточки показывает assigned и creator»:
-- hover по карточке → всплывашка с assigned и creator (FR-44)
-                                    → TC-assignu-103 test_card_tooltip_shows_users;
+- hover по СТРОКЕ ПОЛЬЗОВАТЕЛЕЙ карточки → всплывашка с assigned и creator
+  (FR-44); Р5 polish: только на строке users, hover на заголовок — всплывашки
+  нет                                    → TC-assignu-103 test_card_tooltip_shows_users;
 дельта board «Уменьшение движения отключает анимации всплывашек»:
 - prefers-reduced-motion → показ без transition, содержание то же (ОГР-17)
                                     → TC-assignu-104 test_card_tooltip_reduced_motion;
@@ -160,7 +161,22 @@ def test_card_tooltip_shows_users(
     expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
 
     card = _card(page, "QAT-u-tooltip")
-    card.hover()
+    users_line = _users_line(card)
+    expect(users_line).to_be_visible()
+
+    # Р5 polish: hover на ЗАГОЛОВОК карточки → tooltip СКРЫТ (всплывашка
+    # только на строке пользователей, не на всей карточке). Элемент
+    # #app-tooltip создается только при первом показе — проверяем
+    # отсутствие показа через count/hidden, НЕ через not_to_have_class
+    # (на отсутствующем элементе он ретраит до таймаута).
+    card.locator("h3.task-card-title").hover()
+    page.wait_for_timeout(600)  # > задержки attach 300мс
+    assert page.locator(TOOLTIP).count() == 0 or page.locator(
+        TOOLTIP
+    ).get_attribute("hidden") is not None, "tooltip показался вне users-строки"
+
+    # Hover на СТРОКУ ПОЛЬЗОВАТЕЛЕЙ → tooltip ВИДЕН (assigned + creator).
+    users_line.hover()
     expect(page.locator(TOOLTIP)).to_have_class(
         __import__("re").compile(r"\btooltip-visible\b"), timeout=5_000
     )
@@ -170,7 +186,7 @@ def test_card_tooltip_shows_users(
     expect(tooltip.locator(".tooltip-task-row").filter(has_text="Создатель:")
            ).to_contain_text(OWNER_LOGIN)
 
-    card.hover()  # курсор остается; уводим — всплывашка скрылась
+    users_line.hover()  # курсор остается; уводим — всплывашка скрылась
     page.mouse.move(10, 10)
     expect(page.locator(TOOLTIP)).not_to_have_class(
         __import__("re").compile(r"\btooltip-visible\b"), timeout=5_000
@@ -202,7 +218,9 @@ def test_card_tooltip_reduced_motion(
     expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
 
     card = _card(page, "QAT-u-rm")
-    card.hover()
+    users_line = _users_line(card)
+    expect(users_line).to_be_visible()
+    users_line.hover()
     tooltip = page.locator(TOOLTIP)
     expect(tooltip).to_have_class(
         __import__("re").compile(r"\btooltip-visible\b"), timeout=5_000
