@@ -300,14 +300,21 @@ def _verify_after(
             f"IS NULL: {null_assigned_marked} (ОВ-23: бэкфилл = owner)"
         )
 
-    # (д) роли по умолчанию проставлены (ОВ-21) — для существующих логинов.
-    for login, role in DEFAULT_ROLES.items():
+    # (д) роли существующих логинов ВАЛИДНЫ (ОВ-21; прод-инцидент 2026-09-30):
+    # бэкфилл ставит дефолт ТОЛЬКО при role IS NULL — осознанный выбор
+    # пользователя (PUT /api/profile, справочник PM/PE) легитимен и не
+    # перекрывается. Поэтому сверка проверяет не равенство дефолту, а
+    # валидность значения справочнику (дефолт ИЛИ PM/PE); NULL после
+    # миграции — дефект (бэкфилл обязан был заполнить).
+    VALID_ROLES = set(DEFAULT_ROLES.values())
+    for login in DEFAULT_ROLES:
         row = conn.execute(
             "SELECT role FROM users WHERE login = ?", (login,)
         ).fetchone()
-        if row is not None and row[0] != role:
+        if row is not None and row[0] not in VALID_ROLES:
             mismatches.append(
-                f"FAIL: роль '{login}' = {row[0]!r}, ожидалось {role!r} (ОВ-21)"
+                f"FAIL: роль '{login}' = {row[0]!r} вне справочника "
+                f"{sorted(VALID_ROLES)} (ОВ-21)"
             )
 
     # (е) FK-целостность ссылок на users после бэкфилла.
