@@ -379,6 +379,33 @@
   box-shadow: 0 1px 0 var(--color-accent);
 }
 
+/* --- Р5 polish (прод-репорт): авто-высота textarea «Описание» и
+ * «Новый комментарий». Старт ~2 строки (min-height), потолок ~10 строк
+ * (max-height + overflow-y:auto — скролл включает браузер). Нижняя линия
+ * V3 (выше) НЕ тронута — меняется только высота/ресайз/placeholder.
+ * resize: none — высотой управляет JS (auto-textarea.js), ручной ресайз
+ * ломал бы авторасчет scrollHeight. --- */
+.auto-textarea {
+  min-height: 52px;
+  max-height: 260px;
+  overflow-y: auto;
+  resize: none;
+}
+
+/* Подсказка внутри поля — приглушенным вторичным цветом (как label). */
+.auto-textarea::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+/* Компактный label полей с авто-высотой (Р5 polish): label остается
+ * (доступность), отступ до поля уменьшен. */
+.task-form label.field-compact,
+.task-comments label.field-compact {
+  margin-bottom: var(--space-1);
+}
+
+
 .task-form-checkbox {
   display: flex !important;
   align-items: center;

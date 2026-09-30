@@ -353,6 +353,18 @@ function handleSubmitError(message, response, body) {
   }
 }
 
+import {
+  resetTextareaHeight,
+  autoresize,
+  initAutoTextareas,
+} from "./auto-textarea.js";
+
+/* Р5 polish (прод-репорт): textarea «Описание» и «Новый комментарий» —
+ * авто-высота (модуль auto-textarea.js: старт ~2 строки, рост по вводу,
+ * потолок ~10 строк + скролл, курсор в начале, placeholder-подсказка).
+ * Биндинг — здесь, при загрузке модуля: оба поля статичны в board.html. */
+initAutoTextareas();
+
 function fillTaskForm(task) {
   document.getElementById("task-title").value = task.title || "";
   document.getElementById("task-description").value = task.description || "";
@@ -508,7 +520,10 @@ export function submitComment(event) {
       showFormError("task-comment-error", message);
     },
     function () {
-      document.getElementById("comment-body").value = "";
+      var commentBox = document.getElementById("comment-body");
+      commentBox.value = "";
+      /* Р5 polish: очистка поля комментария → сброс высоты к старту. */
+      resetTextareaHeight(commentBox);
       loadComments(
         taskId,
         document.getElementById("task-form-comments-list"),
@@ -539,6 +554,10 @@ export function openCreateForm() {
   hideError("task-comment-error");
   clearCategoryInvalid();
   document.getElementById("task-form-overlay").hidden = false;
+  /* Р5 polish: сброс высоты textarea описания к старту — ПОСЛЕ показа
+   * оверлея (при display:none scrollHeight=0, сбрасывать нечем). Без
+   * этого инлайн-высота роста прошлого открытия пережила бы «Отмену». */
+  resetTextareaHeight(document.getElementById("task-description"));
   document.getElementById("task-title").focus();
 }
 
@@ -587,6 +606,12 @@ export function openEditForm(task) {
    * прямой импорт из task-detail.js создал бы цикл form ↔ detail). */
   document.getElementById("task-detail-overlay").hidden = true;
   document.getElementById("task-form-overlay").hidden = false;
+  /* Р5 polish: высота textarea описания — под фактическое значение.
+   * Вызов ПОСЛЕ overlay.hidden=false: при display:none scrollHeight=0
+   * (мерять нечего) — очистка формы вернула бы поле к min-height, а
+   * редактирование с длинным описанием открывало бы поле в 2 строки
+   * с «прыжком» при первом вводе. */
+  autoresize(document.getElementById("task-description"));
   document.getElementById("task-title").focus();
 }
 

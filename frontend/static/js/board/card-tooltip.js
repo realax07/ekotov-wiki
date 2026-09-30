@@ -1,6 +1,18 @@
-/* Tooltip карточки задачи (5.1; FR-44, ОВ-25, ОГР-17; design пакета §5;
- * дельта board — сценарии «Tooltip карточки показывает assigned и
- * creator», «Единый механизм всплывашек», «Уменьшение движения…»).
+/*
+ * Р5 polish (прод-репорт Заказчика): tooltip показывается ТОЛЬКО при
+ * наведении на строку пользователей «assigned · creator» (строку строит
+ * cards.js: buildAssigneeLine → .task-card-users), НЕ на всю карточку.
+ * Зачем: карточка — зона drag (нативный HTML5 DnD, cards.js) и клика
+ * (view-модалка) — всплывашка на всей площади мешала обзору и выглядела
+ * как отклик на drag. Hover на заголовок/мету/тело карточки → всплывашки
+ * НЕТ; drag карточки за остальную область — тоже без всплывашки.
+ *
+ * Экспортируется attachCardTooltip(target, task): cards.js передает
+ * СТРОКУ пользователей. На карточках без строки (hasOwnProperty-гвард
+ * в cards.js) tooltip не навешивается вовсе. Крупные карточки выдачи
+ * поиска (search.js, «Исполнитель: … · Создатель: …») tooltip сейчас
+ * не используют; если появятся — принцип тот же: таргет = строка
+ * пользователей.
  *
  * Обертка над ПУБЛИЧНЫМ API единого модуля tooltip.js (attach — показ
  * по hover/focus с задержкой 300мс, скрытие по mouseleave/focusout/
@@ -52,13 +64,15 @@ function buildCardTooltipContent(task) {
   return box;
 }
 
-export function attachCardTooltip(card, task) {
+/* Р5 polish (прод-репорт): таргет tooltip — СТРОКА ПОЛЬЗОВАТЕЛЕЙ
+ * (.task-card-users), не вся карточка (см. шапку файла). */
+export function attachCardTooltip(usersLine, task) {
   /* Динамический import — как attachProfileTooltip в profile.js:
    * сбой загрузки модуля (сеть/путь) не ломает карточку — она остается
    * со строкой assigned · creator (ОВ-24 не зависит от всплывашки). */
   import("../tooltip.js")
     .then(function (tooltip) {
-      tooltip.attach(card, function () {
+      tooltip.attach(usersLine, function () {
         return buildCardTooltipContent(task);
       }, { delay: 300 });
     })

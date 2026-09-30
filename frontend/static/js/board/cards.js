@@ -154,12 +154,15 @@ export function renderCard(task) {
     Object.prototype.hasOwnProperty.call(task, "assigned") ||
     Object.prototype.hasOwnProperty.call(task, "creator")
   ) {
-    card.appendChild(buildAssigneeLine(task));
-    /* 5.1 (FR-44, ОГР-17): tooltip карточки (assigned + creator) —
-     * единый механизм tooltip.js (attach, задержка 300мс, reduced-motion
-     * отключает анимацию CSS-ом app.css). Модуль недоступен — карточка
-     * работает без всплывашки (строка assigned · creator остается). */
-    attachCardTooltip(card, task);
+    var usersLine = buildAssigneeLine(task);
+    card.appendChild(usersLine);
+    /* 5.1 (FR-44, ОГР-17); Р5 polish: tooltip — ТОЛЬКО на строке
+     * пользователей (assigned · creator), не на всей карточке (карточка —
+     * зона drag/клика). Единый механизм tooltip.js (attach, задержка
+     * 300мс, reduced-motion отключает анимацию CSS-ом app.css). Модуль
+     * недоступен — карточка работает без всплывашки (строка
+     * assigned · creator остается). */
+    attachCardTooltip(usersLine, task);
   }
 
   card.addEventListener("click", function () {
