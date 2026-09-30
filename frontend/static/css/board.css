@@ -513,6 +513,7 @@
 
 .form-actions button:focus-visible,
 #task-delete-button:focus-visible,
+.task-view-actions button:focus-visible,
 .comment-form button[type="submit"]:focus-visible,
 .task-comments button[type="submit"]:focus-visible {
   outline: none;
