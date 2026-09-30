@@ -135,7 +135,11 @@ def test_empty_column_state_styled_and_cleared(
     card = _card(page, "QAT-vis-заполнение")
     expect(card).to_be_visible()
     web_cleanup_created(int(card.get_attribute("data-task-id")))
+    # 4.1 (FR-47, Д-9): клик открывает view-модалку read-only; селект
+    # «Столбец» — в форме редактирования («Редактировать»).
     card.click()
+    page.get_by_role("button", name="Редактировать").click()
+    expect(page.locator("#task-form-overlay")).to_be_visible()
     page.get_by_label("Столбец").select_option("in_progress")
     new_card = _column(page, "in_progress").get_by_role("article").filter(
         has_text="QAT-vis-заполнение"

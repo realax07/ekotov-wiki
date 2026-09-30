@@ -39,6 +39,15 @@
  * - выбранный приоритет: SVG-иконка в пилюле (renderPriorityPillIcon,
  *   priority-icons.js; цвет дает пилюля по :has(:checked));
  * - скрытие fast line в режиме редактирования — весь ряд .fast-row.
+ *
+ * 4.1 Релиза 4 (FR-47, Д-9; design §6 «текущее окно деталей …
+ * разделяется на view-модалку и вызов task-form»): действия с задачей
+ * из прежнего окна деталей переезжают сюда без изменения механики —
+ * селект «Столбец» (POST /{id}/move, FR-6/ОГР-14), «Удалить»
+ * (DELETE, FR-7), форма комментария (GET/POST /api/tasks/{id}/comments,
+ * sdd §3.2). В режиме создания блок действий скрыт (задачи еще нет —
+ * данные выдумывать нечем); в режиме редактирования он видим и работает
+ * как прежде (веб-морда — клиент REST API, ОГР-2).
  */
 "use strict";
 
@@ -268,7 +277,7 @@ function fillTaskForm(task) {
   document.getElementById("task-description").value = task.description || "";
   document.getElementById(PRIORITY_FIELD_ID).value = task.priority || "";
   /* Значение задачи проставляется после загрузки опций (loadCategoryOptions):
-   * пока опций нет, value селекта молча не применится. */
+   * пока опций нет, value селекта молча не применятся. */
   document.getElementById("task-due-date").value = task.due_date || "";
   document.getElementById("task-tags").value = (task.tags || []).join(", ");
   document.getElementById(IS_FAST_FIELD_ID).checked = false;
@@ -287,6 +296,146 @@ function clearTaskForm() {
   loadTagHints();
 }
 
+/* --- 4.1 Релиза 4: действия с задачей из окна деталей (FR-6/FR-7) ---
+ * Механика перенесена из task-detail.js без изменений (та же
+ * API-логика); изменилось только место в UI (окно формы). */
+
+function renderCommentsInto(list, comments) {
+  list.textContent = "";
+  (comments || []).forEach(function (comment) {
+    var item = el("li", "task-comment");
+    /* Метка только из имеющихся полей — без «· undefined». */
+    var meta = ["id " + comment.id, comment.created_at]
+      .filter(function (part) {
+        return part !== undefined && part !== null && part !== "";
+      })
+      .join(" · ");
+    if (meta) {
+      item.appendChild(el("div", "task-comment-meta", meta));
+    }
+    var body = el("p", "task-comment-body");
+    body.textContent = comment.body; // textContent — не innerHTML (XSS)
+    item.appendChild(body);
+    list.appendChild(item);
+  });
+}
+
+/* Экспорт для view-модалки (task-detail.js): рендер того же формата
+ * комментариев в стороннем списке. */
+export function renderComments(list, comments) {
+  renderCommentsInto(list, comments);
+}
+
+function isValidTaskId(value) {
+  return typeof value === "number" && isFinite(value);
+}
+
+/* Загрузка комментариев в указанный список; onError — колбэк вызывающей
+ * модалки (у view и формы свои боксы ошибок). */
+export function loadComments(taskId, list, onError) {
+  api(
+    "/api/tasks/" + taskId + "/comments",
+    {},
+    onError,
+    function (body) {
+      renderCommentsInto(list, body && body.comments);
+    }
+  );
+}
+
+function deleteCurrentTask() {
+  if (boardState.currentTaskId === null) {
+    return;
+  }
+  var taskId = boardState.currentTaskId;
+  /* Подтверждение удаления (FR-7). */
+  if (!window.confirm("Удалить задачу? Действие необратимо.")) {
+    return;
+  }
+  hideError("task-form-error");
+  api(
+    "/api/tasks/" + taskId,
+    { method: "DELETE" },
+    function (message) {
+      showFormError("task-form-error", message);
+    },
+    function () {
+      closeTaskForm();
+      refreshBoard();
+    }
+  );
+}
+
+function moveCurrentTask() {
+  if (!isValidTaskId(boardState.currentTaskId)) {
+    return;
+  }
+  var status = document.getElementById("task-move-select").value;
+  hideError("task-form-error");
+  api(
+    "/api/tasks/" + boardState.currentTaskId + "/move",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: status }),
+    },
+    function (message) {
+      showFormError("task-form-error", message);
+    },
+    function () {
+      closeTaskForm();
+      refreshBoard();
+    }
+  );
+}
+
+export function submitComment(event) {
+  event.preventDefault();
+  hideError("task-comment-error");
+
+  /* Guard (integer-баг): комментарий можно отправить только из
+   * режима редактирования открытой задачи. Без задачи в currentTaskId
+   * путь был бы /api/tasks/null/comments → 422 int_parsing от сервера. */
+  if (!isValidTaskId(boardState.currentTaskId)) {
+    showFormError(
+      "task-comment-error",
+      "Карточка задачи не открыта — откройте задачу и попробуйте еще раз."
+    );
+    return;
+  }
+
+  var body = document.getElementById("comment-body").value.trim();
+  /* UI-валидация до отправки: текст обязателен (sdd §3.2, 422). */
+  if (!body) {
+    showFormError("task-comment-error", "Комментарий не может быть пустым.");
+    return;
+  }
+  var taskId = boardState.currentTaskId;
+  api(
+    "/api/tasks/" + taskId + "/comments",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: body }),
+    },
+    function (message) {
+      showFormError("task-comment-error", message);
+    },
+    function () {
+      document.getElementById("comment-body").value = "";
+      loadComments(
+        taskId,
+        document.getElementById("task-form-comments-list"),
+        function (message) {
+          showFormError("task-comment-error", message);
+        }
+      );
+    }
+  );
+}
+
+/* --- Открытие формы (режимы создания/редактирования) --- */
+
 export function openCreateForm() {
   boardState.currentTaskId = null;
   document.getElementById("task-form-heading").textContent =
@@ -294,8 +443,14 @@ export function openCreateForm() {
   document.getElementById("task-form-submit").textContent = "Создать";
   /* is_fast назначается только при создании (sdd §3.2, ОГР-5). */
   document.getElementById("task-is-fast").closest(".fast-row").hidden = false;
+  /* 4.1 Релиза 4: в режиме создания задачи еще нет — блока действий
+   * (Столбец/Удалить/комментарии) не существует, данные не выдумываются. */
+  document.getElementById("task-actions").hidden = true;
+  document.getElementById("task-comments").hidden = true;
   clearTaskForm();
+  renderCommentsInto(document.getElementById("task-form-comments-list"), []);
   hideError("task-form-error");
+  hideError("task-comment-error");
   clearCategoryInvalid();
   document.getElementById("task-form-overlay").hidden = false;
   document.getElementById("task-title").focus();
@@ -309,6 +464,12 @@ export function openEditForm(task) {
   /* is_fast назначается только при создании (sdd §3.2, ОГР-5):
    * скрывается весь ряд fast line (.fast-row). */
   document.getElementById("task-is-fast").closest(".fast-row").hidden = true;
+  /* 4.1 Релиза 4: блок действий задачи — только в режиме редактирования. */
+  document.getElementById("task-actions").hidden = false;
+  document.getElementById("task-comments").hidden = false;
+  /* Селект «Столбец» — актуальный статус задачи (как в прежнем окне
+   * деталей). */
+  document.getElementById("task-move-select").value = task.status;
   fillTaskForm(task);
   /* Категория задачи, удаленной из справочника, в списке не значится:
    * опции = ровно справочник (FR-30), значение сбрасывается на «—».
@@ -318,9 +479,20 @@ export function openEditForm(task) {
   /* Подсказки тегов — и в режиме редактирования: те же заведенные
    * значения (FR-26 действует на форму в обоих режимах). */
   loadTagHints();
+  /* Комментарии загружаются заново (прежнее окно деталей показывало их
+   * здесь же; источник данных — GET /api/tasks/{id}/comments). */
+  renderCommentsInto(document.getElementById("task-form-comments-list"), []);
+  loadComments(
+    task.id,
+    document.getElementById("task-form-comments-list"),
+    function (message) {
+      showFormError("task-comment-error", message);
+    }
+  );
   hideError("task-form-error");
+  hideError("task-comment-error");
   clearCategoryInvalid();
-  /* Закрыть карточку, если открыта (тело closeTaskDetail дословно;
+  /* Закрыть view-модалку, если открыта (тело closeTaskDetail дословно;
    * прямой импорт из task-detail.js создал бы цикл form ↔ detail). */
   document.getElementById("task-detail-overlay").hidden = true;
   document.getElementById("task-form-overlay").hidden = false;
@@ -384,6 +556,19 @@ export function submitTaskForm(event) {
       refreshBoard();
     }
   );
+}
+
+/* Подписка действий с задачей (4.1 Релиза 4; вызывается board-init.js):
+ * обработчики рядом с их логикой — селект «Столбец» (FR-6/ОГР-14) и
+ * «Удалить» (FR-7). Комментарий подписывает board-init (submitComment
+ * экспортирован для этого). */
+export function initTaskActions() {
+  document
+    .getElementById("task-move-select")
+    .addEventListener("change", moveCurrentTask);
+  document
+    .getElementById("task-delete-button")
+    .addEventListener("click", deleteCurrentTask);
 }
 
 /* Сброс подсветки при изменении значения (пользователь отреагировал). */

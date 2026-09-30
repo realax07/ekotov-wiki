@@ -9,6 +9,11 @@
  * трем столбцам COLUMNS — todo, in_progress и done (ОГР-3). Веб-морда —
  * клиент REST API (ОГР-2, design.md §7): данные только через API,
  * сессионная кука — credentials: "same-origin".
+ *
+ * 4.1 Релиза 4 (FR-47, Д-9): клик по карточке открывает view-модалку
+ * (task-detail.js, read-only); редактирование и действия с задачей
+ * (селект «Столбец», «Удалить», комментарии) — из view кнопкой
+ * «Редактировать» в существующей task-form (task-form.js).
  */
 "use strict";
 
@@ -18,10 +23,16 @@ import {
   setCardClickHandler,
   initCardDragAndDrop,
 } from "./cards.js";
-import { openCreateForm, submitTaskForm, closeTaskForm } from "./task-form.js";
+import {
+  openCreateForm,
+  submitTaskForm,
+  closeTaskForm,
+  initTaskActions,
+  submitComment,
+} from "./task-form.js";
 import {
   openTaskDetail,
-  initTaskDetailControls,
+  initTaskViewControls,
 } from "./task-detail.js";
 
 /* --- Инициализация --- */
@@ -43,7 +54,15 @@ document
   .getElementById("task-form-close")
   .addEventListener("click", closeTaskForm);
 
-initTaskDetailControls();
+/* 4.1 Релиза 4: подписка действий с задачей (селект «Столбец»,
+ * «Удалить») — обработчики в task-form.js рядом с их логикой. */
+initTaskActions();
+document
+  .getElementById("comment-form")
+  .addEventListener("submit", submitComment);
+
+/* Управление view-модалкой («Редактировать», закрытие, Escape). */
+initTaskViewControls();
 
 [document.getElementById("task-form-overlay"),
  document.getElementById("task-detail-overlay")].forEach(function (overlay) {
@@ -54,8 +73,8 @@ initTaskDetailControls();
   });
 });
 
-/* Клик по карточке → карточка задачи (инъекция вместо импорта —
- * разрыв цикла cards ↔ task-detail, см. cards.js). */
+/* Клик по карточке → view-модалка (read-only, FR-47; инъекция вместо
+ * импорта — разрыв цикла cards ↔ task-detail, см. cards.js). */
 setCardClickHandler(openTaskDetail);
 
 /* 2.1/2.2 Релиза 3 (FR-31): drag-and-drop карточек между столбцами —

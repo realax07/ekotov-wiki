@@ -366,8 +366,10 @@ def expect_form_hidden(page) -> None:
 
 
 def move_via_card_select(page, title: str, status: str) -> None:
-    """Перемещение задачи через селект «Столбец» в ее карточке
-    (механика кейсов TC-UI-012/017/018).
+    """Перемещение задачи через селект «Столбец» в форме редактирования
+    (механика кейсов TC-UI-012/017/018; 4.1: действия с задачей —
+    в task-form, view-модалка read-only — клик по карточке открывает
+    просмотр, «Редактировать» открывает форму с селектом «Столбец»).
 
     Автожидание факта перемещения: карточка появилась в целевом столбце
     (это гарантирует и завершение POST /move на сервере, и рефреш доски —
@@ -377,6 +379,10 @@ def move_via_card_select(page, title: str, status: str) -> None:
 
     card = page.get_by_role("article").filter(has_text=title)
     card.click()
+    # 4.1 (FR-47, Д-9): клик открывает read-only view-модалку; селект
+    # «Столбец» — в форме редактирования (открывается «Редактировать»).
+    page.get_by_role("button", name="Редактировать").click()
+    expect(page.locator("#task-form-overlay")).to_be_visible()
     page.get_by_label("Столбец").select_option(status)
     column = page.locator(f'[data-status="{status}"]')
     expect(column.get_by_role("article").filter(has_text=title)).to_be_visible()

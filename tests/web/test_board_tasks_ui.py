@@ -47,7 +47,7 @@ def test_modals_hidden_on_board_load(page, web_base_url, board_page, web_cleanup
     web_cleanup_created(detail_id)
     card.click()
     expect(board_page.get_by_role("heading", name="Модалки-фон")).to_be_visible()
-    board_page.get_by_role("button", name="Закрыть").click()
+    board_page.get_by_role("button", name="Закрыть", exact=True).click()
     expect(board_page.locator("#task-detail-overlay")).to_be_hidden()
 
     # Шаг 6: форма создания открывается по кнопке, не «сама».
@@ -74,7 +74,7 @@ def test_create_task_title_only(page, web_base_url, board_page, web_cleanup_crea
         expect(
             board_page.locator("#task-detail-attrs").get_by_text(term)
         ).to_have_count(0)
-    board_page.get_by_role("button", name="Закрыть").click()
+    board_page.get_by_role("button", name="Закрыть", exact=True).click()
 
 
 def _card_task_id(card) -> int:
@@ -153,22 +153,30 @@ def test_all_attributes_create_view_edit(page, web_base_url, board_page, web_cle
     board_page.get_by_role("button", name="Редактировать").click()
     expect(board_page.get_by_role("heading", name="Редактирование задачи")).to_be_visible()
     board_page.get_by_label("Приоритет").select_option("medium")
+    board_page.get_by_label("Теги (через запятую)").fill("дом")
     # Категория — select из справочника (FR-19/FR-30; select_option вместо
     # fill — CHK-144/TC-UI-009-update; «Работа» гарантирована seed, CHK-139).
+    # 4.1: опции загружаются в форму асинхронно (loadCategoryOptions) —
+    # выбираем категорию ПОСЛЕДНИМ действием перед сабмитом и ждем
+    # подтверждения значения (поздний колбэк иначе перезаписывает выбор).
+    expect(board_page.get_by_label("Категория")).to_have_value("Дом")
     board_page.get_by_label("Категория").select_option("Работа")
-    board_page.get_by_label("Теги (через запятую)").fill("дом")
+    expect(board_page.get_by_label("Категория")).to_have_value("Работа")
     board_page.get_by_role("button", name="Сохранить").click()
     expect(board_page.locator("#task-form-overlay")).to_be_hidden()
 
-    # Шаг 5: рефреш доски, переоткрытие карточки.
+    # Шаг 5: рефреш доски, переоткрытие карточки (автожидание нового
+    # значения в карточке — гонка refreshBoard() с кликом не оставляем).
     expect(board_page.locator("#board")).to_have_attribute("data-loaded", "true")
-    board_page.get_by_role("article").filter(has_text="Полная").click()
+    board_card = board_page.get_by_role("article").filter(has_text="Полная")
+    expect(board_card.get_by_text("Работа", exact=True)).to_be_visible()
+    board_card.click()
     attrs = board_page.locator("#task-detail-attrs")
     for value in ("medium", "Работа", "дом"):
         expect(attrs.get_by_text(value, exact=True)).to_be_visible()
     expect(attrs.get_by_text("high", exact=True)).to_have_count(0)
     expect(attrs.get_by_text("срочно")).to_have_count(0)
-    board_page.get_by_role("button", name="Закрыть").click()
+    board_page.get_by_role("button", name="Закрыть", exact=True).click()
 
     # Шаг 7: бейдж приоритета на карточке доски — локализованный «Средний»
     # (CHK-144/TC-UI-009-update; «medium» на карточке больше не выводится).
@@ -282,22 +290,25 @@ def test_add_comment_persists(page, web_base_url, board_page, web_cleanup_create
     expect(card).to_be_visible()
     web_cleanup_created(_card_task_id(card))
 
+    # 4.1 (FR-47, Д-9): форма комментария — в форме редактирования
+    # (карточка → view read-only → «Редактировать» → блок «Комментарии»).
     card.click()
+    board_page.get_by_role("button", name="Редактировать").click()
     expect(board_page.get_by_role("heading", name="Комментарии")).to_be_visible()
     board_page.get_by_label("Новый комментарий").fill("Коммент первый")
     board_page.get_by_role("button", name="Добавить комментарий").click()
     expect(
-        board_page.locator("#task-comments-list").get_by_text("Коммент первый")
+        board_page.locator("#task-form-comments-list").get_by_text("Коммент первый")
     ).to_be_visible()
     assert board_page.get_by_label("Новый комментарий").input_value() == ""
 
-    board_page.get_by_role("button", name="Закрыть").click()
-    expect(board_page.locator("#task-detail-overlay")).to_be_hidden()
+    board_page.get_by_role("button", name="Отмена").click()
+    expect(board_page.locator("#task-form-overlay")).to_be_hidden()
     board_page.get_by_role("article").filter(has_text="Полная").click()
     expect(
         board_page.locator("#task-comments-list").get_by_text("Коммент первый")
     ).to_be_visible()
-    board_page.get_by_role("button", name="Закрыть").click()
+    board_page.get_by_role("button", name="Закрыть", exact=True).click()
 
 
 def test_comment_submit_without_card_no_request(page, web_base_url, board_page, web_cleanup_created):
@@ -339,9 +350,10 @@ def test_comment_submit_without_card_no_request(page, web_base_url, board_page, 
     assert null_comments == [], f"запрос /api/tasks/null/comments ушел: {null_comments}"
     assert responses_422 == [], f"422 на /api/tasks/*: {responses_422}"
 
-    # Шаг 3: понятное сообщение guard'а (DOM #comment-error).
+    # Шаг 3: понятное сообщение guard'а (DOM #task-comment-error; 4.1:
+    # id переименован — поле комментария теперь в форме редактирования).
     comment_error = board_page.evaluate(
-        "document.getElementById('comment-error').textContent"
+        "document.getElementById('task-comment-error').textContent"
     )
     assert "Карточка задачи не открыта" in comment_error, f"текст: {comment_error!r}"
 
@@ -351,4 +363,4 @@ def test_comment_submit_without_card_no_request(page, web_base_url, board_page, 
     expect(
         board_page.locator("#task-comments-list").get_by_text("регресс-коммент")
     ).to_have_count(0)
-    board_page.get_by_role("button", name="Закрыть").click()
+    board_page.get_by_role("button", name="Закрыть", exact=True).click()
