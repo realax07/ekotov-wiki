@@ -131,6 +131,19 @@ if [ "$DRY_RUN" != "1" ]; then
   ok "Сервис активен"
 fi
 
+# --- 5b/6 Nginx: блок /avatars/ обязателен (Релиз 4, FR-42; review-001 C-1) --
+# Шаблон в репо (deploy/nginx-ekotov-wiki*.conf) содержит location /avatars/,
+# но прод-конфиг /etc/nginx/sites-available/ekotov-wiki правится root'ом ВНЕ
+# rsync-корня — скрипт не может (и не должен) менять его сам (E9). Вместо
+# молчаливой выкатки релиза с 404-аватарами — жесткая проверка до смоука:
+# нет блока → деплой НЕ завершен, инструкцию см. RUNBOOK §4.1 п.6.
+NGINX_CONF="/etc/nginx/sites-available/ekotov-wiki"
+if [ -r "$NGINX_CONF" ] && grep -q 'location /avatars/' "$NGINX_CONF"; then
+  ok "Nginx: location /avatars/ присутствует"
+else
+  fail "В $NGINX_CONF нет location /avatars/ — аватары будут 404. Выполни (root, RUNBOOK §4.1 п.6): sudo mkdir -p /var/lib/ekotov-wiki/avatars && sudo chown wiki:wiki /var/lib/ekotov-wiki/avatars; впиши location /avatars/ { alias /var/lib/ekotov-wiki/avatars/; expires 7d; add_header Cache-Control \"public\"; } (шаблон deploy/nginx-ekotov-wiki*.conf); sudo nginx -t && sudo systemctl reload nginx; затем повтори деплой."
+fi
+
 # --- 6/6 Смоук (обязателен, урок E10) ----------------------------------------
 log "6/6 Смоук: health + страница + CSS через прод-URL"
 if [ "$DRY_RUN" = "1" ]; then
