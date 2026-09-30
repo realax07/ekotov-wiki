@@ -133,13 +133,18 @@ def test_advanced_assigned_eq_and_is_null(api, r4_search_fixtures):
 @pytest.mark.must
 def test_advanced_creator_eq_combined(api, r4_search_fixtures):
     """TC-search-r4-007 (FR-46): advanced `creator = "owner" AND
-    assigned IS NULL` — комбинация И; normalized синхронен."""
+    assigned IS NULL` — комбинация И; normalized синхронен.
+
+    normalized_query — каноническая сериализация РАСПАРСЕННОГО фильтра
+    (sdd §3.5): flat-структура SearchFilters канонизирует порядок
+    предикатов, поэтому проверяем вхождение обоих условий (как тесты
+    Р3 — `in`), а не порядок строки; семантику И — по составу выдачи.
+    """
     resp = api.advanced(f'creator = "{OWNER}" AND assigned IS NULL')
     assert resp.status_code == 200
-    assert (
-        resp.json()["normalized_query"]
-        == f'creator = "{OWNER}" AND assigned IS NULL'
-    )
+    normalized = resp.json()["normalized_query"]
+    assert f'creator = "{OWNER}"' in normalized
+    assert "assigned IS NULL" in normalized
     assert _titles(resp) == ["QAT-R4S-без-исполнителя"]
 
 
