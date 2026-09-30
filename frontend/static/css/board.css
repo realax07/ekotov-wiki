@@ -625,6 +625,77 @@
 /* --- Детали задачи (карточка 4.5): серифный заголовок, поле приоритета
  * с бейджем цвет+SVG (значения рендерит task-detail.js) --- */
 
+/* --- 4.1 Релиза 4 (FR-47, Д-9, ОГР-18): view-модалка read-only ---
+ * Визуальная отличимость от форм: тот же .modal (единые токены V3),
+ * но класс .task-view задает оформление «читаемого документа» —
+ * серифный заголовок, разделительные линии рядов признаков, никакого
+ * стиля полей ввода (их в разметке нет). Комментарии — read-only
+ * список без формы добавления (она в task-form, режим редактирования).
+ * Анимация — общая .modal (reduced-motion отключает, board.css). */
+
+.task-view h2 {
+  margin: 0 40px 0 0; /* место под крестик (FR-28) */
+  font-family: var(--font-family-display);
+  font-size: 22px;
+  font-weight: 400;
+}
+
+.task-view-attrs { margin: 10px 0; }
+
+.task-view-attrs dt {
+  font-size: var(--font-size-micro);
+  font-weight: bold;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin-top: var(--space-2);
+}
+
+.task-view-attrs dd {
+  margin: 2px 0 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border-default);
+  font-size: var(--font-size-body);
+  white-space: pre-wrap;
+}
+
+/* Пустой assigned — курсивом «Unassigned» (ОВ-24; заодно — семантика
+ * em: элемент addDetailRow не используется, ряд строит task-detail.js). */
+.task-view-unassigned { color: var(--color-text-secondary); }
+
+.task-view-comments h3 {
+  margin: var(--space-2) 0 var(--space-1);
+  font-family: var(--font-family-display);
+  font-size: 15px;
+}
+
+.task-view-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: var(--space-3);
+}
+
+/* --- Действия с задачей в окне формы (4.1 Релиза 4: перенос из
+ * прежнего окна деталей; селект «Столбец» + «Удалить») --- */
+
+.task-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: var(--space-2) 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-default);
+}
+
+.task-actions label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  margin-bottom: 0;
+}
+
 .task-detail h2 {
   margin: 0 var(--space-3) 0 0;
   font-family: var(--font-family-display);

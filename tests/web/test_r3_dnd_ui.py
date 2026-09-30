@@ -310,7 +310,11 @@ def test_touch_tap_starts_no_drag_select_move_works(
         _wait_board(page)
         card = _card(page, "QAT-dnd-touch")
         expect(card).to_be_visible()
+        # 4.1 (FR-47, Д-9): клик открывает view-модалку read-only;
+        # селект «Столбец» — в форме редактирования («Редактировать»).
         card.click()
+        page.get_by_role("button", name="Редактировать").click()
+        expect(page.locator("#task-form-overlay")).to_be_visible()
         page.get_by_label("Столбец").select_option("in_progress")
         expect(_column(page, "in_progress").get_by_role("article").filter(
             has_text="QAT-dnd-touch"

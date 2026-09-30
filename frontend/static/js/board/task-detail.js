@@ -1,10 +1,29 @@
-/* Карточка задачи: полный набор признаков + комментарии (P6: извлечено
- * из board.js; tasks.md 4.5; FR-9) и действия карточки (FR-7,
- * перемещение POST /{id}/move).
+/* View-модалка карточки задачи: read-only просмотр (4.1; FR-47, Д-9,
+ * ОГР-18; дельта board «Просмотр карточки задачи — модальное окно
+ * read-only», все 5 сценариев — первичный источник поведения).
  *
- * 4.5: карточка с полными признаками и комментариями, удаление с
- * confirm (DELETE). Комментарии — GET/POST /api/tasks/{id}/comments
- * (sdd §3.2); guard submitComment — только из открытой карточки.
+ * До Релиза 4 клик по карточке открывал окно деталей с полями
+ * редактирования (селект «Столбец», «Удалить», форма комментария).
+ * 4.1 разделяет его (design §6: «openTaskDetail переосмысляется»):
+ * просмотр — read-only модалка БЕЗ полей ввода и сохранения; из
+ * действий — только «Редактировать» (открывает существующую task-form
+ * в режиме редактирования, Д-9) и закрытие (крестик/«Закрыть»/Escape/
+ * клик вне, сценарий 5). Действия с задачей (перемещение, удаление,
+ * добавление комментария) перенесены в форму редактирования
+ * (task-form.js) без изменения механики.
+ *
+ * Состав просмотра (сценарии 1 и 4): название, описание, статус,
+ * приоритет, категория, срок, теги, fast-признак, assigned/creator,
+ * комментарии. assigned/creator рендерятся только при наличии
+ * соотв. полей в ответе GET /api/tasks/{id} (появятся в задаче 5.1);
+ * сейчас их в ответе нет — ряды не выводятся, данные не выдумываются.
+ * Пустой assigned — курсивом «Unassigned» (ОВ-24). done_at — ряд
+ * «Выполнено» при наличии (sdd §3.2, r5); created_at в схеме Task
+ * (sdd §3.2) отсутствует — в view не показывается.
+ *
+ * Визуальная отличимость от форм (ОГР-18): отсутствие полей ввода +
+ * оформление .task-view (board.css, токены V3).
+ *
  * XSS (ОГР-11): рендер значений — textContent, не innerHTML.
  */
 "use strict";
@@ -12,10 +31,13 @@
 import { el, showFormError, hideError } from "./dom.js";
 import { api } from "./api.js";
 import { boardState } from "./state.js";
-import { refreshBoard } from "./cards.js";
-import { openEditForm } from "./task-form.js";
+import {
+  openEditForm,
+  renderComments,
+  loadComments,
+} from "./task-form.js";
 
-/* --- Карточка задачи: полный набор признаков + комментарии (FR-9) --- */
+/* --- Read-only рендер (FR-47; сценарии 1, 4) --- */
 
 function addDetailRow(dl, term, value) {
   if (value === null || value === undefined || value === "") {
@@ -27,6 +49,26 @@ function addDetailRow(dl, term, value) {
   dl.appendChild(dd);
 }
 
+/* Ряд пользователя (assigned/creator, сценарий 4): имя или курсивом
+ * «Unassigned» при пустом (ОВ-24). Выводится только при наличии поля
+ * в ответе API (5.1) — до того ряд не создается вовсе. */
+function addUserRow(dl, term, login) {
+  dl.appendChild(el("dt", null, term));
+  var dd = el("dd");
+  if (login) {
+    dd.textContent = String(login); // textContent — не innerHTML (XSS)
+  } else {
+    dd.appendChild(el("em", "task-view-unassigned", "Unassigned"));
+  }
+  dl.appendChild(dd);
+}
+
+var STATUS_LABELS = {
+  todo: "Ожидает",
+  in_progress: "В работе",
+  done: "Выполнено",
+};
+
 function renderTaskDetail(task) {
   boardState.currentTaskId = task.id;
   document.getElementById("task-detail-title").textContent = task.title;
@@ -34,60 +76,37 @@ function renderTaskDetail(task) {
   var dl = document.getElementById("task-detail-attrs");
   dl.textContent = "";
   addDetailRow(dl, "Описание", task.description);
-  /* Приоритет в деталях — сырым значением (FR-9, контракт утвержденного
+  /* Приоритет в просмотре — сырым значением (контракт утвержденного
    * e2e TC-UI-009: attrs содержат ровно значения задачи); цвет+иконка
    * приоритета — в форме (пилюля) и на карточке доски (бейдж, FR-29). */
   addDetailRow(dl, "Приоритет", task.priority);
   addDetailRow(dl, "Категория", task.category);
   addDetailRow(dl, "Срок", task.due_date);
+  addDetailRow(dl, "Статус", STATUS_LABELS[task.status]);
   addDetailRow(dl, "Теги", (task.tags || []).join(", "));
   addDetailRow(dl, "Fast line", task.is_fast ? "да" : null);
-  /* 6.2 (FR-4): признак «архивная» — бейдж при archived_at IS NOT NULL.
-   * Не-архивные (archived_at null) — бейдж скрыт. */
+  /* 4.1 (сценарий 4): creator/assigned — при наличии полей в ответе
+   * API (задача 5.1); сейчас их там нет — ряды не выводятся. */
+  if (Object.prototype.hasOwnProperty.call(task, "assigned")) {
+    addUserRow(dl, "Исполнитель", task.assigned);
+  }
+  if (Object.prototype.hasOwnProperty.call(task, "creator")) {
+    addUserRow(dl, "Создатель", task.creator);
+  }
+  /* Момент перевода в «Выполнено» (sdd §3.2 r5); created_at в схеме
+   * Task отсутствует — не показывается (данные не выдумываются). */
+  addDetailRow(dl, "Выполнено", task.done_at);
+  /* 6.2 (FR-4): признак «архивная» — бейдж при archived_at IS NOT NULL. */
   document.getElementById("task-detail-archive-badge").hidden =
     !task.archived_at;
-  document.getElementById("task-move-select").value = task.status;
   hideError("task-detail-error");
-  hideError("comment-error");
-}
-
-export function renderComments(comments) {
-  var list = document.getElementById("task-comments-list");
-  list.textContent = "";
-  (comments || []).forEach(function (comment) {
-    var item = el("li", "task-comment");
-    /* Метка только из имеющихся полей — без «· undefined». */
-    var meta = ["id " + comment.id, comment.created_at]
-      .filter(function (part) {
-        return part !== undefined && part !== null && part !== "";
-      })
-      .join(" · ");
-    if (meta) {
-      item.appendChild(el("div", "task-comment-meta", meta));
-    }
-    var body = el("p", "task-comment-body");
-    body.textContent = comment.body; // textContent — не innerHTML (XSS)
-    item.appendChild(body);
-    list.appendChild(item);
-  });
-}
-
-function loadComments(taskId) {
-  api(
-    "/api/tasks/" + taskId + "/comments",
-    {},
-    function (message) {
-      showFormError("comment-error", message);
-    },
-    function (body) {
-      renderComments(body && body.comments);
-    }
-  );
 }
 
 function isValidTaskId(value) {
   return typeof value === "number" && isFinite(value);
 }
+
+/* --- Открытие/закрытие (сценарии 1 и 5: закрытие без изменения данных) --- */
 
 export function openTaskDetail(taskId) {
   if (!isValidTaskId(taskId)) {
@@ -95,7 +114,7 @@ export function openTaskDetail(taskId) {
   }
   boardState.currentTaskId = taskId;
   document.getElementById("task-detail-overlay").hidden = false;
-  renderComments([]);
+  renderComments(document.getElementById("task-comments-list"), []);
   /* GET /api/tasks/{id} — полный Task (sdd §3.2), затем комментарии. */
   api(
     "/api/tasks/" + taskId,
@@ -105,7 +124,13 @@ export function openTaskDetail(taskId) {
     },
     function (task) {
       renderTaskDetail(task);
-      loadComments(taskId);
+      loadComments(
+        taskId,
+        document.getElementById("task-comments-list"),
+        function (message) {
+          showFormError("task-detail-error", message);
+        }
+      );
     }
   );
 }
@@ -114,106 +139,18 @@ export function closeTaskDetail() {
   document.getElementById("task-detail-overlay").hidden = true;
 }
 
-export function submitComment(event) {
-  event.preventDefault();
-  hideError("comment-error");
+/* --- Управление view-модалкой: «Редактировать» (Д-9), закрытие --- */
 
-  /* Guard (integer-баг): комментарий можно отправить только из
-   * открытой карточки. Без задачи в currentTaskId путь был бы
-   * /api/tasks/null/comments → 422 int_parsing от сервера. */
-  if (!isValidTaskId(boardState.currentTaskId)) {
-    showFormError(
-      "comment-error",
-      "Карточка задачи не открыта — откройте задачу и попробуйте еще раз."
-    );
-    return;
-  }
-
-  var body = document.getElementById("comment-body").value.trim();
-  /* UI-валидация до отправки: текст обязателен (sdd §3.2, 422). */
-  if (!body) {
-    showFormError("comment-error", "Комментарий не может быть пустым.");
-    return;
-  }
-  api(
-    "/api/tasks/" + boardState.currentTaskId + "/comments",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: body }),
-    },
-    function (message) {
-      showFormError("comment-error", message);
-    },
-    function () {
-      document.getElementById("comment-body").value = "";
-      loadComments(boardState.currentTaskId);
-    }
-  );
-}
-
-/* --- Действия карточки: редактирование, удаление, перемещение --- */
-
-function deleteCurrentTask() {
-  if (boardState.currentTaskId === null) {
-    return;
-  }
-  var taskId = boardState.currentTaskId;
-  /* Подтверждение удаления (FR-7). */
-  if (!window.confirm("Удалить задачу? Действие необратимо.")) {
-    return;
-  }
-  hideError("task-detail-error");
-  api(
-    "/api/tasks/" + taskId,
-    { method: "DELETE" },
-    function (message) {
-      showFormError("task-detail-error", message);
-    },
-    function () {
-      closeTaskDetail();
-      refreshBoard();
-    }
-  );
-}
-
-function moveCurrentTask() {
-  if (!isValidTaskId(boardState.currentTaskId)) {
-    return;
-  }
-  var status = document.getElementById("task-move-select").value;
-  hideError("task-detail-error");
-  api(
-    "/api/tasks/" + boardState.currentTaskId + "/move",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: status }),
-    },
-    function (message) {
-      showFormError("task-detail-error", message);
-    },
-    function () {
-      closeTaskDetail();
-      refreshBoard();
-    }
-  );
-}
-
-export function initTaskDetailControls() {
-  document
-    .getElementById("comment-form")
-    .addEventListener("submit", submitComment);
-  document
-    .getElementById("task-delete-button")
-    .addEventListener("click", deleteCurrentTask);
+export function initTaskViewControls() {
+  /* Д-9 (сценарий 3): «Редактировать» → существующая форма
+   * редактирования этой задачи. Свежая копия задачи
+   * (GET /api/tasks/{id}) — как до 4.1. */
   document
     .getElementById("task-edit-button")
     .addEventListener("click", function () {
       if (boardState.currentTaskId === null) {
         return;
       }
-      /* Свежая копия задачи для формы редактирования (GET /api/tasks/{id}). */
       api(
         "/api/tasks/" + boardState.currentTaskId,
         {},
@@ -227,6 +164,18 @@ export function initTaskDetailControls() {
     .getElementById("task-detail-close")
     .addEventListener("click", closeTaskDetail);
   document
-    .getElementById("task-move-select")
-    .addEventListener("change", moveCurrentTask);
+    .getElementById("task-view-close")
+    .addEventListener("click", closeTaskDetail);
+  /* Закрытие Escape (сценарий 5): только когда открыта view-модалка и
+   * не открыта форма (Escape формы спекой не нормирован — не трогаем). */
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") {
+      return;
+    }
+    var view = document.getElementById("task-detail-overlay");
+    var form = document.getElementById("task-form-overlay");
+    if (!view.hidden && form.hidden) {
+      closeTaskDetail();
+    }
+  });
 }

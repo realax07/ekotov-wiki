@@ -207,13 +207,43 @@
     addDetailRow(dl, "Приоритет", task.priority);
     addDetailRow(dl, "Категория", task.category);
     addDetailRow(dl, "Срок", task.due_date);
+    addDetailRow(dl, "Статус", STATUS_LABELS[task.status]);
     addDetailRow(dl, "Теги", (task.tags || []).join(", "));
     addDetailRow(dl, "Fast line", task.is_fast ? "да" : null);
+    /* 4.1 (сценарий 4): creator/assigned — при наличии полей в ответе
+     * API (задача 5.1); сейчас их там нет — ряды не выводятся. */
+    if (Object.prototype.hasOwnProperty.call(task, "assigned")) {
+      addUserRow(dl, "Исполнитель", task.assigned);
+    }
+    if (Object.prototype.hasOwnProperty.call(task, "creator")) {
+      addUserRow(dl, "Создатель", task.creator);
+    }
+    addDetailRow(dl, "Выполнено", task.done_at);
     /* 6.2 (FR-4): бейдж «Архивная» при archived_at IS NOT NULL. */
     document.getElementById("task-detail-archive-badge").hidden =
       !task.archived_at;
     hideError();
   }
+
+  /* Ряд пользователя (assigned/creator): имя или курсивом
+   * «Unassigned» при пустом (ОВ-24). Выводится только при наличии
+   * поля в ответе API (задача 5.1). */
+  function addUserRow(dl, term, login) {
+    dl.appendChild(el("dt", null, term));
+    var dd = el("dd");
+    if (login) {
+      dd.textContent = String(login); // textContent — не innerHTML (XSS)
+    } else {
+      dd.appendChild(el("em", "task-view-unassigned", "Unassigned"));
+    }
+    dl.appendChild(dd);
+  }
+
+  var STATUS_LABELS = {
+    todo: "Ожидает",
+    in_progress: "В работе",
+    done: "Выполнено",
+  };
 
   function renderComments(comments) {
     var list = document.getElementById("task-comments-list");
@@ -270,36 +300,13 @@
     document.getElementById("task-detail-overlay").hidden = true;
   }
 
-  function submitComment(event) {
-    event.preventDefault();
-    var textarea = document.getElementById("comment-body");
-    var body = textarea.value.trim();
-    /* UI-валидация до отправки: текст обязателен (sdd §3.2, 422). */
-    if (!body) {
-      showError("Комментарий не может быть пустым.");
-      return;
+  /* Закрытие Escape (4.1, сценарий 5 дельты board): поиск — отдельная
+   * страница, форма задачи здесь не существует. */
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") {
+      closeTaskDetail();
     }
-    var taskId = Number(
-      document.getElementById("task-detail-overlay").dataset.taskId
-    );
-    if (!isFinite(taskId)) {
-      showError("Карточка задачи не открыта.");
-      return;
-    }
-    api(
-      "/api/tasks/" + taskId + "/comments",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: body }),
-      },
-      showError,
-      function () {
-        textarea.value = "";
-        loadComments(taskId);
-      }
-    );
-  }
+  });
 
   /* --- Режим 1: конструктор → GET /api/search --- */
 
@@ -570,9 +577,6 @@
     .addEventListener("click", function () {
       setMode("advanced");
     });
-  document
-    .getElementById("comment-form")
-    .addEventListener("submit", submitComment);
   document
     .getElementById("task-detail-close")
     .addEventListener("click", closeTaskDetail);

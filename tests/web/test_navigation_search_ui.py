@@ -148,7 +148,9 @@ def test_search_archived_task_builder_advanced_card(
         has_text="Архивная-поиск"
     ).click()
     expect(page.locator("#task-detail-overlay")).to_be_visible()
-    expect(page.get_by_role("heading", name="Архивная-поиск")).to_be_visible()
+    # 4.1: якорь — #task-detail-title (heading матчится и на заголовок
+    # карточки в результатах: strict violation).
+    expect(page.locator("#task-detail-title")).to_have_text("Архивная-поиск")
     expect(page.locator("#task-detail-archive-badge")).to_be_visible()
     attrs = page.locator("#task-detail-attrs")
     for term_value in ("high", "Дом", "архив2026"):

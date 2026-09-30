@@ -136,26 +136,12 @@
         <input type="checkbox" id="task-is-fast" name="is_fast"> fast line
       </label>
     </div>
-    <div class="form-actions">
-      <button type="submit" id="task-form-submit">Создать</button>
-      <button type="button" id="task-form-cancel">Отмена</button>
-    </div>
-  </form>
-</div>
-
-{# Карточка задачи (4.5; FR-9: все 7 признаков + комментарии).
-   Значения заполняются из JS через textContent — разметка не содержит
-   пользовательских данных. #}
-<div id="task-detail-overlay" class="modal-overlay" hidden>
-  <div class="modal task-detail">
-    <h2 id="task-detail-title"></h2>
-    {# 6.2 (FR-4): бейдж архивной задачи — показывается при
-       archived_at IS NOT NULL (тогглится в JS, renderTaskDetail).
-       Текст статический — пользовательских данных нет (XSS-safe). #}
-    <span id="task-detail-archive-badge" class="task-archive-badge" hidden>Архивная</span>
-    <p id="task-detail-error" class="form-error" hidden></p>
-    <dl id="task-detail-attrs" class="task-detail-attrs"></dl>
-    <div class="task-detail-actions">
+    {# 4.1 Релиза 4 (FR-47, Д-9; design §6): действия с задачей из
+       прежнего окна деталей — в режиме редактирования (в создании
+       задачи еще нет, блок скрыт openCreateForm). Механика прежняя:
+       селект «Столбец» → POST /{id}/move, «Удалить» → DELETE (FR-7),
+       комментарии (GET/POST /api/tasks/{id}/comments, sdd §3.2). #}
+    <div id="task-actions" class="task-actions" hidden>
       <label>Столбец
         <select id="task-move-select">
           <option value="todo">Ожидает</option>
@@ -163,21 +149,63 @@
           <option value="done">Выполнено</option>
         </select>
       </label>
-      <button type="button" id="task-edit-button">Редактировать</button>
       <button type="button" id="task-delete-button">Удалить</button>
-      <button type="button" id="task-detail-close">Закрыть</button>
     </div>
-    <section class="task-comments">
+    <div class="form-actions">
+      <button type="submit" id="task-form-submit">Создать</button>
+      <button type="button" id="task-form-cancel">Отмена</button>
+    </div>
+  </form>
+  {# Блок комментариев режима редактирования — СОСЕДНИЙ элемент с
+     #task-form (не вложенный: вложенные формы в HTML запрещены —
+     браузер выбрасывает тег внутренней формы из разметки, что ломало
+     подписку comment-form в board-init.js). Показ тогглится вместе с
+     #task-actions (openCreateForm/openEditForm). #}
+  <section id="task-comments" class="task-comments" hidden>
+    <h3>Комментарии</h3>
+    <ul id="task-form-comments-list" class="task-comments-list"></ul>
+    <form id="comment-form">
+      <label>Новый комментарий
+        <textarea id="comment-body" rows="2" required></textarea>
+      </label>
+      <p id="task-comment-error" class="form-error" hidden></p>
+      <button type="submit">Добавить комментарий</button>
+    </form>
+  </section>
+</div>
+
+{# View-модалка карточки задачи — read-only просмотр (4.1 Релиза 4;
+   FR-47, Д-9, ОГР-18; дельта board «Просмотр карточки задачи —
+   модальное окно read-only»). Отличие от формы (ОГР-18): ни одного
+   поля ввода и кнопки сохранения — только заголовок, бейдж архивной,
+   read-only признаки (dl#task-detail-attrs, рендер task-detail.js),
+   список комментариев (read-only) и две кнопки: «Редактировать»
+   (открывает существующую task-form, Д-9) и закрытие. Значения
+   заполняются из JS через textContent — разметка не содержит
+   пользовательских данных. Закрытие: крестик (#task-view-close,
+   modal-close 40×40), «Закрыть», Escape, клик вне окна. #}
+<div id="task-detail-overlay" class="modal-overlay" hidden>
+  <div class="modal task-view" role="dialog" aria-labelledby="task-detail-title">
+    <button type="button" id="task-view-close" class="modal-close" aria-label="Закрыть просмотр задачи">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <path d="M3 3l10 10M13 3L3 13"/>
+      </svg>
+    </button>
+    <h2 id="task-detail-title"></h2>
+    {# 6.2 (FR-4): бейдж архивной задачи — показывается при
+       archived_at IS NOT NULL (тогглится в JS, renderTaskDetail).
+       Текст статический — пользовательских данных нет (XSS-safe). #}
+    <span id="task-detail-archive-badge" class="task-archive-badge" hidden>Архивная</span>
+    <p id="task-detail-error" class="form-error" hidden></p>
+    <dl id="task-detail-attrs" class="task-view-attrs"></dl>
+    <section class="task-view-comments">
       <h3>Комментарии</h3>
       <ul id="task-comments-list" class="task-comments-list"></ul>
-      <form id="comment-form">
-        <label>Новый комментарий
-          <textarea id="comment-body" rows="2" required></textarea>
-        </label>
-        <p id="comment-error" class="form-error" hidden></p>
-        <button type="submit">Добавить комментарий</button>
-      </form>
     </section>
+    <div class="task-view-actions">
+      <button type="button" id="task-edit-button" class="btn btn-primary">Редактировать</button>
+      <button type="button" id="task-detail-close">Закрыть</button>
+    </div>
   </div>
 </div>
 <script type="module" src="/static/js/board/board-init.js?v={{ static_v }}"></script>
