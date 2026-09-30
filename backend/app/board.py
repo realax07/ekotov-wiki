@@ -17,6 +17,9 @@
   Столбец done — РЕАЛЬНЫЙ список Task: done-задачи с done_at текущего
   календарного дня по МСК (UTC+3); архив в ответ не попадает.
   (done_note из прежней редакции §3.3 удален — sdd r5 §3.3 дословно.)
+  Релиз 4 (FR-37, ОВ-24; sdd r10 §3.2): каждый Task содержит creator и
+  assigned — логины (LEFT JOIN users; null → клиент показывает
+  курсивом «Unassigned»).
 - Ошибки: только 401 (middleware, app/middleware.py; здесь не дублируется).
 
 Часовой пояс (зафиксировано sdd §3.3/design §5): «начало текущего дня»
@@ -59,10 +62,13 @@ TASK_COLUMNS = (
 )
 
 # Порядок строк: fast первым, затем приоритет high→medium→low→NULL, по id.
+# Релиз 4: колонки квалифицированы tasks. — выборка с LEFT JOIN users
+# (creator/assigned, sdd r10 §3.2), неквалифицированный id стал бы
+# двусмысленным.
 ORDER_SQL = (
-    "ORDER BY is_fast DESC, "
-    "CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 "
-    "WHEN 'low' THEN 2 ELSE 3 END, id"
+    "ORDER BY tasks.is_fast DESC, "
+    "CASE tasks.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 "
+    "WHEN 'low' THEN 2 ELSE 3 END, tasks.id"
 )
 
 # Столбцы доски (дельта board, «Три фиксированных столбца», ОГР-3;
@@ -133,9 +139,13 @@ def _load_tags(conn: sqlite3.Connection, task_id: int) -> list[str]:
     return [row[0] for row in rows]
 
 
-def _row_to_task(conn: sqlite3.Connection, row: tuple) -> dict:
-    """Строка tasks → Task-объект по схеме sdd §3.2 (как в app/tasks.py)."""
-    return {
+def _row_to_task(
+    conn: sqlite3.Connection, row: tuple, users: tuple | None = None
+) -> dict:
+    """Строка tasks → Task-объект по схеме sdd §3.2 (как в app/tasks.py;
+    Релиз 4: creator/assigned — логины из JOIN, sdd r10 §3.2; без users —
+    поля не включаются, данные не выдумываются)."""
+    task = {
         "id": row[0],
         "title": row[1],
         "description": row[2],
@@ -148,22 +158,40 @@ def _row_to_task(conn: sqlite3.Connection, row: tuple) -> dict:
         "done_at": row[8],
         "archived_at": row[9],
     }
+    if users is not None:
+        task["creator"] = users[0]
+        task["assigned"] = users[1]
+    return task
 
 
 @router.get("")
 def get_board() -> JSONResponse:
-    """Столбцы доски (sdd r5 §3.3): 200; без сессии — 401 (middleware)."""
+    """Столбцы доски (sdd r5 §3.3): 200; без сессии — 401 (middleware).
+
+    Релиз 4 (sdd r10 §3.2, ОВ-24): задачи содержат creator и assigned —
+    логины (LEFT JOIN users)."""
     conn = get_connection()
     try:
         autoarchive_done_tasks(conn)
+        # Колонки tasks квалифицированы: после LEFT JOIN users плейн-колонки
+        # (id и др.) двусмысленны; slice по длине TASK_COLUMNS — первый
+        # блок строки (тот же порядок, что в app/tasks.py).
+        plain = ", ".join(
+            f"tasks.{name.strip()}" for name in TASK_COLUMNS.split(",")
+        )
+        n_cols = len(TASK_COLUMNS.split(","))
         rows = conn.execute(
-            f"SELECT {TASK_COLUMNS} FROM tasks "
-            "WHERE archived_at IS NULL "
+            "SELECT " + plain + ", creator.login, assigned.login "
+            "FROM tasks "
+            "LEFT JOIN users creator ON creator.id = tasks.creator_id "
+            "LEFT JOIN users assigned ON assigned.id = tasks.assigned_to_id "
+            "WHERE tasks.archived_at IS NULL "
             f"{ORDER_SQL}"
         ).fetchall()
         columns: dict[str, Any] = {status: [] for status in BOARD_STATUSES}
         for row in rows:
-            columns[row[7]].append(_row_to_task(conn, row))
+            users = (row[n_cols], row[n_cols + 1])
+            columns[row[7]].append(_row_to_task(conn, row[:n_cols], users))
     finally:
         conn.close()
     return JSONResponse(content={"columns": columns})
