@@ -486,9 +486,13 @@
 }
 
 /* Вторичные кнопки — контурные (V3). Геометрия общая с .form-actions button —
-   без неё кнопки деталей/комментариев были «сырыми» (padding/radius по дефолту Браузера). */
+   без неё кнопки деталей/комментариев были «сырыми» (padding/radius по дефолту Браузера).
+   4.2 (FR-48, DEF-005, урок DEF-004): #task-delete-button («Удалить», режим
+   редактирования) — интерактивный элемент формы, был с дефолтным браузерным
+   оформлением; покрыт вторичным контуром V3 (как .btn-secondary мокапа). */
 #task-form-cancel,
-#task-detail-actions button,
+#task-delete-button,
+.task-view-actions button,
 .comment-form button[type="submit"],
 .task-comments button[type="submit"] {
   font: inherit;
@@ -502,11 +506,14 @@
 }
 
 #task-form-cancel:hover,
-#task-detail-actions button:hover,
+#task-delete-button:hover,
+.task-view-actions button:hover,
 .comment-form button[type="submit"]:hover,
 .task-comments button[type="submit"]:hover { background: var(--color-bg-subtle); }
 
 .form-actions button:focus-visible,
+#task-delete-button:focus-visible,
+.task-view-actions button:focus-visible,
 .comment-form button[type="submit"]:focus-visible,
 .task-comments button[type="submit"]:focus-visible {
   outline: none;
@@ -718,23 +725,6 @@
   margin: 2px 0 0;
   font-size: var(--font-size-body);
   white-space: pre-wrap;
-}
-
-.task-detail-actions {
-  display: flex;
-  gap: var(--space-1);
-  align-items: center;
-  flex-wrap: wrap;
-  margin: 12px 0;
-}
-
-.task-detail-actions label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--font-size-label);
-  color: var(--color-text-secondary);
-  margin-bottom: 0;
 }
 
 .task-comments h3 {
