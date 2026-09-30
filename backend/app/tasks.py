@@ -496,7 +496,7 @@ def create_task(body: TaskCreate, request: Request) -> JSONResponse:
                 content={"error": "invalid task data", "details": {}},
             )
         pair = _get_task_row_with_users(conn, task_id)
-        task = _row_to_task(conn, pair[0], (pair[1], pair[2]))
+        task = _row_to_task(conn, pair[0], pair[1])
     finally:
         conn.close()
     return JSONResponse(status_code=201, content=task)
@@ -514,7 +514,7 @@ def get_task(task_id: int) -> JSONResponse:
         pair = _get_task_row_with_users(conn, task_id)
         if pair is None:
             return JSONResponse(status_code=404, content=NOT_FOUND_BODY)
-        task = _row_to_task(conn, pair[0], (pair[1], pair[2]))
+        task = _row_to_task(conn, pair[0], pair[1])
     finally:
         conn.close()
     return JSONResponse(content=task)
@@ -585,7 +585,7 @@ def update_task(task_id: int, body: TaskUpdate) -> JSONResponse:
                 content={"error": "invalid task data", "details": {}},
             )
         pair = _get_task_row_with_users(conn, task_id)
-        task = _row_to_task(conn, pair[0], (pair[1], pair[2]))
+        task = _row_to_task(conn, pair[0], pair[1])
     finally:
         conn.close()
     return JSONResponse(content=task)
@@ -682,7 +682,7 @@ def move_task(task_id: int, body: TaskMove) -> JSONResponse:
         )
         conn.commit()
         pair = _get_task_row_with_users(conn, task_id)
-        task = _row_to_task(conn, pair[0], (pair[1], pair[2]))
+        task = _row_to_task(conn, pair[0], pair[1])
     finally:
         conn.close()
     return JSONResponse(content=task)
