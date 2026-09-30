@@ -64,7 +64,17 @@
    формой, рядом с чекбоксом fast) показывается «fast line занята»,
    задача НЕ создается — обработка в board.js. #}
 <div id="task-form-overlay" class="modal-overlay" hidden>
-  <form id="task-form" class="modal task-form">
+  {# Комментарии режима редактирования (4.1) — внутри .modal-контейнера:
+     #task-comments соседствует с #task-form внутри одного «листа» модалки.
+     Прежде секция была соседним элементом form.modal в .modal-overlay —
+     flex-контейнере (без flex-wrap): она вставала в ряд с формой,
+     сжималась до ~225px и уезжала по вертикали (прод-дефект вёрстки
+     блока комментария). Обертка .modal.sheet держит фон/скругление/тень
+     модалки, форма внутри — без собственной рамки (task-form--bare).
+     Клик-вне-закрытие (board-init.js: event.target === overlay) работает
+     как прежде — обертка не меняет механизм. #}
+  <div class="modal sheet task-form-sheet">
+    <form id="task-form" class="modal task-form task-form--bare">
     {# 5.1 (FR-28): крестик закрытия в правом верхнем углу, зона клика
        40×40px (стиль .modal-close); закрывает окно без сохранения
        (тот же closeTaskForm, что и «Отмена» — board-init.js). #}
@@ -183,6 +193,7 @@
       <button type="submit">Добавить комментарий</button>
     </form>
   </section>
+  </div>
 </div>
 
 {# View-модалка карточки задачи — read-only просмотр (4.1 Релиза 4;

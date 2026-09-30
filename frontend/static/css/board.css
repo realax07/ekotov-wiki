@@ -763,6 +763,30 @@
   white-space: pre-wrap;
 }
 
+/* Обертка формы задачи (4.1, фикс прод-дефекта вёрстки комментариев):
+ * #task-form и #task-comments — внутри одного «листа» .modal (соседний
+ * элемент form.modal в .modal-overlay — flex-контейнере без flex-wrap —
+ * вставал в РЯД с формой: секция сжималась до ~225px и уезжала по
+ * вертикали). Лист наследует фон/рамку/скругление/тень/анимацию .modal,
+ * ширина — как у формы прежде; содержимое — колонкой. */
+.task-form-sheet {
+  width: 100%;
+  max-width: 520px;
+}
+
+/* Форма внутри листа — без собственной «модальной» упаковки (иначе
+ * двойная рамка/тень/padding), геометрия полей не меняется. */
+.task-form--bare {
+  background: none;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+  width: auto;
+  max-width: none;
+  animation: none;
+}
+
 .task-comments h3 {
   margin: var(--space-2) 0 var(--space-1);
   font-family: var(--font-family-display);

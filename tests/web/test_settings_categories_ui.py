@@ -750,7 +750,7 @@ def test_task_form_close_button_top_right(logged_in_page, web_base_url):
     # поэтому зазоры считаются от формы): right = зазор до правого края
     # модалки, top = отступ от верха модалки; порог кейса ~48px.
     bb_close = close.bounding_box()
-    bb_modal = page.locator("#task-form-overlay .modal").bounding_box()
+    bb_modal = page.locator("#task-form-overlay .task-form-sheet").bounding_box()
     assert bb_close is not None and bb_modal is not None
     right_gap = (bb_modal["x"] + bb_modal["width"]) - (
         bb_close["x"] + bb_close["width"]
@@ -1004,7 +1004,7 @@ def test_task_form_open_close_animation(logged_in_page, web_base_url):
     # (непустые значения, не «all 0s»/«none»).
     page.get_by_role("button", name="Создать задачу").click()
     expect(page.locator("#task-form-overlay")).to_be_visible()
-    modal = page.locator("#task-form-overlay .modal")
+    modal = page.locator("#task-form-overlay .task-form-sheet")
     anim_name = modal.evaluate("el => getComputedStyle(el).animationName")
     anim_duration = modal.evaluate("el => getComputedStyle(el).animationDuration")
     print(
