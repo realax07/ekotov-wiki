@@ -154,3 +154,30 @@
 .search-empty {
   color: var(--color-text-secondary);
 }
+
+/* --- 5.2 (FR-45/FR-46, ОВ-24): assigned/creator в выдаче и фильтрах --- */
+
+/* Строка «Исполнитель / Создатель» карточки результата (FR-45). */
+.task-card-users {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.task-user-term {
+  color: var(--color-text-secondary);
+}
+
+/* Пустой assigned — курсивом «Unassigned» (ОВ-24): <em> уже курсив,
+ * класс задает явное оформление (font-style) на случай смены тега. */
+.task-user-unassigned {
+  font-style: italic;
+  color: var(--color-text-secondary);
+}
+
+/* Подсказка синтаксиса в advanced (5.2: поля assigned/creator). */
+.search-advanced-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}

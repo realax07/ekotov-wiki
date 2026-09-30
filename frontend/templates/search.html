@@ -55,6 +55,25 @@
              значение = «любая категория» (фильтр опционален). #}
         </select>
       </label>
+      {# 5.2 (FR-46): фильтры по исполнителю и создателю. Значения —
+         select'ы, опции из уникальных значений столбцов БД (join
+         tasks→users; механизм FR-35/DEF-001 — «значения из данных»,
+         endpoint /api/suggestions/users, см. suggestions.py). Пустое
+         значение = фильтр не задан; у assigned — специальная опция
+         «без исполнителя» (assigned=none, ОВ-24). #}
+      <label>Исполнитель
+        <select id="search-assigned">
+          <option value="">любой</option>
+          <option value="none">без исполнителя</option>
+          {# Остальные опции — из /api/suggestions/users в search.js #}
+        </select>
+      </label>
+      <label>Создатель
+        <select id="search-creator">
+          <option value="">любой</option>
+          {# Опции — из /api/suggestions/users в search.js #}
+        </select>
+      </label>
       <label>Теги (через запятую)
         <input type="text" id="search-tags" placeholder="home, urgent" list="tag-hints">
       </label>
@@ -85,8 +104,9 @@
 <section id="search-advanced" class="search-advanced" hidden>
   <form id="search-advanced-form">
     <label>Фильтр (SQL-подобный синтаксис)
-      <textarea id="search-advanced-query" rows="3" placeholder='priority = "high" AND tag IN ("home")'></textarea>
+      <textarea id="search-advanced-query" rows="3" placeholder='priority = "high" AND assigned = "wife" AND tag IN ("home")'></textarea>
     </label>
+    <p class="search-advanced-hint">Доступные поля: priority, category, tag, due, due_before, due_after, archived, assigned, creator. Для assigned/creator — операторы = и IS NULL (например, assigned IS NULL — задачи без исполнителя).</p>
     <p id="search-advanced-normalized" class="search-normalized" hidden></p>
     <div class="form-actions">
       <button type="submit" id="search-advanced-submit">Найти</button>
@@ -97,8 +117,10 @@
 <p id="search-error" class="form-error" hidden></p>
 
 {# Результаты поиска — общие для обоих режимов: карточки title,
-   priority, category, due_date, tags + бейдж «Архивная» при
-   archived_at IS NOT NULL (FR-10; паттерн карточки board.html). #}
+   priority, category, due_date, tags, assigned/creator + бейдж
+   «Архивная» при archived_at IS NOT NULL (FR-10; 5.2 FR-45/ОВ-24 —
+   исполнитель и создатель в каждой строке выдачи; заполнение из
+   search.js, textContent — пользовательских данных в разметке нет). #}
 <section id="search-results" class="search-results" aria-live="polite"></section>
 
 {# Карточка задачи из результатов (BUG-001; FR-10 / CHK-E-17).
