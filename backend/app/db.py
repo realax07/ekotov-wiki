@@ -84,6 +84,17 @@ CREATE INDEX IF NOT EXISTS idx_task_tags_tag_id ON task_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_comments_task_id ON comments(task_id);
 """
 
+# Р4-часть SCHEMA_SQL, зависящая от НОВЫХ колонок (существуют только в
+# свежих БД или после app.migrate_r4). Для существующей прод-БД (Р1–Р3)
+# выполнять ее нельзя: CREATE INDEX idx_tasks_creator_id падает
+# «no such column» (прод-инцидент деплоя Р4, 2026-09-30). Эти объекты
+# для существующих БД создает app.migrate_r4 (INDEXES_SQL + ALTER),
+# для свежих — полный SCHEMA_SQL. Разделение — по флагу r4_schema.
+SCHEMA_SQL_R4_TAIL = """
+CREATE INDEX IF NOT EXISTS idx_tasks_creator_id ON tasks(creator_id);      -- Релиз 4: фильтры поиска assigned/creator (FR-46)
+CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to_id ON tasks(assigned_to_id); -- Релиз 4: фильтры поиска assigned/creator (FR-46)
+"""
+
 # Миграция существующих БД до sdd r5 (FR-4, новая редакция): колонка done_at.
 # Для свежих БД колонку создает SCHEMA_SQL; ALTER для уже существующей
 # tasks выполняется ТОЛЬКО если PRAGMA table_info(tasks) не показала
@@ -117,6 +128,11 @@ def init_db(db_path: str | None = None) -> None:
 
     Миграции (sdd r5, FR-4 новая редакция): done_at в tasks — для БД,
     созданных до r5 (ALTER); свежая БД получает колонку из SCHEMA_SQL.
+    Релиз 4 (прод-инцидент 2026-09-30): SCHEMA_SQL содержит Р4-объекты
+    (колонки users/tasks + индексы creator/assigned), требующие новых
+    колонок. Для СУЩЕСТВУЮЩЕЙ БД (tasks есть, creator_id нет) выполняется
+    только старая часть схемы; Р4-индексы создает app.migrate_r4
+    (INDEXES_SQL) после своих ALTER. Для свежей — полный SCHEMA_SQL.
     """
     path = db_path or settings.db_path
     conn = get_connection(path)
@@ -128,7 +144,20 @@ def init_db(db_path: str | None = None) -> None:
         if existing_columns and "done_at" not in existing_columns:
             # БД прежней редакции (без done_at) — миграция 6.1.
             conn.executescript(MIGRATION_SQL_6_1)
-        conn.executescript(SCHEMA_SQL)
+        # Релиз 4 (прод-инцидент): SCHEMA_SQL делится на базовую часть и
+        # Р4-хвост (индексы по creator_id/assigned_to_id). Хвост применяется
+        # ТОЛЬКО если Р4-колонки уже есть (свежая БД из SCHEMA_SQL или после
+        # app.migrate_r4); на существующей БД до миграции индексы упали бы
+        # «no such column».
+        r4_ready = (
+            not existing_columns or "creator_id" in existing_columns
+        )
+        schema_sql = (
+            SCHEMA_SQL
+            if r4_ready
+            else SCHEMA_SQL.replace(SCHEMA_SQL_R4_TAIL, "\n")
+        )
+        conn.executescript(schema_sql)
         conn.commit()
     finally:
         conn.close()
