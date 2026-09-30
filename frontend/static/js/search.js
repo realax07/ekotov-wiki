@@ -175,6 +175,10 @@
       card.appendChild(meta);
     }
 
+    /* 5.2 (FR-45, ОВ-24): строка исполнителя/создателя в КАЖДОЙ карточке
+     * выдачи. assigned пустой (null/нет поля) → курсивом «Unassigned». */
+    card.appendChild(renderUsersRow(task));
+
     /* BUG-001 (FR-10 / CHK-E-17): клик по карточке открывает карточку
      * задачи — та же механика, что в board.js renderCard (строка 199):
      * модалка #task-detail-overlay + GET /api/tasks/{id} + комментарии
@@ -184,6 +188,23 @@
     });
 
     return card;
+  }
+
+  /* 5.2 (FR-45, ОВ-24): строка «Исполнитель: … · Создатель: …» карточки
+   * результата. assigned без значения → <em>Unassigned</em> (курсив).
+   * textContent — не innerHTML (XSS, ОГР-11). */
+  function renderUsersRow(task) {
+    var row = el("div", "task-card-users");
+    row.appendChild(el("span", "task-user-term", "Исполнитель: "));
+    if (task.assigned) {
+      row.appendChild(el("span", "task-user-assigned", task.assigned));
+    } else {
+      row.appendChild(el("em", "task-user-unassigned", "Unassigned"));
+    }
+    row.appendChild(el("span", "task-user-sep", " · "));
+    row.appendChild(el("span", "task-user-term", "Создатель: "));
+    row.appendChild(el("span", "task-user-creator", task.creator || "—"));
+    return row;
   }
 
   /* --- Карточка задачи из результатов (BUG-001; FR-9/FR-10) --- */
@@ -348,6 +369,15 @@
     if (archived) {
       params.append("archived", archived); // пусто = all (дефолт сервера)
     }
+    /* 5.2 (FR-46, ОВ-24): assigned = login | none («без исполнителя»). */
+    var assigned = document.getElementById("search-assigned").value;
+    if (assigned) {
+      params.append("assigned", assigned);
+    }
+    var creator = document.getElementById("search-creator").value;
+    if (creator) {
+      params.append("creator", creator);
+    }
     return params;
   }
 
@@ -386,6 +416,20 @@
     var archived = document.getElementById("search-archived").value;
     if (archived) {
       parts.push("archived = " + archived);
+    }
+    /* 5.2 (FR-46): assigned/creator — грамматика advanced (= и IS NULL).
+     * «Без исполнителя» (none) → assigned IS NULL (ОВ-24). Логин — в
+     * кавычках (кавычка внутри логина не встречается; _quote на сервере
+     * экранирует, здесь достаточно простой обертки — как для тегов). */
+    var assigned = document.getElementById("search-assigned").value;
+    if (assigned === "none") {
+      parts.push("assigned IS NULL");
+    } else if (assigned) {
+      parts.push('assigned = "' + assigned + '"');
+    }
+    var creator = document.getElementById("search-creator").value;
+    if (creator) {
+      parts.push('creator = "' + creator + '"');
     }
     return parts.join(" AND ");
   }
@@ -559,6 +603,52 @@
       });
   }
 
+  /* --- Подсказки assigned/creator (5.2, FR-46) --- */
+
+  /* GET /api/suggestions/users → {"users": [...]} — уникальные логины
+   * из столбцов creator/assigned существующих задач (JOIN tasks→users;
+   * механизм FR-35/DEF-001 — «значения из данных», не статические
+   * списки). Заполняет select'ы «Исполнитель» и «Создатель» конструктора:
+   * у assigned статические опции «любой» (пусто = фильтр не задан) и
+   * «без исполнителя» (none → assigned IS NULL, ОВ-24) сохраняются,
+   * логины дописываются после них; у creator — «любой» + логины.
+   * Сбой загрузки фильтру не мешает: select'ы остаются со статическими
+   * опциями (пустой фильтр = все задачи). textContent — XSS (ОГР-11). */
+  function loadUserSuggestions() {
+    fetch("/api/suggestions/users", { credentials: "same-origin" })
+      .then(function (response) {
+        if (!response.ok) {
+          return null;
+        }
+        return response.json().catch(function () {
+          return null;
+        });
+      })
+      .then(function (body) {
+        if (!body || !Array.isArray(body.users)) {
+          return;
+        }
+        var assigned = document.getElementById("search-assigned");
+        var creator = document.getElementById("search-creator");
+        var seen = {};
+        body.users.forEach(function (login) {
+          if (typeof login !== "string" || !login || seen[login]) {
+            return;
+          }
+          seen[login] = true;
+          var optAssigned = el("option", null, login);
+          optAssigned.value = login;
+          assigned.appendChild(optAssigned);
+          var optCreator = el("option", null, login);
+          optCreator.value = login;
+          creator.appendChild(optCreator);
+        });
+      })
+      .catch(function () {
+        /* Подсказки — необязательное украшение: тихо остаемся без них. */
+      });
+  }
+
   /* --- Инициализация --- */
 
   document
@@ -596,4 +686,5 @@
    * справочника, а общий порядок сети не меняется. */
   loadCategoryFilterOptions();
   loadSuggestions();
+  loadUserSuggestions();
 })();

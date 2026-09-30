@@ -7,14 +7,20 @@ parse()/build() (текст ↔ SearchFilters) и POST /api/search/advanced.
 - Query-параметры (все опциональны; пустой набор = ВСЕ задачи, включая
   архивные — спека search, Scenario «Поиск без заданных условий»):
   `priority`, `category`, `tag` (повторяемый), `due_before`, `due_after`,
-  `archived=true|false|all` (по умолчанию `all`).
+  `archived=true|false|all` (по умолчанию `all`); Релиз 4 (FR-46, ОВ-24):
+  `assigned` (login | `none` = без исполнителя), `creator` (login).
 - Ответ 200: {"results": [Task]} — Task по схеме sdd §3.2 (11 полей,
-  включая done_at и archived_at; archived_at = признак архивности, FR-10).
+  включая done_at и archived_at; archived_at = признак архивности, FR-10)
+  плюс (Релиз 4, FR-45/FR-46) `creator`/`assigned` — логины пользователей;
+  assigned = null у задачи без исполнителя (ОВ-24).
 - Ошибки: 422 (невозможное значение параметра — невалидный priority/
-  дата/archived); 401 — middleware (без сессии).
+  дата/archived; Релиз 4: assigned/creator — не login существующего
+  пользователя и не `none`); 401 — middleware (без сессии).
 
 Контракт POST /api/search/advanced — sdd.md §3.5:
-- Запрос: {"query": "priority = \"high\" AND tag IN (\"home\")"}.
+- Запрос: {"query": "priority = \"high\" AND tag IN (\"home\")"};
+  Релиз 4 (FR-46, ОВ-24): поля `assigned`/`creator` с операторами `=`
+  и `IS NULL` (assigned IS NULL — задачи без исполнителя).
 - Ответ 200: {"results": [Task], "normalized_query": "…"} — normalized
   сериализует РАСПАРСЕННЫЙ фильтр (build()), это не эхо ввода.
 - Ошибки: 400 {"error": "filter syntax: <позиция/причина>"} — и запрос
@@ -71,6 +77,19 @@ class SearchFilters:
     due_before: date | None = None
     due_after: date | None = None
     archived: str = "all"
+    # Релиз 4 (FR-46, ОВ-24): фильтры по пользователю. assigned хранит
+    # login; поиск «без исполнителя» — через assigned_is_null (IS NULL).
+    # `!=` для assigned/creator не поддерживается (5.2: только = и IS NULL).
+    assigned: str | None = None
+    assigned_is_null: bool = False
+    creator: str | None = None
+    creator_is_null: bool = False
+
+
+# Значение GET-параметра assigned = «без исполнителя» (ОВ-24): маппится в
+# `tasks.assigned_to_id IS NULL`. Логин «none» коллизирует с маркером —
+# валидация пользователя ниже это исключает (логины seed: owner/wife).
+UNASSIGNED = "none"
 
 
 def build_where(f: SearchFilters) -> tuple[str, list]:
@@ -132,21 +151,123 @@ def build_where(f: SearchFilters) -> tuple[str, list]:
         clauses.append("tasks.archived_at IS NULL")
     # "all" — предиката нет (пустой фильтр не ограничивает выборку).
 
+    # Релиз 4 (FR-46, ОВ-24): фильтры по пользователю через JOIN users
+    # (задача 5.2 — search.py своими предикатами, tasks.py не трогается).
+    # Значение — bind-параметр (NFR-7); логин проверен на существование
+    # до сюда (422 на несуществующего), в SQL он только сравнивается.
+    if f.assigned is not None:
+        clauses.append("assigned_user.login = ?")
+        params.append(f.assigned)
+    if f.assigned_is_null:
+        clauses.append("tasks.assigned_to_id IS NULL")
+    if f.creator is not None:
+        clauses.append("creator_user.login = ?")
+        params.append(f.creator)
+    if f.creator_is_null:
+        clauses.append("tasks.creator_id IS NULL")
+
     where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
     return where, params
 
 
+# SELECT выдачи поиска (свой, 5.2): столбцы Task (TASK_COLUMNS) + логины
+# creator/assigned JOIN'ом users (sdd §3.2/§3.5: ответ поиска содержит
+# creator/assigned — имена пользователей; null → null в JSON, ОВ-24).
+# tasks.py не изменяется: JOIN и проекция — зона search.py.
+# TASK_COLUMNS — короткие имена (id, title, ...); с JOIN users (у users
+# тоже id/login) неоднозначность исключается префиксом tasks. для КАЖДОГО
+# столбца — SQL в SELECT-проекции, не во WHERE, префикс валиден.
+_TASK_SEARCH_COLUMNS = ", ".join(
+    "tasks." + col.strip() for col in TASK_COLUMNS.split(",")
+)
+_SEARCH_SELECT_SQL = f"""
+SELECT {_TASK_SEARCH_COLUMNS},
+       creator_user.login,
+       assigned_user.login
+FROM tasks
+LEFT JOIN users AS creator_user ON creator_user.id = tasks.creator_id
+LEFT JOIN users AS assigned_user ON assigned_user.id = tasks.assigned_to_id
+"""
+
+
 def run_search(conn: sqlite3.Connection, f: SearchFilters) -> list[dict]:
-    """Выполняет параметризованный SELECT, возвращает Task-объекты."""
+    """Выполняет параметризованный SELECT, возвращает Task-объекты.
+
+    Релиз 4 (FR-45/FR-46): каждая задача дополнена `creator`/`assigned`
+    (логины; null у задачи без пользователя — ОВ-24 «Unassigned»).
+    """
     where, params = build_where(f)
     rows = conn.execute(
-        f"SELECT {TASK_COLUMNS} FROM tasks{where} ORDER BY tasks.id",
+        _SEARCH_SELECT_SQL + where + " ORDER BY tasks.id",
         params,
     ).fetchall()
-    return [_row_to_task(conn, row) for row in rows]
+    return [_row_to_task_with_users(conn, row) for row in rows]
 
 
-@router.get("")
+def _row_to_task_with_users(conn: sqlite3.Connection, row: tuple) -> dict:
+    """Строка поиска (TASK_COLUMNS + creator.login + assigned.login) → Task.
+
+    Поля 0…9 — в точности _row_to_task из tasks.py (нумерация TASK_COLUMNS);
+    creator/assigned добавляются поверх (sdd §3.2: creator: login,
+    assigned: login|null). tasks.py не трогается — своя проекция.
+    """
+    return {
+        "id": row[0],
+        "title": row[1],
+        "description": row[2],
+        "priority": row[3],
+        "category": row[4],
+        "due_date": row[5],
+        "tags": _load_search_tags(conn, row[10]),
+        "is_fast": bool(row[6]),
+        "status": row[7],
+        "done_at": row[8],
+        "archived_at": row[9],
+        "creator": row[10],
+        "assigned": row[11],
+    }
+
+
+def _load_search_tags(conn: sqlite3.Connection, task_id: int) -> list[str]:
+    """Теги задачи (тот же SELECT, что tasks._load_tags — копия, зона 5.2)."""
+    rows = conn.execute(
+        "SELECT t.name FROM tags t "
+        "JOIN task_tags tt ON tt.tag_id = t.id "
+        "WHERE tt.task_id = ? ORDER BY t.id",
+        (task_id,),
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
+def _validate_user_logins(
+    conn: sqlite3.Connection, assigned: str | None, creator: str | None
+) -> JSONResponse | None:
+    """422 на невозможное значение assigned/creator (sdd §3.5, FR-46).
+
+    assigned принимает login существующего пользователя ИЛИ `none`
+    («без исполнителя», ОВ-24); creator — только login. Логин не
+    существует → 422 {"error": "validation error", "details": {...}}
+    (формат ошибок sdd §3, обработчик RequestValidationError).
+    Выполняется ПОСЛЕ pydantic-валидации типов, ДО выборки из БД.
+    """
+    unknown: dict[str, str] = {}
+    for name, value in (("assigned", assigned), ("creator", creator)):
+        if value is None or (name == "assigned" and value == UNASSIGNED):
+            continue
+        row = conn.execute(
+            "SELECT 1 FROM users WHERE login = ?", (value,)
+        ).fetchone()
+        if row is None:
+            unknown[name] = "unknown user"
+    if unknown:
+        return JSONResponse(
+            status_code=422,
+            content={"error": "validation error", "details": unknown},
+        )
+    return None
+
+
+@router.get("", response_model=None)
 def search(
     request: Request,
     priority: Priority | None = Query(default=None),
@@ -155,13 +276,18 @@ def search(
     due_before: date | None = Query(default=None),
     due_after: date | None = Query(default=None),
     archived: Archived = Query(default="all"),
-) -> dict:
+    assigned: str | None = Query(default=None),
+    creator: str | None = Query(default=None),
+) -> dict | JSONResponse:
     """GET /api/search — структурированные условия (sdd §3.5, FR-10/11/8).
 
     Валидация типов/значений — FastAPI/pydantic: невалидный priority,
     дата не формата YYYY-MM-DD, archived вне true|false|all → 422
     (обработчик RequestValidationError, sdd §3). 401 без сессии —
     middleware. Пустой набор параметров = все задачи.
+    Релиз 4 (FR-46, ОВ-24): assigned = login | none («без исполнителя»),
+    creator = login; несуществующий логин → 422 (5.2, «422 на
+    невозможное значение»).
     """
     filters = SearchFilters(
         priority=priority,
@@ -170,9 +296,15 @@ def search(
         due_before=due_before,
         due_after=due_after,
         archived=archived,
+        assigned=assigned if assigned != UNASSIGNED else None,
+        assigned_is_null=(assigned == UNASSIGNED),
+        creator=creator,
     )
     conn = get_connection()
     try:
+        invalid = _validate_user_logins(conn, assigned, creator)
+        if invalid is not None:
+            return invalid
         results = run_search(conn, filters)
     finally:
         conn.close()
@@ -188,10 +320,10 @@ def search(
 # условия объединяются по И; OR в спеке/design НЕ оговорен — NOT
 # supported, явная ошибка; см. ОТЧЕТ, решение 2):
 #
-#   query     := "" | condition ( "AND" condition )*
-#   condition := field op value
+#   query     := " | condition ( "AND" condition )*
+#   condition := field op value | field "IS" "NULL"
 #   field     := priority | category | tag | due | due_before | due_after
-#                | archived
+#                | archived | assigned | creator                (Релиз 4)
 #   op        := "=" | "!=" | ">" | ">=" | "<" | "<=" | "IN"
 #   value     := <дата YYYY-MM-DD> | <строка в двойных кавычках> | <слово>
 #              | "(" <строка> ("," <строка>)* ")"     # только после IN
@@ -199,6 +331,9 @@ def search(
 # Ограничения по полям (белый список; иное — 400 с позицией):
 # - priority, category: = и !=; значение — строка (кавычки или слово);
 #   priority — только low|medium|high (sdd §3.2 CHECK);
+# - assigned, creator (Релиз 4, FR-46/ОВ-24): = и IS NULL —
+#   `assigned = "<login>"`, `assigned IS NULL` (задачи без исполнителя);
+#   значение = — кавычечная строка или слово; != не поддерживается;
 # - tag: только IN (...); значения — кавычечные строки;
 # - due: сравнения > >= < <= и = (значение — дата YYYY-MM-DD;
 #   due = D — фиксированный день: эквивалент due >= D AND due <= D);
@@ -289,6 +424,7 @@ _FIELDS = {
     "priority", "category", "tag",
     "due", "due_before", "due_after",
     "archived",
+    "assigned", "creator",  # Релиз 4 (FR-46): = и IS NULL
 }
 
 
@@ -340,6 +476,21 @@ def _parse_condition(
     if field_tok.value not in _FIELDS:
         raise FilterSyntaxError(field_tok.pos, f"unknown field {field_tok.value!r}")
     i += 1
+
+    # `field IS NULL` (Релиз 4, FR-46/ОВ-24): IS — лексически word;
+    # следующий токен обязан быть словом NULL (регистр как в SQL —
+    # заглавными; строчное null = неизвестное поле-значение → 400).
+    if (
+        i < len(tokens)
+        and tokens[i].kind == "word"
+        and tokens[i].value == "IS"
+    ):
+        null_tok = _expect(tokens, i + 1, "word", "'NULL' after IS")
+        if null_tok.value != "NULL":
+            raise FilterSyntaxError(
+                null_tok.pos, f"expected NULL after IS, got {null_tok.value!r}"
+            )
+        return field_tok.value, "IS_NULL", None, i + 2, field_tok.pos
 
     # IN — лексически word: в позиции оператора слово IN признается
     # оператором; op-токены (= != > >= < <=) распознал лексер.
@@ -456,6 +607,40 @@ def _apply_predicate(
         f.archived = raw
         return
 
+    if fname in ("assigned", "creator"):
+        # Релиз 4 (FR-46, ОВ-24): = и IS NULL; значение = — логин
+        # (существование НЕ проверяем в parse — parse без БД по
+        # построению; несуществующий логин просто не совпадет ни с
+        # одной строкой JOIN'а: пустая выдача, не ошибка).
+        if op == "IS_NULL":
+            if fname == "assigned":
+                if f.assigned is not None or f.assigned_is_null:
+                    raise FilterSyntaxError(pos, "duplicate field assigned")
+                f.assigned_is_null = True
+            else:
+                if f.creator is not None or f.creator_is_null:
+                    raise FilterSyntaxError(pos, "duplicate field creator")
+                f.creator_is_null = True
+            return
+        if op != "=":
+            raise FilterSyntaxError(
+                pos, f"{fname} supports = and IS NULL"
+            )
+        sort, raw = value  # type: ignore[misc]
+        if sort == "date":
+            raise FilterSyntaxError(
+                pos, f"{fname} requires a login (quoted string or word)"
+            )
+        if fname == "assigned":
+            if f.assigned is not None or f.assigned_is_null:
+                raise FilterSyntaxError(pos, "duplicate field assigned")
+            f.assigned = raw
+        else:
+            if f.creator is not None or f.creator_is_null:
+                raise FilterSyntaxError(pos, "duplicate field creator")
+            f.creator = raw
+        return
+
     if fname in ("priority", "category"):
         if op not in ("=", "!="):
             raise FilterSyntaxError(
@@ -549,6 +734,15 @@ def build(f: SearchFilters) -> str:
         parts.append(f"category != {_quote(f.category_ne)}")
     if f.tags:
         parts.append("tag IN (" + ", ".join(_quote(t) for t in f.tags) + ")")
+    # Релиз 4 (FR-46, ОВ-24): assigned/creator — синхронно с фильтром.
+    if f.assigned is not None:
+        parts.append(f"assigned = {_quote(f.assigned)}")
+    if f.assigned_is_null:
+        parts.append("assigned IS NULL")
+    if f.creator is not None:
+        parts.append(f"creator = {_quote(f.creator)}")
+    if f.creator_is_null:
+        parts.append("creator IS NULL")
     if f.due_after is not None and f.due_after == f.due_before:
         # due = D — каноническая форма равенства (build(parse) устойчив).
         parts.append(f"due = {f.due_after.isoformat()}")
