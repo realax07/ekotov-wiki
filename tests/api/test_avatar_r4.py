@@ -171,14 +171,14 @@ def test_upload_jpg_success(base_url, owner_session, owner_user_id):
 
 @pytest.mark.must
 def test_center_crop_square_256(base_url, owner_session, owner_user_id):
-    """TC-ava-003: исходник 1000×800 → сохранен квадрат ровно 256×256 (Д-8);
-    center-crop проверяется по цвету краев исходника."""
-    # 1000×800: боковые полосы другого цвета — при center-crop до 800×800
-    # они срезаются; в сохраненном 256×256 их быть не должно.
+    """TC-ava-003 (ревизия r5, задача 2.1 — решение Заказчика 2026-10-01):
+    исходник 1000×800 → сохранен квадрат ровно 256×256 (Д-8/Д-13).
+    Пиксельные ассерты center-crop сняты: r5 вводит безусловную серверную
+    нормализацию resize (ОВ-СА-2, спека auth «Серверная нормализация не
+    доверяет клиенту») — center-crop больше не канон, геометрический
+    инвариант «любой вход → 256×256 PNG» сохранен (покрыт также
+    tests/api/test_avatar_r5.py)."""
     img = Image.new("RGB", (1000, 800), (255, 255, 255))
-    for x in range(0, 100):
-        for y in range(0, 800):
-            img.putpixel((x, y), (0, 0, 0))
     buf = io.BytesIO()
     img.save(buf, format="PNG")
 
@@ -187,9 +187,7 @@ def test_center_crop_square_256(base_url, owner_session, owner_user_id):
 
     with Image.open(_avatar_file_path(owner_user_id)) as saved:
         assert saved.size == (256, 256)
-        rgb = saved.convert("RGB")
-        assert rgb.getpixel((5, 128)) == (255, 255, 255), "center-crop не по центру"
-        assert rgb.getpixel((250, 128)) == (255, 255, 255)
+        assert saved.format == "PNG"
 
 
 # ==========================================================================
