@@ -135,8 +135,9 @@ function renderTagsChips() {
   });
 }
 
-function splitTags(raw) {
-  /* Строка через запятую → массив непустых тегов. */
+export function splitTags(raw) {
+  /* Строка через запятую → массив непустых тегов. (Экспорт — r6:
+   * tag-combobox.js фильтрует подсказки по тем же токенам input.) */
   return raw
     .split(",")
     .map(function (tag) {
@@ -151,12 +152,22 @@ function categoryField() {
   return document.getElementById(CATEGORY_FIELD_ID);
 }
 
-/* --- Автодополнение тегов: datalist из GET /api/suggestions (4.1, FR-26/Д-3) --- */
+/* --- Автодополнение тегов: кастомный комбобокс (r6 2.1/2.2, FR-57…FR-59,
+ * NFR-17/18) поверх datalist-совместимости (r3/r4-тесты) --- */
+
+import {
+  initTagCombobox,
+  setTagHints,
+  closeTagHints,
+} from "./tag-combobox.js";
 
 function fillTagHints(values) {
   /* Опции datalist — только через textContent (XSS, dom.js); полная
    * перезагрузка при каждом открытии формы (следует за заведенными
-   * значениями, как и select категории за справочником). */
+   * значениями, как и select категории за справочником). r6: datalist
+   * #task-tag-hints скрыт (нативный UI заменен комбобоксом), но
+   * остается ЗЕРКАЛОМ множества подсказок — r3/r4-тесты set-семантики
+   * читают его option'ы; источник один — этот вызов. */
   var datalist = document.getElementById("task-tag-hints");
   datalist.textContent = "";
   values.forEach(function (value) {
@@ -164,26 +175,36 @@ function fillTagHints(values) {
     option.value = value;
     datalist.appendChild(option);
   });
+  /* Комбобокс (дропдаун role=listbox) — то же множество. */
+  setTagHints(values);
 }
 
 function loadTagHints() {
-  /* Источник — существующий GET /api/suggestions (Д-3: механизм един
-   * с подсказками поиска; sdd r2 §3.2 — эндпоинт без изменений).
-   * Ответ 200: {"suggestions": [...]} — set() тегов+категорий
-   * существующих задач, без дублей, отсортировано. Сбой (в т.ч. 401
-   * при истекшей сессии) — datalist пустой: подсказки не показываются,
-   * свободный ввод тегов сохраняется (новое значение — тег, FR-26). */
+  /* Источник — GET /api/suggestions?kind=tags (r6, Д-14/ОВ-1: только
+   * теги; ОГР-26: контракт без параметра не менялся — пока backend-
+   * задача 1.1 не влита, сервер игнорирует параметр и отвечает полным
+   * множеством tags ∪ categories — переходно-корректно, ввод фильтрует).
+   * Ответ 200: {"suggestions": [...]}, без дублей, отсортировано. Сбой
+   * (в т.ч. 401 при истекшей сессии) — подсказок нет: дропдаун не
+   * показан, свободный ввод тегов сохраняется (новое значение — тег,
+   * FR-26/NFR-17, СЦ-5). */
   api(
-    "/api/suggestions",
+    "/api/suggestions?kind=tags",
     {},
     function () {
       fillTagHints([]);
+      closeTagHints();
     },
     function (body) {
       fillTagHints((body && body.suggestions) || []);
     }
   );
 }
+
+/* Рядом с loadTagHints: инициализация комбобокса — бинд input/дропдауна
+ * (r6 2.1/2.2). Разметка статична в board.html — бинд при загрузке
+ * модуля (как initAutoTextareas). */
+initTagCombobox();
 
 /* --- Категория: select из GET /api/categories (3.1, FR-19/FR-30) --- */
 
@@ -616,6 +637,12 @@ export function openEditForm(task) {
 }
 
 export function closeTaskForm() {
+  /* Review 2.1/2.2 (major): закрыть дропдаун комбобокса ВМЕСТЕ с
+   * формой — иначе он переживает закрытие (hidden-состояние сбрасывает
+   * только клик по странице) и при переоткрытии формы «залипает»
+   * (перехватывает клики по «Создать»). closeTaskForm — единая точка
+   * закрытия: submit (task-form.js), «Отмена» и крестик (board-init.js). */
+  closeTagHints();
   document.getElementById("task-form-overlay").hidden = true;
   boardState.currentTaskId = null;
 }

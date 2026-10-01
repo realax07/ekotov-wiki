@@ -537,12 +537,16 @@ def test_task_form_tag_hints_show_known_values(
         api_values = set(resp.json()["suggestions"])
         assert {"QAT-тег-home", "QAT-тег-urgent", "QAT-кат-work"} <= api_values
 
-        # Шаг 2: форма задачи; поле «Теги» — атрибут list (datalist) и его id.
+        # Шаг 2: форма задачи; подсказки поля «Теги» — r6: нативный
+        # datalist заменен кастомным комбобоксом (FR-58/59, ОВ-2);
+        # атрибут list снят, но зеркало-datalist #task-tag-hints остается
+        # (REVALIDATE CHK-112: состав подсказок прежний — сверка с API).
         _open_form(page)
         tags_field = page.get_by_label("Теги (через запятую)")
-        datalist_id = tags_field.get_attribute("list")
-        assert datalist_id, "у поля «Теги» формы нет атрибута list"
-        datalist = page.locator(f"#{datalist_id}")
+        assert tags_field.get_attribute("aria-controls") == "task-tag-combobox", (
+            "поле «Теги» не связано с комбобоксом (aria-controls)"
+        )
+        datalist = page.locator("#task-tag-hints")
 
         # Шаг 3: опции datalist (автожидание наполнения — по числу из API).
         # Пустая опция-плейсхолдер «—» (value="") в справочник не входит.
