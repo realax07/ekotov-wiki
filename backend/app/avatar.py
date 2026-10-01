@@ -13,8 +13,11 @@ NFR-10, ОГР-16, Д-8, ОВ-22; design.md пакета §2, sdd r10 §3.1a-к�
 (Pillow-декодирование), а не по расширению; размер проверяется ДО декодирования
 (чтение не более LIMIT+1 байт — защита памяти VPS, NFR-10).
 
-Сжатие (Д-8): Pillow center-crop до квадрата + resize 256×256 (LANCZOS);
-формат содержимого приводится к png независимо от исходника (design §2).
+Сжатие (Д-8/Д-13, r5 задача 2.1): безусловное приведение декодированного
+изображения к 256×256 LANCZOS (img.resize((256, 256), LANCZOS)) НЕЗАВИСИМО
+от входной геометрии (ОВ-СА-2: сервер не доверяет клиенту — пришедший
+не-квадрат все равно нормализуется к 256×256); формат содержимого приводится
+к png независимо от исходника (design §2).
 
 Хранение (blocker C-1 ревью review-001, ОГР-16): каталог AVATARS_DIR
 (конфигурация через окружение, дефолт /var/lib/ekotov-wiki/avatars/) — вне
@@ -73,14 +76,14 @@ def _declared_type_allowed(upload: UploadFile) -> bool:
     return ext in _ALLOWED_DECLARED_EXT
 
 
-def _center_crop_square(img: Image.Image) -> Image.Image:
-    """Center-crop до квадрата + resize 256×256 LANCZOS (Д-8)."""
-    width, height = img.size
-    side = min(width, height)
-    left = (width - side) // 2
-    top = (height - side) // 2
-    cropped = img.crop((left, top, left + side, top + side))
-    return cropped.resize((AVATAR_SIZE, AVATAR_SIZE), Image.LANCZOS)  # type: ignore[attr-defined]  # Pillow alias Image.Resampling.LANCZOS
+def _normalize_256(img: Image.Image) -> Image.Image:
+    """Безусловное приведение к 256×256 LANCZOS (Д-8/Д-13, ОВ-СА-2).
+
+    Входная геометрия игнорируется: честный клиент присылает готовый квадрат
+    256×256 (resize — no-op), подмененный/старый — что угодно (все равно
+    получит 256×256 PNG).
+    """
+    return img.resize((AVATAR_SIZE, AVATAR_SIZE), Image.LANCZOS)  # type: ignore[attr-defined]  # Pillow alias Image.Resampling.LANCZOS
 
 
 @router.post("/avatar")
@@ -123,11 +126,12 @@ async def upload_avatar(request: Request, file: UploadFile) -> JSONResponse:
         except Exception:
             return JSONResponse(status_code=422, content=INVALID_FILE_TYPE_BODY)
 
-        # 4) Сжатие: center-crop квадрат + 256×256 (Д-8); формат содержимого
+        # 4) Сжатие: безусловная нормализация к 256×256 LANCZOS независимо
+        #    от входной геометрии (Д-8/Д-13, ОВ-СА-2); формат содержимого
         #    приводится к png независимо от исходника (design §2).
         if img.mode not in ("RGB", "RGBA"):
             img = img.convert("RGB")
-        avatar_img = _center_crop_square(img)
+        avatar_img = _normalize_256(img)
 
         # 5) Сохранение: <AVATARS_DIR>/<user_id>.png — имя генерирует сервер
         #    (NFR-7); каталог создается идемпотентно при первом сохранении
