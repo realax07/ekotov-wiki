@@ -128,10 +128,12 @@ def test_actions_zone_delete_separated_and_create_mode(board_page):
     cancel_box = cancel.bounding_box()
     assert row_box and delete_box and cancel_box
 
-    # Прижата к правому краю ряда (±8px — padding контейнера).
+    # Прижата к правому краю ряда (±8px — padding контейнера);
+    # двусторонний ассерт (review-001 №1): переполнение ряда (отрицательный
+    # зазор) раньше проходило одностороннюю проверку.
     row_right = row_box["x"] + row_box["width"]
     delete_right = delete_box["x"] + delete_box["width"]
-    assert row_right - delete_right <= 8, (row_right, delete_right)
+    assert abs(row_right - delete_right) <= 8, (row_right, delete_right)
 
     # Зазор слева больше межкнопочного gap (8px): разделитель/отступ.
     gap = delete_box["x"] - (cancel_box["x"] + cancel_box["width"])
@@ -227,6 +229,9 @@ def test_escape_closes_form_clean_immediately_dirty_with_confirm(
 
     # 3) Отмена подтверждения → форма осталась со значениями.
     page.keyboard.press("Escape")
+    # Подсчет диалогов (review-001 №4): повторный Escape обязан открыть
+    # НОВЫЙ confirm — без него форма закрылась бы молча (диалогов 2, не 1).
+    assert len(dialogs) == 2, dialogs
     assert dialogs[-1] == "Закрыть без сохранения?"
     # диалог уже отклонён auto-handler'ом (dismiss в page.on); текущий
     # Escape — тот же диалог: форма осталась, повторное dismiss не нужно.
@@ -234,12 +239,18 @@ def test_escape_closes_form_clean_immediately_dirty_with_confirm(
     assert title.input_value() == "QAT-escape-измененное"
 
     # 4) Подтверждение → форма закрыта без сохранения.
-    # Снимаем dismiss-автохендлер и вешаем accept: третий Escape открыл
+    # Снимаем dismiss-автохендлер и вешаем accept (с подсчетом — диалог
+    # MUST открыться и здесь, review-001 №4): третий Escape открыл
     # НОВЫЙ confirm (диалог модален — открытие возможно только из
     # обработчика, dismissed-диалог уже завершен). Ждем его появление,
     # затем принимаем.
     page.remove_listener("dialog", _auto_dismiss)
-    page.on("dialog", lambda d: d.accept())
+
+    def _accept_and_count(dialog):
+        dialogs.append(dialog.message)
+        dialog.accept()
+
+    page.on("dialog", _accept_and_count)
 
     def _wait_for_third_dialog():
         page.keyboard.press("Escape")
@@ -247,6 +258,7 @@ def test_escape_closes_form_clean_immediately_dirty_with_confirm(
     expect(page.locator(FORM_OVERLAY)).to_be_visible()
     _wait_for_third_dialog()
     expect(page.locator(FORM_OVERLAY)).to_be_hidden()
+    assert len(dialogs) == 3, dialogs
 
     # 5) Данные на сервере не изменились (СЦ-8, негативный путь).
     resp = web_owner_session.get(f"{web_base_url}/api/tasks/{task_id}")
@@ -297,19 +309,25 @@ def test_escape_with_dropdown_and_mobile_480(
           const doc = document.documentElement;
           const form = document.getElementById('task-form');
           const row = document.querySelector('.task-actions');
-          const title = document.getElementById('task-title');
           const formRect = form.getBoundingClientRect();
           const fields = [...form.querySelectorAll('input[type="text"], input[type="date"], textarea, select')]
             .filter(el => el.offsetParent !== null && el.type !== 'checkbox'
                           && !el.closest('.task-actions'))
             .map(el => {
               const r = el.getBoundingClientRect();
-              const label = el.closest('label');
               return {right: r.right, formRight: formRect.right,
-                      labelWidth: label ? label.getBoundingClientRect().width : 0,
-                      width: r.width, labelX: label ? label.getBoundingClientRect().x : 0};
+                      formWidth: formRect.width,
+                      width: r.width, x: r.x, formX: formRect.x};
             });
           const rowRect = row.getBoundingClientRect();
+          // Кнопки зоны (review-001 №5): та же метрика «на всю ширину
+          // формы» — в сумме ряд занимает ширину формы (wrap допустим).
+          const buttons = [...row.querySelectorAll('button')]
+            .filter(el => el.offsetParent !== null)
+            .map(el => {
+              const r = el.getBoundingClientRect();
+              return {right: r.right, formRight: formRect.right, width: r.width};
+            });
           const offenders = [...document.querySelectorAll('body *')]
             .filter(el => el.getBoundingClientRect().right > doc.clientWidth + 1)
             .sort((a, b) => b.getBoundingClientRect().right - a.getBoundingClientRect().right)
@@ -326,7 +344,7 @@ def test_escape_with_dropdown_and_mobile_480(
           return {
             scrollW: doc.scrollWidth, clientW: doc.clientWidth,
             formRight: formRect.right, winW: window.innerWidth,
-            fields, rowWrap: rowRect.height > 80, offenders, branchInfo,
+            fields, buttons, rowWrap: rowRect.height > 80, offenders, branchInfo,
           };
         }"""
     )
@@ -337,8 +355,14 @@ def test_escape_with_dropdown_and_mobile_480(
     )
     for index, field in enumerate(metrics["fields"]):
         assert field["right"] <= metrics["formRight"] + 1, (index, field)
-        assert field["width"] >= 0.9 * field["labelWidth"], (
+        # Full-width (review-001 №5): поле тянется от левого до правого
+        # края формы (±1px), а не «шире label» — сравнение с формой.
+        assert field["width"] >= 0.9 * field["formWidth"], (
             f"поле {index} не full-width: {field}"
         )
+        assert field["x"] <= field["formX"] + 1, (index, field)
+    # Кнопки зоны: каждая — до правого края формы (review-001 №5).
+    for index, button in enumerate(metrics["buttons"]):
+        assert button["right"] <= metrics["formRight"] + 1, (index, button)
     # Кнопки зоны переносятся (wrap) — ряд стал выше одной строки кнопок.
     assert metrics["rowWrap"], "кнопки зоны не переносятся на 480px"

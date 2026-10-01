@@ -694,6 +694,23 @@
   vertical-align: top;
 }
 
+/* r6 3.1, review-001 №1: горизонтальный паддинг 8px (--space-1) для
+ * кнопок ЗОНЫ ДЕЙСТВИЙ вместо макетных 24px — переопределение ПОСЛЕ
+ * id-группы выше (иначе ID-специфичность побеждает). Причина: эталонный
+ * ряд макета рассчитан на карточку 830px, в прод-модалке (~465px внутри)
+ * сумма макетных ширин [Столбец][Сохранить][Отмена][Удалить] ≈ 540px —
+ * ряд переполнял модалку и «Удалить» с margin-left:auto вылезала за
+ * край; на 8px-паддинге ряд умещается и прижатие вправо работает
+ * (TC-r6-wave2-002). Высота 10px, радиус, цвета — макетные. */
+.task-actions button,
+#task-form-cancel,
+#task-delete-button {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+}
+
 .task-actions button:focus-visible,
 .task-view-actions button:focus-visible,
 .comment-form button[type="submit"]:focus-visible,
@@ -919,19 +936,27 @@
   margin-bottom: 0;
   margin-right: var(--space-1);
   /* flex-элемент ряда: авто-ширина (block-label формы растянул бы ряд
-   * в перенос — 4.1 r6); white-space: nowrap — «Столбец» не рвется. */
+   * в перенос — 4.1 r6); white-space: nowrap — «Столбец» не рвется.
+   * min-width: 0 — при ужании ряда первым сжимается СЕЛЕКТ (margin-left:
+   * auto «Удалить» работает только при свободном месте; без этого
+   * авто-ширина label'а держала ряд «раздутым», контент вылезал за
+   * край модалки, а «Удалить» теряла прижатие — review-001 №1). */
   width: auto;
+  min-width: 0;
   flex: 0 1 auto;
   white-space: nowrap;
 }
-
 /* Селект «Столбец» — тот же прием «нижняя линия 2px», что поля формы
  * (FR-60; эталон макета .task-actions-row select). width — по контенту
- * (auto): full-width правило полей формы не должно раздувать ряд. */
+ * (auto): full-width правило полей формы не должно раздувать ряд.
+ * min-width: 85px — этаж сжатия: показывает самое длинное значение
+ * «Выполнено» целиком (review-001 №1: без этажа select сжимался
+ * вместе с label'ом при ужании ряда). */
 .task-actions select {
   font: inherit;
   color: var(--color-text-primary);
   width: auto;
+  min-width: 85px;
   padding: var(--space-05) var(--space-05) 6px;
   border: none;
   border-bottom: 2px solid var(--color-border-default);
@@ -954,7 +979,7 @@
  * ::before (эталон макета .btn-destructive). Приоритет селектора —
  * перекрывает прежний вторичный контур группы ниже. */
 .task-actions #task-delete-button {
-  margin-left: var(--space-3);
+  margin-left: auto;
   position: relative;
   color: var(--status-error);
   border-color: var(--status-error);

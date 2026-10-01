@@ -252,13 +252,15 @@ function fillAssignedSelect(users, selectedId) {
     : String(selectedId);
 }
 
-function loadAssignedOptions(selectedLogin) {
+function loadAssignedOptions(selectedLogin, onLoaded) {
   /* Источник — read-only GET /api/users (sdd §3.1a-кватер-бис, ОВ-26):
    * 200 {"users": [{id, login, display_name}]}, отсортированы по login.
    * Аргумент — ЛОГИН исполнителя (Task-контракт несет имена: sdd §3.2
    * «creator/assigned — логины»; id в ответе задачи нет): id для
    * select.value резолвится по загруженному списку; неизвестный логин
-   * → «Не назначено» (значения только из пользователей).
+   * → «Не назначено» (значения только из пользователей). onLoaded —
+   * колбэк ПОСЛЕ выставления значения (r6 4.2: точечное обновление
+   * снапшота исполнителя в openEditForm — симметрично loadCategoryOptions).
    * assignedLoaded/assignedLoadGen (review-008 major): флаг «список
    * готов» gating'ает включение assigned_to_id в payload (см.
    * collectTaskForm); token отсекает stale-ответы при переоткрытии
@@ -273,6 +275,7 @@ function loadAssignedOptions(selectedLogin) {
     function () {
       if (gen !== assignedLoadGen) return;
       fillAssignedSelect([], null);
+      if (onLoaded) onLoaded();
     },
     function (body) {
       if (gen !== assignedLoadGen) return;
@@ -285,6 +288,7 @@ function loadAssignedOptions(selectedLogin) {
       }
       fillAssignedSelect(users, selectedId);
       assignedLoaded = true;
+      if (onLoaded) onLoaded();
     }
   );
 }
@@ -437,6 +441,7 @@ var SNAPSHOT_FIELD_IDS = [
   "task-description",
   PRIORITY_FIELD_ID,
   CATEGORY_FIELD_ID,
+  ASSIGNED_FIELD_ID,
   "task-due-date",
   TAGS_INPUT_ID,
 ];
@@ -683,7 +688,15 @@ export function openEditForm(task) {
    * Task несет ЛОГИН исполнителя (assigned, sdd §3.2 — id в ответе нет);
    * id для select резолвит loadAssignedOptions по /api/users;
    * смена/очистка — тем же селектом, отправка через PATCH. */
-  loadAssignedOptions(task.assigned !== undefined ? task.assigned : null);
+  loadAssignedOptions(task.assigned !== undefined ? task.assigned : null, function () {
+    /* r6 4.2 (FR-61), review-001 №2: симметрично категории — снимок
+     * «чистого» состояния обновлен ТОЛЬКО по полю исполнителя: список
+     * пользователей приходит асинхронно, и до его загрузки select стоит
+     * на «Не назначено»; без точечного обновления открытие на задачу С
+     * исполнителем считалось бы «грязным» сразу (лишний confirm), а
+     * полный пересъем затер бы правки, внесенные за время загрузки. */
+    refreshTaskSnapshotField(ASSIGNED_FIELD_ID);
+  });
   /* Подсказки тегов — и в режиме редактирования: те же заведенные
    * значения (FR-26 действует на форму в обоих режимах). */
   loadTagHints();
