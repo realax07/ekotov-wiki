@@ -368,6 +368,19 @@
   justify-content: flex-end;
 }
 
+/* Задача 3.3: prefers-reduced-motion (ОГР-17 Р4) — трансформации
+ * виджета без transition/animation (полный запрет внутри блока кропа,
+ * независимо от общих стилей страницы). */
+@media (prefers-reduced-motion: reduce) {
+  .profile-settings-page .crop-widget,
+  .profile-settings-page .crop-widget *,
+  .profile-settings-page .crop-mask,
+  .profile-settings-page .crop-mask * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
 /* ================= Адаптив: ≤768px — одна колонка (FR-56) ================= */
 @media (max-width: 768px) {
   .profile-settings-page .card-grid {
