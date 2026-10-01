@@ -237,6 +237,137 @@
   margin: var(--space-05) 0 0;
 }
 
+/* ================= Кроп-виджет (задача 3.2; по макету J25) ================= */
+/* Токены V3 — из app.css :root; классы .crop-widget/.crop-mask/.zoom-* —
+ * 1:1 с design/avatar-crop-v3.html. Маска = live-предпросмотр (FR-51):
+ * canvas перерисовывается модулем avatar-crop.js на каждое перемещение/зум. */
+.profile-settings-page .crop-widget {
+  display: none;                /* .is-open → показывается сразу после выбора файла (Д-12) */
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-2);
+}
+
+.profile-settings-page .crop-widget.is-open { display: flex; }
+
+.profile-settings-page .crop-mask {
+  width: 224px;
+  height: 224px;                /* кратно 8; маска = итоговый кружок аватара */
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--color-border-strong);
+  margin: 0 auto;
+  cursor: grab;
+  touch-action: none;           /* pointer-drag без скролла страницы */
+  background: var(--color-bg-surface);
+}
+
+.profile-settings-page .crop-mask:active { cursor: grabbing; }
+
+.profile-settings-page .crop-mask:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.profile-settings-page .crop-mask canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* ОВ-СА-4: исходник меньше маски — предупреждение о потере четкости. */
+.profile-settings-page .crop-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-accent);
+  font-size: 12px;
+  margin: 0;
+}
+
+.profile-settings-page .crop-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  justify-content: center;
+}
+
+/* Зум: native range (стрелки — нативно, NFR-15) + кнопки ± (шаг 10%, ОВ-СА-5) */
+.profile-settings-page .zoom-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.profile-settings-page .zoom-row label {
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.profile-settings-page .zoom-slider {
+  flex: 1;
+  accent-color: var(--color-accent);
+  height: 32px;
+}
+
+.profile-settings-page .zoom-slider:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-field);
+}
+
+.profile-settings-page .zoom-btn {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  padding: 0;
+}
+
+.profile-settings-page .zoom-btn:hover { background: var(--color-bg-subtle); }
+
+.profile-settings-page .zoom-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.profile-settings-page .zoom-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.profile-settings-page .zoom-value {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  min-width: 40px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-settings-page .crop-actions {
+  display: flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}
+
 /* ================= Адаптив: ≤768px — одна колонка (FR-56) ================= */
 @media (max-width: 768px) {
   .profile-settings-page .card-grid {
@@ -265,6 +396,17 @@
   .profile-settings-page .password-grid {
     grid-template-columns: 1fr;
     max-width: none;
+  }
+
+  /* Кроп-виджет на узком экране (FR-56): маска 192px — по макету J25. */
+  .profile-settings-page .crop-mask {
+    width: 192px;
+    height: 192px;
+  }
+
+  .profile-settings-page .crop-actions,
+  .profile-settings-page .zoom-row {
+    flex-wrap: wrap;
   }
 
   .profile-settings-page .form-actions {

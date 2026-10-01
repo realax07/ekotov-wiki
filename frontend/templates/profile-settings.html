@@ -46,6 +46,48 @@
         </form>
         <p id="avatar-error" class="form-error" hidden></p>
         <p id="avatar-success" class="form-success" hidden></p>
+
+        {# ===== Кроп-виджет (задача 3.2, Д-12): открывается сразу после
+             выбора файла; маска = live-предпросмотр (FR-51); «Применить» —
+             canvas 256×256 → POST /api/profile/avatar (контракт Р4);
+             «Отмена»/уход — сброс без запросов (FR-53). Токены/классы —
+             по макету design/avatar-crop-v3.html (J25). ===== #}
+        <div class="crop-widget" id="crop-widget" role="group" aria-label="Выбор области аватара" data-testid="crop-widget">
+          <div class="crop-mask" id="crop-mask" tabindex="0" aria-label="Область кропа — двигайте фото перетаскиванием">
+            <canvas id="crop-canvas" aria-hidden="true"></canvas>
+          </div>
+
+          <p class="crop-warning" id="crop-warning" hidden>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="7" cy="7" r="6"/><path d="M7 4v3.5M7 9.8v.2" stroke-linecap="round"/>
+            </svg>
+            Фото меньше маски — растянуто, возможна потеря четкости
+          </p>
+
+          <p class="crop-hint">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+              <path d="M7 1.5v11M1.5 7h11"/><circle cx="7" cy="7" r="5.5"/>
+            </svg>
+            Двигайте фото, зум — слайдером и колесом
+          </p>
+
+          <div class="zoom-row">
+            <label for="crop-zoom">Зум</label>
+            <button type="button" class="zoom-btn" id="zoom-out" aria-label="Уменьшить зум (шаг 10%)">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 6h8"/></svg>
+            </button>
+            <input type="range" class="zoom-slider" id="crop-zoom" min="100" max="300" value="100" step="5" aria-label="Зум, % от cover">
+            <button type="button" class="zoom-btn" id="zoom-in" aria-label="Увеличить зум (шаг 10%)">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg>
+            </button>
+            <span class="zoom-value" id="zoom-value">100%</span>
+          </div>
+
+          <div class="crop-actions">
+            <button type="button" class="btn btn-primary" id="crop-apply">Применить</button>
+            <button type="button" class="btn btn-secondary" id="crop-cancel">Отмена</button>
+          </div>
+        </div>
       </div>
 
       {# ===== Секция 2: данные профиля (состав Р4 без потерь) ===== #}
@@ -106,4 +148,5 @@
 </div>
 
 <script type="module" src="/static/js/profile-settings.js?v={{ static_v }}"></script>
+<script src="/static/js/avatar-crop.js?v={{ static_v }}"></script>
 {% endblock %}
