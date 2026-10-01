@@ -17,6 +17,21 @@
 - Авторизация: обязательна — путь не в exempt-списке middleware
   (app/middleware.py), без валидной сессии — 401 {"error": "unauthorized"}.
 
+Релиз 6 (задача 1.1, change add-r6-task-form-ux, FR-57/ОГР-26/Д-14):
+опциональный query-параметр `kind`:
+- БЕЗ параметра — прежнее поведение, дословно: UNION тегов и категорий
+  (обратная совместимость ОГР-26 — потребитель search.js/datalist не
+  меняется, TC-API-SUGG-001/004 зеленые без изменений);
+- kind=tags — только уникальные теги существующих задач (та же ветка
+  DISTINCT tags JOIN task_tags: осиротевшие теги удаленных задач
+  исключены, sorted, дедупликация как в прежнем UNION) — источник
+  комбобокса тегов формы задачи (ОВ-1);
+- kind=categories — только категории существующих задач (та же ветка
+  DISTINCT category, пустые/NULL исключены);
+- иной/неизвестный kind — 422 (явный отказ, не тихий UNION; Literal
+  аннотация — штатная валидация FastAPI). Авторизация без изменений:
+  401 без сессии при любом kind (middleware, преемственность FR-18).
+
 Потребитель: search.js заполняет <datalist id="tag-hints"> на /search;
 datalist привязан к обоим полям конструктора (теги и категория) через
 list="tag-hints" (search.html).
@@ -40,6 +55,8 @@ tasks.creator_id / tasks.assigned_to_id, НЕ весь справочник /api
 данных тот же (теги существующих задач), контракт не меняется.
 """
 
+from typing import Literal
+
 from fastapi import APIRouter
 
 from app.db import get_connection
@@ -60,13 +77,44 @@ WHERE category IS NOT NULL AND category != ''
 ORDER BY 1
 """
 
+# Релиз 6 (1.1, FR-57/Д-14): ветки параметра kind. Каждый запрос —
+# подмножество прежнего множества (тот же механизм «значения из данных»,
+# FR-35/DEF-001): теги — только join через task_tags до задач (осиротевшие
+# строки tags не попадают), категории — только непустые у существующих задач.
+_KIND_TAGS_SQL = """
+SELECT DISTINCT tags.name
+FROM tags
+JOIN task_tags ON task_tags.tag_id = tags.id
+ORDER BY 1
+"""
+
+_KIND_CATEGORIES_SQL = """
+SELECT DISTINCT category
+FROM tasks
+WHERE category IS NOT NULL AND category != ''
+ORDER BY 1
+"""
+
 
 @router.get("")
-def suggestions() -> dict:
-    """GET /api/suggestions → {"suggestions": [str, ...]} (см. docstring модуля)."""
+def suggestions(
+    kind: Literal["tags", "categories"] | None = None,
+) -> dict:
+    """GET /api/suggestions → {"suggestions": [str, ...]} (см. docstring модуля).
+
+    kind (Релиз 6, FR-57/ОГР-26): None — прежний UNION тегов и категорий
+    (обратная совместимость); "tags" — только теги; "categories" — только
+    категории. Иное значение — 422 средствами FastAPI (Literal), явный
+    отказ без ответа с множеством.
+    """
+    sql = {
+        None: _SUGGESTIONS_SQL,
+        "tags": _KIND_TAGS_SQL,
+        "categories": _KIND_CATEGORIES_SQL,
+    }[kind]
     conn = get_connection()
     try:
-        rows = conn.execute(_SUGGESTIONS_SQL).fetchall()
+        rows = conn.execute(sql).fetchall()
     finally:
         conn.close()
     return {"suggestions": sorted(row[0] for row in rows)}
