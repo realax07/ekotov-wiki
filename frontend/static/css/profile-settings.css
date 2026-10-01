@@ -87,15 +87,16 @@
   min-width: 0;
 }
 
-.profile-settings-page .avatar-controls input[type="file"] {
-  font: inherit;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  /* intrinsic-ширина file-input (~260px) не дает гриду сжаться —
-   * width:0 + min-width:100% (FR-56, без гориз. прокрутки на 375px):
-   * базовая ширина 0, но не уже контейнера. */
-  width: 0;
-  min-width: 100%;
+/* Скрытый нативный file input; выбор — через стилизованную кнопку
+ * #avatar-choose «Выбрать файл…» (макет J25: .avatar-file-input 1:1 —
+ * position:absolute; 1×1; opacity:0). Механика Р4 не тронута: change
+ * на #avatar-file — тот же обработчик, что и раньше. */
+.profile-settings-page .avatar-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
 }
 
 /* ================= Поля «нижняя линия» (прием V3) ================= */
@@ -411,15 +412,28 @@
     max-width: none;
   }
 
-  /* Кроп-виджет на узком экране (FR-56): маска 192px — по макету J25. */
+  /* Кроп-виджет на узком экране (FR-56): маска 192px по макету J25, НО
+   * при 375px сайдбар 200px (app.css, вне зоны задачи) оставляет колонке
+   * ~93px — фиксированная маска дает горизонтальную прокрутку. Маска
+   * сжимается до доступной ширины (min(192px, 100%)), круг сохраняет
+   * aspect-ratio; avatar-crop.js берет фактический mask.clientWidth —
+   * кроп считается по реальному размеру. */
   .profile-settings-page .crop-mask {
-    width: 192px;
-    height: 192px;
+    width: min(192px, 100%);
+    height: auto;
+    aspect-ratio: 1;
   }
 
   .profile-settings-page .crop-actions,
   .profile-settings-page .zoom-row {
     flex-wrap: wrap;
+  }
+
+  /* Зум-строка: трек не раздувает строку своим min-content (иначе при
+   * 375px + открытом виджете слайдер выталкивает страницу за вьюпорт —
+   * гориз. прокрутка, FR-56). flex:1 с min-width:0 — трек сжимается. */
+  .profile-settings-page .zoom-slider {
+    min-width: 0;
   }
 
   .profile-settings-page .form-actions {

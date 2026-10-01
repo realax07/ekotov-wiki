@@ -22,6 +22,18 @@ design/avatar-crop-v3.html, макет 1.1, эталон):
 - «Адаптив одной колонкой»  → TC-r5card-305 test_mobile_375_single_column_no_hscroll
   (375px: одна колонка, без горизонтальной прокрутки, FR-56).
 
+Дельта фикса design_validator 4.2 Р5 (находка 1 major + находка 2 minor):
+
+- DEF-004                   → TC-r5card-306 test_avatar_file_input_hidden_choose_button
+  (нативный file input визуально скрыт по макету J25 — bbox 1×1/opacity 0;
+  кнопка #avatar-choose «Выбрать файл…» видима и стилизована токенами V3
+  .btn-secondary; клик по кнопке открывает нативный filechooser; клавиатура:
+  Tab фокусирует кнопку, Enter открывает диалог — механика Р4 change на
+  #avatar-file не тронута);
+- FR-56                     → TC-r5card-307 test_mobile_375_open_crop_no_hscroll
+  (375px при ОТКРЫТОМ кроп-виджете: маска сжалась в колонку, горизонтальной
+  прокрутки страницы нет — scrollWidth ≤ clientWidth + 1; canvas = маске).
+
 Гигиена стенда: тест правит профиль owner — восстановление в teardown
 (как tests/web/test_settings_profile_r4.py).
 """
@@ -342,3 +354,101 @@ def test_mobile_375_single_column_no_hscroll(logged_in_page, web_base_url):
     expect(page.locator(".profile-card")).to_be_visible()
     desktop_cols = _computed(page, ".card-grid", "gridTemplateColumns")
     assert len(desktop_cols.split()) == 2, desktop_cols
+
+
+# ==========================================================================
+# Дельта design_validator 4.2 Р5: DEF-004 (скрытый file input + кнопка)
+# ==========================================================================
+
+
+def test_avatar_file_input_hidden_choose_button(
+    logged_in_page, web_base_url, web_db_path
+):
+    """DEF-004 (design_validator 4.2 Р5, находка 1 major): file input
+    визуально скрыт по макету J25 (.avatar-file-input: bbox 1×1, opacity 0,
+    за пределами потока), «Choose File» браузерных дефолтов на странице нет;
+    выбор — стилизованная кнопка #avatar-choose «Выбрать файл…» (токены V3:
+    .btn-secondary — border-strong/радиус-пилюля). Клик по кнопке открывает
+    нативный filechooser (input.click()); с клавиатуры кнопка фокусируется
+    (Enter — тоже диалог, обработчик click). Механика Р4 сохранена: change на
+    #avatar-file жив — set_input_files открывает виджет (Д-12)."""
+    from tests.web.test_r5_crop_ui import _make_png, _select_photo
+
+    page = logged_in_page
+    _goto(page, web_base_url)
+
+    chooser = page.locator("#avatar-choose")
+    expect(chooser).to_be_visible()
+    expect(chooser).to_have_text("Выбрать файл…")
+
+    # Кнопка — стилизованная пилюля V3 (btn-secondary), не браузерный дефолт.
+    assert "btn-secondary" in (chooser.get_attribute("class") or "")
+    assert _computed(page, "#avatar-choose", "borderRadius") == "999px"
+    assert _computed(page, "#avatar-choose", "borderColor") != "rgba(0, 0, 0, 0)" or \
+        _computed(page, "#avatar-choose", "borderTopStyle") == "solid"
+    assert _computed(page, "#avatar-choose", "cursor") == "pointer"
+
+    # Input скрыт по макету: bbox ≤ 1×1 и opacity 0 (визуально отсутствует).
+    box = page.locator("#avatar-file").bounding_box()
+    assert box is not None and box["width"] <= 1 and box["height"] <= 1, box
+    assert _computed(page, "#avatar-file", "opacity") == "0"
+    assert _computed(page, "#avatar-file", "position") == "absolute"
+
+    # Клавиатура: кнопка в tab-порядке (у скрытого input tabindex=-1 — из
+    # tab-цепочки исключен), фокусируется Tab'ом, Enter открывает filechooser.
+    focused = page.evaluate(
+        "() => { document.getElementById('avatar-choose').focus();"
+        " return document.activeElement && document.activeElement.id; }"
+    )
+    assert focused == "avatar-choose", focused
+    with page.expect_file_chooser() as fc_info:
+        chooser.focus()
+        chooser.press("Enter")
+    assert fc_info.value.page is page
+    assert fc_info.value.element.evaluate(
+        "el => el.id"
+    ) == "avatar-file", "диалог открыт для #avatar-file"
+
+    # И клик мышью — тоже filechooser нативного input.
+    with page.expect_file_chooser():
+        chooser.click()
+
+    # Механика Р4 не тронута: change на #avatar-file по-прежнему работает
+    # (валидный png → кроп-виджет открылся, Д-12).
+    _select_photo(page, _make_png(800, 600))
+    expect(page.locator("#crop-widget")).to_contain_class("is-open")
+
+
+def test_mobile_375_open_crop_no_hscroll(
+    logged_in_page, web_base_url, web_db_path
+):
+    """FR-56 (design_validator 4.2 Р5, находка 2 minor): 375px при ОТКРЫТОМ
+    кроп-виджете горизонтальной прокрутки страницы нет — маска сжимается
+    в доступную ширину колонки (min(192px, 100%), круг aspect-ratio:1),
+    scrollWidth ≤ clientWidth + 1; canvas повторяет фактический размер маски
+    (avatar-crop.js берет mask.clientWidth)."""
+    from tests.web.test_r5_crop_ui import _make_png, _select_photo
+
+    page = logged_in_page
+    page.set_viewport_size({"width": 375, "height": 720})
+    _goto(page, web_base_url)
+
+    _select_photo(page, _make_png(800, 600))  # виджет открыт (Д-12)
+    expect(page.locator("#crop-widget")).to_be_visible()
+
+    mask_box = page.locator("#crop-mask").bounding_box()
+    assert mask_box is not None, "маска видима"
+    # Маска круглые пропорции сохранила и не шире доступной колонки.
+    assert abs(mask_box["width"] - mask_box["height"]) <= 1, mask_box
+    assert mask_box["width"] <= 192, mask_box
+
+    metrics = page.evaluate(
+        "() => ({"
+        " doc: document.scrollingElement.scrollWidth,"
+        " win: window.innerWidth,"
+        " mask: document.getElementById('crop-mask').clientWidth,"
+        " canvas: document.getElementById('crop-canvas').clientWidth })"
+    )
+    assert metrics["doc"] <= metrics["win"] + 1, metrics
+    assert metrics["mask"] <= metrics["win"], metrics
+    assert metrics["canvas"] == metrics["mask"], metrics
