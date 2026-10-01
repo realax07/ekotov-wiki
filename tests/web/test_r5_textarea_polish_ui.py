@@ -10,6 +10,10 @@
   → TC-r5ta-102 test_textarea_grows_with_input;
   → TC-r5ta-103 test_textarea_resets_after_form_clear;
   → TC-r5ta-104 test_textarea_placeholder_and_label;
+- минорный хотфикс Р5 (уточнение Заказчика): видимый label «Новый
+  комментарий» над полем комментария убран — дублировал placeholder;
+  доступность сохранена (aria-label на textarea).
+  → отражено в TC-r5ta-104 (label: только «Описание» остается видимым).
 - (A) tooltip creator/assignee — поведение по зонам карточки — покрыто
   TC-assignu-103 (tests/web/test_board_assign_ui.py, обновлен в этой
   же задаче: hover заголовок → скрыт, hover users-строка → виден).
@@ -126,12 +130,13 @@ def test_textarea_resets_after_form_clear(
 
 
 # --------------------------------------------------------------------------
-# TC-r5ta-104 — placeholder внутри поля, label на месте
+# TC-r5ta-104 — placeholder внутри поля, доступность через aria-label
 # --------------------------------------------------------------------------
 def test_textarea_placeholder_and_label(board_page):
     """TC-r5ta-104: placeholder-подсказка ВНУТРИ поля («Описание
-    задачи…», «Новый комментарий…»); видимый label над полем сохранен
-    (доступность не деградирует: get_by_label работает)."""
+    задачи…», «Новый комментарий…»). Для поля комментария видимый label
+    убран (минорный хотфикс Р5: дублировал placeholder); доступность не
+    деградирует — aria-label на textarea, get_by_label работает."""
     page = board_page
     page.get_by_role("button", name="Создать задачу").click()
     expect(page.locator("#task-form-overlay")).to_be_visible()
@@ -148,4 +153,7 @@ def test_textarea_placeholder_and_label(board_page):
     expect(page.locator(COMMENT)).to_have_attribute(
         "placeholder", "Новый комментарий…"
     )
+    # Минорный хотфикс Р5: видимого label «Новый комментарий» больше нет,
+    # доступность — через aria-label на textarea (get_by_label работает).
     assert page.get_by_label("Новый комментарий").count() == 1
+    assert page.locator("label", has=page.get_by_label("Новый комментарий")).count() == 0
