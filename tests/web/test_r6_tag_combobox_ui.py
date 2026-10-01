@@ -403,3 +403,63 @@ def test_combobox_touch_tap_and_load_failure(
     ]
     assert len(matched) == 1 and "QATbezpodskazok" in matched[0]["tags"]
     web_cleanup_created(matched[0]["id"])
+
+
+# regression: keep — r6 review 2.1/2.2 (major): дропдаун не «залипает» —
+# закрытие формы (крестик) закрывает и комбобокс.
+def test_combobox_closes_with_form_no_stuck_dropdown(
+    logged_in_page, web_base_url, web_owner_session, web_cleanup_created
+):
+    """TC-r6-comb-010: дропдаун, открытый при фокусе в «Теги», закрывается
+    вместе с формой (крестик .modal-close — click(), не клик по странице);
+    после переоткрытия дропдаун hidden, клик по «Создать» не перехвачен
+    (elementFromPoint в точке кнопки + сабмит доходит до обработчика)."""
+    _seed_tagged_task(
+        web_owner_session, web_base_url, "QAT-comb-залипание", ["QATstickтег"]
+    )
+    page = logged_in_page
+    _open_form(page, web_base_url)
+
+    # Фокус в «Теги» → дропдаун открыт.
+    tags = page.get_by_label("Теги (через запятую)")
+    tags.click()
+    expect(page.locator(LISTBOX)).to_be_visible()
+
+    # Закрыть форму КРЕСТИКОМ (не кликом по странице).
+    page.locator("#task-form-close").click()
+    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    # Дропдаун закрылся вместе с формой (не переживает закрытие).
+    expect(page.locator(LISTBOX)).to_be_hidden()
+
+    # Переоткрыть — дропдаун скрыт, не «всплыл» из прошлого открытия.
+    page.get_by_role("button", name="Создать задачу").click()
+    expect(page.locator("#task-form-overlay")).to_be_visible()
+    expect(page.locator(LISTBOX)).to_be_hidden()
+
+    # Клик по «Создать» не перехвачен: в точке кнопки — сама кнопка (или
+    # ее потомок), а не невидимый дропдаун поверх.
+    hit_is_submit = page.evaluate(
+        """() => {
+          const btn = document.getElementById("task-form-submit");
+          const r = btn.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            r.x + r.width / 2, r.y + r.height / 2
+          );
+          return btn === hit || btn.contains(hit);
+        }"""
+    )
+    assert hit_is_submit, "кнопку «Создать» перекрывает чужой элемент"
+
+    # И по факту: сабмит проходит обычным путем (клик не перехвачен) —
+    # форма закрывается, задача создана.
+    page.get_by_label("Название").fill("QAT-comb-незалипание")
+    page.get_by_role("button", name="Создать", exact=True).click()
+    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    resp = web_owner_session.get(
+        f"{web_base_url}/api/search", params={"archived": "false"}
+    )
+    matched = [
+        t for t in resp.json()["results"] if t["title"] == "QAT-comb-незалипание"
+    ]
+    assert len(matched) == 1, matched
+    web_cleanup_created(matched[0]["id"])

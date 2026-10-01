@@ -299,19 +299,23 @@ export function setTagHints(values) {
     return;
   }
   allHints = next;
-  /* Множество изменилось уже при сфокусированном поле (ответ пришел
-   * после focus-рендера) — перерисовать открытый/актуальный дропдаун. */
+  /* Guard (review 2.1/2.2, major): перерисовать открытый дропдаун
+   * ТОЛЬКО когда поле в фокусе (поздний ответ пришел после focus-
+   * рендера). Иначе — только данные: пересоздание option-узлов под
+   * невидимым/неактуальным дропдауном ловит клик («option intercepts
+   * pointer events») и переоткрывает список под курсором. */
   var input = tagsInput();
   if (input && document.activeElement === input) {
     renderDropdown(currentToken(input.value));
-  } else if (listbox() && !listbox().hidden) {
-    renderDropdown(currentToken(input ? input.value : ""));
   }
 }
 
 export function closeTagHints() {
   allHints = [];
   closeDropdown();
+  /* Сброс (review 2.1/2.2, minor): без него переоткрытие с тем же
+   * числом подсказок не озвучивается — announce видит «то же число». */
+  lastAnnounced = null;
 }
 
 /* --- Инициализация (один раз при загрузке task-form.js) --- */

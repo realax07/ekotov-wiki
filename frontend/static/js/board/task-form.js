@@ -637,6 +637,12 @@ export function openEditForm(task) {
 }
 
 export function closeTaskForm() {
+  /* Review 2.1/2.2 (major): закрыть дропдаун комбобокса ВМЕСТЕ с
+   * формой — иначе он переживает закрытие (hidden-состояние сбрасывает
+   * только клик по странице) и при переоткрытии формы «залипает»
+   * (перехватывает клики по «Создать»). closeTaskForm — единая точка
+   * закрытия: submit (task-form.js), «Отмена» и крестик (board-init.js). */
+  closeTagHints();
   document.getElementById("task-form-overlay").hidden = true;
   boardState.currentTaskId = null;
 }
