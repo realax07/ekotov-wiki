@@ -194,11 +194,12 @@
     <h3>Комментарии</h3>
     <ul id="task-form-comments-list" class="task-comments-list"></ul>
     <form id="comment-form">
-      {# Р5 polish: авто-высота (auto-textarea.js) + placeholder внутри. #}
-      <label class="field-compact">Новый комментарий
-        <textarea id="comment-body" rows="2" required
-                  placeholder="Новый комментарий…"></textarea>
-      </label>
+      {# Р5 polish + минорный хотфикс: видимый label «Новый комментарий»
+         убран (дублировал placeholder внутри поля); доступность
+         сохранена через aria-label на textarea. #}
+      <textarea id="comment-body" rows="2" required
+                aria-label="Новый комментарий"
+                placeholder="Новый комментарий…"></textarea>
       <p id="task-comment-error" class="form-error" hidden></p>
       <button type="submit">Добавить комментарий</button>
     </form>
