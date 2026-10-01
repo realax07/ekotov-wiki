@@ -38,8 +38,21 @@
               <img id="avatar-preview" class="avatar-preview" alt="Аватар" hidden>
             </span>
             <div class="avatar-controls">
-              <label class="hint" for="avatar-file">Файл png/jpg (до 2 МБ)</label>
-              <input type="file" id="avatar-file" name="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+              {# Файл выбирается стилизованной кнопкой «Выбрать файл…» (макет
+                 J25: input .avatar-file-input визуально скрыт, кнопка открывает
+                 нативный диалог через input.click()). Механика Р4 сохранена:
+                 avatar-crop.js/profile-settings.js слушают change на #avatar-file,
+                 сам input и его accept не менялись. Кнопка type=button — форму
+                 не сабмитит; фокус с кнопки доступен с клавиатуры (Enter/Space
+                 нативно открывают диалог). #}
+              <input type="file" id="avatar-file" name="file"
+                     class="avatar-file-input"
+                     accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                     aria-describedby="avatar-file-hint"
+                     tabindex="-1">
+              <button type="button" id="avatar-choose" class="btn btn-secondary"
+                      aria-controls="avatar-file">Выбрать файл…</button>
+              <p class="hint" id="avatar-file-hint">Файл png/jpg (до 2 МБ)</p>
               <button type="submit" id="avatar-upload" class="btn btn-secondary">Загрузить</button>
             </div>
           </div>

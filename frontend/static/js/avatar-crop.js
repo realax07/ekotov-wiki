@@ -274,6 +274,17 @@ function initAvatarCrop() {
 
   /* --- Выбор файла → сразу виджет (Д-12, NFR-12) --- */
 
+  /* Кнопка «Выбрать файл…» (макет J25: input скрыт визуально, выбор —
+   * через стилизованную кнопку). Механика Р4 не тронута: change на
+   * #avatar-file остается главным входом, кнопка только открывает
+   * нативный диалог. */
+  const chooseBtn = document.getElementById("avatar-choose");
+  if (chooseBtn) {
+    chooseBtn.addEventListener("click", function () {
+      fileInput.click();
+    });
+  }
+
   fileInput.addEventListener("change", async function () {
     const file = fileInput.files && fileInput.files[0];
     if (!file) {
