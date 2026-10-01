@@ -71,7 +71,8 @@ def _upload(session: requests.Session, base_url: str, data: bytes) -> requests.R
 
 
 def test_server_normalizes_non_square_to_256(base_url, owner_session, owner_user_id):
-    """Серверная нормализация: png 512×300 → сохранен ровно 256×256 PNG (200)."""
+    """TC-ava-r5-101: серверная нормализация — png 512×300 →
+    сохранен ровно 256×256 PNG (200; ОВ-СА-2, Д-13)."""
     try:
         resp = _upload(owner_session, base_url, _png_bytes((512, 300)))
         assert resp.status_code == 200, resp.text
@@ -87,7 +88,8 @@ def test_server_normalizes_non_square_to_256(base_url, owner_session, owner_user
 
 
 def test_server_normalization_noop_for_honest_client(base_url, owner_session, owner_user_id):
-    """Квадрат 256×256 от честного клиента → 200, на диске 256×256 PNG."""
+    """TC-ava-r5-102: no-op — квадрат 256×256 от честного клиента →
+    200, на диске 256×256 PNG (контракт варианта А)."""
     try:
         resp = _upload(owner_session, base_url, _png_bytes((256, 256)))
         assert resp.status_code == 200, resp.text
