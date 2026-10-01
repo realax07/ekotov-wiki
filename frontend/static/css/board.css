@@ -559,6 +559,15 @@
 .comment-form button[type="submit"]:hover,
 .task-comments button[type="submit"]:hover { background: var(--color-bg-subtle); }
 
+/* Хотфикс Р5 (Заказчик): кнопка «Добавить комментарий» — не вплотную
+ * к textarea, зазор по 8px-сетке. Только эта кнопка — общие селекторы
+ * группы выше не тронуты. vertical-align: top — иначе baseline-выравнивание
+ * inline-block'а в line-box'е съедает отступ (кнопка «всплывает» к полю). */
+.comment-form button[type="submit"] {
+  margin-top: var(--space-1);
+  vertical-align: top;
+}
+
 .form-actions button:focus-visible,
 #task-delete-button:focus-visible,
 .task-view-actions button:focus-visible,

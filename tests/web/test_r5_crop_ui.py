@@ -926,3 +926,47 @@ def test_fallback_no_canvas(no_canvas_page, web_base_url):
     # (перехват существует только при открытом виджете). Здесь
     # контролируем лишь отсутствие JS-ошибок страницы (NFR-14).
     assert not errors, errors
+
+
+# ==========================================================================
+# Хотфикс Р5 (Заказчик): кнопка «Загрузить» (#avatar-upload) скрыта при
+# активном кроп-модуле; в fallback-режиме (без canvas) остается видимой
+# (NFR-14: единственный путь загрузки — Р4-сабмит формы).
+# ==========================================================================
+
+
+def test_upload_button_hidden_when_crop_active(logged_in_page, web_base_url):
+    """Хотфикс Р5: при активном кроп-модуле кнопка «Загрузить»
+    (#avatar-upload) скрыта сразу после init (модуль активен навсегда —
+    init не зависит от выбора файла); путь загрузки — «Выбрать файл…» →
+    кроп → «Применить». Разметка не менялась — кнопка hidden, не
+    удалена; после «Отмена» остается скрытой (модуль по-прежнему активен)."""
+    page = logged_in_page
+    _goto(page, web_base_url)
+
+    btn = page.locator("#avatar-upload")
+    # Скрыта сразу после init кроп-модуля (еще до выбора файла).
+    expect(btn).to_be_hidden()
+
+    _select_photo(page, _make_png())
+    expect(page.locator("#crop-widget")).to_contain_class("is-open")
+    # Кнопка не вернулась при открытом кропе (сабмит = «Применить»).
+    expect(btn).to_be_hidden()
+
+    # «Отмена»: виджет закрыт, модуль активен — кнопка не возвращается.
+    page.locator("#crop-cancel").click()
+    expect(page.locator("#crop-widget")).not_to_contain_class("is-open")
+    expect(btn).to_be_hidden()
+
+
+def test_upload_button_visible_in_fallback(no_canvas_page, web_base_url):
+    """Хотфикс Р5 + NFR-14: без canvas кроп-модуль не инициализируется
+    (ранний return в initAvatarCrop) — кнопка «Загрузить» ОСТАЁТСЯ
+    видимой: Р4-сабмит формы с исходным файлом — единственный путь
+    загрузки."""
+    page = no_canvas_page
+    page.goto(f"{web_base_url}/settings/profile")
+    expect(page.locator("#profile-form")).to_have_attribute(
+        "data-loaded", "true", timeout=10_000
+    )
+    expect(page.locator("#avatar-upload")).to_be_visible()

@@ -130,3 +130,27 @@ def test_create_mode_comments_hidden(board_page):
     assert not page.locator(COMMENTS).is_visible()
     page.get_by_role("button", name="Отмена").click()
     expect(page.locator(OVERLAY)).to_be_hidden()
+
+
+def test_comment_button_gap_below_textarea(board_page, web_cleanup_created):
+    """Хотфикс Р5 (Заказчик): между textarea#comment-body и кнопкой
+    «Добавить комментарий» есть вертикальный зазор (margin-top по
+    8px-сетке) — кнопка не прилегает вплотную к полю. Геометрический
+    ассерт: низ textarea СТРОГО выше верха кнопки."""
+    page = board_page
+    title = "QAT-cmt-отступ"
+    card = _open_edit_form(page, title)
+    web_cleanup_created(int(card.get_attribute("data-task-id")))
+
+    ta = page.locator("#comment-body").bounding_box()
+    btn = page.locator(f"{COMMENT_FORM} button[type=submit]").bounding_box()
+    assert ta is not None and btn is not None
+
+    gap = btn["y"] - (ta["y"] + ta["height"])
+    assert gap > 0, (
+        f"кнопка вплотную к textarea: зазор {gap:.1f}px (ожидается > 0, "
+        f"margin-top 8px)"
+    )
+    # Зазор соответствует 8px-сетке (не «случайные» пиксели), с допуском
+    # на субпиксели/скругления браузера:
+    assert 8 - EPS <= gap <= 8 + EPS, f"зазор {gap:.1f}px вместо ~8px"
