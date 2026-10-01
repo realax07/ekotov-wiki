@@ -440,3 +440,40 @@ tmp/scratch, прод не трогается.
 проверяется ЭКВИВАЛЕНТНО — равенством логинов/хешей паролей снимку «до»; реальный
 логин после миграции не выполняется (хеши в тестовых фикстурах — плейсхолдеры, не
 реальные bcrypt-значения). Допустимая замена, зафиксировано здесь.
+
+# QA-контур 4.1 Релиза 5: add-r5-avatar-crop-compact-profile
+
+## Гэпы API (tests/api/test_gaps_r5.py)
+
+5 approved-кейсов `test-model/new/add-r5-avatar-crop-compact-profile/`
+(чеклист `test-model/checklists/add-r5-avatar-crop-compact-profile.md`,
+impact `test-model/impact/add-r5-avatar-crop-compact-profile.md` — пробелы
+поверх существующих TC-ava-001…007 + TC-ava-r5-101/102 + web
+TC-r5card-301…305 / TC-r5crop-401…415, которые не дублируются):
+
+| Кейс | CHK | Тест | Гэп |
+|---|---|---|---|
+| TC-ava-r5-103 | CHK-R5-3 | test_normalization_jpeg_non_square_to_256_png | нормализация jpg-входа → 256×256 PNG (r5-101/102 — только png) |
+| TC-ava-r5-104 | CHK-R5-6 | test_size_limit_boundary_exactly_2mb_accepted_plus_one_rejected | граница 2 МБ: ровно 2 097 152 байт принят; +1 байт → 422 file too large (TC-ava-005 ~27 МБ; web-тест — клиентская ветка) |
+| TC-ava-r5-105 | CHK-R5-12 | test_wife_upload_does_not_touch_owner_avatar | изоляция: загрузка wife не меняет sha256/БД-строку owner (хвост CHK-R4-25 Р4 «косвенно») |
+| TC-ava-r5-106 | CHK-R5-9 | test_pre_release_avatar_file_not_repainted | backward-compat ОГР-21/СЦ-13: файл «старого» аватара не перекрашивается при открытии профиля/me (web-часть — TC-r5crop-401) |
+| TC-ava-r5-107 | CHK-R5-13 | test_exif_portrait_jpeg_accepted_and_normalized | EXIF Orientation=6 («портрет с телефона», design §7) → 200 + 256×256 PNG; ассерт на ориентацию пикселей не ставится (вариант А: EXIF — браузер, ОВ-СА-1) |
+
+Среда: те же env, что для всего tests/api, ПЛЮС `EKOTOV_WIKI_AVATARS_DIR`
+(обязателен — гигиена аватаров по файлам). Teardown каждого теста восстанавливает
+avatar_path/avatar_updated_at = NULL и удаляет `<user_id>.png` (owner; кейс
+изоляции — также wife).
+
+Прогон (эталон, задача 4.1): api — avatar r4+r5+гэпы 16 passed; полный tests/api
+187 passed, 9 skipped, 2 xfailed (стенд :8091, tmp-БД + seed + migrate_r4);
+web Р5-зона (r5card + r5crop + settings_profile_r4) 33 passed.
+
+## Чего НЕ автоматизировано в 4.1 (вне гэпов API)
+
+- web-кейсы дельты уже покрыты существующими TC-r5card-301…305 и
+  TC-r5crop-401…415 (5 гэпов чеклиста — все API-уровня; web-часть CHK-R5-9
+  покрыта TC-r5crop-401).
+- CHK-R5-32 (СЦ-14: static_v-бамп, nginx /avatars/, полный регресс) — слепые
+  контуры impact §4: релизная дисциплина (задачи 4.3/4.4), смоук на проде.
+- EXIF на реальном тач-устройстве — ручной смоук (эмуляция — TC-r5crop-406,
+  API — TC-ava-r5-107).
