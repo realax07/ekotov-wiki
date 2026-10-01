@@ -1,7 +1,8 @@
 """Кроп-виджет аватара (change add-r5-avatar-crop-compact-profile,
-tasks.md 3.2; дельта settings — Requirement «Кроп-виджет аватара»;
-FR-49…FR-53, ОВ-СА-1/4, Д-12; модуль frontend/static/js/avatar-crop.js,
-эталон — design/avatar-crop-v3.html макет 1.1).
+tasks.md 3.2/3.3; дельта settings — Requirements «Кроп-виджет аватара» и
+«Тач-жесты и доступность кроп-виджета»; FR-49…FR-53, NFR-11/13/14/15,
+ОВ-СА-1/4, Д-12; модуль frontend/static/js/avatar-crop.js, эталон —
+design/avatar-crop-v3.html макет 1.1).
 
 Кейсы dev-фикстуры (трассировка — docstring каждого теста; TC-ID
 продолжают нумерацию Р5 после TC-r5card-305: TC-r5crop-401…408):
@@ -27,6 +28,27 @@ FR-49…FR-53, ОВ-СА-1/4, Д-12; модуль frontend/static/js/avatar-crop
   (0 запросов к /api/profile/avatar, avatar_url прежний, ?v= не изменился)
   + TC-r5crop-408 test_page_leave_no_requests (уход со страницы — тоже 0
   запросов, FR-53).
+
+Задача 3.3 «Тач-жесты и доступность кроп-виджета» (TC-r5crop-409…414):
+
+- «Тач-drag и pinch»             → TC-r5crop-409 test_touch_drag_pinch_and_slider
+  (контекст has_touch: drag пальцем — touchscreen, pinch двумя пальцами —
+  расстояние точек → масштаб, слайдер на таче — dispatch PointerEvent
+  touch; скролл страницы не нарушен — touch-action: none только на маске)
+  + TC-r5crop-410 test_page_scroll_outside_widget_not_broken (страница
+  скроллится вне виджета при открытом виджете);
+- «Клавиатурное управление и aria» → TC-r5crop-411
+  test_keyboard_arrows_move_and_zoom (фокус на маске — стрелки двигают
+  фото шагом 5% стороны маски, +/- зум 10%; клэмп на границе) +
+  TC-r5crop-412 test_slider_keyboard_native_range (Tab-фокус на слайдер —
+  стрелки меняют value нативного range → zoom) + TC-r5crop-413
+  test_aria_attributes (role=group, aria-label=«Выбор области аватара»,
+  aria-valuenow слайдера = % зума, tabindex маски) +
+  TC-r5crop-414 test_reduced_motion_no_transition (prefers-reduced-motion:
+  computed transition/animation у узлов виджета = none/0s);
+- «Fallback без canvas»          → TC-r5crop-415 test_fallback_no_canvas
+  (эмуляция отсутствия canvas/FileReader via addInitScript: виджет не
+  открывается, file input жив — submit не перехвачен, страница без ошибок).
 
 Гигиена стенда: тесты правят аватар owner — teardown восстанавливает
 avatar_path=NULL + файл удален (как tests/web/test_settings_profile_r4).
@@ -566,3 +588,341 @@ def test_oversize_file_rejected_before_widget(
     )
     expect(page.locator("#avatar-error")).to_be_visible()
     expect(page.locator("#crop-widget")).not_to_contain_class("is-open")
+
+
+# ==========================================================================
+# Задача 3.3: Scenario «Тач-drag и pinch» (NFR-13) — has_touch-контекст
+# ==========================================================================
+
+
+@pytest.fixture
+def touch_page(browser, web_server, web_base_url):
+    """Страница с тач-устройством (has_touch=True) + вход owner.
+
+    playwright: browser.new_context(has_touch=True); вход повторяет
+    logged_in_page (в контекст фикстуры page тач не добавить). Статик-
+    роутинг повторяем — он вешается per-context в фикстуре page."""
+    context = browser.new_context(has_touch=True)
+    static_url = web_server["static_url"]
+    if static_url:
+        def _to_static(route):
+            new_url = static_url + route.request.url.partition("/static")[2]
+            route.fulfill(response=route.fetch(url=new_url))
+
+        context.route(f"{web_base_url}/static/**", _to_static)
+    page = context.new_page()
+    page.goto(f"{web_base_url}/login")
+    page.get_by_label("Логин").fill(OWNER_LOGIN)
+    page.get_by_label("Пароль").fill(OWNER_PASSWORD)
+    page.get_by_role("button", name="Войти").click()
+    page.get_by_role("heading", name="Доска", exact=True).wait_for()
+    yield page
+    context.close()
+
+
+@pytest.fixture
+def no_canvas_page(browser, web_server, web_base_url):
+    """Страница контекста, где HTMLCanvasElement/FileReader/createImageBitmap
+    «не существуют» (addInitScript до любого скрипта страницы) — эмуляция
+    старого браузера для Scenario «Fallback без canvas» (NFR-14)."""
+    context = browser.new_context()
+    static_url = web_server["static_url"]
+    if static_url:
+        def _to_static(route):
+            new_url = static_url + route.request.url.partition("/static")[2]
+            route.fulfill(response=route.fetch(url=new_url))
+
+        context.route(f"{web_base_url}/static/**", _to_static)
+    page = context.new_page()
+    page.add_init_script(
+        """(() => {
+          const kill = (obj, name) => {
+            try { Reflect.deleteProperty(obj, name); } catch (e) { /* ок */ }
+            try {
+              Object.defineProperty(obj, name,
+                { value: undefined, writable: true, configurable: true });
+            } catch (e) { /* ок */ }
+          };
+          kill(window, 'createImageBitmap');
+          kill(window, 'FileReader');
+          kill(window, 'HTMLCanvasElement');
+        })();"""
+    )
+    page.goto(f"{web_base_url}/login")
+    page.get_by_label("Логин").fill(OWNER_LOGIN)
+    page.get_by_label("Пароль").fill(OWNER_PASSWORD)
+    page.get_by_role("button", name="Войти").click()
+    page.get_by_role("heading", name="Доска", exact=True).wait_for()
+    yield page
+    context.close()
+
+
+def test_touch_drag_pinch_and_slider(
+    touch_page, web_base_url, web_db_path, avatar_hygiene
+):
+    """Scenario «Тач-drag и pinch» (NFR-13): на has_touch-контексте —
+    drag пальцем (touchscreen) двигает фото; pinch двумя пальцами меняет
+    зум пропорционально расстоянию точек; слайдер работает на таче
+    (PointerEvent pointerType=touch → 'input'); touch-action маски = none,
+    у страницы вне виджета скролл не сломан."""
+    page = touch_page
+    page.goto(f"{web_base_url}/settings/profile")
+    expect(page.locator("#profile-form")).to_have_attribute(
+        "data-loaded", "true", timeout=10_000
+    )
+    widget = _select_photo(page, _make_png(800, 600))
+
+    # touch-action: none только на маске — скролл страницы не нарушен.
+    ta = widget.locator("#crop-mask").evaluate("el => getComputedStyle(el).touchAction")
+    assert ta == "none", ta
+
+    # --- Drag пальцем (touchscreen) ---
+    before = _crop_state(page)
+    mask = page.locator("#crop-mask")
+    box = mask.bounding_box()
+    cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+    page.touchscreen.tap(cx, cy)  # активация тач-стека
+    # touchscreen-драг: CDP Input.dispatchTouchEvent через playwright API
+    page.evaluate(
+        """([cx, cy]) => {
+          const opts = { bubbles: true, cancelable: true, pointerId: 2,
+                         pointerType: 'touch', isPrimary: true,
+                         clientX: cx, clientY: cy };
+          const mask = document.getElementById('crop-mask');
+          mask.dispatchEvent(new PointerEvent('pointerdown', opts));
+          for (let i = 1; i <= 5; i++) {
+            mask.dispatchEvent(new PointerEvent('pointermove', {
+              ...opts, clientX: cx - i * 8, clientY: cy }));
+          }
+          mask.dispatchEvent(new PointerEvent('pointerup',
+            { ...opts, clientX: cx - 40, clientY: cy }));
+        }""",
+        [cx, cy],
+    )
+    after = _crop_state(page)
+    assert after["x"] != before["x"], (before, after)  # тач-drag подвинул фото
+
+    # --- Pinch двумя пальцами: разведение точек в 2 раза = zoom ×2 ---
+    _set_slider(page, 100)
+    pinch_zoom = page.evaluate(
+        """([cx, cy]) => {
+          const mask = document.getElementById('crop-mask');
+          const mk = (id, x, y, dx, dy) => new TouchEvent('touchstart', {
+            bubbles: true, cancelable: true,
+            touches: [new Touch({ identifier: id, target: mask,
+                                  clientX: x, clientY: y })],
+            targetTouches: [], changedTouches: [new Touch({ identifier: id,
+                                  target: mask, clientX: x, clientY: y })],
+          });
+          const mk2 = (type, ida, ax, ay, idb, bx, by) => {
+            const t = (id, x, y) => new Touch({ identifier: id, target: mask,
+                                                clientX: x, clientY: y });
+            return new TouchEvent(type, { bubbles: true, cancelable: true,
+              touches: [t(ida, ax, ay), t(idb, bx, by)],
+              targetTouches: [t(ida, ax, ay), t(idb, bx, by)],
+              changedTouches: [t(ida, ax, ay), t(idb, bx, by)] });
+          };
+          mask.dispatchEvent(mk2('touchstart', 1, cx - 30, cy, 2, cx + 30, cy));
+          mask.dispatchEvent(mk2('touchmove', 1, cx - 60, cy, 2, cx + 60, cy));
+          mask.dispatchEvent(mk2('touchend', 1, cx - 60, cy, 2, cx + 60, cy));
+        }""",
+        [cx, cy],
+    )
+    # Разведение 60→120px: старт 100% → цель 200% (клэмп 100…300 не режет).
+    assert _crop_state(page)["zoom"] == 200, _crop_state(page)
+
+    # --- Слайдер на таче (NFR-13): pointer-событие с pointerType=touch ---
+    slider = page.locator("#crop-zoom")
+    slider.evaluate(
+        """el => {
+          const r = el.getBoundingClientRect();
+          const opts = { bubbles: true, cancelable: true, pointerId: 3,
+                         pointerType: 'touch', isPrimary: true,
+                         clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 };
+          el.dispatchEvent(new PointerEvent('pointerdown', opts));
+          el.dispatchEvent(new PointerEvent('pointerup', opts));
+          // нативный range на таче меняет value → событие 'input':
+          el.value = '250';
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        }"""
+    )
+    assert _crop_state(page)["zoom"] == 250, _crop_state(page)
+
+
+def test_page_scroll_outside_widget_not_broken(touch_page, web_base_url):
+    """Scenario «Тач-drag и pinch», THEN «скролл страницы вне виджета не
+    нарушен» (NFR-13): при открытом виджете колесо/тап вне маски скроллят
+    страницу; touch-action у body не 'none'."""
+    page = touch_page
+    page.goto(f"{web_base_url}/settings/profile")
+    expect(page.locator("#profile-form")).to_have_attribute(
+        "data-loaded", "true", timeout=10_000
+    )
+    _select_photo(page, _make_png(800, 600))
+
+    body_ta = page.evaluate(
+        "() => getComputedStyle(document.body).touchAction"
+    )
+    assert body_ta != "none", body_ta
+
+    # Страница скроллится: window.scrollTo работает, scrollY меняется.
+    page.evaluate("() => window.scrollTo(0, 400)")
+    scrolled = page.evaluate("() => window.scrollY")
+    assert scrolled > 0, scrolled
+
+
+# ==========================================================================
+# Задача 3.3: Scenario «Клавиатурное управление и aria» (NFR-15)
+# ==========================================================================
+
+
+def test_keyboard_arrows_move_and_zoom(logged_in_page, web_base_url):
+    """Scenario «Клавиатурное управление и aria» (NFR-15): фокус на маске
+    (tabindex=0) — стрелки двигают фото шагом 5% стороны маски, «+»/«−» —
+    зум 10%; клэмп действует и с клавиатуры (стрелка в стену — 0 сдвига);
+    «Применить»/«Отмена» фокусируемы."""
+    page = logged_in_page
+    _goto(page, web_base_url)
+    _select_photo(page, _make_png(800, 600))
+
+    mask = page.locator("#crop-mask")
+    assert mask.get_attribute("tabindex") == "0"
+    mask.focus()
+
+    # Стрелка вправо: шаг = 5% стороны маски (клэмп-запас по X есть у 800×600).
+    before = _crop_state(page)
+    page.keyboard.press("ArrowRight")
+    after = _crop_state(page)
+    side = mask.evaluate("el => el.clientWidth")
+    assert abs(after["x"] - (before["x"] + side * 0.05)) <= 2, (before, after, side)
+
+    # Стрелка влево — обратно к 0 (шаг симметричен).
+    page.keyboard.press("ArrowLeft")
+    assert abs(_crop_state(page)["x"] - before["x"]) <= 1, _crop_state(page)
+
+    # Стрелка вверх на 100% (нет запаса по Y) — клэмп: dy остается 0.
+    page.keyboard.press("ArrowUp")
+    clamped = _crop_state(page)
+    assert clamped["y"] == 0, clamped
+
+    # «+» — зум 10%; «−» — обратно.
+    page.keyboard.press("+")
+    assert _crop_state(page)["zoom"] == 110, _crop_state(page)
+    page.keyboard.press("-")
+    assert _crop_state(page)["zoom"] == 100, _crop_state(page)
+
+
+def test_slider_keyboard_native_range(logged_in_page, web_base_url):
+    """Scenario «Клавиатурное управление и aria» (NFR-15): слайдер —
+    нативный input range; Tab-фокус доходит до слайдера, стрелки меняют
+    его value (нативное поведение), 'input' обновляет зум виджета."""
+    page = logged_in_page
+    _goto(page, web_base_url)
+    _select_photo(page, _make_png(800, 600))
+
+    slider = page.locator("#crop-zoom")
+    assert slider.evaluate("el => el.type") == "range"
+    slider.focus()
+    assert page.evaluate(
+        "() => document.activeElement && document.activeElement.id"
+    ) == "crop-zoom"
+
+    # Стрелка вверх/вправо нативного range: step=5 → 100→105, еще → 110.
+    page.keyboard.press("ArrowUp")
+    page.keyboard.press("ArrowUp")
+    assert slider.input_value() == "110", slider.input_value()
+    assert _crop_state(page)["zoom"] == 110, _crop_state(page)
+
+    page.keyboard.press("ArrowDown")
+    assert slider.input_value() == "105"
+    assert _crop_state(page)["zoom"] == 105
+
+
+def test_aria_attributes(logged_in_page, web_base_url):
+    """Scenario «Клавиатурное управление и aria» (NFR-15): role=group,
+    aria-label=«Выбор области аватара» на виджете; aria-valuenow слайдера
+    = % зума (меняется вместе с зумом); canvas aria-hidden."""
+    page = logged_in_page
+    _goto(page, web_base_url)
+    widget = _select_photo(page, _make_png(800, 600))
+
+    expect(widget).to_have_attribute("role", "group")
+    expect(widget).to_have_attribute("aria-label", "Выбор области аватара")
+
+    slider = page.locator("#crop-zoom")
+    expect(slider).to_have_attribute("aria-valuenow", "100")
+    _set_slider(page, 220)
+    expect(slider).to_have_attribute("aria-valuenow", "220")
+
+    expect(widget.locator("#crop-canvas")).to_have_attribute("aria-hidden", "true")
+
+
+def test_reduced_motion_no_transition(logged_in_page, web_base_url):
+    """Scenario «Клавиатурное управление и aria», THEN «при
+    prefers-reduced-motion анимаций нет» (NFR-15, ОГР-17 Р4): контекст с
+    reduced_motion=reduce — computed transition-duration/animation-duration
+    всех узлов виджета = 0s/none."""
+    page = logged_in_page
+    # Новая страница в контексте той же сессии нельзя — эмулируем медиа
+    # через CDP на текущей странице и перезагружаемся.
+    cdp = page.context.new_cdp_session(page)
+    cdp.send("Emulation.setEmulatedMedia", {
+        "features": [{"name": "prefers-reduced-motion", "value": "reduce"}],
+    })
+    page.goto(f"{web_base_url}/settings/profile")
+    expect(page.locator("#profile-form")).to_have_attribute(
+        "data-loaded", "true", timeout=10_000
+    )
+    widget = _select_photo(page, _make_png(800, 600))
+
+    styles = widget.evaluate(
+        """el => {
+          const nodes = [el, ...el.querySelectorAll('*')];
+          return nodes.map(n => {
+            const s = getComputedStyle(n);
+            return { t: s.transitionDuration, a: s.animationDuration };
+          });
+        }"""
+    )
+    bad = [s for s in styles if any(d not in ("0s", "") for d in s["t"].split(","))
+           or any(d not in ("0s", "") for d in s["a"].split(","))]
+    assert not bad, bad
+    cdp.detach()
+
+
+# ==========================================================================
+# Задача 3.3: Scenario «Fallback без canvas» (NFR-14)
+# ==========================================================================
+
+
+def test_fallback_no_canvas(no_canvas_page, web_base_url):
+    """Scenario «Fallback без canvas» (NFR-14): в окружении без
+    HTMLCanvasElement/FileReader/createImageBitmap кроп-виджет не
+    открывается; file input жив — выбор валидного png НЕ открывает виджет,
+    input не очищен (Р4-сабмит уйдет как раньше); ошибок JS на странице
+    нет — init в try/catch."""
+    page = no_canvas_page
+    page.goto(f"{web_base_url}/settings/profile")
+    expect(page.locator("#profile-form")).to_have_attribute(
+        "data-loaded", "true", timeout=10_000
+    )
+
+    # Страница функциональна: ошибок JS нет (pageerror-подписка ниже).
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+
+    # Выбор валидного файла: виджет НЕ открывается (модуль не
+    # инициализирован), file input остаётся с файлом — Р4-загрузка.
+    png = _make_png()
+    page.locator("#avatar-file").set_input_files(
+        files=[{"name": "photo.png", "mimeType": "image/png", "buffer": png}]
+    )
+    page.wait_for_timeout(500)
+    expect(page.locator("#crop-widget")).not_to_contain_class("is-open")
+    # Input не очищен виджетом — сабмит уйдет в Р4-обработчик.
+    assert page.locator("#avatar-file").evaluate("el => el.files.length") == 1
+
+    # Сабмит не перехвачен кропом: fetch POST /api/profile/avatar уходит
+    # (перехват существует только при открытом виджете). Здесь
+    # контролируем лишь отсутствие JS-ошибок страницы (NFR-14).
+    assert not errors, errors

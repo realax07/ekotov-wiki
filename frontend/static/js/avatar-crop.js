@@ -55,6 +55,7 @@ const OUTPUT_SIZE = 256; // Д-13: итоговый квадрат
 function cropSupported() {
   return (
     typeof window.createImageBitmap === "function" &&
+    typeof window.FileReader !== "undefined" &&
     typeof HTMLCanvasElement !== "undefined" &&
     typeof HTMLCanvasElement.prototype.toBlob === "function"
   );
@@ -68,13 +69,49 @@ function declaredTypeAllowed(file) {
   return ALLOWED_EXTS.some((ext) => name.endsWith(ext));
 }
 
+/* Fallback-декодирование (ревью 3.2a): <img> + decode() — EXIF-ориентация
+ * применяется браузером УНИВЕРСАЛЬНО (в т.ч. старыми Safari, где
+ * imageOrientation у createImageBitmap не поддержан/игнорируется). */
+function decodeViaImgElement(file) {
+  return new Promise(function (resolve, reject) {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = function () {
+      img
+        .decode()
+        .then(function () {
+          const stage = document.createElement("canvas");
+          stage.width = img.naturalWidth;
+          stage.height = img.naturalHeight;
+          stage.getContext("2d").drawImage(img, 0, 0);
+          URL.revokeObjectURL(url);
+          resolve(createImageBitmap(stage));
+        })
+        .catch(function (error) {
+          URL.revokeObjectURL(url);
+          reject(error);
+        });
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      reject(new Error("image decode failed"));
+    };
+    img.src = url;
+  });
+}
+
 async function decodeOriented(file) {
   try {
     // EXIF: ориентация применяется при декодировании (image-orientation).
     return await createImageBitmap(file, { imageOrientation: "from-image" });
   } catch {
-    // Старый Chromium без опции — декодируем как есть.
-    return await createImageBitmap(file);
+    // Старый Chromium без опции — пробуем декодировать как есть.
+    try {
+      return await createImageBitmap(file);
+    } catch {
+      // Последний рубеж (старые Safari): <img>+decode() — EXIF применён.
+      return await decodeViaImgElement(file);
+    }
   }
 }
 
@@ -107,6 +144,7 @@ function initAvatarCrop() {
     dy: 0,
     size: 0, // сторона маски в CSS-пикселях (факт верстки)
     busy: false,
+    selectToken: 0, // защита от гонки двойного выбора файла (ревью 3.2b)
   };
 
   function showError(text) {
@@ -194,7 +232,21 @@ function initAvatarCrop() {
 
   /* --- Открытие/закрытие (Д-12, FR-53) --- */
 
-  function openCrop(bitmap) {
+  function openCrop(bitmap, token) {
+    // Гонка двойного выбора (ревью 3.2b): openCrop применяется только
+    // если за время decode() не начался более новый выбор файла; иначе
+    // устаревший bitmap закрывается и НЕ перезаписывает актуальный.
+    if (token !== state.selectToken) {
+      if (bitmap && typeof bitmap.close === "function") {
+        bitmap.close();
+      }
+      return;
+    }
+    if (state.bitmap && state.bitmap !== bitmap) {
+      if (typeof state.bitmap.close === "function") {
+        state.bitmap.close();
+      }
+    }
     state.bitmap = bitmap;
     state.zoom = ZOOM_MIN;
     state.dx = 0;
@@ -233,12 +285,17 @@ function initAvatarCrop() {
       return; // input НЕ очищаем — Р4-сабмит покажет 422 сервера как раньше
     }
     errorEl.hidden = true;
+    // Токен актуальности: каждый новый выбор инкрементирует; decode
+    // предыдущего выбора не откроет виджет поверх нового (ревью 3.2b).
+    const token = ++state.selectToken;
     try {
       const bitmap = await decodeOriented(file);
       fileInput.value = ""; // файл теперь у виджета; Р4-сабмит не дублирует
-      openCrop(bitmap);
+      openCrop(bitmap, token);
     } catch {
-      showError("Не удалось прочитать изображение");
+      if (token === state.selectToken) {
+        showError("Не удалось прочитать изображение");
+      }
     }
   });
 
@@ -266,6 +323,90 @@ function initAvatarCrop() {
   }
   mask.addEventListener("pointerup", endDrag);
   mask.addEventListener("pointercancel", endDrag);
+
+  /* --- Тач (задача 3.3, NFR-13): touch-drag + pinch-to-zoom --- */
+
+  /* touch-action: none на маске (CSS) гасит скролл/зум страницы над
+   * виджетом; вне виджета скролл страницы не затронут. Drag работает и
+   * пальцем — pointerdown/move покрывают touch-указатели (pointerType
+   * touch). Pinch: расстояние двух активных touch-точек → зум. */
+  let pinch = null; // { startDist, startZoom }
+  function touchDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  }
+  mask.addEventListener(
+    "touchstart",
+    function (event) {
+      if (!state.bitmap || event.touches.length !== 2) {
+        pinch = null;
+        return;
+      }
+      event.preventDefault(); // pinch над фото — зум, не зум страницы
+      drag = null; // второй палец отменяет одиночный drag
+      pinch = {
+        startDist: touchDistance(event.touches),
+        startZoom: state.zoom,
+      };
+    },
+    { passive: false }
+  );
+  mask.addEventListener(
+    "touchmove",
+    function (event) {
+      if (!pinch || !state.bitmap || event.touches.length !== 2) {
+        return;
+      }
+      event.preventDefault();
+      const dist = touchDistance(event.touches);
+      if (pinch.startDist > 0) {
+        // Расстояние двух точек → масштаб (NFR-13).
+        setZoom(pinch.startZoom * (dist / pinch.startDist));
+      }
+    },
+    { passive: false }
+  );
+  function endPinch() {
+    pinch = null;
+  }
+  mask.addEventListener("touchend", endPinch);
+  mask.addEventListener("touchcancel", endPinch);
+
+  /* --- Клавиатура (задача 3.3, NFR-15): маска в фокусе — стрелки
+   * двигают фото (шаг 5% стороны маски), +/- зум 10%; слайдер —
+   * нативный input range (стрелки работают сами). --- */
+  const KEY_MOVE_STEP_RATIO = 0.05; // 5% стороны маски
+  mask.addEventListener("keydown", function (event) {
+    if (!state.bitmap) {
+      return;
+    }
+    const step = state.size * KEY_MOVE_STEP_RATIO;
+    let handled = false;
+    if (event.key === "ArrowLeft") {
+      state.dx -= step;
+      handled = true;
+    } else if (event.key === "ArrowRight") {
+      state.dx += step;
+      handled = true;
+    } else if (event.key === "ArrowUp") {
+      state.dy -= step;
+      handled = true;
+    } else if (event.key === "ArrowDown") {
+      state.dy += step;
+      handled = true;
+    } else if (event.key === "+" || event.key === "=") {
+      setZoom(state.zoom + ZOOM_STEP);
+      handled = true;
+    } else if (event.key === "-" || event.key === "_") {
+      setZoom(state.zoom - ZOOM_STEP);
+      handled = true;
+    }
+    if (handled) {
+      event.preventDefault();
+      render(); // клэмп внутри — «дыр» нет и с клавиатуры
+    }
+  });
 
   /* --- Зум: слайдер + колесо + кнопки ± (FR-50, ОВ-СА-5) --- */
 
