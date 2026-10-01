@@ -142,7 +142,7 @@
     </label>
     <label>Теги (через запятую)
       <input type="text" id="task-tags" name="tags" placeholder="home, urgent"
-             list="task-tag-hints">
+             autocomplete="off">
     </label>
     {# 4.1 (FR-34/DEF-005, зона «вид выбранных тегов», мокап V3):
        подсказка поля + чипы выбранных тегов (.chips/.chip с крестиком
@@ -151,12 +151,23 @@
        того же input — новый UI-состояния, не логики сохранения. #}
     <p id="task-tags-hint" class="hint">Через запятую; подсказки — из заведенных тегов и категорий</p>
     <div id="task-tags-chips" class="chips" hidden></div>
-    {# 4.1 (FR-26, Д-3): подсказки тегов — datalist, заполняется из
-       существующего GET /api/suggestions в task-form.js (единый механизм
-       с подсказками поиска). Опции — только через textContent (XSS);
-       ввод нового значения (отсутствующего в подсказках) допустим —
-       сохраняется как тег обычным образом. #}
-    <datalist id="task-tag-hints"></datalist>
+    {# r6 2.1/2.2 (FR-57…FR-59, NFR-17/18, ОВ-2): нативный datalist
+       #task-tag-hints заменен кастомным комбобоксом (tag-combobox.js;
+       стили и aria-паттерн — design/tag-combobox-v3.html). Дропдаун —
+       role=listbox ПОД input (absolute, position: relative ставит
+       .task-form label), пункты role=option — рендерит JS. aria-live
+       узел озвучивает количество подсказок. id task-tag-hints СОХРАНЕН
+       за datalist (скрытый совместимости): r3/r4-тесты подсказок поиска
+       и set-семантики читают option'ы #task-tag-hints — зеркалим в него
+       те же значения (источник один — loadTagHints). Ввод нового
+       значения (отсутствующего в подсказках) допустим — сохраняется
+       как тег обычным образом (get-or-create, ОГР-27). #}
+    <div class="tag-combobox-wrap">
+      <div id="task-tag-combobox" class="combobox-popup" role="listbox"
+           aria-label="Подсказки тегов" hidden></div>
+      <div id="task-tag-combobox-live" class="visually-hidden" aria-live="polite"></div>
+    </div>
+    <datalist id="task-tag-hints" hidden></datalist>
     {# 4.1 (FR-34/DEF-005): оформление fast line — голубой ряд-плашка
        .fast-row по мокапу V3 (токены --p-blue-050/--p-blue-200);
        структура и текст сохранены (e2e get_by_label("fast line")). #}
