@@ -121,6 +121,18 @@ function initAvatarCrop() {
     return; // NFR-14: нет canvas/декодирования — Р4-загрузка как есть
   }
 
+  /* Хотфикс Р5 (Заказчик): при активном кроп-модуле кнопка «Загрузить»
+   * не выполняет функций — открытый виджет перехватывает сабмит
+   * (= «Применить»), а после выбора файла кроп открывается сразу.
+   * Путь загрузки: «Выбрать файл…» → кроп → «Применить». Скрываем через
+   * hidden (из разметки не удаляем): fallback без canvas сюда не доходит
+   * (ранний return выше), кнопка остается — Р4-сабмит формы с исходным
+   * файлом работает (NFR-14). */
+  const uploadBtn = document.getElementById("avatar-upload");
+  if (uploadBtn) {
+    uploadBtn.hidden = true;
+  }
+
   const fileInput = document.getElementById("avatar-file");
   const widget = document.getElementById("crop-widget");
   const mask = document.getElementById("crop-mask");

@@ -171,7 +171,13 @@ def test_page_composition(logged_in_page, web_base_url):
     expect(page.locator("#avatar-form")).to_be_visible()
     expect(page.get_by_role("button", name="Сохранить")).to_have_count(1)
     expect(page.get_by_role("button", name="Сменить пароль")).to_have_count(1)
-    expect(page.get_by_role("button", name="Загрузить")).to_have_count(1)
+    # Хотфикс Р5: кроп-модуль активен (canvas доступен) → кнопка «Загрузить»
+    # скрыта (hidden, из разметки не удалена). Путь загрузки: «Выбрать
+    # файл…» → кроп → «Применить»; в fallback без canvas кнопка видима
+    # (NFR-14, тесты — test_r5_crop_ui.py: hidden_when_crop_active /
+    # visible_in_fallback).
+    expect(page.locator("#avatar-upload")).to_have_count(1)
+    expect(page.locator("#avatar-upload")).to_be_hidden()
 
     # Предзаполнение: пустой профиль seed-owner — поля пустые, роль = дефолт.
     expect(page.locator("#profile-display-name")).to_have_value("")
@@ -410,8 +416,13 @@ def test_avatar_txt_rejected(logged_in_page, web_base_url, web_db_path, profile_
     page.locator("#avatar-file").set_input_files(
         files=[{"name": "note.txt", "mimeType": "text/plain", "buffer": b"hello"}]
     )
-    page.get_by_role("button", name="Загрузить").click()
+    # Хотфикс Р5: невалидный txt отклоняется ДО открытия виджета
+    # (NFR-12), но кроп-модуль активен (canvas есть) → кнопка «Загрузить»
+    # скрыта (hotfix: hidden после initAvatarCrop). Р4-обработчик change
+    # через подписку виджета НЕ вызван — ошибка уже показана кроп-модулем
+    # (тот же текст, что Р4-ответ сервера: правила едины, NFR-10/ОВ-22).
     expect(page.locator("#avatar-error")).to_be_visible()
+    expect(page.locator("#crop-widget")).not_to_contain_class("is-open")
     expect(page.locator("#avatar-preview")).to_be_hidden()
 
     # Аватар не сохранен.
@@ -443,7 +454,11 @@ def test_avatar_png_upload_preview(
             }
         ]
     )
-    page.get_by_role("button", name="Загрузить").click()
+    # Хотфикс Р5: валидный png открывает кроп-виджет (Д-12), сабмит формы
+    # перехватывается виджетом (= «Применить», capture на document) —
+    # путь загрузки: кроп открыт → «Применить» (canvas 256×256 → POST).
+    expect(page.locator("#crop-widget")).to_contain_class("is-open", timeout=10_000)
+    page.locator("#crop-apply").click()
     expect(page.locator("#avatar-success")).to_be_visible()
 
     # Превью: img показан, src — URL аватара из ответа API (?v= версия).
