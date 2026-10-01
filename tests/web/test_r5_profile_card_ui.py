@@ -62,6 +62,28 @@ def profile_hygiene(web_db_path):
         conn.close()
 
 
+@pytest.fixture
+def owner_password_guard(web_db_path):
+    """Гарантия seed-пароля owner после теста (прямым bcrypt-хешем в БД,
+    как tests/web/test_settings_profile_r4.owner_password_guard) — регресс
+    не зависит от исхода теста."""
+    yield
+    import bcrypt
+
+    new_hash = bcrypt.hashpw(
+        OWNER_PASSWORD.encode("utf-8"), bcrypt.gensalt()
+    ).decode("ascii")
+    conn = sqlite3.connect(web_db_path)
+    try:
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE login = ?",
+            (new_hash, OWNER_LOGIN),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def _goto(page, web_base_url):
     page.goto(f"{web_base_url}/settings/profile")
     # Автожидание предзаполнения (конвенция data-loaded, profile-settings.js).
@@ -137,7 +159,9 @@ def test_profile_card_v3_structure(logged_in_page, web_base_url):
 # ==========================================================================
 
 
-def test_password_confirmed_by_button_only(logged_in_page, web_base_url):
+def test_password_confirmed_by_button_only(
+    logged_in_page, web_base_url, owner_password_guard
+):
     """ОВ-СА-6: заполнение полей пароля и уход фокуса (blur) НЕ отправляют
     POST /api/profile/password; запрос уходит только по клику «Сменить
     пароль» (механика Р4/Д-11 — форма submit)."""
@@ -165,12 +189,10 @@ def test_password_confirmed_by_button_only(logged_in_page, web_base_url):
     expect(page.locator("#password-current")).to_have_value("", timeout=10_000)
     assert len(hits) == 1, hits
 
-    # Восстановление seed-пароля (гигиена стенда, как owner_password_guard
-    # тестов Р4): обратная смена через ту же кнопку.
-    page.locator("#password-current").fill("QaWhatever_9!")
-    page.locator("#password-new").fill(OWNER_PASSWORD)
-    page.locator("#password-save").click()
-    expect(page.locator("#password-current")).to_have_value("", timeout=10_000)
+    # Восстановление seed-пароля — не инлайн (падение между сменой и
+    # обратной сменой каскадно ломает следующие тесты), а guard-фикстурой
+    # (bcrypt-хеш в teardown, конвенция tests/web/test_settings_profile_r4.py:
+    # owner_password_guard) — выполняется при любом исходе теста.
 
 
 # ==========================================================================
@@ -257,7 +279,8 @@ def test_three_save_operations_independent(
 def test_mobile_375_single_column_no_hscroll(logged_in_page, web_base_url):
     """Scenario «Адаптив одной колонкой» (FR-56): при ширине 375px карточка
     перестроена в одну колонку (grid-template-columns), горизонтальной
-    прокрутки страницы нет."""
+    прокрутки страницы нет; на десктопной ширине (1280px) — 2 колонки по
+    макету (перестроение, а не постоянная одна колонка)."""
     page = logged_in_page
     page.set_viewport_size({"width": 375, "height": 720})
     _goto(page, web_base_url)
@@ -311,3 +334,11 @@ def test_mobile_375_single_column_no_hscroll(logged_in_page, web_base_url):
         assert box is not None and box["x"] >= 0 and (
             box["x"] + box["width"] <= metrics["win"] + 1
         ), (selector, box)
+
+    # Перестроение, а не постоянная одна колонка: на десктопной ширине
+    # (≥769px) card-grid — 2 колонки по макету design/avatar-crop-v3.html
+    # (240px аватар-зона | поля).
+    page.set_viewport_size({"width": 1280, "height": 800})
+    expect(page.locator(".profile-card")).to_be_visible()
+    desktop_cols = _computed(page, ".card-grid", "gridTemplateColumns")
+    assert len(desktop_cols.split()) == 2, desktop_cols

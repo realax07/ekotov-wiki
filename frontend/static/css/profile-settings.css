@@ -30,9 +30,11 @@
 
 .profile-settings-page .card-grid {
   display: grid;
-  /* minmax(0, 1fr): иначе трек не сжимается ниже min-content контента
-   * (file-input ~260px + кружок 96px) → горизонтальный занос на 375px. */
-  grid-template-columns: minmax(0, 1fr);   /* аватар-зона | поля; ≤768px — одна колонка */
+  /* По макету design/avatar-crop-v3.html: аватар-зона 240px слева, поля справа.
+   * Второй трек minmax(0, 1fr) — иначе 1fr не сжимается ниже min-content
+   * контента (file-input ~260px) → горизонтальный занос уже 880px.
+   * ≤768px — одна колонка (FR-56), см. @media ниже. */
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: var(--space-3);
   align-items: start;
 }
