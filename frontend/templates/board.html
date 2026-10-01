@@ -176,24 +176,36 @@
         <input type="checkbox" id="task-is-fast" name="is_fast"> fast line
       </label>
     </div>
-    {# 4.1 Релиза 4 (FR-47, Д-9; design §6): действия с задачей из
-       прежнего окна деталей — в режиме редактирования (в создании
-       задачи еще нет, блок скрыт openCreateForm). Механика прежняя:
-       селект «Столбец» → POST /{id}/move, «Удалить» → DELETE (FR-7),
-       комментарии (GET/POST /api/tasks/{id}/comments, sdd §3.2). #}
-    <div id="task-actions" class="task-actions" hidden>
-      <label>Столбец
-        <select id="task-move-select">
-          <option value="todo">Ожидает</option>
-          <option value="in_progress">В работе</option>
-          <option value="done">Выполнено</option>
-        </select>
-      </label>
-      <button type="button" id="task-delete-button">Удалить</button>
-    </div>
-    <div class="form-actions">
+    {# r6 3.1 (FR-63, ОВ-4, ОГР-28; эталон design/tag-combobox-v3.html
+       «Единая зона действий задачи»): ЕДИНАЯ зона действий внизу формы —
+       один ряд-блок .task-actions (role=group): в режиме редактирования
+       [Столбец ▾][Сохранить][Отмена] │ [Удалить]; в создании ряд
+       [Создать][Отмена]. Ряд ВИДЕН всегда; режимная часть (.move-label
+       + «Удалить», контейнер .task-actions-task) скрыта в создании
+       (openCreateForm) — ее #task-actions хранит прежний id (ОГР-28,
+       скрытие openCreateForm/openEditForm работает как прежде). Прежние
+       ДВА блока (#task-actions + .form-actions) объединены: управление
+       задачей не разнесено по форме (ОВ-4). Механика прежняя: селект
+       «Столбец» → POST /{id}/move, «Удалить» → DELETE с confirm (FR-7).
+       id НЕ менялись (ОГР-28): task-move-select, task-delete-button,
+       task-form-submit, task-form-cancel — подписки task-form.js/
+       board-init.js и e2e живут. #}
+    <div class="task-actions" role="group" aria-label="Действия с задачей">
+      <div id="task-actions" class="task-actions-task" hidden>
+        <label class="move-label">Столбец
+          <select id="task-move-select">
+            <option value="todo">Ожидает</option>
+            <option value="in_progress">В работе</option>
+            <option value="done">Выполнено</option>
+          </select>
+        </label>
+      </div>
       <button type="submit" id="task-form-submit">Создать</button>
       <button type="button" id="task-form-cancel">Отмена</button>
+      {# FR-63 (макет tag-combobox-v3): destructive «Удалить» — ПОСЛЕДНЕЙ,
+         прижата к правому краю ряда (margin-left:auto); в DOM после
+         submit/cancel. id прежние (ОГР-28). #}
+      <button type="button" id="task-delete-button" class="btn-destructive">Удалить</button>
     </div>
   </form>
   {# Блок комментариев режима редактирования — СОСЕДНИЙ элемент с
