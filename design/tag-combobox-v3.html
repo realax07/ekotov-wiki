@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<!-- Живой макет Р6 (DEF-004): кастомный комбобокс тегов — все состояния
+     + единая зона действий задачи. Пакет add-r6-task-form-ux, задача design
+     (решение Заказчика 2026-10-01 ОВ-2/ОВ-4: комбобокс — новый UI-элемент
+     без макета, класс риска DEF-004). Эталон стиля — design/form-style-v3.html
+     + design/avatar-crop-v3.html; токены V3 — 1:1 с frontend/static/css/app.css (:root).
+     Состав (FR-58/FR-59, NFR-17/18 requirements-r6; design.md §2):
+       1) поле «Теги» с чипами (FR-34 сохранен, источник истины — input, ОГР-27)
+          + ОТКРЫТЫЙ дропдаун: пункты — обычный, hover, активный с клавиатуры
+          (aria-activedescendant), подсветка совпавшего фрагмента (терракота);
+       2) пункт «+ Добавить тег „‹фрагмент›“» — отдельный secondary-стиль (FR-59);
+       3) состояние «нет совпадений» — в дропдауне только пункт добавления;
+       4) закрытый дропдаун — базовое поле с чипами;
+       5) состояния input: default / hover / focus (нижняя линия 2px V3);
+       6) блок «Единая зона действий задачи» (FR-63, ОВ-4, ОГР-28):
+          [Столбец ▾] [Сохранить] [Отмена] │ [Удалить] — один ряд,
+          «Удалить» destructive + отступ; ≤480px — wrap (FR-62).
+     Макет СТАТИЧЕСКИЙ: состояния показаны демо-классами (как стрип состояний
+     в avatar-crop-v3), интерактив не обязателен. Продуктовая реализация —
+     ES-модуль frontend/static/js/board/tag-combobox.js + правки task-form.js,
+     задача dev 3.1; aria-паттерн и поведение — design.md §2.
+     NFR-17: фильтрация локальная по уже загруженному множеству (?kind=tags,
+     FR-57), отклик ≤100 мс; тач — тап по пункту, скролл страницы не ломается.
+     NFR-18: role=combobox на input + listbox/option, aria-expanded/controls,
+     активный с клавиатуры пункт — aria-activedescendant на input; количество
+     подсказок — в aria-live узел; значения в DOM — только textContent (XSS).
+     ОГР-8: без внешних шрифтов/CDN. id элементов зоны действий — существующие
+     (#task-move-select, #task-delete-button, #task-form-submit,
+     #task-form-cancel) — не переименовываются (ОГР-28). -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Р6 · V3 «Бумага» — комбобокс тегов: все состояния + единая зона действий</title>
+<style>
+/* ================= ДИЗАЙН-ТОКЕНЫ (1:1 с app.css) ================= */
+:root {
+  /* primitives (V3 «Бумага») */
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;   /* терракотовый акцент, AA на бумажном фоне */
+  --p-clay-700: #93391f;   /* hover акцента */
+  --p-clay-050: #f7e8e4;
+  --p-red-700: #9c3524;
+  --p-red-050: #f8ecea;
+  --p-olive-700: #5f6f34;
+  --p-amber-700: #8a5a1e;
+  --p-blue-700: #33608c;   /* fast line */
+  --p-blue-050: #eef2f6;
+  --p-blue-200: #c9d6e2;
+
+  /* semantic */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-text-on-accent: #fff;
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-bg-subtle: var(--p-paper-100);
+  --color-border-default: var(--p-paper-200);
+  --color-border-strong: var(--p-ink-600);
+  --color-accent: var(--p-clay-600);
+  --color-accent-hover: var(--p-clay-700);
+  --color-accent-soft: var(--p-clay-050);
+  --status-error: var(--p-red-700);
+  --status-error-bg: var(--p-red-050);
+  --status-success: var(--p-olive-700);
+
+  /* spacing — 8px сетка */
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+
+  /* geometry */
+  --radius-field: 6px;
+  --radius-card: 10px;
+
+  /* elevation */
+  --shadow-modal: 0 16px 40px rgba(61, 54, 48, 0.18);
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+
+  /* typography */
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --speed-fast: 160ms;
+  --speed-modal: 220ms;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: var(--font-family);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  min-height: 100vh; display: flex;
+}
+.mini-sidebar {
+  width: 96px; flex-shrink: 0; background: var(--p-ink-900);
+  color: var(--p-paper-050); padding: var(--space-2) 0; font-size: 12px;
+}
+.mini-sidebar div { padding: var(--space-1) 12px; opacity: .55; }
+.mini-sidebar .on { background: var(--color-accent); opacity: 1; font-weight: bold; }
+
+.stage { flex: 1; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
+.stage > h1 { font-size: 15px; margin: 0; color: var(--color-text-secondary); font-weight: 600; }
+
+/* ================= КАРТОЧКА (shell V3) ================= */
+.card-shell { width: 100%; max-width: 880px; }
+.demo-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-3);
+}
+.card-title {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-family-display);
+  font-size: 22px; font-weight: 400;
+}
+.section-title {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--font-size-label);
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+.demo-card > .section-title:first-of-type { margin-top: 0; }
+.state-note { font-size: 12px; color: var(--color-text-secondary); margin: 0 0 var(--space-2); }
+
+/* ================= ФОРМА: поле «только нижняя линия» (прием V3) ================= */
+.field { margin-bottom: var(--space-2); }
+.field > label {
+  display: block; font-size: var(--font-size-label);
+  color: var(--color-text-secondary); margin-bottom: var(--space-05);
+}
+
+/* ================= ЧИПЫ ТЕГОВ (1:1 с .task-form .chip, FR-34, ОГР-27) ================= */
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-05); margin: 0 0 var(--space-1); }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--color-bg-subtle);
+  border-radius: 999px; padding: 3px 10px;
+  font-size: 12px; color: var(--color-text-primary);
+}
+.chip button {
+  border: none; background: none; cursor: pointer; padding: 0;
+  font: inherit; line-height: 1; color: var(--color-text-secondary);
+}
+.chip button:hover { color: var(--color-text-primary); }
+.chip button:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: 50%; }
+
+/* ================= INPUT КОМБОБОКСА (нижняя линия 2px V3) =================
+   Состояния поля (требование 6 макета + полиш FR-60):
+   default → hover (линия strong) → focus (терракота + 1px underline-shadow).
+   NFR-18: в продукте input получает role="combobox", aria-expanded,
+   aria-controls=<id дропдауна>, aria-autocomplete="list"; активный стрелками
+   пункт — aria-activedescendant=<id option> на input (ARIA APG
+   «Combobox with Listbox Popup», design.md §2). */
+.tag-input {
+  display: block; width: 100%;
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none; border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0; background: transparent;
+  font: inherit; color: var(--color-text-primary);
+}
+.tag-input:hover { border-bottom-color: var(--color-border-strong); }
+.tag-input:focus-visible {
+  outline: none; border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
+}
+/* Демо-состояния (DEMO-ONLY, для ревью — как .demo-hover/.demo-focus в avatar-crop-v3): */
+.tag-input.demo-hover { border-bottom-color: var(--color-border-strong); }
+.tag-input.demo-focus { border-bottom-color: var(--color-accent); box-shadow: 0 1px 0 var(--color-accent); }
+
+/* ================= ДРОПДАУН =================
+   В продукте — absolute под input внутри модалки (design.md §2:
+   пересчет при скролле/resize не нужен, ≤480px — ширина 100% поля);
+   здесь — статический образец в потоке, под своим полем.
+   Поведение (design.md §2, NFR-17): фокус/ввод → открытие; локальная
+   фильтрация ≤100 мс; клик вне / выбор пункта / первое Escape (stopPropagation,
+   форма не реагирует) — закрытие; уже введенные теги исключены из пунктов (FR-58). */
+.combobox-popup {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-05);
+  max-height: 280px; overflow-y: auto;
+  margin-top: 2px;
+}
+.combobox-list { list-style: none; margin: 0; padding: 0; }
+
+/* Обычный пункт. NFR-18: <li role="option" id="tag-opt-N" aria-selected="false">;
+   значение рендерится только через textContent (XSS, преемственность dom.js:
+   тег с <b> внутри имени не исполняется). */
+.option {
+  padding: var(--space-1);
+  border-radius: var(--radius-field);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+.option:hover { background: var(--color-bg-subtle); }        /* hover мыши (NFR-17) */
+.demo-hover.option { background: var(--color-bg-subtle); }   /* DEMO-ONLY образец hover */
+
+/* Активный с клавиатуры пункт (требование 2 макета): input держит
+   aria-activedescendant=<id этого option>; визуально — мягкая терракотовая
+   плашка (accent-soft) + терракота текста. В продукте дополнительно
+   aria-selected="true" на активном пункте. */
+.option[aria-selected="true"], .demo-active.option {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-hover);
+  font-weight: 600;
+}
+
+/* Подсветка совпавшего фрагмента (FR-58, «как в Jira»; требование 2 макета):
+   терракота — тот же цвет, что focus-линия поля; фон — мягкая терракота
+   (--color-accent-soft). Разметка <mark> внутри option; в продукте собирается
+   из textContent-узлов (createElement), без innerHTML. */
+.option mark {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+/* Пункт «+ Добавить тег „…“» (FR-59; требование 3 макета) — отдельный
+   secondary-стиль: приглушенный цвет, рамка-разделитель сверху.
+   Клик/Enter → значение дописывается в input, чипы перерисовываются;
+   механика сохранения не меняется (ОГР-27: строка через запятую,
+   get-or-create на сервере). */
+.option-add {
+  margin-top: var(--space-05);
+  padding: var(--space-1);
+  border-top: 1px solid var(--color-border-default);
+  border-radius: 0 0 var(--radius-field) var(--radius-field);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.option-add:hover { background: var(--color-bg-subtle); color: var(--color-text-primary); }
+.option-add .add-fragment { color: var(--color-accent); font-weight: 600; }
+
+/* NFR-18: количество подсказок озвучивается через aria-live="polite"
+   узел рядом с дропдауном (визуально скрыт) — в разметке продукта;
+   здесь отражено примечанием под образцом. */
+
+/* ================= СЕТКА ДЕМО-СОСТОЯНИЙ (DEMO-ONLY) ================= */
+.states-grid {
+  margin-top: var(--space-3); padding-top: var(--space-3);
+  border-top: 1px dashed var(--color-border-default);
+  display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-start;
+}
+.demo-cell { width: 300px; max-width: 100%; }
+.state-caption {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin: 0 0 var(--space-1);
+}
+.state-caption code {
+  font-family: inherit; font-size: 11px; text-transform: none; letter-spacing: 0;
+  background: var(--color-bg-subtle);
+  border-radius: 3px; padding: 0 4px;
+}
+
+/* ================= ЕДИНАЯ ЗОНА ДЕЙСТВИЙ ЗАДАЧИ (FR-63, ОВ-4) =================
+   Эталон раскладки для dev 3.1: один flex-ряд внизу формы (объединение
+   .form-actions и #task-actions; перенос разметки, обработчики не
+   переписываются). Режим редактирования:
+     [Столбец ▾] [Сохранить] [Отмена] ······················ │ [Удалить]
+   «Удалить» — destructive (существующие --status-error токены), прижат
+   вправо (margin-left:auto) и отделен вертикальным разделителем —
+   визуальная группа «безопасные действия | деструктив».
+   Режим создания: #task-actions скрыт (hidden, openCreateForm) —
+   ряд [Создать] [Отмена] сохраняет нынешний вид.
+   id не менять (ОГР-28): #task-move-select, #task-delete-button,
+   #task-form-submit, #task-form-cancel, #task-actions. */
+.task-actions-row {
+  display: flex; align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-default);
+  flex-wrap: wrap;                      /* мобильный: кнопки переносятся (FR-62) */
+}
+.task-actions-row .move-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  margin-right: var(--space-1);
+}
+/* Селект «Столбец» — тот же прием «нижняя линия 2px», что поля формы (FR-60) */
+.task-actions-row select {
+  font: inherit; color: var(--color-text-primary);
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none; border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0; background: transparent; cursor: pointer;
+}
+.task-actions-row select:hover { border-bottom-color: var(--color-border-strong); }
+.task-actions-row select:focus-visible {
+  outline: none; border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
+}
+
+/* Кнопки-пилюли V3 (1:1 с form-style-v3) */
+.btn {
+  font: inherit; cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: 999px; border: 1px solid transparent;
+}
+.btn-primary { background: var(--color-accent); color: var(--color-text-on-accent); box-shadow: var(--shadow-soft); }
+.btn-primary:hover { background: var(--color-accent-hover); }
+.btn-secondary { background: transparent; color: var(--color-text-primary); border-color: var(--color-border-strong); }
+.btn-secondary:hover { background: var(--color-bg-subtle); }
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+
+/* Destructive «Удалить»: контур терракотово-красным (--status-error),
+   hover — мягкий красный фон (--status-error-bg); новых цветов нет.
+   Отдельная зона справа: margin-left:auto + вертикальный разделитель ::before.
+   Подтверждение удаления сохраняется (FR-63; window.confirm, design.md §3). */
+.btn-destructive {
+  margin-left: auto;
+  background: transparent;
+  color: var(--status-error);
+  border-color: var(--status-error);
+  position: relative;
+}
+.btn-destructive:hover { background: var(--status-error-bg); }
+.btn-destructive::before {
+  content: "";
+  position: absolute; left: calc(-1 * var(--space-2)); top: 4px; bottom: 4px;
+  width: 1px; background: var(--color-border-default);
+}
+
+/* ================= АДАПТИВ (FR-62: ≤480px — одна колонка, без горизонт.
+   прокрутки; дропдаун — 100% ширины поля; зона действий — wrap) ============ */
+@media (max-width: 480px) {
+  .stage { padding: var(--space-2); }
+  .demo-cell { width: 100%; }
+  .combobox-popup { max-height: 200px; }
+  .task-actions-row .btn { flex: 1 1 auto; }   /* кнопки в ряд с переносом */
+  .btn-destructive { margin-left: 0; }
+  .btn-destructive::before { display: none; }  /* разделитель не нужен при переносе */
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<aside class="mini-sidebar" aria-hidden="true">
+  <div>Доска</div><div>Поиск</div><div>Wiki</div><div class="on">Задача</div>
+</aside>
+
+<main class="stage">
+  <h1>Р6 · V3 «Бумага» — комбобокс тегов: состояния дропдауна + единая зона действий (FR-58/59, FR-63, NFR-17/18)</h1>
+
+  <!-- ============================================================
+       КАРТОЧКА 1: поле «Теги» с чипами + ОТКРЫТЫЙ дропдаун (требования 1–3)
+       Основной сценарий: введен фрагмент «диз»; чип «Дизайн» уже выбран —
+       из подсказок исключен (FR-58). В списке показаны все виды пунктов.
+       ============================================================ -->
+  <div class="card-shell">
+    <section class="demo-card" aria-labelledby="combo-title-1">
+      <h2 class="card-title" id="combo-title-1">Комбобокс тегов — дропдаун открыт, есть совпадения</h2>
+      <p class="state-note">Введено «диз». Чип «Дизайн» уже выбран — из подсказок исключен (FR-58). Совпадение в пунктах подсвечено терракотой. Фильтрация локальная, отклик ≤100 мс (NFR-17).</p>
+
+      <div class="field">
+        <label for="f-tags-open">Теги</label>
+        <!-- Чипы выбранных тегов (FR-34; рендер task-form.js через textContent, ОГР-27) -->
+        <div class="chips" aria-label="Выбранные теги">
+          <span class="chip">Дизайн <button type="button" aria-label="Убрать тег Дизайн">×</button></span>
+          <span class="chip">исследование <button type="button" aria-label="Убрать тег исследование">×</button></span>
+          <span class="chip">срочно <button type="button" aria-label="Убрать тег срочно">×</button></span>
+        </div>
+        <!-- NFR-18: role="combobox", aria-expanded="true",
+             aria-controls="tag-listbox-open", aria-autocomplete="list";
+             активный стрелками пункт — aria-activedescendant="tag-opt-2"
+             (образец: активен второй пункт «Дизайн-система»). -->
+        <input type="text" id="f-tags-open" class="tag-input demo-focus" value="диз"
+               role="combobox" aria-expanded="true" aria-controls="tag-listbox-open"
+               aria-autocomplete="list" aria-activedescendant="tag-opt-2">
+        <!-- Дропдаун (в продукте — absolute под input внутри модалки).
+             NFR-18: контейнер role="listbox" id="tag-listbox-open",
+             пункты role="option" с уникальными id; значения — textContent (XSS).
+             Ниже — все виды пунктов: обычный / hover / активный с клавиатуры
+             (подсветка совпадения в каждом) / «+ Добавить тег». -->
+        <div class="combobox-popup" id="tag-listbox-open" role="listbox" aria-label="Подсказки тегов">
+          <ul class="combobox-list">
+            <!-- Обычный пункт: без hover/активности -->
+            <li class="option" role="option" id="tag-opt-1" aria-selected="false">ре<mark>диз</mark>айн формы</li>
+            <!-- Hover мыши (DEMO-ONLY класс .demo-hover дублирует :hover) -->
+            <li class="option demo-hover" role="option" id="tag-opt-hover" aria-selected="false">ре<mark>диз</mark>айн доски</li>
+            <!-- Активный с клавиатуры: aria-activedescendant=input указывает сюда;
+                 подсветка совпавшего фрагмента — та же терракота -->
+            <li class="option demo-active" role="option" id="tag-opt-2" aria-selected="true"><mark>диз</mark>айн-система</li>
+            <!-- Обычный пункт без совпадения в начале слова -->
+            <li class="option" role="option" id="tag-opt-3" aria-selected="false">ре<mark>диз</mark>айн онбординга</li>
+          </ul>
+          <!-- Явный пункт добавления (FR-59): отдельный secondary-стиль -->
+          <div class="option-add" role="option" id="tag-opt-add" aria-selected="false">
+            + Добавить тег «<span class="add-fragment">диз</span>»
+          </div>
+        </div>
+        <p class="state-note" style="margin-top: var(--space-1);">NFR-18: количество подсказок озвучивается aria-live="polite" узлом («Найдено 4 тегов») — в продуктовой разметке рядом с дропдауном.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============================================================
+       КАРТОЧКА 2: «нет совпадений» (требование 4) — в дропдауне
+       только пункт «+ Добавить тег „…“» (FR-59)
+       ============================================================ -->
+  <div class="card-shell">
+    <section class="demo-card" aria-labelledby="combo-title-2">
+      <h2 class="card-title" id="combo-title-2">Нет совпадений — только пункт добавления</h2>
+      <p class="state-note">Введено «юриспруденция» — совпадений нет (NFR-17: сбой загрузки подсказок выглядит иначе — дропдаун не показан, ввод работает как прежде, СЦ-5).</p>
+
+      <div class="field">
+        <label for="f-tags-none">Теги</label>
+        <div class="chips" aria-label="Выбранные теги">
+          <span class="chip">исследование <button type="button" aria-label="Убрать тег исследование">×</button></span>
+        </div>
+        <input type="text" id="f-tags-none" class="tag-input demo-focus" value="юриспруденция"
+               role="combobox" aria-expanded="true" aria-controls="tag-listbox-none"
+               aria-autocomplete="list">
+        <div class="combobox-popup" id="tag-listbox-none" role="listbox" aria-label="Подсказки тегов">
+          <div class="option-add" role="option" id="tag-none-add" aria-selected="false">
+            + Добавить тег «<span class="add-fragment">юриспруденция</span>»
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============================================================
+       КАРТОЧКА 3: закрытый дропдаун + состояния input (требования 5–6)
+       + сетка demo-образцов состояний поля
+       ============================================================ -->
+  <div class="card-shell">
+    <section class="demo-card" aria-labelledby="combo-title-3">
+      <h2 class="card-title" id="combo-title-3">Закрытый дропдаун — базовое поле с чипами</h2>
+      <p class="state-note">Дропдаун закрыт (выбор пункта / клик вне / Escape — design.md §2). aria-expanded="false". Обычное состояние поля — без demo-классов.</p>
+
+      <div class="field">
+        <label for="f-tags-closed">Теги</label>
+        <div class="chips" aria-label="Выбранные теги">
+          <span class="chip">Дизайн <button type="button" aria-label="Убрать тег Дизайн">×</button></span>
+          <span class="chip">исследование <button type="button" aria-label="Убрать тег исследование">×</button></span>
+          <span class="chip">срочно <button type="button" aria-label="Убрать тег срочно">×</button></span>
+        </div>
+        <input type="text" id="f-tags-closed" class="tag-input" value="Дизайн, исследование, срочно"
+               role="combobox" aria-expanded="false" aria-controls="tag-listbox-closed"
+               aria-autocomplete="list">
+      </div>
+
+      <!-- Сетка состояний input (DEMO-ONLY, для ревью — как стрип в avatar-crop-v3) -->
+      <h3 class="section-title">Состояния поля «Теги» (closed)</h3>
+      <div class="states-grid">
+        <div class="demo-cell">
+          <p class="state-caption">default</p>
+          <input type="text" class="tag-input" value="" aria-label="Образец поля: default" aria-expanded="false" role="combobox">
+        </div>
+        <div class="demo-cell">
+          <p class="state-caption">hover — линия <code>--color-border-strong</code></p>
+          <input type="text" class="tag-input demo-hover" value="" aria-label="Образец поля: hover" aria-expanded="false" role="combobox">
+        </div>
+        <div class="demo-cell">
+          <p class="state-caption">focus-visible — терракота + <code>--focus-ring</code>-линия</p>
+          <input type="text" class="tag-input demo-focus" value="" aria-label="Образец поля: focus" aria-expanded="false" role="combobox">
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============================================================
+       КАРТОЧКА 4: единая зона действий задачи (FR-63, ОВ-4; требование 6)
+       Эталон раскладки для dev 3.1 — один ряд внизу формы,
+       режим редактирования: [Столбец ▾] [Сохранить] [Отмена] │ [Удалить].
+       ============================================================ -->
+  <div class="card-shell">
+    <section class="demo-card" aria-labelledby="actions-title">
+      <h2 class="card-title" id="actions-title">Единая зона действий задачи (режим редактирования)</h2>
+      <p class="state-note">FR-63 / ОВ-4: объединение <code>.form-actions</code> и <code>#task-actions</code> в один блок-ряд внизу формы; «Удалить» — destructive, прижат вправо и отделен разделителем. Подтверждение удаления сохраняется. id не меняются (ОГР-28). В режиме создания <code>#task-actions</code> скрыт — ряд [Создать] [Отмена].</p>
+
+      <div class="task-actions-row" role="group" aria-label="Действия с задачей">
+        <label class="move-label">Столбец
+          <select id="task-move-select">
+            <option value="todo">Ожидает</option>
+            <option value="in_progress">В работе</option>
+            <option value="done">Выполнено</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn-primary" id="task-form-submit">Сохранить</button>
+        <button type="button" class="btn btn-secondary" id="task-form-cancel">Отмена</button>
+        <button type="button" class="btn btn-destructive" id="task-delete-button">Удалить</button>
+      </div>
+
+      <!-- Мобильный вариант (≤480px, FR-62): wrap, кнопки full-width-рядами -->
+      <h3 class="section-title">Мобильный ≤480px — wrap</h3>
+      <div class="task-actions-row" style="max-width: 375px;" role="group" aria-label="Действия с задачей, мобильный вариант">
+        <label class="move-label">Столбец
+          <select id="task-move-select-mobile" aria-label="Столбец (мобильный образец)">
+            <option value="todo">Ожидает</option>
+            <option value="in_progress">В работе</option>
+            <option value="done">Выполнено</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn-primary">Сохранить</button>
+        <button type="button" class="btn btn-secondary">Отмена</button>
+        <button type="button" class="btn btn-destructive" style="margin-left: 0;">Удалить</button>
+      </div>
+    </section>
+  </div>
+</main>
+</body>
+</html>
