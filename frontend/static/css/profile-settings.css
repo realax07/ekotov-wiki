@@ -1,74 +1,289 @@
-/* Страница настроек пользователя /settings/profile (tasks.md 3.1 пакета
- * add-r4-user-profile-ticket-view; design §4). Стиль V3 «Бумага» —
- * токены из app.css :root; классы согласованы с settings.css
- * (form-error/form-success/settings-section). */
+/* Единая карточка профиля V3 — /settings/profile (tasks.md 3.1 пакета
+ * add-r5-avatar-crop-compact-profile; FR-55/FR-56, ОВ-СА-6; эталон —
+ * design/avatar-crop-v3.html макет 1.1, приемы — design/form-style-v3.html).
+ * Токены V3 — 1:1 из app.css :root (новых токенов нет — ОГР-25); классы
+ * .profile-card/.section-title/.field/.btn/.card-grid/.password-* —
+ * из макета J25. Поля — «нижняя линия» (радиус 0 — проектное значение
+ * мокапа V3, как в TC-formv3-101). Адаптив: ≤768px — одна колонка (FR-56).
+ * settings.css (общий /settings) не затрагивается (ОГР-20/23). */
 
-.profile-section input[type="text"],
-.profile-section select,
-.profile-section textarea,
-.password-section input {
+/* ================= Карточка (FR-55) ================= */
+.profile-settings-page .card-shell {
   width: 100%;
-  margin: 4px 0 12px;
-  padding: 6px 8px;
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-field);
-  font: inherit;
-  color: var(--color-text-primary);
+  max-width: 880px;
+}
+
+.profile-settings-page .profile-card {
   background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-3);
 }
 
-.profile-section input:hover,
-.profile-section select:hover,
-.profile-section textarea:hover,
-.password-section input:hover {
-  border-color: var(--color-border-strong);
+.profile-settings-page .card-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-family-display);
+  font-size: 22px;
+  font-weight: 400;
 }
 
-.profile-section input:focus-visible,
-.profile-section select:focus-visible,
-.profile-section textarea:focus-visible,
-.password-section input:focus-visible {
-  outline: none;
-  border-color: var(--color-accent);
-  box-shadow: var(--focus-ring);
+.profile-settings-page .card-grid {
+  display: grid;
+  /* По макету design/avatar-crop-v3.html: аватар-зона 240px слева, поля справа.
+   * Второй трек minmax(0, 1fr) — иначе 1fr не сжимается ниже min-content
+   * контента (file-input ~260px) → горизонтальный занос уже 880px.
+   * ≤768px — одна колонка (FR-56), см. @media ниже. */
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
 }
 
-.settings-section form button[type="submit"] {
-  padding: 6px 16px;
-  border: none;
-  border-radius: var(--radius-field);
-  background: var(--color-accent);
-  color: var(--color-text-on-accent);
-  font: inherit;
-  cursor: pointer;
-}
-
-.settings-section form button[type="submit"]:hover {
-  background: var(--color-accent-hover);
-}
-
-.settings-section form button[type="submit"]:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-.avatar-section input[type="file"] {
-  margin: 4px 0 12px;
-  font: inherit;
+/* --- подзаголовки секций (по макету J25) --- */
+.profile-settings-page .section-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-label);
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
   color: var(--color-text-secondary);
 }
 
-.avatar-preview {
-  display: block;
+/* ================= Аватар-зона ================= */
+.profile-settings-page .avatar-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.profile-settings-page .avatar-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.profile-settings-page .avatar-circle {
   width: 96px;
   height: 96px;
-  margin-top: var(--space-1);
+  flex-shrink: 0;
   border-radius: 50%;
+  overflow: hidden;
   border: 1px solid var(--color-border-default);
+  background: var(--color-bg-subtle);
+}
+
+/* Текущий аватар / превью (Р4: img#avatar-preview) */
+.profile-settings-page .avatar-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
-/* Ошибки/успех — локальные определения страницы (settings.css принадлежит
- * /settings и сюда не подключается): те же токены V3. */
-.profile-settings-page .form-error { color: var(--status-error); }
-.profile-settings-page .form-success { color: var(--status-success); }
+.profile-settings-page .avatar-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+  min-width: 0;
+}
+
+.profile-settings-page .avatar-controls input[type="file"] {
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  /* intrinsic-ширина file-input (~260px) не дает гриду сжаться —
+   * width:0 + min-width:100% (FR-56, без гориз. прокрутки на 375px):
+   * базовая ширина 0, но не уже контейнера. */
+  width: 0;
+  min-width: 100%;
+}
+
+/* ================= Поля «нижняя линия» (прием V3) ================= */
+.profile-settings-page .field {
+  margin-bottom: var(--space-2);
+}
+
+.profile-settings-page .field > label {
+  display: block;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-05);
+}
+
+.profile-settings-page .hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: var(--space-05) 0 0;
+}
+
+.profile-settings-page .field input[type="text"],
+.profile-settings-page .field select,
+.profile-settings-page .field textarea {
+  display: block;
+  width: 100%;
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+  resize: vertical;
+}
+
+.profile-settings-page .field input[type="password"] {
+  display: block;
+  width: 100%;
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+}
+
+.profile-settings-page .field input:hover,
+.profile-settings-page .field select:hover,
+.profile-settings-page .field textarea:hover {
+  border-bottom-color: var(--color-border-strong);
+}
+
+.profile-settings-page .field input:focus-visible,
+.profile-settings-page .field select:focus-visible,
+.profile-settings-page .field textarea:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
+}
+
+/* ================= Кнопки-пилюли (макет J25) ================= */
+.profile-settings-page .btn {
+  font: inherit;
+  cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  align-self: flex-start;
+}
+
+.profile-settings-page .btn-primary {
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+}
+
+.profile-settings-page .btn-primary:hover {
+  background: var(--color-accent-hover);
+}
+
+.profile-settings-page .btn-secondary {
+  background: transparent;
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.profile-settings-page .btn-secondary:hover {
+  background: var(--color-bg-subtle);
+}
+
+.profile-settings-page .btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.profile-settings-page .btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.profile-settings-page .form-actions {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+}
+
+/* ================= Секция пароля (внутри карточки, ОВ-СА-6) ================= */
+.profile-settings-page .password-section {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-default);
+}
+
+.profile-settings-page .password-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  max-width: 560px;
+}
+
+.profile-settings-page .password-note {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: var(--space-05) 0 var(--space-2);
+}
+
+/* ================= Ошибки/успех (токены V3) ================= */
+.profile-settings-page .form-error {
+  color: var(--status-error);
+  font-size: 12px;
+  margin: var(--space-05) 0 0;
+}
+
+.profile-settings-page .form-success {
+  color: var(--status-success);
+  font-size: 12px;
+  margin: var(--space-05) 0 0;
+}
+
+/* ================= Адаптив: ≤768px — одна колонка (FR-56) ================= */
+@media (max-width: 768px) {
+  .profile-settings-page .card-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Компактнее на узком экране: сайдбар 200px оставляет колонке ~93px —
+   * базовый padding 24px не дает кнопке «Загрузить» поместиться
+   * (минус горизонтальная прокрутка, FR-56). Макет J25 тоже ужимает
+   * сцену на мобиле (.stage → --space-2). */
+  .profile-settings-page .profile-card {
+    padding: var(--space-2);
+  }
+
+  .profile-settings-page .btn {
+    padding: 10px 12px;
+    font-size: var(--font-size-label);
+  }
+
+  /* Аватар-зона: кружок + контролы друг под другом — иначе min-content
+   * строки (96px + file-input ~260px) не влезает в 375px (FR-56). */
+  .profile-settings-page .avatar-row {
+    flex-direction: column;
+  }
+
+  .profile-settings-page .password-grid {
+    grid-template-columns: 1fr;
+    max-width: none;
+  }
+
+  .profile-settings-page .form-actions {
+    flex-wrap: wrap;
+  }
+
+  /* Кнопка не должна раздувать трек своим min-content (слово «Сохранить»
+   * + padding ≈ 128px > трека 77px при 375px) — разрешаем перенос текста
+   * и сжатие (FR-56: без горизонтальной прокрутки). */
+  .profile-settings-page .form-actions .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-settings-page * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -1,68 +1,109 @@
-{# Страница настроек пользователя (tasks.md 3.1 пакета
-   add-r4-user-profile-ticket-view; FR-39…FR-42, ОГР-20; design §4,
-   дельта settings — Requirement «Страница настроек пользователя»).
-   Отдельная от общего раздела /settings страница (ОГР-20): справочника
-   категорий здесь НЕТ — Scenario «Независимость от общих настроек».
-   Состав: форма профиля (display_name, role-select из 2 значений ОВ-21,
-   bio), блок смены пароля (текущий + новый), загрузка аватара (png/jpg)
-   с показом ошибок API. Предзаполнение — GET /api/profile из
-   profile-settings.js. Кнопки сохранения — отдельные на каждый блок
-   (независимые операции, design §4). Имена пользователей — только через
-   textContent (XSS-дисциплина settings.js/login.js). #}
+{# Страница настроек пользователя /settings/profile — ЕДИНАЯ КАРТОЧКА V3
+   (tasks.md 3.1 пакета add-r5-avatar-crop-compact-profile; FR-55/FR-56,
+   ОВ-СА-6, ОГР-20/23; эталон — design/avatar-crop-v3.html макет 1.1,
+   стиль — design/form-style-v3.html).
+
+   Структура по макету J25: ОДНА карточка .profile-card (bg-surface,
+   radius-card, shadow-soft) с тремя секциями и подзаголовками
+   .section-title: 1) аватар-зона (текущий кружок + file input по-Р4:
+   форма #avatar-form с кнопкой «Загрузить»; кроп-виджет — задачи 3.2/3.3,
+   подключается в эту же зону позже, Д-12); 2) данные профиля
+   (display_name, роль-select ОВ-21, bio); 3) смена пароля внутри той же
+   карточки ниже (border-top), подтверждение ТОЛЬКО кнопкой «Сменить
+   пароль» (ОВ-СА-6, не по blur); механика Р4/Д-11 без изменений.
+
+   Состав полей Р4 не меняется (FR-40/41/42); три НЕЗАВИСИМЫЕ операции
+   сохранения — три отдельные формы: #profile-form (PUT /api/profile),
+   #password-form (POST /api/profile/password), #avatar-form (multipart
+   POST /api/profile/avatar). Все id сохранены — profile-settings.js (Р4)
+   не менялся. Общий /settings (справочник категорий) здесь отсутствует
+   (ОГР-20, Scenario «Независимость от общих настроек»). Без сессии —
+   редирект middleware'ом (NFR-7). #}
 {% extends "base.html" %}
 {% block title %}Профиль — ekotov-wiki{% endblock %}
 {% block body_class %} profile-settings-page{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="/static/css/profile-settings.css?v={{ static_v }}">
-<h1>Профиль</h1>
+<div class="card-shell">
+  <section class="profile-card" aria-labelledby="profile-card-title">
+    <h1 class="card-title" id="profile-card-title">Профиль</h1>
 
-<section class="settings-section profile-section" aria-labelledby="profile-form-title">
-  <h2 id="profile-form-title">Профиль</h2>
-  <form id="profile-form">
-    <label for="profile-display-name">Отображаемое имя</label>
-    <input type="text" id="profile-display-name" name="display_name">
+    <div class="card-grid">
+      {# ===== Секция 1: аватар-зона (кроп-виджет 3.2/3.3 войдет сюда) ===== #}
+      <div class="avatar-col">
+        <h2 class="section-title" id="avatar-form-title">Аватар</h2>
+        <form id="avatar-form">
+          <div class="avatar-row">
+            <span class="avatar-circle">
+              <img id="avatar-preview" class="avatar-preview" alt="Аватар" hidden>
+            </span>
+            <div class="avatar-controls">
+              <label class="hint" for="avatar-file">Файл png/jpg (до 2 МБ)</label>
+              <input type="file" id="avatar-file" name="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+              <button type="submit" id="avatar-upload" class="btn btn-secondary">Загрузить</button>
+            </div>
+          </div>
+        </form>
+        <p id="avatar-error" class="form-error" hidden></p>
+        <p id="avatar-success" class="form-success" hidden></p>
+      </div>
 
-    <label for="profile-role">Роль</label>
-    <select id="profile-role" name="role">
-      <option value="Product manager">Product manager</option>
-      <option value="Product engineer">Product engineer</option>
-    </select>
+      {# ===== Секция 2: данные профиля (состав Р4 без потерь) ===== #}
+      <div class="fields-col">
+        <h2 class="section-title" id="profile-form-title">Данные профиля</h2>
+        <form id="profile-form">
+          <div class="field">
+            <label for="profile-display-name">Отображаемое имя</label>
+            <input type="text" id="profile-display-name" name="display_name">
+          </div>
 
-    <label for="profile-bio">О себе</label>
-    <textarea id="profile-bio" name="bio" rows="4"></textarea>
+          <div class="field">
+            <label for="profile-role">Роль</label>
+            <select id="profile-role" name="role">
+              <option value="Product manager">Product manager</option>
+              <option value="Product engineer">Product engineer</option>
+            </select>
+            <p class="hint">Ровно два значения (ОВ-21)</p>
+          </div>
 
-    <button type="submit" id="profile-save">Сохранить</button>
-  </form>
-  <p id="profile-error" class="form-error" hidden></p>
-  <p id="profile-success" class="form-success" hidden></p>
-</section>
+          <div class="field">
+            <label for="profile-bio">О себе</label>
+            <textarea id="profile-bio" name="bio" rows="4"></textarea>
+          </div>
 
-<section class="settings-section password-section" aria-labelledby="password-form-title">
-  <h2 id="password-form-title">Смена пароля</h2>
-  <form id="password-form">
-    <label for="password-current">Текущий пароль</label>
-    <input type="password" id="password-current" name="current_password" autocomplete="current-password">
+          <div class="form-actions">
+            <button type="submit" id="profile-save" class="btn btn-primary">Сохранить профиль</button>
+          </div>
+        </form>
+        <p id="profile-error" class="form-error" hidden></p>
+        <p id="profile-success" class="form-success" hidden></p>
+      </div>
+    </div>
 
-    <label for="password-new">Новый пароль</label>
-    <input type="password" id="password-new" name="new_password" autocomplete="new-password">
-
-    <button type="submit" id="password-save">Сменить пароль</button>
-  </form>
-  <p id="password-error" class="form-error" hidden></p>
-  <p id="password-success" class="form-success" hidden></p>
-</section>
-
-<section class="settings-section avatar-section" aria-labelledby="avatar-form-title">
-  <h2 id="avatar-form-title">Аватар</h2>
-  <form id="avatar-form">
-    <label for="avatar-file">Файл png/jpg (до 2 МБ)</label>
-    <input type="file" id="avatar-file" name="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
-    <button type="submit" id="avatar-upload">Загрузить</button>
-  </form>
-  <p id="avatar-error" class="form-error" hidden></p>
-  <p id="avatar-success" class="form-success" hidden></p>
-  <img id="avatar-preview" class="avatar-preview" alt="Аватар" hidden>
-</section>
+    {# ===== Секция 3: смена пароля — внутри той же карточки (ОВ-СА-6) ===== #}
+    <div class="password-section" aria-labelledby="password-form-title">
+      <h2 class="section-title" id="password-form-title">Смена пароля</h2>
+      <p class="password-note">Подтверждение — только кнопкой «Сменить пароль», не по потере фокуса</p>
+      <form id="password-form">
+        <div class="password-grid">
+          <div class="field">
+            <label for="password-current">Текущий пароль</label>
+            <input type="password" id="password-current" name="current_password" autocomplete="current-password">
+          </div>
+          <div class="field">
+            <label for="password-new">Новый пароль</label>
+            <input type="password" id="password-new" name="new_password" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" id="password-save" class="btn btn-primary">Сменить пароль</button>
+        </div>
+      </form>
+      <p id="password-error" class="form-error" hidden></p>
+      <p id="password-success" class="form-success" hidden></p>
+    </div>
+  </section>
+</div>
 
 <script type="module" src="/static/js/profile-settings.js?v={{ static_v }}"></script>
 {% endblock %}
