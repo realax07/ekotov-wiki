@@ -512,9 +512,10 @@ def test_task_form_tag_hints_show_known_values(
     logged_in_page, web_base_url, web_owner_session, web_cleanup_created
 ):
     """TC-form-001 (CHK-112): подсказки поля «Теги» формы содержат теги
-    QAT-тег-home, QAT-тег-urgent и категорию QAT-кат-work (объединение,
-    Д-3); набор совпадает с GET /api/suggestions — механизм един с поиском
-    (sdd §3.2)."""
+    QAT-тег-home и QAT-тег-urgent; r6 (ОВ-1/Д-14, FR-57) форма запрашивает
+    GET /api/suggestions?kind=tags — состав зеркала сверяется с kind=tags,
+    категории (QAT-кат-work) в подсказках формы больше нет (осознанное
+    поведение ОВ-1); поиск остается на UNION без параметра (ОГР-26)."""
     page = logged_in_page
 
     # Шаг 1: категория в справочник (FR-21) + задача-носитель через API;
@@ -532,15 +533,16 @@ def test_task_form_tag_hints_show_known_values(
     web_cleanup_created(created.json()["id"])
 
     try:
-        resp = web_owner_session.get(f"{web_base_url}/api/suggestions")
+        resp = web_owner_session.get(f"{web_base_url}/api/suggestions?kind=tags")
         assert resp.status_code == 200
         api_values = set(resp.json()["suggestions"])
-        assert {"QAT-тег-home", "QAT-тег-urgent", "QAT-кат-work"} <= api_values
+        assert {"QAT-тег-home", "QAT-тег-urgent"} <= api_values
 
         # Шаг 2: форма задачи; подсказки поля «Теги» — r6: нативный
         # datalist заменен кастомным комбобоксом (FR-58/59, ОВ-2);
         # атрибут list снят, но зеркало-datalist #task-tag-hints остается
-        # (REVALIDATE CHK-112: состав подсказок прежний — сверка с API).
+        # (r6 ОВ-1/Д-14: состав изменился — форма просит kind=tags,
+        # зеркало сверяется с kind=tags-ответом).
         _open_form(page)
         tags_field = page.get_by_label("Теги (через запятую)")
         assert tags_field.get_attribute("aria-controls") == "task-tag-combobox", (
@@ -555,12 +557,13 @@ def test_task_form_tag_hints_show_known_values(
         hint_values = [
             options.nth(i).text_content().strip() for i in range(options.count())
         ]
-        for value in ("QAT-тег-home", "QAT-тег-urgent", "QAT-кат-work"):
+        for value in ("QAT-тег-home", "QAT-тег-urgent"):
             assert value in hint_values, f"{value!r} нет в подсказках формы"
 
-        # Шаг 4: набор совпадает с телом GET /api/suggestions (единый
-        # механизм с поиском).
+        # Шаг 4: набор — ровно kind=tags (только теги; категории, в т.ч.
+        # QAT-кат-work, в подсказках формы отсутствуют — ОВ-1).
         assert set(hint_values) == api_values
+        assert "QAT-кат-work" not in hint_values
     finally:
         # Шаг 5: cleanup — сначала задача-носитель (Д-1: иначе DELETE
         # категории — 409 «in use»), затем категория.

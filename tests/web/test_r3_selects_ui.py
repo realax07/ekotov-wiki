@@ -206,8 +206,11 @@ def test_datalists_show_task_tag_and_category_values(
     logged_in_page, web_base_url, web_owner_session, web_cleanup_created
 ):
     """TC-sel-106 (CHK-177): задача-маркер (тег `QAT-sel-тег`, категория
-    «Дом») видна в обоих datalist'ах — #task-tag-hints (форма) и
-    #tag-hints (поиск); значения из БД видны пользователю."""
+    «Дом») видна в datalist'ах. r6 (ОВ-1/Д-14, FR-57): форма запрашивает
+    GET /api/suggestions?kind=tags — в #task-tag-hints только теги
+    (категории больше нет, это осознанное поведение ОВ-1); поиск
+    (#tag-hints) ходит без параметра — прежний UNION (ОГР-26), там видны
+    и тег, и категория; значения из БД видны пользователю."""
     created = web_owner_session.post(
         f"{web_base_url}/api/tasks",
         json={"title": "QAT-sel-маркер", "tags": ["QAT-sel-тег"], "category": "Дом"},
@@ -222,7 +225,8 @@ def test_datalists_show_task_tag_and_category_values(
     page.get_by_role("button", name="Создать задачу").click()
     form_hints = page.locator("#task-tag-hints option")
     expect(form_hints.filter(has_text="QAT-sel-тег")).to_have_count(1, timeout=10_000)
-    expect(form_hints.filter(has_text="Дом")).to_have_count(1)
+    # ОВ-1/Д-14: форма — только теги, категории в подсказках формы нет.
+    expect(form_hints.filter(has_text="Дом")).to_have_count(0)
     # Дублей нет (set-семантика).
     texts = _option_texts(form_hints)
     assert len(texts) == len(set(texts)), texts
