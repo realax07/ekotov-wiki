@@ -252,13 +252,15 @@ function fillAssignedSelect(users, selectedId) {
     : String(selectedId);
 }
 
-function loadAssignedOptions(selectedLogin) {
+function loadAssignedOptions(selectedLogin, onLoaded) {
   /* Источник — read-only GET /api/users (sdd §3.1a-кватер-бис, ОВ-26):
    * 200 {"users": [{id, login, display_name}]}, отсортированы по login.
    * Аргумент — ЛОГИН исполнителя (Task-контракт несет имена: sdd §3.2
    * «creator/assigned — логины»; id в ответе задачи нет): id для
    * select.value резолвится по загруженному списку; неизвестный логин
-   * → «Не назначено» (значения только из пользователей).
+   * → «Не назначено» (значения только из пользователей). onLoaded —
+   * колбэк ПОСЛЕ выставления значения (r6 4.2: точечное обновление
+   * снапшота исполнителя в openEditForm — симметрично loadCategoryOptions).
    * assignedLoaded/assignedLoadGen (review-008 major): флаг «список
    * готов» gating'ает включение assigned_to_id в payload (см.
    * collectTaskForm); token отсекает stale-ответы при переоткрытии
@@ -273,6 +275,7 @@ function loadAssignedOptions(selectedLogin) {
     function () {
       if (gen !== assignedLoadGen) return;
       fillAssignedSelect([], null);
+      if (onLoaded) onLoaded();
     },
     function (body) {
       if (gen !== assignedLoadGen) return;
@@ -285,6 +288,7 @@ function loadAssignedOptions(selectedLogin) {
       }
       fillAssignedSelect(users, selectedId);
       assignedLoaded = true;
+      if (onLoaded) onLoaded();
     }
   );
 }
@@ -307,24 +311,28 @@ function fillCategorySelect(names, selected) {
   select.value = selected || "";
 }
 
-function loadCategoryOptions(selected) {
+function loadCategoryOptions(selected, onLoaded) {
   /* Опции select — фактическое содержимое справочника на момент
    * открытия формы (sdd r2 §3.1: 200 {"categories": [{id, name}, ...],
    * отсортировано по name}). Сбой загрузки список не подменяет:
    * select остается с одним пустым значением, выбор категории
    * невозможен — свободный текст не появляется (FR-19: выбор из
-   * справочника, не ввод). */
+   * справочника, не ввод). onLoaded (r6 4.2) — колбэк после применения
+   * значений (снимок чистой формы для Escape-детектора обновляется и
+   * на сбое — форма «чистая» с пустой категорией). */
   api(
     "/api/categories",
     {},
     function () {
       fillCategorySelect([], null);
+      if (onLoaded) onLoaded();
     },
     function (body) {
       var names = ((body && body.categories) || []).map(function (item) {
         return item.name;
       });
       fillCategorySelect(names, selected);
+      if (onLoaded) onLoaded();
     }
   );
 }
@@ -413,6 +421,63 @@ function clearTaskForm() {
   loadCategoryOptions(null);
   loadAssignedOptions(null);
   loadTagHints();
+}
+
+/* --- r6 4.2 (FR-61, ОВ-3): Escape-закрытие формы задачи ---
+ * Признак «грязности» — снимок полей на момент открытия (openCreateForm/
+ * openEditForm через captureTaskSnapshot); diff полей на Escape решает:
+ * чистая форма закрывается сразу, грязная — после window.confirm
+ * «Закрыть без сохранения?» (паттерн «Удалить задачу?», task-form.js).
+ * Закрытие — путь «Отмены» (closeTaskForm): на сервер ничего не уходит.
+ * Первое Escape при открытом дропдауне комбобокса закрывает только
+ * дропдаун (tag-combobox.js: keydown на input со stopPropagation —
+ * документ-обработчик ниже его не получает); view-модалка имеет свой
+ * guard (task-detail.js: закрывается только когда форма скрыта).
+ * Снимок берется по тем же полям, что собирает collectTaskForm, —
+ * расхождений «сабмит видит, dirty-детектор нет» нет. */
+
+var SNAPSHOT_FIELD_IDS = [
+  "task-title",
+  "task-description",
+  PRIORITY_FIELD_ID,
+  CATEGORY_FIELD_ID,
+  ASSIGNED_FIELD_ID,
+  "task-due-date",
+  TAGS_INPUT_ID,
+];
+
+var taskSnapshot = null;
+
+function captureTaskSnapshot() {
+  taskSnapshot = SNAPSHOT_FIELD_IDS.map(function (id) {
+    return document.getElementById(id).value;
+  });
+  /* fast line — чекбокс, в SNAPSHOT не входит: снимается в обоих режимах
+   * одинаково (fillTaskForm сбрасывает checked) — diff не нужен. */
+}
+
+/* r6 4.2 (FR-61): точечное обновление снимка одним полем. Колбэк
+ * loadCategoryOptions НЕ должен переснимать ВСЕ поля: поздний ответ
+ * (категории пришли после того, как пользователь начал редактировать)
+ * иначе затирал бы уже внесенные правки в снимке — форма считалась бы
+ * «чистой», Escape закрывал ее без confirm (потеря ввода). */
+function refreshTaskSnapshotField(id) {
+  if (taskSnapshot === null) {
+    return;
+  }
+  var index = SNAPSHOT_FIELD_IDS.indexOf(id);
+  if (index !== -1) {
+    taskSnapshot[index] = document.getElementById(id).value;
+  }
+}
+
+function isTaskFormDirty() {
+  if (taskSnapshot === null) {
+    return false;
+  }
+  return SNAPSHOT_FIELD_IDS.some(function (id, index) {
+    return document.getElementById(id).value !== taskSnapshot[index];
+  });
 }
 
 /* --- 4.1 Релиза 4: действия с задачей из окна деталей (FR-6/FR-7) ---
@@ -579,6 +644,12 @@ export function openCreateForm() {
    * оверлея (при display:none scrollHeight=0, сбрасывать нечем). Без
    * этого инлайн-высота роста прошлого открытия пережила бы «Отмену». */
   resetTextareaHeight(document.getElementById("task-description"));
+  /* r6 4.2 (FR-61): снимок чистой формы для Escape-dirty-детектора —
+   * ПОСЛЕ fillTaskForm (внутри clearTaskForm) и асинхронных загрузок:
+   * категория/исполнитель приходят позже, но их значения на момент
+   * открытия пустые; категория по задаче приходит в openEditForm —
+   * там снимок после loadCategoryOptions. */
+  captureTaskSnapshot();
   document.getElementById("task-title").focus();
 }
 
@@ -597,16 +668,35 @@ export function openEditForm(task) {
    * деталей). */
   document.getElementById("task-move-select").value = task.status;
   fillTaskForm(task);
+  /* r6 4.2 (FR-61): БАЗОВЫЙ снимок полей — сразу после fillTaskForm;
+   * loadCategoryOptions (ниже) в своем колбэке обновит снимок значением
+   * категории задачи (select пока пуст — иначе открытие на задачу с
+   * категорией считалось бы «грязным» сразу). */
+  captureTaskSnapshot();
   /* Категория задачи, удаленной из справочника, в списке не значится:
    * опции = ровно справочник (FR-30), значение сбрасывается на «—».
    * Сохранение такой задачи в прежнем виде отклонится 422 (FR-21) —
    * с подсветкой поля. */
-  loadCategoryOptions(task.category);
+  loadCategoryOptions(task.category, function () {
+    /* Опции загружены и значение категории проставлено — снимок
+     * «чистого» состояния обновлен ТОЛЬКО по полю категории (r6 4.2,
+     * FR-61): полный пересъем затер бы правки, внесенные пользователем
+     * за время загрузки справочника. */
+    refreshTaskSnapshotField(CATEGORY_FIELD_ID);
+  });
   /* 5.1: select исполнителя — текущее значение задачи (ОВ-26).
    * Task несет ЛОГИН исполнителя (assigned, sdd §3.2 — id в ответе нет);
    * id для select резолвит loadAssignedOptions по /api/users;
    * смена/очистка — тем же селектом, отправка через PATCH. */
-  loadAssignedOptions(task.assigned !== undefined ? task.assigned : null);
+  loadAssignedOptions(task.assigned !== undefined ? task.assigned : null, function () {
+    /* r6 4.2 (FR-61), review-001 №2: симметрично категории — снимок
+     * «чистого» состояния обновлен ТОЛЬКО по полю исполнителя: список
+     * пользователей приходит асинхронно, и до его загрузки select стоит
+     * на «Не назначено»; без точечного обновления открытие на задачу С
+     * исполнителем считалось бы «грязным» сразу (лишний confirm), а
+     * полный пересъем затер бы правки, внесенные за время загрузки. */
+    refreshTaskSnapshotField(ASSIGNED_FIELD_ID);
+  });
   /* Подсказки тегов — и в режиме редактирования: те же заведенные
    * значения (FR-26 действует на форму в обоих режимах). */
   loadTagHints();
@@ -633,8 +723,39 @@ export function openEditForm(task) {
    * редактирование с длинным описанием открывало бы поле в 2 строки
    * с «прыжком» при первом вводе. */
   autoresize(document.getElementById("task-description"));
+  /* r6 4.2 (FR-61): снимок к этому моменту уже взят (после fillTaskForm,
+   * выше) и обновлен колбэком loadCategoryOptions; повтор здесь не нужен. */
   document.getElementById("task-title").focus();
 }
+
+/* r6 4.2 (FR-61): Escape закрывает форму задачи (аналог «Отмены») —
+ * чистая сразу, грязная после confirm. Guard'ы:
+ * 1) форма открыта и view НЕ открыта (симметрично task-detail.js —
+ *    view-модалка закрывается своим обработчиком, форму не трогаем);
+ * 2) фокус не в комбобокс-дропдауне: при открытом дропдауне input'ы
+ *    keydown-обработчик tag-combobox.js гасит Escape с stopPropagation —
+ *    до документа событие не доходит, этот guard — страховка для путей,
+ *    когда фокус уже ушел из input, а дропдаун визуально жив. */
+document.addEventListener("keydown", function (event) {
+  if (event.key !== "Escape") {
+    return;
+  }
+  var form = document.getElementById("task-form-overlay");
+  var view = document.getElementById("task-detail-overlay");
+  if (form.hidden || !view.hidden) {
+    return;
+  }
+  /* Дропдаун комбобокса открыт, но событие дошло до документа (фокус
+   * вне input) — не закрывать форму: список должен уйти первым. */
+  var listbox = document.getElementById("task-tag-combobox");
+  if (listbox && !listbox.hidden) {
+    return;
+  }
+  if (isTaskFormDirty() && !window.confirm("Закрыть без сохранения?")) {
+    return;
+  }
+  closeTaskForm();
+});
 
 export function closeTaskForm() {
   /* Review 2.1/2.2 (major): закрыть дропдаун комбобокса ВМЕСТЕ с

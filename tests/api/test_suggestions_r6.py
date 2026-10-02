@@ -112,3 +112,54 @@ def test_suggestions_r6_unauthorized_with_and_without_kind(base_url):
         resp = requests.get(f"{base_url}/api/suggestions", params=params)
         assert resp.status_code == 401, (params, resp.status_code)
         assert resp.json() == {"error": "unauthorized"}
+
+
+@pytest.mark.must
+# regression: keep — r6 QA 5.1 гэп (CHK-R6-1b): kind-фильтры исключают
+# ДРУГОЙ kind ЦЕЛИКОМ при активных данных обеих видов (СЦ-1/СЦ-10).
+def test_suggestions_r6_kind_filters_exclude_other_kind_active(
+    owner_session, base_url, api, r2_seed_categories
+):
+    """TC-r6-gaps-003: задача несет И тег, И категорию; вторая категория
+    справочника также активна второй задачей. kind=tags → в ответе нет
+    НИ ОДНОЙ категории (обеих); kind=categories → нет тегов; без
+    параметра — прежний UNION (оба множества на месте). Данные СЦ-1 в
+    полном составе: категории «работают» (несены задачами) в момент
+    запроса — TC-sugg-r6-002/003 не фиксируют отсутствие ДРУГИХ
+    категорий справочника."""
+    cat_a = r2_seed_categories.create_ok("QAT-R6GAPS-Кат-А")["id"]
+    cat_b = r2_seed_categories.create_ok("QAT-R6GAPS-Кат-Б")["id"]
+    t1 = api.create_ok(
+        "QAT-R6GAPS-носитель-А", category="QAT-R6GAPS-Кат-А", tags=["QAT-R6GAPS-Тег"]
+    )
+    t2 = api.create_ok("QAT-R6GAPS-носитель-Б", category="QAT-R6GAPS-Кат-Б")
+    try:
+        resp_tags = owner_session.get(
+            f"{base_url}/api/suggestions", params={"kind": "tags"}
+        )
+        assert resp_tags.status_code == 200
+        tags_set = set(resp_tags.json()["suggestions"])
+        assert "QAT-R6GAPS-Тег" in tags_set
+        assert "QAT-R6GAPS-Кат-А" not in tags_set, tags_set
+        assert "QAT-R6GAPS-Кат-Б" not in tags_set, tags_set
+
+        resp_cats = owner_session.get(
+            f"{base_url}/api/suggestions", params={"kind": "categories"}
+        )
+        assert resp_cats.status_code == 200
+        cats_set = set(resp_cats.json()["suggestions"])
+        assert {"QAT-R6GAPS-Кат-А", "QAT-R6GAPS-Кат-Б"} <= cats_set
+        assert "QAT-R6GAPS-Тег" not in cats_set, cats_set
+
+        resp_union = owner_session.get(f"{base_url}/api/suggestions")
+        assert resp_union.status_code == 200
+        union = set(resp_union.json()["suggestions"])
+        assert "QAT-R6GAPS-Тег" in union
+        assert {"QAT-R6GAPS-Кат-А", "QAT-R6GAPS-Кат-Б"} <= union
+    finally:
+        api.delete(t1["id"])
+        api.delete(t2["id"])
+        r2_seed_categories.untrack(cat_a)
+        r2_seed_categories.untrack(cat_b)
+        assert r2_seed_categories.delete(cat_a).status_code == 200
+        assert r2_seed_categories.delete(cat_b).status_code == 200

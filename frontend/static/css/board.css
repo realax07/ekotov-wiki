@@ -379,6 +379,16 @@
   box-shadow: 0 1px 0 var(--color-accent);
 }
 
+/* 4.1 r6 (FR-60, Д-15, DEF-004): disabled-состояние полей — по макету
+ * V3 (.field input:disabled): вторичный цвет + not-allowed. Пилюля
+ * приоритета дополнительно приглушается своим правилом (:has(:disabled)). */
+.task-form input:disabled,
+.task-form select:disabled,
+.task-form textarea:disabled {
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
 /* --- Р5 polish (прод-репорт): авто-высота textarea «Описание» и
  * «Новый комментарий». Старт ~2 строки (min-height), потолок ~10 строк
  * (max-height + overflow-y:auto — скролл включает браузер). Нижняя линия
@@ -428,20 +438,23 @@
   color: var(--status-error);
 }
 
-/* Подсказка под полем (мокап .hint). */
+/* Подсказка под полем (мокап .hint; 4.1 r6 FR-60: отступы — по макету
+ * V3: --space-05 сверху, снизу 0 — зазор до следующего поля дает
+ * margin-bottom самого label). */
 .task-form .hint {
   font-size: 12px;
   color: var(--color-text-secondary);
-  margin: var(--space-05) 0 var(--space-1);
+  margin: var(--space-05) 0 0;
 }
 
 /* Зона «вид выбранных тегов» (мокап .chips/.chip): пилюли с крестиком
- * удаления; значения рендерит task-form.js через textContent (XSS). */
+ * удаления; значения рендерит task-form.js через textContent (XSS).
+ * 4.1 r6 (FR-60, Д-15): отступ снизу выровнен по макету V3 (--space-1). */
 .task-form .chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-05);
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-1);
 }
 
 .task-form .chips[hidden] { display: none; }
@@ -567,9 +580,9 @@
   border: 0;
 }
 
-/* Узкий экран (макет, NFR-17): дропдаун — ширина 100% поля (absolute
- * left/right: 0 это уже дает); потолок высоты ниже — меньше перекрытия
- * формы на мобильных. */
+/* Узкий экран (r6 4.3, FR-62; макет, NFR-17): дропдаун — ширина 100%
+ * поля (absolute left/right: 0 это уже дает); потолок высоты ниже —
+ * меньше перекрытия формы на мобильных. */
 @media (max-width: 480px) {
   .task-form .combobox-popup { max-height: 200px; }
 }
@@ -590,18 +603,30 @@
 
 .task-form .fast-row[hidden] { display: none; }
 
-.form-actions {
-  display: flex;
-  gap: var(--space-1);
-  margin-top: var(--space-3);
-}
-
-.form-actions button {
+/* r6 3.1 (FR-63): единая зона действий — прежние .form-actions объединены
+ * с #task-actions (в разметке остался один блок .task-actions); геометрия
+ * кнопок-пилюль V3 — прежняя, селектор перенацелен. 4.1 (FR-60, DEF-004):
+ * disabled-состояние кнопок покрыто (макет V3 .btn:disabled). */
+.task-actions button {
   font: inherit;
   cursor: pointer;
   padding: 10px var(--space-3);
   border-radius: 999px;
   border: 1px solid transparent;
+  /* flex-элементы ряда: авто-ширина, в одну строку (кнопки формы —
+   * блочные по умолчанию стилей формы; 4.1 r6); nowrap — подпись
+   * кнопки не переносится при ужании ряда. */
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.task-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 #task-form-submit {
@@ -632,11 +657,13 @@
   box-shadow: var(--focus-ring);
 }
 
-/* Вторичные кнопки — контурные (V3). Геометрия общая с .form-actions button —
+/* Вторичные кнопки — контурные (V3). Геометрия общая с .task-actions button —
    без неё кнопки деталей/комментариев были «сырыми» (padding/radius по дефолту Браузера).
    4.2 (FR-48, DEF-005, урок DEF-004): #task-delete-button («Удалить», режим
    редактирования) — интерактивный элемент формы, был с дефолтным браузерным
-   оформлением; покрыт вторичным контуром V3 (как .btn-secondary мокапа). */
+   оформлением; покрыт вторичным контуром V3 (как .btn-secondary мокапа).
+   r6 3.1: destructive-перекрытие для «Удалить» — выше (.task-actions
+   #task-delete-button, эталон .btn-destructive макета). */
 #task-form-cancel,
 #task-delete-button,
 .task-view-actions button,
@@ -667,8 +694,24 @@
   vertical-align: top;
 }
 
-.form-actions button:focus-visible,
-#task-delete-button:focus-visible,
+/* r6 3.1, review-001 №1: горизонтальный паддинг 8px (--space-1) для
+ * кнопок ЗОНЫ ДЕЙСТВИЙ вместо макетных 24px — переопределение ПОСЛЕ
+ * id-группы выше (иначе ID-специфичность побеждает). Причина: эталонный
+ * ряд макета рассчитан на карточку 830px, в прод-модалке (~465px внутри)
+ * сумма макетных ширин [Столбец][Сохранить][Отмена][Удалить] ≈ 540px —
+ * ряд переполнял модалку и «Удалить» с margin-left:auto вылезала за
+ * край; на 8px-паддинге ряд умещается и прижатие вправо работает
+ * (TC-r6-wave2-002). Высота 10px, радиус, цвета — макетные. */
+.task-actions button,
+#task-form-cancel,
+#task-delete-button {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+}
+
+.task-actions button:focus-visible,
 .task-view-actions button:focus-visible,
 .comment-form button[type="submit"]:focus-visible,
 .task-comments button[type="submit"]:focus-visible {
@@ -853,25 +896,108 @@
   margin-top: var(--space-3);
 }
 
-/* --- Действия с задачей в окне формы (4.1 Релиза 4: перенос из
- * прежнего окна деталей; селект «Столбец» + «Удалить») --- */
+/* --- Действия с задачей в окне формы — r6 3.1 (FR-63, ОВ-4, ОГР-28):
+ * ЕДИНАЯ зона действий внизу формы (эталон design/tag-combobox-v3.html
+ * «Единая зона действий задачи»): один ряд-блок
+ * [Столбец ▾][Сохранить][Отмена] │ [Удалить]. Прежние два блока
+ * (#task-actions со статус-селектом и .form-actions с сабмитом)
+ * объединены в разметке board.html в #task-actions; стили кнопок —
+ * прежние пилюли V3 (ниже, селекторы по id не менялись). «Удалить» —
+ * destructive: прижата вправо (margin-left:auto) и отделена
+ * вертикальным разделителем ::before (токены --status-error*); ≤480px —
+ * wrap (FR-62, media-блок в конце файла). Обработчики task-form.js /
+ * board-init.js цепляются по прежним id — не тронуты (ОГР-28). --- */
 
 .task-actions {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-1);
   align-items: center;
-  margin: var(--space-2) 0;
+  margin-top: var(--space-3);
   padding-top: var(--space-2);
   border-top: 1px solid var(--color-border-default);
+  /* 4.3 (FR-62): перенос кнопок — только на узких экранах (media-блок
+   * в конце файла); на desktop ряд УЖАЕТСЯ (shrink), а не переносится —
+   * эталон макета: один ряд [Столбец][Сохранить][Отмена] │ [Удалить]. */
 }
 
-.task-actions label {
+/* Режимная часть ряда: селект «Столбец» + «Удалить» — единый inline
+ * контейнер со своим id #task-actions (ОГР-28: скрытие из
+ * openCreateForm/openEditForm не менялось). display:contents — дети
+ * участвуют в раскладке ряда напрямую (визуально один ряд). */
+.task-actions-task { display: contents; }
+.task-actions-task[hidden] { display: none; }
+
+.task-actions .move-label {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: var(--font-size-label);
   color: var(--color-text-secondary);
   margin-bottom: 0;
+  margin-right: var(--space-1);
+  /* flex-элемент ряда: авто-ширина (block-label формы растянул бы ряд
+   * в перенос — 4.1 r6); white-space: nowrap — «Столбец» не рвется.
+   * min-width: 0 — при ужании ряда первым сжимается СЕЛЕКТ (margin-left:
+   * auto «Удалить» работает только при свободном месте; без этого
+   * авто-ширина label'а держала ряд «раздутым», контент вылезал за
+   * край модалки, а «Удалить» теряла прижатие — review-001 №1). */
+  width: auto;
+  min-width: 0;
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+/* Селект «Столбец» — тот же прием «нижняя линия 2px», что поля формы
+ * (FR-60; эталон макета .task-actions-row select). width — по контенту
+ * (auto): full-width правило полей формы не должно раздувать ряд.
+ * min-width: 85px — этаж сжатия: показывает самое длинное значение
+ * «Выполнено» целиком (review-001 №1: без этажа select сжимался
+ * вместе с label'ом при ужании ряда). */
+.task-actions select {
+  font: inherit;
+  color: var(--color-text-primary);
+  width: auto;
+  min-width: 85px;
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.task-actions select:hover { border-bottom-color: var(--color-border-strong); }
+
+.task-actions select:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
+}
+
+/* Destructive «Удалить»: контур цветом ошибки (--status-error), hover —
+ * мягкий красный фон (--status-error-bg); новых цветов нет (ОГР-8).
+ * Отдельная зона справа: margin-left:auto + вертикальный разделитель
+ * ::before (эталон макета .btn-destructive). Приоритет селектора —
+ * перекрывает прежний вторичный контур группы ниже. */
+.task-actions #task-delete-button {
+  margin-left: auto;
+  position: relative;
+  color: var(--status-error);
+  border-color: var(--status-error);
+  background: transparent;
+}
+
+.task-actions #task-delete-button:hover {
+  background: var(--status-error-bg);
+}
+
+.task-actions #task-delete-button::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--space-2));
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--color-border-default);
 }
 
 .task-detail h2 {
@@ -948,4 +1074,39 @@
   margin: 2px 0 0;
   font-size: var(--font-size-label);
   white-space: pre-wrap;
+}
+
+/* --- r6 4.3 (FR-62, ОВ-3): адаптив формы задачи ≤480px — ОДИН
+ * media-блок: одна колонка, поля/кнопки/select'ы full-width, кнопки
+ * зоны действий в ряд с переносом (эталон tag-combobox-v3: «Мобильный
+ * ≤480px — wrap»); дропдаун комбобокса — 100% ширины поля (это уже
+ * дает absolute left/right: 0 от .tag-combobox-wrap). Без горизонтальной
+ * прокрутки; desktop-сетка не меняется. --- */
+@media (max-width: 480px) {
+  .task-form label,
+  .task-form textarea,
+  .task-form input[type="text"],
+  .task-form input[type="date"],
+  .task-form select,
+  .task-actions {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Кнопки зоны — в ряд с переносом (эталон макета); label «Столбец»
+   * на своей строке (width:100% от media-правила выше), разделитель
+   * destructive при переносе не нужен. */
+  .task-actions { flex-wrap: wrap; }
+  .task-actions .move-label { width: 100%; }
+  .task-actions button { flex: 1 1 auto; }
+  .task-actions #task-delete-button { margin-left: 0; }
+  .task-actions #task-delete-button::before { display: none; }
+
+  /* Доска под оверлеем тоже без горизонтальной прокрутки (FR-62:
+   * «без горизонтальной прокрутки» — про страницу; flex-ряд колонок
+   * с min-width:220px на 480px давал scrollWidth 916px). Колонки —
+   * столбиком, каждая на всю ширину; desktop-сетка не меняется. */
+  .board { flex-wrap: wrap; }
+  .board-column { min-width: 0; width: 100%; }
+  .content, main { overflow-x: hidden; }
 }
