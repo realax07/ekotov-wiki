@@ -25,7 +25,7 @@ SERVICE="${SERVICE:-ekotov-wiki}"
 PROD_URL="${PROD_URL:-https://127.0.0.1:10443}"
 PORT="${PORT:-8377}"
 # Целевой коммит main в клоне — обновлять перед каждым деплоем!
-EXPECTED_COMMIT="${EXPECTED_COMMIT:-0cc9d6b}"
+EXPECTED_COMMIT="${EXPECTED_COMMIT:-eae7bfc}"
 # Метка цели деплоя для имени бэкапа (конвенция: wiki-pre-<цель>-<дата>-<время>.db)
 TARGET_LABEL="${TARGET_LABEL:-deploy}"
 DRY_RUN="${DRY_RUN:-0}"
