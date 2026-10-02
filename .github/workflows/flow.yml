@@ -1,4 +1,4 @@
-name: flow
+name: test-flow-control
 
 on:
   push:
