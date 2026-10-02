@@ -81,6 +81,14 @@ def test_form_adaptive_375_with_open_dropdown(
     # ряду (board flex-row вне формы), карточка сжата до ~25px — клик по
     # заголовку вне вьюпорта/нестабилен. Открываем view кликом по самой
     # карточке через DOM (тот же click-обработчик onClickCard).
+    # expect с авторетраем закрывает гонку: после create_task_via_ui
+    # refreshBoard асинхронен — карточки в DOM может еще не быть
+    # (флейк «Cannot read properties of undefined (reading 'click')»).
+    expect(
+        page.locator("article")
+        .filter(has_text="QAT-гэп375-форма")
+        .first
+    ).to_be_attached()
     page.evaluate(
         """() => {
           const card = [...document.querySelectorAll('article')]
