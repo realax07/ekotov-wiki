@@ -39,6 +39,8 @@ nginx :10443 (0.0.0.0 + [::])
 | Версии | nginx 1.24.0 (Ubuntu), sqlite3 3.45.1, rsync 3.2.7, Python 3.12.3 | `nginx -v; sqlite3 --version; rsync --version` |
 | Точка входа страницы | `/` → 302 → `/login` (неавторизованный), страница отдает 200 через прод-URL | `curl -k https://127.0.0.1:10443/` |
 | Секреты | `/opt/ekotov-wiki/.env` (DB_PATH, SECRET_KEY), 0640 wiki:wiki; в артефакты/репозиторий не попадают (в отчетах — `[REDACTED]`) | `sudo ls -la /opt/ekotov-wiki/.env` |
+| Docker CE + compose plugin | НЕ установлен (проверено 2026-10-03); установка — ЭТАП 0, вручную Заказчиком по `deploy/dependencies-to-install.md` §1–3; ожидание: docker-ce 28.x, compose v2.x | `sudo docker version --format '{{.Server.Version}}'; sudo docker compose version` |
+| Переходный порт контейнеров | `10444` свободен (проверено 2026-10-03) — первый контейнерный деплой публикует контейнерный nginx через него (§7.4 фаза 1) | `ss -tln \| grep 10444` (пусто = свободен) |
 
 ## 3. Быстрая проверка фактов (прогон перед деплоем)
 
@@ -152,3 +154,148 @@ curl -k -o /dev/null -w '%{http_code}\n' https://127.0.0.1:10443/static/css/app.
 - `/opt/ekotov-wiki` — не git: `git pull` там невозможен и не нужен; единственный путь обновления — rsync из клона на main.
 - Секреты (`SECRET_KEY`, содержимое `.env`) в артефакты, отчеты и репозиторий не попадают — маскировать как `[REDACTED]`.
 - Деплой запускает Заказчик; агент — подготовка скрипта, dry-run и пост-деплойная диагностика.
+
+## 7. Контейнерный деплой (P11 ЭТАП 0+1, change add-containerization)
+
+Целевая схема (design.md §1): app (uvicorn, порты не публикуются) + nginx
+(TLS, единственный публикует порт) в compose-сети; данные (SQLite wiki.db +
+avatars/) — named volume `wiki-data`; серт `/etc/nginx/ssl/ekotov-wiki.{crt,key}`
+(до 2028-12-22) монтируется томом ro. Файлы: `deploy/compose.yaml` (прод),
+`deploy/compose.test.yaml` (стенд, порт 8443), `deploy/dependencies-to-install.md`
+(ручная установка Docker Заказчиком — ЭТАП 0).
+
+Пока работает контейнерная схема — разделы §4.1–4.3 (rsync/pip/systemd) НЕ
+применять к контейнерному стеку; они остаются для отката (см. §7.6).
+
+### 7.1 Предусловия (все — до любого шага переключения)
+
+1. Docker CE 28.x + compose plugin v2.x установлен Заказчиком вручную
+   (`deploy/dependencies-to-install.md` §1–3): `sudo docker compose version`.
+2. `openclaw` в группе docker (после перелогина): `id openclaw | grep docker`.
+3. `/opt/ekotov-wiki/deploy/.env` существует, 0600, содержит продовый
+   `SECRET_KEY=<тот же, что в /opt/ekotov-wiki/.env>` (иначе слетят сессии).
+4. Серт на месте: `openssl x509 -in /etc/nginx/ssl/ekotov-wiki.crt -noout -enddate`
+   → `notAfter=Dec 22 10:24:00 2028 GMT`.
+5. Ресурсы: `free -m` → available ≥ 1500; `df -h /` → свободно ≥ 10G.
+6. Системный прод жив и НЕ затронут: `systemctl is-active ekotov-wiki nginx` →
+   `active`, `ss -tln | grep -E '8377|10443'` → оба слушают, 10444 свободен.
+
+### 7.2 Сборка образов (на VPS, из клона; последовательно — вне часов пик)
+
+```bash
+cd /opt/ekotov-wiki   # или путь клона с целевым коммитом
+sudo docker build -t ekotov-wiki/app:<release>      -f services/app/Dockerfile      .
+sudo docker build -t ekotov-wiki/frontend:<release> -f services/frontend/Dockerfile .
+sudo docker image ls | grep ekotov-wiki    # latest ЗАПРЕЩЕН (FR-72)
+```
+
+`<release>` — метка релиза (например `p11-r1`). Сборка двух образов не должна
+идти параллельно с пиком нагрузки (plan §6 ОВ-2: VPS 3.9 GB).
+
+### 7.3 Первый `compose up` — порт 10444, прод не тронут (фаза 1, tasks 2.3)
+
+```bash
+cd /opt/ekotov-wiki/deploy
+export APP_IMAGE=ekotov-wiki/app:<release> FRONTEND_IMAGE=ekotov-wiki/frontend:<release>
+sudo -E NGINX_PORT=10444 docker compose up -d
+docker compose ps                          # app healthy, nginx up
+sudo docker volume ls | grep wiki-data     # том создан
+```
+
+Перенос данных прода в том (ОДНОКРАТНО, до смоука фазы 1; контейнеры остановить):
+
+```bash
+cd /opt/ekotov-wiki/deploy && docker compose stop
+# БД: консистентная копия .backup с живого прода → в том
+sudo sqlite3 /var/lib/ekotov-wiki/wiki.db ".backup '/tmp/wiki-seed.db'"
+sudo docker run --rm -v ekotov-wiki_wiki-data:/data -v /tmp:/seed \
+  ekotov-wiki/app:<release> cp /seed/wiki-seed.db /data/wiki.db
+# Аватары: tar прода → в том
+sudo tar -C /var/lib/ekotov-wiki -cf /tmp/avatars-seed.tar avatars
+sudo docker run --rm -v ekotov-wiki_wiki-data:/data -v /tmp:/seed \
+  ekotov-wiki/app:<release> tar -C /data -xf /seed/avatars-seed.tar
+rm -f /tmp/wiki-seed.db /tmp/avatars-seed.tar
+cd /opt/ekotov-wiki/deploy && sudo -E NGINX_PORT=10444 docker compose up -d
+```
+
+(На этой VPS avatars/ пока пуст — каталог появился в Релизе 4 без аватаров;
+шаг 3.2 тогда можно пропустить, но выполнить проверку тома после `up`.)
+
+### 7.4 ЧЕКЛИСТ ПЕРЕКЛЮЧЕНИЯ ПРОДА (tasks 2.4; выполняет Заказчик под sudo)
+
+Каждый шаг — с чекпоинтом отката. Откат на ЛЮБОМ шаге = возврат systemd-прода
+за минуты: `sudo systemctl start ekotov-wiki` (+ возврат сайта nginx, шаг §7.6).
+
+- [ ] **Шаг 0. Бэкап.** `sudo sqlite3 /var/lib/ekotov-wiki/wiki.db ".backup '/var/backups/ekotov-wiki/wiki-pre-p11-$(date +%Y-%m-%d-%H%M).db'"` — файл создан, размер совпадает с исходником.
+- [ ] **Шаг 1. Параллельная проверка на 10444** (если не сделана в §7.3):
+      `curl -sk https://127.0.0.1:10444/api/health` → `{"status":"ok"}`;
+      `curl -sk -o /dev/null -w '%{http_code}\n' https://127.0.0.1:10444/login` → 200;
+      `curl -sk -o /dev/null -w '%{http_code}\n' https://127.0.0.1:10444/static/css/app.css` → 200;
+      логин seeded-юзера (или продового из перенесенной БД) браузером по `https://194.58.34.122:10444` — доска открывается. Прод на 10443 работает всё это время.
+- [ ] **Шаг 2. Остановка systemd-прода.** `sudo systemctl stop ekotov-wiki && systemctl is-active ekotov-wiki` → `inactive` (юнит НЕ удаляется, `disable` НЕ делать).
+- [ ] **Шаг 3. Освобождение 10443:** `sudo rm /etc/nginx/sites-enabled/ekotov-wiki && sudo nginx -t && sudo systemctl reload nginx` (или `sudo systemctl stop nginx` целиком). Шаги 2–3 — «два действия одного шага», разрыв — секунды.
+- [ ] **Шаг 4. Публикация 10443 контейнером:** в том же каталоге deploy:
+      `sudo -E NGINX_PORT=10443 docker compose up -d` — compose пересоздает ТОЛЬКО nginx-контейнер (app не трогает, том общий). `ss -tln | grep 10443` → слушает docker.
+- [ ] **Шаг 5. Смоук через 10443** (§7.5): health / login / статика / avatars → все 200.
+- [ ] **Шаг 6. Финальный смоук + браузер:** §4.4 (страница через прод-URL) +
+      один реальный проход (логин → доска → создание задачи). Пользователь
+      переживает только подтверждение self-signed исключения (серт тот же).
+- [ ] **Шаг 7. Закрепление:** `docker compose ps` → обе службы Up (политика
+      `restart: unless-stopped` поднимет стек после ребута VPS); юнит systemd
+      оставить остановленным (`inactive`, enabled — НЕ disable) до конца паузы
+      эксплуатации (ОВ-1=а, 1–2 недели).
+
+**Откат на любом шаге (в порядке возврата, минуты):**
+
+```bash
+cd /opt/ekotov-wiki/deploy && sudo NGINX_PORT=10444 docker compose up -d   # или: docker compose stop
+sudo ln -s /etc/nginx/sites-available/ekotov-wiki /etc/nginx/sites-enabled/ekotov-wiki   # если удаляли (шаг 3)
+sudo nginx -t && sudo systemctl reload nginx      # или: systemctl start nginx
+sudo systemctl start ekotov-wiki
+systemctl is-active ekotov-wiki nginx; ss -tln | grep -E '8377|10443'
+curl -k -o /dev/null -w '%{http_code}\n' https://127.0.0.1:10443/login   # 200
+# БД тома НЕ трогаем; прод продолжает работать на своей БД /var/lib/ekotov-wiki/wiki.db
+# Данные, созданные УЖЕ В КОНТЕЙНЕРЕ после переключения, при откате в прод-БД
+# не попадают — зафиксировать вручную (или повторить переключение с новым бэкапом).
+```
+
+### 7.5 Смоук контейнерного прода (дополняет §4.4)
+
+```bash
+docker compose ps                                                  # app: healthy; nginx: up
+curl -sk --max-time 5 https://127.0.0.1:<NGINX_PORT>/api/health   # {"status":"ok"}
+curl -sk -o /dev/null -w '%{http_code}\n' https://127.0.0.1:<NGINX_PORT>/login          # 200
+curl -sk -o /dev/null -w '%{http_code}\n' https://127.0.0.1:<NGINX_PORT>/static/css/app.css  # 200
+curl -sk -o /dev/null -w '%{http_code}\n' https://127.0.0.1:<NGINX_PORT>/avatars/        # 200/403/404 — НЕ 502
+sudo docker logs ekotov-wiki-nginx-1 2>&1 | grep -c 502           # 0 (stale-DNS контроль)
+```
+
+Отдельная проверка stale-DNS (design §1, смоук задачи 1.6): после выката НОВОГО
+образа app (`docker compose up -d` с новым тегом) nginx-контейнер не пересоздается —
+`curl` `/api/health` через nginx должен остаться 200 (не 502); если 502 —
+`docker compose restart nginx` и завести дефект на resolver-конфиг.
+
+### 7.6 Стенд и обновления
+
+- Стенд (e2e/репетиции, tasks 1.4/2.1): `docker compose -f deploy/compose.test.yaml -p wiki-test up -d --build`
+  → порт 8443, tmp-том (данные исчезают при down), seed:
+  `docker compose -p wiki-test exec app python -m app.seed_users` (пароли интерактивно).
+- Обновление контейнерного прода: бэкап (§7.4 шаг 0) → миграция one-shot
+  `docker compose run --rm app python -m app.migrate_rN` (строго до `up`, после
+  репетиции на копии — tasks 2.1) → build новых тегов → `up -d` → смоук §7.5 →
+  `docker image prune -f`.
+- Возврат на systemd-схему целиком (аварийный, после недели+ эксплуатации):
+  откат = §7.4 откат + восстановление БД из пред-деплойного бэкапа (§4.3),
+  контейнерный стек `docker compose down` (том wiki-data сохранить до сверки данных).
+
+### 7.7 Типовые отказы контейнерной схемы
+
+| Симптом | Причина | Действие |
+|---|---|---|
+| `compose up` — `port is already allocated` | 8377/10443 заняты системным продом (это НОРМАЛЬНО до переключения) / висячий контейнер на 10444 | фаза 1 всегда `NGINX_PORT=10444`; `docker ps -a` → убрать висяка |
+| nginx 502 на `/` после пересоздания app | stale-DNS (design §1) | должен лечиться resolver 127.0.0.11 + переменная proxy_pass; если нет — `docker compose restart nginx`, дефект |
+| app не стартует, в логах «обязательная переменная SECRET_KEY» | нет `/opt/ekotov-wiki/deploy/.env` или compose запущен вне каталога deploy | создать .env (§7.1 п.3), запускать из `deploy/` |
+| `permission denied` на /var/run/docker.sock | openclaw вне группы docker / старый сеанс | `sudo usermod -aG docker openclaw` + перелогин |
+| после переключения «не открывается извне» | ufw закрыл 10443 | `sudo ufw status`; `sudo ufw allow 10443/tcp` |
+| диск растет после каждого деплоя | dangling-образы | `docker image prune -f` (после каждого деплоя) |
+| контейнеры не поднялись после ребута VPS | docker.service не в автозапуске | `sudo systemctl enable docker`; стек поднимется сам (`restart: unless-stopped`) |

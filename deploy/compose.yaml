@@ -1,0 +1,85 @@
+# Compose-топология прода ekotov-wiki (P11 ЭТАП 1, change add-containerization).
+#
+# Источники: openspec/changes/add-containerization/design.md §1, §3, §6;
+# план docs/ba/architecture-services-plan.md §5; ТЗ FR-65/66/73/74, NFR-9/11.
+#
+# ТОПОЛОГИЯ: app (uvicorn, порты НЕ публикуются — паритет 127.0.0.1:8377)
+# + nginx (единственный публикует порт; TLS self-signed томом; avatars ro из тома).
+# Данные (SQLite wiki.db + avatars/) — named volume wiki-data.
+#
+# ПЕРЕД ЗАПУСКОМ (однократно):
+#   создать deploy/.env (chmod 600, НЕ коммитится — .gitignore):
+#     SECRET_KEY=<тот же, что в /opt/ekotov-wiki/.env — иначе слетят сессии>
+#   Порт публикации задается NGINX_PORT (дефолт 10443 = целевое состояние FR-65).
+#   Переходная схема первого деплоя: NGINX_PORT=10444 (design §6 фаза 1) —
+#   см. RUNBOOK §7.4.
+#
+# Образы: теги <release>, latest ЗАПРЕЩЕН (FR-72). ЭТАП 1 — сборка на VPS
+# из клона (build: ниже); registry — ЭТАП 2+.
+
+name: ekotov-wiki
+
+services:
+  app:
+    image: ${APP_IMAGE:-ekotov-wiki/app:local}
+    build:
+      context: ..
+      dockerfile: services/app/Dockerfile
+    restart: unless-stopped
+    # FR-73: app 512m (VPS 3.9 GB, резерв хосту >= 2 GB).
+    mem_limit: 512m
+    environment:
+      # Секрет — только из deploy/.env (интерполяция compose); в репозиторий
+      # не попадает (NFR-5). Паритет EnvironmentFile systemd-юнита.
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY не задан — создайте deploy/.env (см. шапку)}
+      DB_PATH: /data/wiki.db
+      AVATARS_DIR: /data/avatars
+    volumes:
+      # FR-66: пользовательские данные — в named volume, в образ НЕ попадают.
+      - wiki-data:/data
+    # Healthcheck без curl (в python:3.12-slim его нет) — design §1.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8377/api/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    image: ${FRONTEND_IMAGE:-ekotov-wiki/frontend:local}
+    build:
+      context: ..
+      dockerfile: services/frontend/Dockerfile
+    restart: unless-stopped
+    # FR-73: nginx 64m.
+    mem_limit: 64m
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      # NFR-9/design §6: published-порт в env. Дефолт 10443 = целевое
+      # состояние; первый контейнерный деплой — NGINX_PORT=10444 (фаза 1),
+      # переключение — NGINX_PORT=10443 docker compose up -d (пересоздает
+      # только nginx-контейнер).
+      - "${NGINX_PORT:-10443}:10443"
+    volumes:
+      # FR-74: TLS self-signed до 2028-12-22, монтируется с хоста ro.
+      - /etc/nginx/ssl/ekotov-wiki.crt:/etc/nginx/ssl/ekotov-wiki.crt:ro
+      - /etc/nginx/ssl/ekotov-wiki.key:/etc/nginx/ssl/ekotov-wiki.key:ro
+      # Аватары nginx отдает из того же тома, ro (design §1/§3).
+      - wiki-data:/data/avatars:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  wiki-data:
+    # wiki.db + avatars/. Бэкап — docker exec python sqlite3 .backup
+    # (design §6, метод зафиксирован до реализации).
