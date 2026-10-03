@@ -25,3 +25,19 @@ services/app/
 - SQLite RW через именованный том `wiki-data` (файл БД и `avatars/` остаются вне rsync-корня).
 - Контракт: весь `/api/*` — OpenAPI-схема как контракт + CI-gate на дифф (план §3, вариант А).
 - Все транзакционные инварианты (fast line + priority-lock и т.п.) остаются в одном процессе — потому и «монолит в контейнере», а не разбор на сервисы.
+
+---
+
+## Контейнеризация (tasks 1.1, change add-containerization)
+
+Образ `ekotov-wiki/app:<release>` — `services/app/Dockerfile` (python:3.12-slim):
+
+- deps слоями из `backend/requirements.txt` (пины сохранены — Pillow,
+  python-multipart);
+- uvicorn, 1 воркер, порт 8377; порты наружу НЕ публикуются (паритет
+  localhost-only, FR-65);
+- healthcheck `GET /api/health` через `python -c urllib` — curl в slim
+  отсутствует (design §1);
+- запуск НЕ от root (uid 10001); пользовательских данных (SQLite, аватары)
+  в образе НЕТ — named volume `wiki-data` (FR-66);
+- `mem_limit: 512m` и лимиты — compose-сторона (`deploy/`), не здесь.

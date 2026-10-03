@@ -30,6 +30,7 @@ services/<name>/
 
 | Каталог | Статус |
 |---|---|
-| `app/` | ядро/монолит — перенос сюда в ЭТАПЕ 1 (см. `app/README.md`) |
+| `app/` | ядро/монолит; образ `services/app/Dockerfile` (tasks 1.1, change add-containerization) — код пока в `backend/`, перенос — решение архитектора |
+| `frontend/` | nginx-образ (`Dockerfile` + `nginx/ekotov-wiki.conf`) — tasks 1.2, change add-containerization |
 | `search/` | кандидат ЭТАПА 2, первый в очереди (см. `search/README.md`) |
 | `auth/` | **не рекомендован** к выделению (см. `auth/README.md`) |
