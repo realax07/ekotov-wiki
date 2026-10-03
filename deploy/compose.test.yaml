@@ -67,10 +67,17 @@ services:
       # Контейнер внутри слушает 10443 (как в проде); наружу — 8443.
       - "${TEST_NGINX_PORT:-8443}:10443"
     volumes:
-      # Тот же self-signed серт (CN=194.58.34.122, до 2028-12-22); клиенты
-      # e2e ходят с игнором валидации TLS.
+      # Тот же self-signed серт (CN=194.58.34.122, notAfter 2028-12-22);
+      # клиенты e2e ходят с игнором валидации TLS.
       - /etc/nginx/ssl/ekotov-wiki.crt:/etc/nginx/ssl/ekotov-wiki.crt:ro
       - /etc/nginx/ssl/ekotov-wiki.key:/etc/nginx/ssl/ekotov-wiki.key:ro
+      # app пишет аватары в свой tmpfs /data/avatars — nginx-маунт avatars-test
+      # скрывал их (пустой volume поверх); маунтим tmpfs-каталог app нельзя
+      # (tmpfs не шарится), поэтому nginx читает через общий маунт тома как в
+      # проде невозможен — avatars на стенде отдается из tmpfs app напрямую
+      # только если nginx и app делят fs. Компромисс стенда: e2e не гоняет
+      # аватар-контент (rev.008 замечание 1); avatars-test оставлен пустым
+      # для /avatars/=403 смоука (не 502).
       - avatars-test:/data/avatars:ro
     logging:
       driver: json-file
