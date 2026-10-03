@@ -152,7 +152,8 @@ if [ -n "${MIGRATE_MODULE}" ]; then
   if [ "${DRY_RUN}" = "1" ]; then
     echo "   [DRY-RUN] ${COMPOSE} run --rm --no-deps -e DB_PATH=${DB_PATH_IN_CONTAINER} -e SECRET_KEY=[REDACTED] app python -m ${MIGRATE_MODULE}"
   else
-    ${COMPOSE} run --rm --no-deps -e DB_PATH="${DB_PATH_IN_CONTAINER}" -e SECRET_KEY="x" app \
+    env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" \
+      ${COMPOSE} run --rm --no-deps -e DB_PATH="${DB_PATH_IN_CONTAINER}" -e SECRET_KEY="x" app \
       python -m "${MIGRATE_MODULE}" \
       || fail "Миграция ${MIGRATE_MODULE} не прошла — деплой прерван ДО up (старый контейнер продолжает работать). БД восстанови из ${DB_BACKUP}."
     ok "Миграция ${MIGRATE_MODULE} применена"
@@ -232,8 +233,12 @@ else
 fi
 
 # --- 7/7 Гигиена dangling-образов (RUNBOOK §7.6, design §2) -------------------
-log "7/7 docker image prune -f (dangling-слои после пересборки)"
-run docker image prune -f
+log "7/7 docker image prune -f (dangling-слои после пересборки; отказ prune не роняет успешный деплой)"
+if [ "${DRY_RUN}" = "1" ]; then
+  echo "   [DRY-RUN] docker image prune -f"
+else
+  docker image prune -f || echo " [WARN] image prune не прошел (гигиена, не влияет на деплой)"
+fi
 
 echo -e "\n\033[1;32m============================================"
 echo "ДЕПЛОЙ ${TARGET_LABEL} ЗАВЕРШЕН УСПЕШНО (контейнерная схема)"
