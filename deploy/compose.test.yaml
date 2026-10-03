@@ -1,0 +1,82 @@
+# Compose-стенд ekotov-wiki (P11 ЭТАП 1, change add-containerization).
+#
+# Источники: design.md §3 (строка «Стенд»), tasks.md 1.4; ТЗ FR-67, NFR-10.
+#
+# НАЗНАЧЕНИЕ: e2e-сьют (e2e/), репетиции миграций на копии прод-БД (tasks 2.1),
+# паритет кодов ответов с монолитом (design §1 FR-64). Образы те же, что у
+# прода (FR-67); файл АВТОНОМЕН — не мержится с compose.yaml.
+#
+# Отличия от прода (NFR-10 — изоляция от прода):
+#   - tmp-том БД (tmpfs): данные стенда исчезают при пересоздании;
+#   - ДРУГОЙ порт публикации: 8443 (прод 10443, переходный 10444 — не заняты);
+#   - seeded-юзеры (owner/wife) — заводятся командой после подъема;
+#   - SECRET_KEY стенда — НЕ продовый (дефолт ниже, можно TEST_SECRET_KEY=...).
+#
+# Запуск (из корня клона; при необходимости соберет образы сам):
+#   docker compose -f deploy/compose.test.yaml -p wiki-test up -d --build
+#
+# Seed (интерактивно, пароли с терминала — getpass, NFR-5):
+#   docker compose -p wiki-test exec app python -m app.seed_users
+#
+# Проверка:
+#   curl -s http://127.0.0.1:8443/api/health          # {"status":"ok"}
+#   curl -k -o /dev/null -w '%{http_code}\n' https://127.0.0.1:8443/login   # 200
+#
+# Останов: docker compose -p wiki-test down   (tmpfs-данные исчезают)
+
+name: wiki-test
+
+services:
+  app:
+    image: ${APP_IMAGE:-ekotov-wiki/app:local}
+    build:
+      context: ..
+      dockerfile: services/app/Dockerfile
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      SECRET_KEY: ${TEST_SECRET_KEY:-00000000000000000000000000000000}
+      DB_PATH: /data/wiki.db
+      AVATARS_DIR: /data/avatars
+    tmpfs:
+      # tmp-том БД+аватаров: изоляция стенда от прод-данных (NFR-10).
+      - /data:size=256m,mode=1777
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8377/api/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    image: ${FRONTEND_IMAGE:-ekotov-wiki/frontend:local}
+    build:
+      context: ..
+      dockerfile: services/frontend/Dockerfile
+    restart: unless-stopped
+    mem_limit: 64m
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      # Контейнер внутри слушает 10443 (как в проде); наружу — 8443.
+      - "${TEST_NGINX_PORT:-8443}:10443"
+    volumes:
+      # Тот же self-signed серт (CN=194.58.34.122, до 2028-12-22); клиенты
+      # e2e ходят с игнором валидации TLS.
+      - /etc/nginx/ssl/ekotov-wiki.crt:/etc/nginx/ssl/ekotov-wiki.crt:ro
+      - /etc/nginx/ssl/ekotov-wiki.key:/etc/nginx/ssl/ekotov-wiki.key:ro
+      - avatars-test:/data/avatars:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  avatars-test:
