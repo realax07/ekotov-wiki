@@ -22,6 +22,11 @@ RUN python -m pip install --no-cache-dir -r /tmp/requirements.txt \
 # Код монолита — как есть (контейнеризация без изменения логики, план §1.2).
 COPY backend/app/ /srv/app/
 
+# Шаблоны Jinja2: app ищет их относительно backend/app (pages.py:
+# parents[2]/frontend/templates = <корень>/frontend/templates). Корень кода
+# в образе — /srv, поэтому frontend/ кладем рядом с app/ (/srv/frontend).
+COPY frontend/templates/ /srv/frontend/templates/
+
 # Запуск НЕ от root (uid 10001 — вне диапазона пользователей образа).
 USER 10001
 
