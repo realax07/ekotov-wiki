@@ -1,7 +1,7 @@
-# sdd.md — Системный дизайн: ekotov-wiki (changes add-kanban-core, add-r2-categories-settings, add-r3-visual-foundation, add-r4-user-profile-ticket-view)
+# sdd.md — Системный дизайн: ekotov-wiki (changes add-kanban-core, add-r2-categories-settings, add-r3-visual-foundation, add-r4-user-profile-ticket-view, add-containerization)
 
 Источник требований: `requirements.md` (r4, утвержден), `test-model/requirements-r2.md` (r1, утвержден), `docs/ba/requirements-r4.md` (Релиз 4, УТВЕРЖДЕН Заказчиком 2026-09-29, ответы ОВ-21…26 — `docs/ba/answers_round4.md`). Пакеты: `openspec/changes/add-r4-user-profile-ticket-view/`, `openspec/changes/add-r3-visual-foundation/`, `openspec/changes/archive/2026-09-22-add-r2-categories-settings/`, `openspec/changes/archive/add-kanban-core/`.
-Версия sdd: r10 (2026-09-29) — Релиз 4, правки по ревью архитектора review-001 (коммит c1e9100): аватары хранятся в `/var/lib/ekotov-wiki/avatars/` (вне rsync-корня прода — blocker C-1: rsync `--delete` стирал бы файлы в `frontend/static/`), отдача nginx `location /avatars/` (§3.1a-кватер, §4); версия аватара — dedicated-колонка `users.avatar_updated_at` (minor B-3); миграция `migrate_r4.py` встроена в `deploy/deploy.sh` шагом после схемы, до рестарта, без остановки uvicorn (major C-2, §3.1a-ter); `GET /api/users` — read-only контракт, вне exempt (major B-1, §3.1a-кватер-бис); зависимости `Pillow==12.3.0` + `python-multipart==0.0.32` с пинами (minor B-2). Предыдущая: r9 (2026-09-29) — Релиз 4 (change add-r4-user-profile-ticket-view, «как планируется», по дельтам пакета): схема users (+display_name, +role, +bio, +avatar_path) и tasks (+creator_id, +assigned_to_id) с бэкфиллом creator=owner, assigned=owner (ОВ-23) и ролями по умолчанию owner→PM, wife→PE (ОВ-21) — §4, §3.1a-ter (миграция `migrate_r4.py`); API профиля/пароля/аватара и расширенный `GET /api/auth/me` — §3.1a-кватер; страница настроек пользователя — §3.6; assigned/creator в контрактах задач и поиске — §3.2/§3.5; единый tooltip-механизм (ОГР-17, reduced-motion TC-vis-105) и view-модалка (FR-47, Д-9) — design.md пакета; кеш-бастинг `static_v` при релизе (урок DEF-002/003) и бэкап прода до миграции (ОГР-19) — deploy-заметки design.md §1/§9; матрица трассировки дополнена FR-36…FR-48/NFR-9/10 (§6). Предыдущая: r8 (2026-09-27) — Релиз 3 (change add-r3-visual-foundation): эндпоинт `GET /api/auth/me` (§3.1a-бис); профиль внизу сайдбара (§3.6); DnD и эффекты доски — клиентские (§2 примечание); матрица FR-31…FR-35 (§6).
+Версия sdd: r11 (2026-10-03) — change `add-containerization` (ЭТАП 0+1 плана P11, «как планируется», по дельтам пакета): контейнерная топология app (uvicorn) + nginx + именованный том `wiki-data`, compose прод/стенд (§3.8); машинный контракт `/openapi.json` под сессией (401 без нее), docs/redoc выключены (§3.8, план §3); e2e-сьют против compose-стенда (§3.8); миграции one-shot из образа до подъема app, бэкап+аватары до деплоя, откат тегами образов (§3.8); лимиты памяти, TLS томом, параллельный первый деплой с systemd (§3.8); развертывание в §1 — systemd → docker compose (переходный период); трассировка FR-64…FR-74/NFR-9…NFR-11 (§6). Предыдущая: r10 (2026-09-29) — Релиз 4, правки по ревью архитектора review-001 (коммит c1e9100): аватары хранятся в `/var/lib/ekotov-wiki/avatars/` (вне rsync-корня прода — blocker C-1: rsync `--delete` стирал бы файлы в `frontend/static/`), отдача nginx `location /avatars/` (§3.1a-кватер, §4); версия аватара — dedicated-колонка `users.avatar_updated_at` (minor B-3); миграция `migrate_r4.py` встроена в `deploy/deploy.sh` шагом после схемы, до рестарта, без остановки uvicorn (major C-2, §3.1a-ter); `GET /api/users` — read-only контракт, вне exempt (major B-1, §3.1a-кватер-бис); зависимости `Pillow==12.3.0` + `python-multipart==0.0.32` с пинами (minor B-2). Предыдущая: r9 (2026-09-29) — Релиз 4 (change add-r4-user-profile-ticket-view, «как планируется», по дельтам пакета): схема users (+display_name, +role, +bio, +avatar_path) и tasks (+creator_id, +assigned_to_id) с бэкфиллом creator=owner, assigned=owner (ОВ-23) и ролями по умолчанию owner→PM, wife→PE (ОВ-21) — §4, §3.1a-ter (миграция `migrate_r4.py`); API профиля/пароля/аватара и расширенный `GET /api/auth/me` — §3.1a-кватер; страница настроек пользователя — §3.6; assigned/creator в контрактах задач и поиске — §3.2/§3.5; единый tooltip-механизм (ОГР-17, reduced-motion TC-vis-105) и view-модалка (FR-47, Д-9) — design.md пакета; кеш-бастинг `static_v` при релизе (урок DEF-002/003) и бэкап прода до миграции (ОГР-19) — deploy-заметки design.md §1/§9; матрица трассировки дополнена FR-36…FR-48/NFR-9/10 (§6). Предыдущая: r8 (2026-09-27) — Релиз 3 (change add-r3-visual-foundation): эндпоинт `GET /api/auth/me` (§3.1a-бис); профиль внизу сайдбара (§3.6); DnD и эффекты доски — клиентские (§2 примечание); матрица FR-31…FR-35 (§6).
 
 ## 1. Стек и обоснование
 
@@ -14,14 +14,33 @@
 | БД | **SQLite** (WAL-режим), файл вне репозитория | Прямое пожелание Заказчика (ОГР-1, NFR-5). Для 2 пользователей и 1 000 задач серверная БД (PostgreSQL) — лишняя эксплуатационная сущность; SQLite WAL покрывает конкурентность двух пользователей с запасом. Ноль демонов, бэкап = копия файла |
 | Пароли | bcrypt (passlib) или argon2 | NFR-7: не хранить в открытом виде; оба алгоритма — стандарт, доступны pip-пакетом |
 | Веб-морда | Серверные шаблоны (Jinja2) + минимальный ванильный JS (fetch к API) | Без SPA-фреймворков (React и т.п.) — несоразмерно личному проекту на 2 пользователей; ОГР-2 соблюдается: UI — клиент REST API, не лезет в БД |
-| Развертывание | systemd-юнит, VPS, HTTPS | NFR-6 |
+| Развертывание | **docker compose** (контейнеры app + nginx, именованный том данных) — ЭТАП 1 плана P11, change `add-containerization` (§3.8); до перехода — systemd-юнит, VPS, HTTPS (NFR-6); переходный период — параллельный запуск, systemd-юнит сохраняется как чекпоинт отката (NFR-9) |
 
 Отклонение от пожеланий: нет. nginx и SQLite приняты; фреймворк — решение СА в рамках «легковесности» (ОГР-1 делегирует выбор системному анализу).
 
 ## 2. Компоненты
 
 ```
-Браузер ──HTTPS──> nginx ──> FastAPI (uvicorn, systemd)
+Браузер ──HTTPS :10443──> nginx [контейнер frontend: статика + reverse proxy + TLS-том]
+                              │ proxy / → app:8377 (compose-сеть, порты app не публикуются)
+                          FastAPI (uvicorn, 1 воркер) [контейнер app]
+                              ├── auth middleware (сессии/куки)
+                              ├── REST API (/api/*)
+                              │     ├── auth (login/logout)
+                              │     ├── tasks CRUD + move + comments
+                              │     ├── categories (справочник, CRUD)
+                              │     ├── board
+                              │     └── search (builder + advanced)
+                              ├── Jinja2 шаблоны (страницы: login, доска, поиск, настройки)
+                              └── SQLite (WAL) ── named volume wiki-data (wiki.db + avatars/)
+```
+
+Топология ЭТАПА 1 плана P11 (change `add-containerization`, §3.8): nginx-контейнер публикует `10443:10443` (единственная наружная точка), `app` портов наружу не публикует (паритет localhost-only :8377 systemd-эры); данные — в именованном томе `wiki-data` вне образов (урок C-1); до переключения прода — systemd-топология ниже.
+
+Топология systemd (как есть, до переключения ЭТАПА 2 плана):
+
+```
+Браузер ──HTTPS──> nginx (хост) ──> FastAPI (uvicorn, systemd)
                               ├── auth middleware (сессии/куки)
                               ├── REST API (/api/*)
                               │     ├── auth (login/logout)
@@ -228,7 +247,23 @@ DnD-перемещение карточек (Релиз 3, FR-31) и визуа�
 
 **GET /api/suggestions/users** (Релиз 4, FR-46, задача 5.2) — подсказки фильтров assigned/creator конструктора: `{"users": ["<login>", ...]}` — DISTINCT логины из столбцов tasks.creator_id ∪ tasks.assigned_to_id (JOIN users, UNION снимает пересечение, сортировка; NULL не подсказываются). Механизм FR-35/DEF-001 («значения из данных»); вне exempt — 401 (NFR-7). Отдельный путь намеренно: контракт старого /api/suggestions зафиксирован (единственный ключ "suggestions") — расширение ломало бы его тесты. «Без исполнителя» — не подсказка, а специальная опция клиента (значение `none` → `assigned IS NULL`, ОВ-24).
 
-**Миграция при внедрении (FR-22, NFR-8, ОГР-9):** одноразовый идемпотентный скрипт `backend/app/migrate_categories.py` (запуск: `python -m app.migrate_categories` из каталога `backend/`). Шаги: (1) снимок «до» — уникальные непустые значения `tasks.category` + категории каждой задачи; (2) `INSERT OR IGNORE INTO categories SELECT DISTINCT` непустых значений — маппинг 1:1, пустые значения записей не создают, повторный запуск не создает дублей; слияние «синонимов» (регистр, опечатки) НЕ выполняется — корректировка после миграции средствами переименования; (3) задачи не трогаются — их значения уже совпадают с созданными записями; (4) приведение fast-задач к инварианту FR-27 (`UPDATE tasks SET priority='high' WHERE is_fast=1 AND priority != 'high'`); (5) автосверка «после» (NFR-8): (а) каждое непустое значение category каждой задачи присутствует в справочнике, (б) `COUNT(categories)` = числу уникальных непустых значений «до», (в) значения категорий каждой задачи = снимку. Шаги 2 и 4 — одна транзакция (частично мигрированная БД исключена). Расхождение сверки → exit 1, внедрение не считается завершенным; сверка зеленая → exit 0, отчет в stdout.
+**Миграция при внедрении (FR-22, NFR-8, ОГР-9):** одноразовый идемпотентный скрипт `backend/app/migrate_categories.py`. Шаги: (1) снимок «до» — уникальные непустые значения `tasks.category` + категории каждой задачи; (2) `INSERT OR IGNORE INTO categories SELECT DISTINCT` непустых значений — маппинг 1:1, пустые значения записей не создают, повторный запуск не создает дублей; слияние «синонимов» (регистр, опечатки) НЕ выполняется — корректировка после миграции средствами переименования; (3) задачи не трогаются — их значения уже совпадают с созданными записями; (4) приведение fast-задач к инварианту FR-27 (`UPDATE tasks SET priority='high' WHERE is_fast=1 AND priority != 'high'`); (5) автосверка «после» (NFR-8): (а) каждое непустое значение category каждой задачи присутствует в справочнике, (б) `COUNT(categories)` = числу уникальных непустых значений «до», (в) значения категорий каждой задачи = снимку. Шаги 2 и 4 — одна транзакция (частично мигрированная БД исключена). Расхождение сверки → exit 1, внедрение не считается завершенным; сверка зеленая → exit 0, отчет в stdout.
+
+### 3.8 Контейнерное развертывание (change add-containerization, ЭТАП 0+1 плана P11 — план)
+
+Нормативные источники: `docs/ba/architecture-services-plan.md` §1–6, §8 (решения Заказчика ОВ-1…ОВ-4 + факты VPS), решение `decisions/2026-10-03-p11-containerization.md`, ТЗ `requirements.md` r1 (УТВЕРЖДЕН: FR-64…FR-74, NFR-9…NFR-11), дельта `openspec/changes/add-containerization/specs/deploy/spec.md` (новая capability `deploy`), design.md пакета. ЭТАП 2 (выделение сервисов, первый кандидат `search`) — вне скоупа; после паузы эксплуатации 1–2 недели (ОВ-1=а).
+
+**Топология ЭТАПА 1** (§2, диаграмма контейнеров): контейнер `app` (uvicorn, 1 воркер, python:3.12-slim, `backend/` + пины requirements; healthcheck `GET /api/health`) + контейнер `nginx` (nginx:stable-alpine, конфиг из `deploy/nginx-ekotov-wiki-10443.conf` с upstream `app:8377`, статика в образе, `/avatars/` с тома ro) + именованный том `wiki-data` (`wiki.db` + `avatars/`; RW для app, урок C-1 — данные не в образе). Наружу — только nginx `10443:10443`; `app` портов не публикует (паритет localhost-only). `restart: unless-stopped`; nginx `depends_on: app: service_healthy`.
+
+**Compose-файлы (FR-67, NFR-10):** `deploy/compose.yaml` (прод) + `deploy/compose.test.yaml` (стенд: tmp-том БД, seeded-юзер, порт 8443) — один и тот же образ, различия только env/тома (dev/prod паритет); топология стенда = прод-топология (nginx → app → SQLite-том).
+
+**Машинный контракт (FR-68, план §3 вариант А):** `main.py`: `openapi_url="/openapi.json"`, docs/redoc остаются выключенными; exempt-список НЕ расширяется — схема под 401 без сессии (дополнение спеки auth — exempt исчерпывающий); зафиксированная схема — `contracts/openapi.json` (экспорт `scripts/export_openapi.py` под тестовой сессией); несовместимый дифф = материал CI-gate ЭТАПА 2 (в этом пакете gate не строится — одно инфраизменение в шаге).
+
+**e2e (FR-69, план §4):** `e2e/` монорепо, playwright (база `tests/web`), против `compose.test.yaml`: заголовки кеша статики (`expires 7d`), gzip, security-заголовки — впервые автотестом, а не только прод-смоуком (закрытие риска architecture/map.md §6.1 «web-стенд эмулирует nginx через http.server»). Прод-смоук (RUNBOOK §4.4 + `scripts/smoke_static.py`) не заменяется — проверяет живой TLS и конфиг хоста.
+
+**Деплой-процедуры (FR-70/71/72, план §5–6):** `deploy/deploy.sh` — эволюция, не rewrite (бэкап-шаг сохранен, + копия `avatars/` в тот же контур); миграции — one-shot `docker compose run --rm app python -m app.migrate_rN` из того же образа строго до `up` нового app, идемпотентность обязательна, репетиция на копии прод-БД со старой схемой перед выкаткой (урок инцидента Р4 2026-09-30); падение миграции прерывает деплой до подъема нового app. Бэкап до каждого деплоя без остановки (`sqlite3 .backup` + аватары). Откат — предыдущим тегом (`ekotov-wiki/app:<release>`/`frontend:<release>`, тег `latest` запрещен); несовместимая схема — возврат БД из пред-деплойного бэкапа (пара «код+БД»); rsync-снапшот-откат исчезает как класс. RUNBOOK обновляется тем же пакетом (расхождение с deploy недопустимо).
+
+**Ресурсы и переход (FR-73/74, NFR-9/11):** `mem_limit` nginx 64m, app 512m (VPS 3.9 GB total, резерв хосту ≥ 2 GB), воркер 1; логи `json-file` `max-size: 10m`, `max-file: 3` на контейнер, просмотр `docker compose logs`; TLS self-signed `/etc/nginx/ssl/ekotov-wiki.{crt,key}` (до 2028-12-22) — bind-mount ro в nginx, валидация цепочки не требуется ни на одном контуре (решение Заказчика, CA не строится); первый контейнерный деплой — параллельно с живым systemd на другом порту, переключение — одна операция nginx, systemd-юнит остановлен, но не удален (откат за минуты). Правило плана: **никогда два изменения инфры в одном шаге**; каждая выкатка начинается бэкапом и заканчивается смоуком.
 
 
 ## 4. Модель данных (SQLite)
@@ -319,7 +354,10 @@ categories (
 | NFR-3 (данные при рестарте) | Все данные в SQLite (WAL, fsync); единственное in-memory — кеш сессий; инвалидация сессий при рестарте допустима (зафиксировано в спеке) |
 | NFR-4 (2 пользователя) | Seed двух учеток; регистрации нет |
 | NFR-5 (БД вне репо) | `.gitignore`, путь в конфиге развертывания |
-| NFR-6 (VPS, интернет) | nginx + TLS Let's Encrypt, systemd; см. tasks 1.4 |
+| NFR-6 (VPS, интернет) | nginx + TLS, развертывание: до ЭТАПА 1 П11 — systemd (tasks 1.4); ЭТАП 1 — docker compose (§3.8) |
+| NFR-9 (минимальный простой перехода, ТЗ add-containerization) | Параллельный первый контейнерный деплой с живым systemd (другой порт), переключение — одна операция nginx, systemd-юнит сохранен как чекпоинт отката (§3.8) |
+| NFR-10 (dev/prod паритет, ТЗ add-containerization) | Один образ на прод и стенд; `compose.test.yaml` воспроизводит прод-топологию (nginx → app → SQLite-том), различия — env/тома (§3.8) |
+| NFR-11 (ротация логов, ТЗ add-containerization) | `json-file`, `max-size: 10m`, `max-file: 3` на контейнер (§3.8) |
 | NFR-7 (базовая безопасность) | Обязательная авторизация всех страниц и API (middleware); куки HttpOnly/SameSite/Secure; хеши паролей; параметризованный SQL (фильтры — через парсер, не конкатенацию); единый текст ошибки логина; CSRF-минимум через SameSite=Lax |
 | NFR-8 (0 потерь при миграции категорий) | Скрипт миграции с автоматической сверкой до/после (§3.7): значения всех задач в справочнике, COUNT(categories) = COUNT(уникальных непустых «до»), значения задач = снимку; расхождение → exit 1, внедрение не завершен. Порог 0 потерь — Must |
 
@@ -410,5 +448,19 @@ categories (
 | FR-48 (r4) | Must | tasks: «Формы создания и редактирования по дизайну V3» (существующий Requirement — зоны DEF-005, урок DEF-004) |
 | NFR-9 (r4) | Must | auth: «Миграция пользователей и задач без потери данных» (0 потерь, автосверка, ОГР-19) |
 | NFR-10 (r4) | Must | auth: «Загрузка аватара» (лимит исходника ≤2 МБ, ОВ-22) |
+| FR-64 (add-containerization) | Must | deploy: «Монолит работает как контейнер без изменения кода» |
+| FR-65 | Must | deploy: «Монолит работает как контейнер без изменения кода» (nginx-публикация, app без наружных портов) |
+| FR-66 | Must | deploy: «Данные SQLite и аватары в именованном томе» |
+| FR-67 | Must | deploy: «Прод и стенд на одном образе» (compose.yaml/compose.test.yaml) |
+| FR-68 | Must | deploy: «Машинный контракт OpenAPI включен и зафиксирован» (см. §3.8; exempt-спека auth не расширяется) |
+| FR-69 | Must | deploy: «Сквозные тесты против compose-стенда» |
+| FR-70 | Must | deploy: «Миграции БД — one-shot до подъема нового app» |
+| FR-71 | Must | deploy: «Бэкап тома до каждого деплоя» |
+| FR-72 | Must | deploy: «Откат предыдущим тегом образа» |
+| FR-73 | Must | deploy: «Лимиты памяти контейнеров» |
+| FR-74 | Must | deploy: «TLS self-signed монтируется томом» |
+| NFR-9 (add-containerization) | Must | deploy: «Первый контейнерный деплой — параллельно с systemd» |
+| NFR-10 (add-containerization) | Must | deploy: «Прод и стенд на одном образе» |
+| NFR-11 (add-containerization) | Should | deploy: «Ротация логов контейнеров» |
 
-Покрытие Must: **все 13 Must-FR (FR-1…FR-7, FR-9…FR-14) и Must-NFR (NFR-3, NFR-4, NFR-7) имеют Requirements; NFR-6 (Must) — развертывание, покрыто задачей tasks 1.4** (дальнейшая детализация — не поведение системы; отмечено намеренно, не пропущено). Требования Релиза 2 (requirements-r2): **все 12 FR (FR-19…FR-30) и NFR-8 имеют Requirements** в доменах categories/settings/navigation/search/tasks/fastline master-спек. Требования Релиза 3 (requirements.md r4): **все 5 FR (FR-31…FR-35) имеют Requirements** в дельтах change-пакета `add-r3-visual-foundation` (board/auth/navigation/tasks/search). Требования Релиза 4 (requirements-r4): **все 13 FR (FR-36…FR-48) и NFR-9/10 имеют Requirements** в дельтах change-пакета `add-r4-user-profile-ticket-view` (auth/navigation/settings/board/tasks/search).
+Покрытие Must: **все 13 Must-FR (FR-1…FR-7, FR-9…FR-14) и Must-NFR (NFR-3, NFR-4, NFR-7) имеют Requirements; NFR-6 (Must) — развертывание, покрыто задачей tasks 1.4** (дальнейшая детализация — не поведение системы; отмечено намеренно, не пропущено). Требования Релиза 2 (requirements-r2): **все 12 FR (FR-19…FR-30) и NFR-8 имеют Requirements** в доменах categories/settings/navigation/search/tasks/fastline master-спек. Требования Релиза 3 (requirements.md r4): **все 5 FR (FR-31…FR-35) имеют Requirements** в дельтах change-пакета `add-r3-visual-foundation` (board/auth/navigation/tasks/search). Требования Релиза 4 (requirements-r4): **все 13 FR (FR-36…FR-48) и NFR-9/10 имеют Requirements** в дельтах change-пакета `add-r4-user-profile-ticket-view` (auth/navigation/settings/board/tasks/search). Требования add-containerization (requirements.md r1, УТВЕРЖДЕН): **все 11 FR (FR-64…FR-74) и NFR-9/10 (Must) + NFR-11 (Should) имеют Requirements** в дельте change-пакета `add-containerization` (новая capability `deploy` — в `openspec/specs/` домена деплоя ранее не было; после архивации появится `openspec/specs/deploy/spec.md`).
