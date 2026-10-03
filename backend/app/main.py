@@ -20,7 +20,17 @@ from app.tasks import install_error_handlers
 from app.tasks import router as tasks_router
 from app.users import router as users_router
 
-app = FastAPI(title="ekotov-wiki", docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(
+    title="ekotov-wiki",
+    docs_url=None,
+    redoc_url=None,
+    # FR-68 (change add-containerization, tasks 0.2 / design §4): машинная
+    # схема включена — единственная правка кода продукта в пакете. Публично
+    # схема НЕ раскрывается: /openapi.json не входит в exempt-список
+    # middleware (backend/app/middleware.py) → без сессии 302 → /login.
+    # /docs и /redoc остаются выключенными.
+    openapi_url="/openapi.json",
+)
 app.include_router(auth_router)
 app.include_router(avatar_router)
 app.include_router(pages_router)
