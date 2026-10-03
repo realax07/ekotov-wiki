@@ -93,7 +93,21 @@ def check_change(repo: Path, change_id: str, marker: str = "") -> list[str]:
     pr_tasks = extract_pr_tasks(marker + " " + os.environ.get("GITHUB_HEAD_REF", ""))
     if pr_tasks:
         covered = approved_review_tasks(repo, change_id)
-        unreviewed = [t for t in pr_tasks if t not in covered]
+        # J10 требует review только для DEV-задач: ops/docs-задачи ([ops]/[docs])
+        # и незакрытые задачи tasks.md исключаются (контракт flow_control:
+        # ops_task/docs_task; упоминание задачи в тексте PR — контекст, не
+        # требование ревью). Урок add-containerization: «задачи 2.3/2.4» в body
+        # при [ops]-маркере давали ложный FAIL.
+        try:
+            from flow_check import closed_dev_tasks
+            tasks_md = repo / "openspec" / "changes" / change_id / "tasks.md"
+            dev_closed = set(closed_dev_tasks(tasks_md.read_text(encoding="utf-8", errors="replace"))) if tasks_md.is_file() else set()
+        except Exception:
+            dev_closed = None  # файл недоступен — прежнее поведение
+        unreviewed = [
+            t for t in pr_tasks
+            if t not in covered and (dev_closed is None or t in dev_closed)
+        ]
         if unreviewed:
             missing.append(
                 f"code-reviews/{change_id}/: нет review-файла с вердиктом approve "
@@ -137,11 +151,25 @@ MARKER_RE = re.compile(r"\[(BUG-\d+|[a-z0-9]+(?:-[a-z0-9]+)+|\bchore)\]")
 
 # J10: извлечение номеров задач из текста PR (ветка/заголовок/тело).
 # Принимает формы: 1.1, 5.2, 2.1+2.2 (объединенная задача — обе).
-PR_TASK_RE = re.compile(r"(?<![\d.])(\d+\.\d+)(?:\s*\+\s*(\d+\.\d+))?(?![\d.])")
+PR_TASK_RE = re.compile(
+    r"(?<![\d.])"          # не часть большего числа (5.12, 1.5.2)
+    r"(?<!§)"              # §4.1 — ссылка на раздел документа, не задача
+    r"(\d+\.\d+)(?:\s*\+\s*(\d+\.\d+))?(?![\d.])"
+)
 
 
 def extract_pr_tasks(text: str) -> list[str]:
-    """Номера задач из текста PR: 'feature/add-x-1.2', 'Merge 2.1+2.2: ...', 'задача 3.1'."""
+    """Номера задач из текста PR: 'feature/add-x-1.2', 'Merge 2.1+2.2: ...', 'задача 3.1'.
+
+    Исключения (не задачи): §N.N (разделы документов), «шаг N.N» и диапазоны
+    после «шаги» (урок J10 add-containerization: «RUNBOOK §4.1» в body
+    потребовал ревью несуществующей задачи 4.1).
+    """
+    text = re.sub(r"§\d+(?:\.\d+)*", "", text)
+    text = re.sub(
+        r"\bшаг[аи]?\s+\d+(?:\.\d+)*(?:\s*[–,—]\s*\d+(?:\.\d+)*)*",
+        "", text, flags=re.I,
+    )
     tasks: list[str] = []
     for m in PR_TASK_RE.finditer(text):
         tasks.append(m.group(1))

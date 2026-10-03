@@ -60,7 +60,9 @@ git -C /home/openclaw/ekotov-wiki log --oneline -1
 
 ### 4.1 Деплой новой версии
 
-Канонический скрипт: `/home/openclaw/ekotov-wiki/deploy/deploy.sh`. Запускает **Заказчик из-под root**: `sudo bash /home/openclaw/ekotov-wiki/deploy/deploy.sh` (скрипт сам понижает права до `wiki` там, где нужно). Агент под openclaw прод не деплоит.
+Канонический скрипт ЭТОГО раздела (rsync/pip/systemd): `deploy/deploy-v1-systemd.sh` —
+**устарел как основной** (P11 ЭТАП 1: основной деплой — контейнерный `deploy/deploy.sh`,
+§7.6; v1 сохранен для отката на systemd-схему). Запускает **Заказчик из-под root**: `sudo bash deploy/deploy-v1-systemd.sh` (скрипт сам понижает права до `wiki` там, где нужно). Агент под openclaw прод не деплоит.
 
 Параметры (env, с дефолтами): `APP_DIR`, `DB_PATH`, `PORT`, `PROD_URL`, `SERVICE`, `SRC_DIR`, `EXPECTED_COMMIT`, `TARGET_LABEL`, `DRY_RUN`.
 
@@ -87,7 +89,7 @@ curl -s http://127.0.0.1:8377/api/health        # {"status":"ok"}
 sudo journalctl -u ekotov-wiki -n 50            # при отказе — логи первыми
 ```
 
-### 4.3 Откат
+### 4.3 Откат (rsync/systemd-схема — v1, откат на нее см. §7.6)
 
 Откат кода — из снапшота (копия /opt на момент прошлого релиза), откат данных — из бэкапа БД. Снапшот `~/ekotov-wiki-R1-snapshot` устарел; **перед деплоем нового релиза пересоздать его от текущего main**:
 
@@ -278,12 +280,35 @@ sudo docker logs ekotov-wiki-nginx-1 2>&1 | grep -c 502           # 0 (stale-DNS
 ### 7.6 Стенд и обновления
 
 - Стенд (e2e/репетиции, tasks 1.4/2.1): `docker compose -f deploy/compose.test.yaml -p wiki-test up -d --build`
-  → порт 8443, tmp-том (данные исчезают при down), seed:
+  → порт 8443, tmpfs-том (данные исчезают при down), seed:
   `docker compose -p wiki-test exec app python -m app.seed_users` (пароли интерактивно).
-- Обновление контейнерного прода: бэкап (§7.4 шаг 0) → миграция one-shot
-  `docker compose run --rm app python -m app.migrate_rN` (строго до `up`, после
-  репетиции на копии — tasks 2.1) → build новых тегов → `up -d` → смоук §7.5 →
-  `docker image prune -f`.
+- Обновление контейнерного прода — канонический скрипт `deploy/deploy.sh` (v2,
+  контейнерный, задача 1.6; v1 systemd/rsync сохранен как `deploy/deploy-v1-systemd.sh`
+  — только для отката на systemd-схему, RUNBOOK §4.1–4.3). Запуск (Заказчик,
+  из-под root, из клона с целевым коммитом):
+  `sudo RELEASE_TAG=<метка> bash deploy/deploy.sh`
+  (миграционные релизы — с `MIGRATE_MODULE=app.migrate_rN`; `latest` запрещен —
+  FR-72, скрипт падает без валидного тега).
+
+  Шаги скрипта (design §6): предусловия → **бэкап до КАЖДОГО деплоя, БЕЗ
+  остановки** (метод/путь: БД — python-модуль `sqlite3` `.backup` через
+  `docker exec` в контейнер `app` — sqlite3 CLI в slim отсутствует — во
+  временный файл контейнера + `docker compose cp` наружу;
+  аватары — `tar` каталога `/data/avatars` тем же exec; файлы:
+  `/var/backups/ekotov-wiki/wiki-pre-<release>-<дата>-<время>.db` и
+  `avatars-pre-<release>-<дата>-<время>.tar`) → build образов
+  `ekotov-wiki/{app,frontend}:<release>` → one-shot миграция
+  `docker compose run --rm app python -m app.migrate_rN` (СТРОГО до `up`,
+  только после репетиции — tasks 2.1) → `up -d` → смоук (health/login/статика/
+  avatars + «после up нового образа app nginx не отдает 502» — stale-DNS,
+  design §1; fallback — `docker compose restart nginx` внутри скрипта;
+  полный смоук статики `scripts/smoke_static.py` — применим против
+  контейнерного nginx, статика в образе) → `docker image prune -f`.
+  **Первый деплой нового метода — только после `DRY_RUN=1` прогона**
+  (обязателен; показывает все шаги, ничего не меняет).
+- Откат кода контейнерного прода: предыдущий `RELEASE_TAG` (образы тегированы,
+  `latest` не используется — FR-72); несовместимая схема — восстановление БД
+  из пред-деплойного бэкапа парой «код+БД».
 - Возврат на systemd-схему целиком (аварийный, после недели+ эксплуатации):
   откат = §7.4 откат + восстановление БД из пред-деплойного бэкапа (§4.3),
   контейнерный стек `docker compose down` (том wiki-data сохранить до сверки данных).
@@ -297,5 +322,5 @@ sudo docker logs ekotov-wiki-nginx-1 2>&1 | grep -c 502           # 0 (stale-DNS
 | app не стартует, в логах «обязательная переменная SECRET_KEY» | нет `/opt/ekotov-wiki/deploy/.env` или compose запущен вне каталога deploy | создать .env (§7.1 п.3), запускать из `deploy/` |
 | `permission denied` на /var/run/docker.sock | openclaw вне группы docker / старый сеанс | `sudo usermod -aG docker openclaw` + перелогин |
 | после переключения «не открывается извне» | ufw закрыл 10443 | `sudo ufw status`; `sudo ufw allow 10443/tcp` |
-| диск растет после каждого деплоя | dangling-образы | `docker image prune -f` (после каждого деплоя) |
+| диск растет после каждого деплоя | dangling-образы | `docker image prune -f` (после каждого деплоя — шаг 7/7 в deploy.sh) |
 | контейнеры не поднялись после ребута VPS | docker.service не в автозапуске | `sudo systemctl enable docker`; стек поднимется сам (`restart: unless-stopped`) |
