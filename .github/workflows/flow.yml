@@ -79,11 +79,21 @@ jobs:
           sudo mkdir -p /etc/nginx/ssl
           sudo cp /tmp/ekotov-ssl/ekotov-wiki.crt /etc/nginx/ssl/
           sudo cp /tmp/ekotov-ssl/ekotov-wiki.key /etc/nginx/ssl/
+          # nginx-unprivileged (uid 101) читает ключ: world-readable для self-signed
+          # стенда CI (ключ тестовый, живет 30 дней, генерируется на раннере);
+          # на проде права дает хост (RUNBOOK §7).
+          sudo chmod 644 /etc/nginx/ssl/ekotov-wiki.crt /etc/nginx/ssl/ekotov-wiki.key
 
       - name: Start compose test stand
         run: |
           docker compose -f deploy/compose.test.yaml -p wiki-test up -d --build
         shell: bash
+
+      # Схема БД до seed (init_db идемпотентен; tmpfs-том стенда пуст при первом up).
+      - name: Init database schema
+        run: |
+          docker compose -f deploy/compose.test.yaml -p wiki-test exec -T app \
+            python -m app.db
 
       - name: Seed owner user
         run: |
