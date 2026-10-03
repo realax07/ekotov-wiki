@@ -1,6 +1,6 @@
 # Архитектурная карта ekotov-wiki («как есть»)
 
-Статус: актуальна на 2026-09-26 (E11, архитектор; база — main `d619347`, прод — хотфикс `541e844`, прод отстает от клона, см. §1.3).
+Статус: актуальна на 2026-10-03 (2.5 change add-containerization; прод переключен на контейнерную схему — docker compose, задачи 2.3/2.4 пакета; база — deploy-v2 `7065a71` в бою; systemd-прод остановлен, юнит сохранен как чекпоинт отката, см. §1.3).
 Задача выполнена по Флоу 4 (обслуживание). Артефакт только фиксирует факты и решения; задачи сюда не входят.
 Источники: код `backend/app/`, `frontend/`; `sdd.md` r7; спеки `openspec/specs/*/spec.md`; `deploy/RUNBOOK.md` (E9, факты прода 2026-09-26); `PRODUCT_BACKLOG.md` (DEF-001…005); архив `openspec/changes/archive/`.
 
@@ -26,15 +26,20 @@ Jinja2-шаблоны `frontend/templates/` (6 шт: base, login, wiki, board, s
 
 ### 1.3 Прод-топология (кратко; детали и процедуры — deploy/RUNBOOK.md, не дублируются)
 
+**С 2026-10-03 прод — контейнерный (change add-containerization, задачи 2.3/2.4):**
+
 ```
-Браузер ── https://194.58.34.122:10443 (TLS self-signed) ── nginx :10443
-   ├── /static/ → alias /opt/ekotov-wiki/frontend/static/ (expires 7d, public)
-   └── /        → proxy_pass http://127.0.0.1:8377
-                    uvicorn (systemd-юнит ekotov-wiki, User=wiki, 1 воркер, без --workers)
-                      └── SQLite /var/lib/ekotov-wiki/wiki.db (вне репозитория, владелец wiki)
+Браузер ── https://194.58.34.122:10443 (TLS self-signed, том с хоста ro) ── nginx [контейнер frontend, :10443]
+   ├── /static/ → из образа (expires 7d, public)
+   ├── /avatars/ → alias /data/avatars/ (том wiki-data ro, expires 7d)
+   └── /        → proxy_pass http://app:8377 (compose-сеть; resolver 127.0.0.11 + переменная — anti stale-DNS)
+                    uvicorn [контейнер app, uid 10001, 1 воркер, healthcheck /api/health]
+                      └── SQLite /data/wiki.db → named volume `wiki-data` (БД + avatars/)
 ```
 
-Ключевое для архитектуры: `/opt/ekotov-wiki` — не git, обновление только rsync из клона `~/ekotov-wiki` (main) через `deploy/deploy.sh`; бэкап БД перед деплоем (`sqlite3 .backup`, без остановки); откат — снапшот кода + копия БД. Деплой запускает Заказчик; агент прод не пишет. Прочее (TLS-сертификат до 2028, порты, харднинг юнита, смоук) — RUNBOOK §1–2, §4.4.
+Ключевое: деплой — `deploy/deploy.sh` v2 (build тегов `<release>`, latest запрещен; бэкап БД+аватаров до каждого деплоя без остановки; one-shot миграция строго до up; смоук, вкл. 502-контроль). Обновление: тег нового релиза в `deploy-v2`. Откат: предыдущий релизный тег одной командой; чекпоинт ЭТАПА 2 — systemd-схема (`deploy/deploy-v1-systemd.sh`, юнит `ekotov-wiki` остановлен 2026-10-03, `enabled` сохранен, БД-снапшот `/var/lib/ekotov-wiki/wiki.db` заморожен на момент переключения). Прочее (TLS-сертификат до 2028, лимиты памяти nginx 64m/app 512m, смоук) — RUNBOOK §1–2, §7.
+
+**Пауза эксплуатации 1–2 недели (ОВ-1=а):** с 2026-10-03 контейнерный прод наблюдается в бою до ЭТАПА 2 плана P11 (выделение сервисов); критерии благополучия — отсутствие 502 в логах nginx, healthcheck app без рестартов, размер тома `wiki-data` в норме, бэкапы deploy.sh создаются при каждом деплое.
 
 ### 1.4 Тестовый контур (не прод)
 
