@@ -380,11 +380,20 @@ def check(repo: Path) -> int:
             )
 
     # --- Автотесты: только по approved + трассировка TC (контракт 6) ---
+    # Источник кейсов (с 2026-10-03, as-is структура regression/<domain>/):
+    # approved/<change>/ (классика Флоу 1) ИЛИ regression/<domain>/ (as-is база).
     tests_dir = repo / "tests"
     if tests_dir.is_dir():
         test_files = [p for p in tests_dir.rglob("test_*.py")]
-        if test_files and not any(approved_by_change.values()):
-            errors += errs("tests/: автотесты без approved-кейсов (контракт 6)")
+        reg_dir = tm / "regression"
+        has_regression_cases = reg_dir.is_dir() and any(
+            d.is_dir() and not d.name.startswith(".") for d in reg_dir.iterdir()
+        ) and any(f.suffix == ".md" for f in reg_dir.rglob("*.md"))
+        if test_files and not any(approved_by_change.values()) and not has_regression_cases:
+            errors += errs(
+                "tests/: автотесты без approved-кейсов и без as-is базы "
+                "test-model/regression/<domain>/ (контракт 6)"
+            )
         for tf in test_files:
             text = tf.read_text(encoding="utf-8", errors="replace")
             if re.search(r"\btime\.sleep\(", text):
