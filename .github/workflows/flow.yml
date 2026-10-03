@@ -116,6 +116,11 @@ jobs:
           EKOTOV_WIKI_E2E_BASE_URL: https://127.0.0.1:8443
         run: python -m pytest e2e -v
 
+      # Логи стенда при падении сьюта (диагностика 500/timeout без второго прогона).
+      - name: Dump stand logs on failure
+        if: failure()
+        run: docker compose -f deploy/compose.test.yaml -p wiki-test logs --tail 100
+
       - name: Tear down stand
         if: always()
         run: docker compose -f deploy/compose.test.yaml -p wiki-test down -v
