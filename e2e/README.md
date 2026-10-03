@@ -27,17 +27,19 @@ docker compose -f deploy/compose.test.yaml -p wiki-test up -d --build
 ```bash
 # 1. Поднять стенд и дождаться healthy:
 docker compose -f deploy/compose.test.yaml -p wiki-test up -d --build
-# 2. Seed (owner/wife) — интерактивный ввод паролей (getpass, логины фиксированы;
+# 2. Схема БД (tmpfs пуста при первом up; init_db идемпотентен):
+docker compose -p wiki-test exec app python -m app.db
+# 3. Seed (owner/wife) — интерактивный ввод паролей (getpass, логины фиксированы;
 #    seed_users.py не имеет --non-interactive — пароли вводятся с терминала):
 docker compose -p wiki-test exec app python -m app.seed_users
 
-# 3. Сьют (из корня клона; venv проекта, playwright-браузеры ставятся один раз):
+# 4. Сьют (из корня клона; venv проекта, playwright-браузеры ставятся один раз):
 pip install -r backend/requirements.txt
 python -m playwright install chromium
 EKOTOV_WIKI_E2E_BASE_URL=https://127.0.0.1:8443 \
   python -m pytest e2e -v
 
-# 4. Останов:
+# 5. Останов:
 docker compose -p wiki-test down   # tmpfs-данные исчезают
 ```
 
