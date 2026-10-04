@@ -139,20 +139,63 @@ def run_backup(
     return created
 
 
+# Первый тик на пустом томе (свежий хост, tasks 2.3/2.4): БД еще не создана
+# (ее создает app при первом старте), run_backup упадет. Чтобы не ждать
+# следующего тика INTERVAL_SEC (до суток без бэкапа), первый ЦИКЛ ретраится
+# быстро: FIRST_TICK_RETRIES попыток с шагом FIRST_TICK_RETRY_SEC (5x30s =
+# 2.5 мин на старт app). После первого УСПЕШНОГО цикла — обычный суточный
+# ритм; ошибки последующих тиков ждут следующего интервала (как раньше).
+FIRST_TICK_RETRIES = int(os.environ.get("BACKUP_FIRST_TICK_RETRIES", "5"))
+FIRST_TICK_RETRY_SEC = int(os.environ.get("BACKUP_FIRST_TICK_RETRY_SEC", "30"))
+
+
 def _heartbeat() -> None:
     with open(HEARTBEAT_PATH, "w") as fh:
         fh.write(str(int(time.time())))
 
 
 def main() -> None:
-    """Cron-цикл sidecar: бэкап сразу при старте, далее раз в INTERVAL_SEC."""
+    """Cron-цикл sidecar: бэкап сразу при старте, далее раз в INTERVAL_SEC.
+
+    Первый цикл (до первого успеха) — быстрые ретраи: до
+    BACKUP_FIRST_TICK_RETRIES попыток с паузой BACKUP_FIRST_TICK_RETRY_SEC
+    (дефолт 5x30s = 2.5 мин) — на свежем хосте БД появляется с первым
+    стартом app, и одиночный тик без ретраев падал бы с паузой до суток.
+    Если ретраи исчерпаны — честный выход (ненулевой код): контейнер
+    перезапустит restart: unless-stopped, к тому моменту БД обычно уже есть.
+    """
+    first_tick = True
     while True:
-        try:
-            run_backup()
-            _heartbeat()
-        except Exception as exc:  # цикл живет: следующий суточный тик повторит
-            print(f"[backup] ОШИБКА цикла: {exc!r}", flush=True)
-        time.sleep(INTERVAL_SEC)
+        if first_tick:
+            for attempt in range(1, FIRST_TICK_RETRIES + 1):
+                try:
+                    run_backup()
+                    _heartbeat()
+                    first_tick = False
+                    break
+                except Exception as exc:
+                    print(
+                        f"[backup] первый тик {attempt}/{FIRST_TICK_RETRIES} "
+                        f"не удался: {exc!r}"
+                        + (f"; повтор через {FIRST_TICK_RETRY_SEC}s" if attempt < FIRST_TICK_RETRIES else ""),
+                        flush=True,
+                    )
+                    if attempt < FIRST_TICK_RETRIES:
+                        time.sleep(FIRST_TICK_RETRY_SEC)
+            if first_tick:
+                raise SystemExit(
+                    f"[backup] первый тик не удался после "
+                    f"{FIRST_TICK_RETRIES}x{FIRST_TICK_RETRY_SEC}s — выход; "
+                    "restart: unless-stopped поднимет контейнер снова "
+                    "(БД, вероятно, еще не создана app'ом на свежем хосте)"
+                )
+        else:
+            try:
+                run_backup()
+                _heartbeat()
+            except Exception as exc:  # цикл живет: следующий суточный тик повторит
+                print(f"[backup] ОШИБКА цикла: {exc!r}", flush=True)
+            time.sleep(INTERVAL_SEC)
 
 
 if __name__ == "__main__":

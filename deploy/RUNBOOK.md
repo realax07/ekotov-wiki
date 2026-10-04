@@ -147,7 +147,7 @@ curl -k -o /dev/null -w '%{http_code}\n' https://127.0.0.1:10443/static/css/app.
 | Порт занят, uvicorn не стартует (`address already in use`) | висячий процесс прошлого запуска / чужой слушатель на 8377 | `ss -tlnp \| grep 8377`; убить висяка (`kill <pid>`), затем `systemctl start ekotov-wiki` |
 | У пользователя частичный рендер, старые стили после релиза | кеш браузера: nginx отдает `/static/` с `expires 7d` | проверить, что забамплен `static_v`; пользователю — обычный F5 (новые `?v=` сами обходят кеш) |
 | `curl` на 10443 — connection refused, приложение живо на 8377 | nginx не перечитал конфиг / упал | `sudo nginx -t && sudo systemctl reload nginx`; `ss -tln \| grep 10443` |
-| Бэкап не создался | нет каталога/прав у `/var/backups/ekotov-wiki` | скрипт останавливает деплой до всяких изменений; создать каталог, `chown wiki:wiki`, повторить |
+| Бэкап не создался | нет каталога/прав у `/var/backups/ekotov-wiki` | скрипт останавливает деплой до всяких изменений; каталог и владельца приводит `deploy.sh` в шаге 1/8 (`mkdir -p` + idempotent `chown 10001:10001` — sidecar-образ работает под uid 10001); вручную: `sudo mkdir -p /var/backups/ekotov-wiki && sudo chown 10001:10001 /var/backups/ekotov-wiki`, повторить |
 | rsync затирает лишнее | неправильная пара источник/назначение при `--delete` | источник — `~/ekotov-wiki/` (с хвостовым слэшем), приемник — `/opt/ekotov-wiki/`; сначала `DRY_RUN=1` и смотреть itemize |
 
 ## 6. Границы
@@ -296,6 +296,10 @@ sudo docker logs ekotov-wiki-nginx-1 2>&1 | grep -c 502           # 0 (stale-DNS
   (compose-переменные `APP_IMAGE`/`FRONTEND_IMAGE`/`SEARCH_IMAGE`/
   `BACKUP_IMAGE` — по-сервисный оверрайд для горячего фикса одного сервиса).
   Порядок шагов скрипта (design §6): предусловия → **бэкап ДО ВСЕХ** —
+  предусловия включают подготовку bind-каталога бэкапов: `mkdir -p` +
+  idempotent `chown 10001:10001 /var/backups/ekotov-wiki` (образ backup
+  работает под ЧИСЛОВЫМ uid 10001; имя `wiki` на хосте может иметь другой
+  uid — 1.2-a, review-004-1.2) —
   вызывает МОДУЛЬ `services/backup/backup.py` (`from backup import
   run_backup` — один код с sidecar-контейнером, без дубля; файлы
   `/var/backups/ekotov-wiki/wiki-pre-<release>-<дата>-<время>.db` и

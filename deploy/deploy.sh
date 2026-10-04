@@ -124,6 +124,28 @@ if [ "${DRY_RUN}" != "1" ]; then
   esac
 fi
 
+# 1.2-a (review-004-1.2): права на bind-каталог бэкапов для sidecar. Образ
+# backup работает под USER 10001 — проверяем/ставим ЧИСЛОВОЙ uid 10001:10001
+# (имя wiki на хосте может иметь другой uid). Idempotent: владелец уже 10001 —
+# не трогаем. Только продовый compose-файл (стенд пишет в deploy/backups-test,
+# compose.test.yaml). mkdir -p здесь (не только в 2/8): stat/chown ниже требуют
+# существования каталога уже в предусловиях.
+case "${COMPOSE_FILE}" in
+  *compose.test.yaml*) : ;;
+  *)
+    run mkdir -p "${BACKUP_DIR}"
+    if [ "${DRY_RUN}" = "1" ]; then
+      echo "   [DRY-RUN] stat -c %u ${BACKUP_DIR}   # владелец уже 10001 — не трогаем; иначе chown 10001:10001"
+    elif [ "$(stat -c %u "${BACKUP_DIR}" 2>/dev/null)" = "10001" ]; then
+      ok "BACKUP_DIR ${BACKUP_DIR}: владелец уже 10001 — sidecar-бэкап запишет"
+    else
+      run chown 10001:10001 "${BACKUP_DIR}" \
+        || fail "Не удалось chown 10001:10001 ${BACKUP_DIR} — sidecar-бэкап (uid 10001) не сможет писать (1.2-a, review-004-1.2)"
+      ok "BACKUP_DIR ${BACKUP_DIR}: владелец приведен к 10001:10001"
+    fi
+    ;;
+esac
+
 COMPOSE="docker compose -f ${COMPOSE_FILE} -p ${PROJECT} ${COMPOSE_EXTRA:-}"
 # ОГРАНИЧЕНИЕ (nit 1.4-d, review-001): ${COMPOSE} сознательно НЕ квочен —
 # слова команды получаются разбиением; пути COMPOSE_FILE/PROJECT/COMPOSE_EXTRA
@@ -157,7 +179,8 @@ docker info >/dev/null 2>&1 || fail "docker недоступен (права н�
 # релизный бэкап остается в деплое навсегда, sidecar страхует МЕЖДУ релизами.
 RELEASE_STAGING="${RELEASE_STAGING:-${BACKUP_DIR}/release-staging}"
 log "2/8 Бэкап до деплоя (БД + аватары, модуль backup.run_backup) → ${BACKUP_DIR}"
-run mkdir -p "${BACKUP_DIR}"
+# mkdir -p BACKUP_DIR выполнен в шаге 1/8 (вместе с chown 10001:10001 — 1.2-a):
+# здесь повторно не делаем (idempotent-оверрайд не нужен, каталог уже есть).
 
 APP_CID="$(${COMPOSE} ps -q app 2>/dev/null || true)"
 if [ -z "${APP_CID}" ] && [ "${DRY_RUN}" != "1" ]; then

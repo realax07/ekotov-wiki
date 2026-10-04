@@ -32,7 +32,10 @@ ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 
 # Healthcheck ПРОЦЕССА (design §5): живой python-цикл печатает heartbeat
 # (epoch, services/backup/backup.py::_heartbeat). stale-heartbeat (> 2
-# интервала) = деградация — рестарт контейнера.
+# интервала) = деградация → контейнер помечается unhealthy (Docker restart
+# policy на это НЕ реагирует — рестартует только при ПАДЕНИИ процесса,
+# restart: unless-stopped в compose). Гейт деплоя — wait_healthy в deploy.sh
+# (шаг 5/8): unhealthy backup деплой не пропускает.
 HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
     CMD ["python", "-c", "import os,sys,time; p=os.environ.get('BACKUP_HEARTBEAT_PATH','/tmp/backup-heartbeat'); sys.exit(0 if os.path.exists(p) and time.time()-float(open(p).read().strip()) < 2*int(os.environ.get('BACKUP_INTERVAL_SEC','86400')) else 1)"]
 

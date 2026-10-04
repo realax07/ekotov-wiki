@@ -110,10 +110,12 @@ services:
     volumes:
       # Данные — только чтение (безопасный профиль, plan §1.2 / README сервиса).
       - wiki-data:/data:ro
-      # Каталог бэкапов — bind хоста (как у deploy.sh, design §5). Владелец
-      # на хосте — wiki:wiki (uid 10001; создан deploy.sh — тот же uid, что
-      # USER образа) → non-root пишет напрямую. Свежий хост: mkdir + chown
-      # 10001 из RUNBOOK (deploy.sh уже делает это в шаге 2/7).
+      # Каталог бэкапов — bind хоста (как у deploy.sh, design §5). Образ
+      # работает под ЧИСЛОВЫМ uid 10001 (USER 10001 в Dockerfile) — bind-каталог
+      # на хосте должен иметь владельца 10001:10001 (имя wiki:wiki на хосте
+      # НЕ гарантирует этот uid — требуй именно числа). Права приводит
+      # deploy/deploy.sh в шаге 1/8 (idempotent: stat %u, chown при отличии);
+      # для свежего хоста вручную: mkdir -p + chown 10001:10001 (RUNBOOK §7).
       - /var/backups/ekotov-wiki:/backups
     # Sidecar вне цепочки запросов: depends_on нужен только чтобы БД
     # существовала к первому циклу; health — heartbeat-процесс (в образе).
@@ -159,5 +161,6 @@ services:
 
 volumes:
   wiki-data:
-    # wiki.db + avatars/. Бэкап — docker exec python sqlite3 .backup
-    # (design §6, метод зафиксирован до реализации).
+    # wiki.db + avatars/. Бэкап — сервис backup (sidecar, design §5):
+    # суточный цикл внутри контейнера + релизный бэкап в deploy.sh (шаг 2/8),
+    # оба — один модуль services/backup/backup.py.
