@@ -178,11 +178,14 @@ else
   ${COMPOSE} exec -T -e BACKUP_DIR=/tmp/.deploy-bk \
     -e EKOTOV_WIKI_DB_PATH="${DB_PATH_IN_CONTAINER}" \
     -e EKOTOV_WIKI_AVATARS_DIR="${AVATARS_DIR_IN_CONTAINER}" \
-    # nit 1.4-e: 36500 ~ 100 лет — чтобы prune внутри временного /tmp/.deploy-bk
-    # контейнера гарантированно ничего не удалил (retention на хосте ведет sidecar).
     -e BACKUP_RETENTION_DAYS=36500 \
     app python -c "import sys; sys.path.insert(0, '/tmp'); from backup import run_backup; run_backup()" \
     || fail "Релизный бэкап не создан (backup.run_backup упал) — деплой прерван, БД не тронута."
+  # nit 1.4-e: 36500 ~ 100 лет — чтобы prune внутри временного /tmp/.deploy-bk
+  # контейнера гарантированно ничего не удалил (retention на хосте ведет sidecar).
+  # Комментарий ДОЛЖЕН стоять ВНЕ backslash-продолжения: bash обрывает команду
+  # на комментарии внутри продолжения (ловится только живым прогоном, не bash -n
+  # и не DRY_RUN — регресс review-002-1.4, blocker 1.4-f).
   ${COMPOSE} exec -T app tar -cf - -C /tmp/.deploy-bk . | tar -xf - -C "${RELEASE_STAGING}" \
     || fail "Бэкап не вынесен из контейнера (tar-поток в ${RELEASE_STAGING})"
   ${COMPOSE} exec -T app rm -rf /tmp/.deploy-bk /tmp/backup.py \
