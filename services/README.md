@@ -26,11 +26,12 @@ services/<name>/
 - В ЭТАПЕ 2 — только сервисы с read-only или изолированным профилем записи к общей SQLite (инварианты монолита держатся транзакциями одного процесса).
 - Никогда два изменения инфраструктуры в одном шаге; границы и состав — решение архитектора по плану, не «потому что можно».
 
-## Текущее содержимое
+## Статусы сервисов (пакет add-microservices-full)
 
-| Каталог | Статус |
-|---|---|
-| `app/` | ядро/монолит; образ `services/app/Dockerfile` (tasks 1.1, change add-containerization) — код пока в `backend/`, перенос — решение архитектора |
-| `frontend/` | nginx-образ (`Dockerfile` + `nginx/ekotov-wiki.conf`) — tasks 1.2, change add-containerization |
-| `search/` | кандидат ЭТАПА 2, первый в очереди (см. `search/README.md`) |
-| `auth/` | **не рекомендован** к выделению (см. `auth/README.md`) |
+| Сервис | Статус | Примечание |
+|---|---|---|
+| `app/` | работает | монолит, ЭТАП 1 add-containerization (код пока в `backend/`) |
+| `frontend/` | работает | nginx-образ, ЭТАП 1 add-containerization |
+| `search/` | **в работе (ЭТАП B)** | контракт заморожен (`contracts/openapi-search.json`, задача 0.1); перенос кода — задачи 1.1–1.3 |
+| `backup/` | **в работе (ЭТАП B)** | sidecar, cron-цикл, bind `/var/backups/ekotov-wiki` — задачи 1.2/1.4 |
+| `auth/` | **не выделяется** | решение плана §1.2 — безопасные профили данных (search RO, auth остается в ядре), НЕ механический разрез с общим RW SQLite |
