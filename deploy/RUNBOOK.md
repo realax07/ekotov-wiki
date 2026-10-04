@@ -299,7 +299,10 @@ sudo docker logs ekotov-wiki-nginx-1 2>&1 | grep -c 502           # 0 (stale-DNS
   вызывает МОДУЛЬ `services/backup/backup.py` (`from backup import
   run_backup` — один код с sidecar-контейнером, без дубля; файлы
   `/var/backups/ekotov-wiki/wiki-pre-<release>-<дата>-<время>.db` и
-  `avatars-pre-<release>-<дата>-<время>.tar`; sidecar-retention релизные
+  `avatars-pre-<release>-<дата>-<время>.tar`; вынос из контейнера идет в
+  staging-подкаталог `/var/backups/ekotov-wiki/release-staging/` и mv в
+  релизные имена — только свежевынесенные файлы, суточная история sidecar
+  `wiki-daily-*`/`avatars-daily-*` НЕ трогается; sidecar-retention релизные
   `wiki-pre-*`/`avatars-pre-*` не трогает — релизный бэкап остается в деплое,
   sidecar страхует МЕЖДУ релизами) → build ВСЕХ образов матрицы →
   one-shot миграция ЯДРА `docker compose run --rm app python -m app.migrate_rN`
@@ -308,7 +311,8 @@ sudo docker logs ekotov-wiki-nginx-1 2>&1 | grep -c 502           # 0 (stale-DNS
   `up -d search backup` → healthy → `up -d nginx` → healthy → смоук-матрица
   (health app 200; health search напрямую 200; поиск через nginx:
   200/401/422 + заголовок `X-Service: search`; /login 200; статика 200;
-  avatars 200/403/404 — не 502; 502=0 в логах nginx; образы контейнеров =
+  avatars 200/403/404 — не 502; 502=0 в логах nginx (502>0 — FAIL, а не
+  WARN — фикс review-001 1.4-b); образы контейнеров =
   релизные теги; полный смоук статики `scripts/smoke_static.py`) →
   `docker image prune -f`.
   **Первый деплой нового метода — только после `DRY_RUN=1` прогона**

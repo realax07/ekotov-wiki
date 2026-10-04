@@ -23,11 +23,11 @@
 # services/backup/backup.py — from backup import run_backup, один код с
 # sidecar, БЕЗ дубля — design §5; релизный бэкап остается в деплое:
 # wiki-pre-*/avatars-pre-*, sidecar-retention их не трогает) → build ВСЕХ
-# образов матрицы → one-shot миграция ЯДРА (СТРОГО до up; search/backup —
+# образы матрицы → one-shot миграция ЯДРА (СТРОГО до up; search/backup —
 # читатели, миграций не требуют — design §6) → up app → healthy →
 # up search backup → healthy → up nginx → healthy → смоук-матрица:
 # health app, health search, поиск через nginx (маршрутизация + X-Service:
-# search), статика (+ smoke_static.py), аватары, 502=0,
+# search), статика (+ smoke_static.py), аватары, 502=0 (502>0 — FAIL),
 # «образы контейнеров = релизные теги» → docker image prune -f.
 # Останов на любой ошибке (set -euo pipefail).
 #
@@ -125,6 +125,10 @@ if [ "${DRY_RUN}" != "1" ]; then
 fi
 
 COMPOSE="docker compose -f ${COMPOSE_FILE} -p ${PROJECT} ${COMPOSE_EXTRA:-}"
+# ОГРАНИЧЕНИЕ (nit 1.4-d, review-001): ${COMPOSE} сознательно НЕ квочен —
+# слова команды получаются разбиением; пути COMPOSE_FILE/PROJECT/COMPOSE_EXTRA
+# с пробелами сломают разбиение. Для зафиксированных прод/стенд-путей
+# (/opt/ekotov-wiki, deploy/compose.yaml, wiki-test) не актуально.
 # COMPOSE_EXTRA: дополнительные -f (override) — тестовые прогоны, напр. self-signed
 # серты во временном каталоге вместо хостовых /etc/nginx/ssl. В бою пусто.
 # CONTEXT_DIR: каталог, из которого резолвится относительный COMPOSE_FILE
@@ -147,9 +151,11 @@ docker info >/dev/null 2>&1 || fail "docker недоступен (права н�
 # у него) вызывается from backup import run_backup — тот же модуль, что крутит
 # cron-цикл backup-контейнера. Модуль копируется в /tmp КОНТЕЙНЕРА (в образе
 # app его нет), пишет во временный каталог контейнера, вынос — tar-потоком
-# (том снаружи /var/lib/docker/volumes требует root). Файлы получают релизные
-# имена wiki-pre-*/avatars-pre-* — sidecar-retention (design §5) их НЕ трогает:
+# (том снаружи /var/lib/docker/volumes требует root) в STAGING-каталог хоста.
+# Затем на хосте mv свежевынесенных файлов в релизные имена
+# wiki-pre-*/avatars-pre-* — sidecar-retention (design §5) их НЕ трогает:
 # релизный бэкап остается в деплое навсегда, sidecar страхует МЕЖДУ релизами.
+RELEASE_STAGING="${RELEASE_STAGING:-${BACKUP_DIR}/release-staging}"
 log "2/8 Бэкап до деплоя (БД + аватары, модуль backup.run_backup) → ${BACKUP_DIR}"
 run mkdir -p "${BACKUP_DIR}"
 
@@ -161,32 +167,44 @@ fi
 if [ "${DRY_RUN}" = "1" ]; then
   echo "   [DRY-RUN] ${COMPOSE} exec -T app sh -c 'cat > /tmp/backup.py' < ${SRC_DIR}/services/backup/backup.py"
   echo "   [DRY-RUN] ${COMPOSE} exec -T -e BACKUP_DIR=/tmp/.deploy-bk -e EKOTOV_WIKI_DB_PATH=${DB_PATH_IN_CONTAINER} -e EKOTOV_WIKI_AVATARS_DIR=${AVATARS_DIR_IN_CONTAINER} app python -c 'import sys; sys.path.insert(0,\"/tmp\"); from backup import run_backup; run_backup()'"
-  echo "   [DRY-RUN] ${COMPOSE} exec -T app tar -cf - -C /tmp/.deploy-bk . | tar -xf - -C ${BACKUP_DIR}   # вынос из контейнера"
+  echo "   [DRY-RUN] ${COMPOSE} exec -T app tar -cf - -C /tmp/.deploy-bk . | tar -xf - -C ${RELEASE_STAGING}   # вынос из контейнера в staging"
   echo "   [DRY-RUN] ${COMPOSE} exec -T app rm -rf /tmp/.deploy-bk /tmp/backup.py"
-  echo "   [DRY-RUN] mv ${BACKUP_DIR}/wiki-daily-*.db → ${DB_BACKUP}; ${BACKUP_DIR}/avatars-daily-*.tar → ${AVATARS_BACKUP}  # релизные имена: sidecar-retention их не трогает"
+  echo "   [DRY-RUN] mv ${RELEASE_STAGING}/wiki-daily-*.db → ${DB_BACKUP}; ${RELEASE_STAGING}/avatars-daily-*.tar → ${AVATARS_BACKUP}  # релизные имена (staging: суточная история sidecar в ${BACKUP_DIR} не тронута); sidecar-retention их не трогает"
+  echo "   [DRY-RUN] rmdir ${RELEASE_STAGING} 2>/dev/null || true   # staging пуст после mv (суточная история sidecar в ${BACKUP_DIR} НЕ тронута)"
 else
+  run mkdir -p "${RELEASE_STAGING}"
   ${COMPOSE} exec -T app sh -c 'cat > /tmp/backup.py' < "${SRC_DIR}/services/backup/backup.py" \
     || fail "Модуль backup.py не скопирован в контейнер app"
   ${COMPOSE} exec -T -e BACKUP_DIR=/tmp/.deploy-bk \
     -e EKOTOV_WIKI_DB_PATH="${DB_PATH_IN_CONTAINER}" \
     -e EKOTOV_WIKI_AVATARS_DIR="${AVATARS_DIR_IN_CONTAINER}" \
+    # nit 1.4-e: 36500 ~ 100 лет — чтобы prune внутри временного /tmp/.deploy-bk
+    # контейнера гарантированно ничего не удалил (retention на хосте ведет sidecar).
     -e BACKUP_RETENTION_DAYS=36500 \
     app python -c "import sys; sys.path.insert(0, '/tmp'); from backup import run_backup; run_backup()" \
     || fail "Релизный бэкап не создан (backup.run_backup упал) — деплой прерван, БД не тронута."
-  ${COMPOSE} exec -T app tar -cf - -C /tmp/.deploy-bk . | tar -xf - -C "${BACKUP_DIR}" \
-    || fail "Бэкап не вынесен из контейнера (tar-поток)"
-  ${COMPOSE} exec -T app rm -rf /tmp/.deploy-bk /tmp/backup.py
+  ${COMPOSE} exec -T app tar -cf - -C /tmp/.deploy-bk . | tar -xf - -C "${RELEASE_STAGING}" \
+    || fail "Бэкап не вынесен из контейнера (tar-поток в ${RELEASE_STAGING})"
+  ${COMPOSE} exec -T app rm -rf /tmp/.deploy-bk /tmp/backup.py \
+    || ok "cleanup временных файлов контейнера не удался (не критично)"
   # Релизные имена поверх служебных daily-* модуля (run_backup имена не
   # параметризует — переименовываем на хосте; sidecar-retention считает
-  # wiki-pre-*/avatars-pre-* чужими и никогда не удаляет).
-  for f in "${BACKUP_DIR}"/wiki-daily-*.db; do
-    [ -e "${f}" ] && mv -f "${f}" "${DB_BACKUP}"
+  # wiki-pre-*/avatars-pre-* чужими и никогда не удаляет). Вынос шел в
+  # STAGING (1.4-a, review-001): mv только свежевынесенных файлов, суточная
+  # история sidecar в ${BACKUP_DIR} НЕ затрагивается.
+  moved=0
+  for f in "${RELEASE_STAGING}"/wiki-daily-*.db; do
+    [ -e "${f}" ] && mv -f "${f}" "${DB_BACKUP}" && moved=$((moved + 1))
   done
-  for f in "${BACKUP_DIR}"/avatars-daily-*.tar; do
-    [ -e "${f}" ] && mv -f "${f}" "${AVATARS_BACKUP}"
+  [ "${moved}" -eq 1 ] || fail "В ${RELEASE_STAGING} не найден свежевынесенный бэкап БД (wiki-daily-*.db: ${moved} шт.) — вынос из контейнера не сработал."
+  moved=0
+  for f in "${RELEASE_STAGING}"/avatars-daily-*.tar; do
+    [ -e "${f}" ] && mv -f "${f}" "${AVATARS_BACKUP}" && moved=$((moved + 1))
   done
+  [ "${moved}" -eq 1 ] || fail "В ${RELEASE_STAGING} не найден свежевынесенный tar аватаров (avatars-daily-*.tar: ${moved} шт.) — вынос из контейнера не сработал."
+  rmdir "${RELEASE_STAGING}" 2>/dev/null || ok "staging ${RELEASE_STAGING} не пуст после mv (остатки не мешают — retention их не трогает)"
   [ -s "${DB_BACKUP}" ] || fail "Файл бэкапа БД пуст или отсутствует: ${DB_BACKUP}"
-  ok "Бэкап БД: $(du -h "${DB_BACKUP}" | cut -f1) — ${DB_BACKUP}"
+  ok "Бэкап БД: $(du -h "${DB_BACKUP}" | cut -f1) — ${DB_BACKUP} (история sidecar в ${BACKUP_DIR} не тронута)"
   [ -s "${AVATARS_BACKUP}" ] || fail "Файл бэкапа аватаров отсутствует: ${AVATARS_BACKUP}"
   ok "Бэкап аватаров: $(du -h "${AVATARS_BACKUP}" | cut -f1) — ${AVATARS_BACKUP}"
 fi
@@ -320,7 +338,7 @@ esac
 # это не относится — управляемый ответ error_page, не 502-залипание)
 NGINX_502="$(docker logs "$(${COMPOSE} ps -q nginx)" 2>&1 | grep -c ' 502 ' || true)"
 if [ "${NGINX_502}" != "0" ]; then
-  echo "   [WARN] в логах nginx ${NGINX_502}х 502 — проверь ${SMOKE_URL} браузером"
+  fail "в логах nginx ${NGINX_502}х 502 (ожидалось 0 — stale-DNS контроль, design §1); 503 от остановленного search — не считается (управляемый error_page)"
 fi
 ok "Логи nginx: 502 не обнаружено"
 
