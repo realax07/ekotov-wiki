@@ -1,6 +1,6 @@
 # Ревью ЭТАПА A — пакет add-microservices-full (задачи 0.1 / 0.2 / 0.3)
 
-Reviewer-Delegation: deleg-arch-rev-001
+Reviewer-Delegation: deleg_8775daa4
 
 - Дата: 2026-10-04
 - Ревьюируемые коммиты: `9c63971` (0.1, контракт), `a9e530b` (0.1, deprecated), `e776e59` (0.2, каркас сервисов), `0299bef` (0.3, тест-гейт), `b1f9636` (чекбоксы tasks.md)

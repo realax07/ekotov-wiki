@@ -1,6 +1,6 @@
 # Ре-ревью фикс-цикла — пакет add-microservices-full (ЭТАП A)
 
-Reviewer-Delegation: deleg-arch-rev-001
+Reviewer-Delegation: deleg_4f791b51
 
 - Дата: 2026-10-04
 - Ре-ревью к: `code-reviews/add-microservices-full/review-001-0.1-0.3.md` (verdict: request_changes)
