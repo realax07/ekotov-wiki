@@ -277,3 +277,69 @@ def test_suggestions_requires_session(anon_client):
     """TC-openapi-211: /api/suggestions* без сессии → 401 (middleware)."""
     assert anon_client.get("/api/suggestions").status_code == 401
     assert anon_client.get("/api/suggestions/users").status_code == 401
+
+
+# --------------------------------------------------------------------------
+# Ревью задачи 1.2 (TC-openapi-212+): read-only открытие БД
+# --------------------------------------------------------------------------
+
+def test_readonly_dir_without_wal(db_path, client):
+    """TC-openapi-212: ro-каталог БД при отсутствии -wal/-shm (app в простое).
+
+    Регресс ревью задачи 1.2: get_connection с PRAGMA journal_mode=WAL на
+    ro-маунте падал «unable to open database file» → 500 на /api/search.
+    Гибрид mode=ro → immutable=1: сервис отвечает 200 (снапшот main-db).
+    """
+    ro_dir = os.path.dirname(db_path)
+    mode = os.stat(ro_dir).st_mode
+    os.chmod(ro_dir, 0o500)  # каталог только для чтения (эмуляция ro-маунта)
+    try:
+        resp = client.get("/api/search")
+        assert resp.status_code == 200
+        assert [t["id"] for t in resp.json()["results"]] == [1, 2, 3]
+    finally:
+        os.chmod(ro_dir, mode)
+
+
+def test_readonly_dir_with_live_writer(db_path, client):
+    """TC-openapi-213: ro-маунт при живом писателе (app) — свежие данные видны.
+
+    mode=ro читает wal: задача, вставленная ПОСЛЕ seed другим соединением,
+    видна сервису без перезапуска (fallback immutable здесь НЕ срабатывает —
+    он для случая «wal отсутствует» и свежесть НЕ гарантирует).
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute(
+            "INSERT INTO tasks (id, title, priority, category, creator_id,"
+            " assigned_to_id, created_at, updated_at) VALUES"
+            " (99, 'QAT-svc-fresh', 'low', 'x', 1, NULL, ?, ?)",
+            ("2026-10-03T00:00:00+03:00", "2026-10-03T00:00:00+03:00"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    resp = client.get("/api/search")
+    assert resp.status_code == 200
+    assert 99 in [t["id"] for t in resp.json()["results"]]
+
+
+def test_expired_session_select_only(db_path, anon_client):
+    """TC-openapi-214: истекшая сессия → 401 без попытки DELETE (SELECT-only).
+
+    Регресс ревью задачи 1.2: middleware копировал ядро (DELETE истекшей
+    записи + sliding-TTL UPDATE) — на ro-маунте это 500 вместо 401.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute(
+            "UPDATE sessions SET expires_at = ? WHERE token = 'test-token-1'",
+            ((datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat(),),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    resp = anon_client.get("/api/search")
+    assert resp.status_code == 401
+    assert resp.json() == {"error": "unauthorized"}

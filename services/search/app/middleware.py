@@ -8,7 +8,14 @@
   «страницы /search в сервис НЕ входят»);
 - роутера /api/auth/login в сервисе нет — путь оставлен в exempt-списке
   для дословного соответствия паттерну ядра (запрос не заматчится);
-- валидация сессии (таблица sessions, скользящий TTL) — дословно ядро.
+- валидация сессии — SELECT-only (ревью задачи 1.2): сервис читает том
+  wiki-data:/data:ro, поэтому НИ удаление истекшей сессии, НИ скользящее
+  продление TTL (UPDATE) невозможны — на ro-маунте они давали
+  «attempt to write a readonly database» → 500. Проверка токена
+  (сравнение expires_at с now) идентична ядру: безопасность не меняется.
+  Скользящий TTL продлевает app (монолит обрабатывает все прочие запросы
+  пользователя); истекшая сессия удаляет app своим _is_valid. Для сервиса
+  истекшая сессия = просто «не валидна» (401), запись остается ядру.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -38,27 +45,19 @@ def _utcnow() -> datetime:
 
 
 def _is_valid(conn, token: str) -> bool:
-    """Токен есть в sessions и не истек (design.md §2)."""
+    """Токен есть в sessions и не истек (design.md §2).
+
+    SELECT-only (ro-маунт, ревью 1.2): в отличие от ядра истекшая запись
+    НЕ удаляется (писать некуда) — для сервиса она просто «не валидна»;
+    удаление выполняет app на своем запросе (backend/app/middleware.py).
+    """
     row = conn.execute(
         "SELECT expires_at FROM sessions WHERE token = ?", (token,)
     ).fetchone()
     if row is None:
         return False
     expires_at = datetime.fromisoformat(row[0])
-    if expires_at <= _utcnow():
-        conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
-        conn.commit()
-        return False
-    return True
-
-
-def _slide_ttl(conn, token: str) -> None:
-    """Скользящее продление: expires_at = now + TTL (design.md §2)."""
-    conn.execute(
-        "UPDATE sessions SET expires_at = ? WHERE token = ?",
-        ((_utcnow() + SESSION_TTL).isoformat(), token),
-    )
-    conn.commit()
+    return expires_at > _utcnow()
 
 
 async def dispatch(request: Request, call_next):
@@ -73,8 +72,6 @@ async def dispatch(request: Request, call_next):
         conn = get_connection()
         try:
             valid = _is_valid(conn, token)
-            if valid:
-                _slide_ttl(conn, token)
         finally:
             conn.close()
     if valid:
