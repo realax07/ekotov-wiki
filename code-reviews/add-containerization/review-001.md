@@ -1,5 +1,6 @@
 # Ревью 001 (архитектурное): change-пакет add-containerization
 
+- **Reviewer-Delegation:** deleg_ed4b95e1
 - **Change-пакет:** `openspec/changes/add-containerization/` (proposal, design, tasks, specs/deploy/spec.md)
 - **Роль ревьюера:** architect (независимое ревью до разработки, этап architecture_review, контракт 2)
 - **Коммит:** `29c0d18` (main), ТЗ `requirements.md` r1 УТВЕРЖДЕН

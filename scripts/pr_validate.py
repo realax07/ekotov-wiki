@@ -132,7 +132,7 @@ def check_change(repo: Path, change_id: str, marker: str = "") -> list[str]:
         pass
     for _rf in (repo / "code-reviews" / change_id).glob("review-*.md"):
         _t = _rf.read_text(encoding="utf-8", errors="replace")
-        _m = re.search(r"Reviewer-Delegation:\s*\*\*?[^a-zA-Z]*\s*(deleg[-_][A-Za-z0-9]+)", _t, re.I)
+        _m = re.search(r"Reviewer-Delegation[^A-Za-z0-9]{0,6}(deleg[-_][A-Za-z0-9]+)", _t, re.I)
         if not _m:
             continue
         _rd = _m.group(1).replace("-", "_")

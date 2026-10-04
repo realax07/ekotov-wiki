@@ -27,7 +27,7 @@ VERDICT_APPROVE_RE = re.compile(r"\b(approve|approved|одобрен\w*)\b", re.
 # Reviewer-Delegation: deleg_<id> — платформенный id делегации ревьюера
 # (реестр async_delegations устойчив к пересозданию main-сессий: id
 # уникален и не зависит от имени сессии).
-REVIEWER_META_RE = re.compile(r"Reviewer-Delegation:\s*\*\*?[^a-zA-Z]*\s*(deleg[-_][A-Za-z0-9]+)", re.I)
+REVIEWER_META_RE = re.compile(r"Reviewer-Delegation[^A-Za-z0-9]{0,6}(deleg[-_][A-Za-z0-9]+)", re.I)
 VERDICT_RETURN_RE = re.compile(r"\b(return|доработк\w*)\b", re.I)
 QA_SECTION = "6"  # раздел 6.x — QA-цикл, не dev (J10)
 

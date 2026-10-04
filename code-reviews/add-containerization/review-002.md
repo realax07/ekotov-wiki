@@ -1,5 +1,6 @@
 # Ревью 002 (архитектурное, повторное): change-пакет add-containerization
 
+- **Reviewer-Delegation:** deleg_77a5fe9a
 - **Change-пакет:** `openspec/changes/add-containerization/` (proposal, design, tasks, specs/deploy/spec.md)
 - **Роль ревьюера:** architect (повторное ревью после фиксов review-001, append-only — файл новый, review-001 не изменялся)
 - **Коммиты:** fix-пакет `359b2a2` (PR #14, merge `fb86997`, state MERGED, check `flow` SUCCESS) + `5c43bb8` (ТЗ: FR-68 r1 уточнен)
