@@ -2,10 +2,11 @@
 
 Два инварианта перехода add-microservices-full:
 1. Контракт поиска заморожен в contracts/openapi-search.json и содержит ровно
-   маршруты, уходящие из монолита.
+   маршруты, уходящие из монолита (TC-openapi-201).
 2. После выделения (задача 1.3) ядро (backend/app/main.py) не импортирует и не
-   включает search/suggestions-роутеры. До выделения инвариант нарушен — тест
-   strict-xfail с причиной; задача 1.5 снимает xfail и тест зеленеет.
+   включает search/suggestions-роутеры (TC-openapi-202). До выделения инвариант
+   нарушен — тест strict-xfail с причиной; задача 1.5 снимает xfail и тест
+   зеленеет.
 """
 
 import json
@@ -25,7 +26,7 @@ EXPECTED_PATHS = {
 
 
 def test_search_contract_is_frozen():
-    """«Экспорт = файл»: контракт существует, валиден, пути ровно ожидаемые."""
+    """TC-openapi-201 «Экспорт = файл»: контракт существует, валиден, пути ровно ожидаемые."""
     assert CONTRACT_PATH.is_file(), f"нет замороженного контракта: {CONTRACT_PATH}"
     contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
     assert contract.get("openapi", "").startswith("3.")
@@ -37,11 +38,11 @@ def test_search_contract_is_frozen():
 
 
 @pytest.mark.xfail(
-    reason="Активируется задачей 1.3: выделение search-сервиса (ЭТАП B)",
+    reason="Активируется задачей 1.5: снятие xfail после выделения search-сервиса (ЭТАП B)",
     strict=True,
 )
 def test_core_has_no_search_routes():
-    """«Ядро без маршрутов поиска»: main.py не тянет search/suggestions-роутеры."""
+    """TC-openapi-202 «Ядро без маршрутов поиска»: main.py не тянет search/suggestions-роутеры."""
     main = (REPO_ROOT / "backend" / "app" / "main.py").read_text(encoding="utf-8")
     assert "search_router" not in main, "main.py импортирует/включает search_router"
     assert "suggestions_router" not in main, (
