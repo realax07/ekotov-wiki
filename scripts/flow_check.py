@@ -125,9 +125,10 @@ def approved_review_tasks(repo: Path, change_id: str) -> dict[str, str]:
         # идентификаторы вида N[.N...] в task-части имени
         nums = re.findall(r"\d+(?:\.\d+)*", task)
         tasks = nums if nums else [task]
-        verdict = parse_verdict(rf.read_text(encoding="utf-8", errors="replace"))
-        if verdict == "approve" and REVIEWER_META_RE.search(
-                rf.read_text(encoding="utf-8", errors="replace")):
+        text = rf.read_text(encoding="utf-8", errors="replace")
+        verdict = parse_verdict(text)
+        meta = REVIEWER_META_RE.search(text)
+        if verdict == "approve" and meta:
             for task_id in tasks:
                 if task_id not in covered or rev > covered[task_id][0]:
                     covered[task_id] = (rev, rf.name)
@@ -415,11 +416,12 @@ def check(repo: Path) -> int:
             )
 
     # --- Автотесты: только по approved + трассировка TC (контракт 6) ---
-    # Источник кейсов (с 2026-10-03, as-is структура regression/<domain>/):
-    # approved/<change>/ (классика Флоу 1) ИЛИ regression/<domain>/ (as-is база).
     tests_dir = repo / "tests"
     if tests_dir.is_dir():
         test_files = [p for p in tests_dir.rglob("test_*.py")]
+        # Источник кейсов (с 2026-10-03, as-is структура regression/<domain>/,
+        # J33): approved/<change>/ (классика Флоу 1) ИЛИ regression/<domain>/
+        # (as-is база).
         reg_dir = tm / "regression"
         has_regression_cases = reg_dir.is_dir() and any(
             d.is_dir() and not d.name.startswith(".") for d in reg_dir.iterdir()
@@ -456,11 +458,15 @@ def check(repo: Path) -> int:
                 method, path = m.group(1).upper(), m.group(2)
                 full = prefixes.get(py.stem, "") + path
                 routes.append((method, full, py))
-        # источники покрытия: активные пакеты; если их нет — master-spec + корневой sdd
+        # источники покрытия: корневые артефакты (sdd, master-specs) — ВСЕГДА:
+        # маршруты ядра существуют вне пакетов, а архивация предыдущего пакета
+        # не должна осиротать покрытие (урок 2026-10-04: архивация
+        # add-containerization обнулила покрытие всех немодифицированных
+        # маршрутов). Дельты активных пакетов добавляются сверху.
         cover_texts: list[str] = []
-        if not active_changes and (repo / "sdd.md").is_file():
+        if (repo / "sdd.md").is_file():
             cover_texts.append((repo / "sdd.md").read_text(encoding="utf-8", errors="replace"))
-        if not active_changes and specs_dir.is_dir():
+        if specs_dir.is_dir():
             for sf in specs_dir.rglob("spec.md"):
                 cover_texts.append(sf.read_text(encoding="utf-8", errors="replace"))
         for pkg in active_changes:
