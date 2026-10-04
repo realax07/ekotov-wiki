@@ -4,10 +4,8 @@
 1. Контракт поиска заморожен в contracts/openapi-search.json и содержит ровно
    маршруты, уходящие из монолита (TC-openapi-201).
 2. Ядро (backend/app/main.py) не импортирует и не включает
-   search/suggestions-роутеры (TC-openapi-202). До отрезки маршрутов от
-   монолита (задача 1.5) инвариант нарушен — strict-xfail с причиной:
-   в 1.3 ядро ПО-ПРЕЖНЕМУ отвечает на /api/search (оба сервиса работают
-   параллельно), снимает xfail задача 1.5.
+   search/suggestions-роутеры (TC-openapi-202). Активировано задачей 1.5:
+   маршруты отрезаны от монолита, xfail снят (strict сохранен).
 3. nginx-маршрутизация search-семейства (задача 1.3, design §4): на стенде
    /api/search через nginx отвечает 200 с заголовком X-Service: search;
    остановленный search → управляемый 503 (не 502/таймаут). Против локального
@@ -42,10 +40,6 @@ def test_search_contract_is_frozen():
     )
 
 
-@pytest.mark.xfail(
-    reason="Активируется задачей 1.5: снятие xfail после отрезки маршрутов от монолита (ЭТАП B)",
-    strict=True,
-)
 def test_core_has_no_search_routes():
     """TC-openapi-202 «Ядро без маршрутов поиска»: main.py не тянет search/suggestions-роутеры."""
     main = (REPO_ROOT / "backend" / "app" / "main.py").read_text(encoding="utf-8")
