@@ -80,3 +80,5 @@
 - [21:00 UTC] Заказчик → ПМ: «Погнали» (запуск ревью-волны 1.1/1.2/1.5 + подготовка перегенерации контракта)
 - [21:00 UTC] ПМ → ворота: 3× code_review ALLOW (1.1: deleg-3292234a, 1.2: deleg-26060811, 1.5: deleg-95a2a3a8; approval_ref 2026-10-04-microservices-full-dev-tasks)
 - [21:01 UTC] ПМ → 3 независимых code_reviewer (deleg_a8abc895, deleg_e6e0df28, deleg_48346510): ревью диффов f0e5a37+41ffe87 / 980bbac / f0fe4ec; зоны review-004-{1.1,1.2,1.5}.md
+- [21:15 UTC] ПМ → SA (deleg_01491e0f, corr e00ecc0e): перегенерация contracts/openapi.json (находка 1.5-a major из review-004-1.5); зомби-hold deleg-751bf741 (0.1, finished→completed) закрыт админски с журнальной записью
+- [21:10 UTC] code_reviewer → ПМ: review-004-1.5.md — approve (major 1.5-a: перегенерация контракта до 2.1); ПМ: мета deleg_48346510 из реестра, чекбоксы 1.3/1.5 сняты
