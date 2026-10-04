@@ -1,6 +1,6 @@
 # Ревью задачи 1.4 — пакет add-microservices-full (deploy.sh v3: матрица сервисов + смоук)
 
-Reviewer-Delegation: deleg_UNKNOWN <!-- платформенный delegation_id в постановке задачи отсутствует; требует ручной правки ПМ (строка выше; парсер flow_check читает `deleg[-_]…`) -->
+Reviewer-Delegation: deleg_c6b724b7 <!-- платформенный id реестра async_delegations (state=completed); вписан ПМ после сдачи отчета ревьюера -->
 
 - Дата: 2026-10-04
 - Ревьюируемый коммит: `7836f24` — «feat(deploy): deploy.sh v3 — матрица сервисов + смоук — задача 1.4»
@@ -117,6 +117,6 @@ Blocker: **нет**. Major: **1** (1.4-a).
 
 ## Мета
 
-- Reviewer-Delegation: deleg_UNKNOWN — платформенный delegation_id в постановке задачи отсутствует; **мета требует ручной правки ПМ** (строка выше + парсер flow_check читает `deleg[-_]…`).
+- Reviewer-Delegation: deleg_c6b724b7 — платформенный id реестра async_delegations (вписан ПМ после сдачи отчета ревьюера).
 - Для J10: имя файла содержит task-id 1.4; при необходимости дополнить `code-reviews/add-microservices-full/review-mapping.json`.
 - Approve привязан к SHA `7836f24`; после доработки dev SHA меняется — ревью заново (STALE_EVIDENCE).
