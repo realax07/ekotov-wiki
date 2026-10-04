@@ -35,7 +35,8 @@
   "decision_id": "2026-10-04-microservices-full",
   "date": "2026-10-04",
   "scope": "ekotov-wiki: релиз R6 — переход на микросервисы (search + backup), пакет add-microservices-full",
-  "action": "release_direction",
+  "action": "create_change",
+  "actions_covered": ["release_direction", "create_change"],
   "commit": "6632799",
   "source": "Заказчик, Telegram DM 2026-10-03: «...следующий релиз - полный переход на микросервисы (в контейнерах)»; 2026-10-04: «погнали» (архивация add-containerization + ЭТАП A)"
 }
