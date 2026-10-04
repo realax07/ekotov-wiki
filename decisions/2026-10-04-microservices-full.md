@@ -35,7 +35,7 @@
   "decision_id": "2026-10-04-microservices-full",
   "date": "2026-10-04",
   "scope": {
-    "project": "/home/openclaw/ekotov-wiki",
+    "project": "wiki",
     "change_id": "add-microservices-full",
     "phase": 1,
     "description": "релиз R6 — переход на микросервисы (search + backup)"
