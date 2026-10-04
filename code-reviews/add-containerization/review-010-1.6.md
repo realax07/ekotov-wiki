@@ -3,7 +3,7 @@
 - **Change:** add-containerization, диф задачи 1.6: 5ccdb89 (deploy-v2) + фикс 95ee43a (review-003)
 - **Дата:** 2026-10-04
 - **База ревью:** ветка add-microservices-full, HEAD 6c75aa1
-- **Reviewer-Delegation: deleg_UNKNOWN**
+- **Reviewer-Delegation: deleg_31e8a5c7**
 - **Контекст:** заменяет ПМ-self-review-004 (нарушение SELF_REVIEW — не засчитано); закрывает J10-покрытие 1.6 задним числом. Все факты проверены кодом и живыми пробами, отчеты предыдущих ревью не принимались на веру.
 
 ## Проверено (факты)
