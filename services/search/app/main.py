@@ -13,6 +13,7 @@ DB_PATH — env EKOTOV_WIKI_DB_PATH, дефолт /data/wiki.db — services/sea
 import os
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from starlette.responses import JSONResponse
 
@@ -47,7 +48,10 @@ async def validation_error_handler(
         status_code=422,
         content={
             "error": "validation error",
-            "details": exc.errors(),
+            # jsonable_encoder — паритет ядра (backend/app/tasks.py:706):
+            # exc.errors() может нести не-JSON-сериализуемые ctx (ValueError
+            # в custom-валидаторах) — без обертки это 500 вместо 422.
+            "details": jsonable_encoder(exc.errors()),
         },
     )
 

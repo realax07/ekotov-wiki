@@ -18,17 +18,18 @@
   истекшая сессия = просто «не валидна» (401), запись остается ядру.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.db import get_connection
 
-# Дословно backend/app/auth.py (константы сессии; SESSION_TTL используется
-# скользящим продлением ниже — тот же источник, что Max-Age куки ядра).
+# Имя куки сессии — дословно backend/app/middleware.py. SESSION_TTL (30 дней)
+# сюда НЕ переносится: скользящего продления TTL в сервисе нет — на ro-маунте
+# UPDATE невозможен (ревью задачи 1.2; см. докстринг модуля). TTL продлевает
+# app на своих запросах.
 SESSION_COOKIE_NAME = "session"
-SESSION_TTL = timedelta(days=30)
 
 # Исчерпывающий exempt-список (метод, путь) — как в backend/app/middleware.py.
 EXEMPT_API: set[tuple[str, str]] = {

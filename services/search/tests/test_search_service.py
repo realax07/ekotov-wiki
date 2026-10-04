@@ -72,10 +72,20 @@ CREATE TABLE task_tags (
 
 @pytest.fixture()
 def db_path(tmp_path, monkeypatch):
-    """Временная sqlite с фиксированным содержимым; env сервиса на нее переключен."""
+    """Временная sqlite с фиксированным содержимым; env сервиса на нее переключен.
+
+    БД создается в WAL-режиме (PRAGMA journal_mode=WAL) — как у писателя
+    (app) на стенде: заголовок БД несет write/read_version=2 (WAL) и ПОСЛЕ
+    закрытия писателя. Это необходимо для дискриминационной силы TC-212:
+    probe mode=ro на такой БД без -wal/-shm на ro-каталоге падает
+    («attempt to write a readonly database») → срабатывает fallback
+    immutable=1. БД в delete-journal-режиме (заголовок 1/1) probe mode=ro
+    проходит успешно и fallback мертв — тест перестает проверять ветку.
+    """
     path = str(tmp_path / "wiki.db")
     conn = sqlite3.connect(path)
     try:
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.executescript(SCHEMA_SQL)
         conn.execute(
             "INSERT INTO users (id, login, password_hash) VALUES (1, 'owner', 'x')"
@@ -120,6 +130,15 @@ def db_path(tmp_path, monkeypatch):
         conn.commit()
     finally:
         conn.close()
+    # Писатель закрыт: sqlite чекпоинтил wal и удаляет -wal/-shm сам; стираем
+    # остатки явно (гарантия состояния «wal физически отсутствует» — инвариант
+    # TC-212/TC-214, fallback immutable=1 легален только при живом писателе
+    # с -wal/-shm, см. TC-213).
+    for suffix in ("-wal", "-shm"):
+        try:
+            os.remove(path + suffix)
+        except FileNotFoundError:
+            pass
     monkeypatch.setenv("EKOTOV_WIKI_DB_PATH", path)
     return path
 
@@ -308,6 +327,9 @@ def test_readonly_dir_with_live_writer(db_path, client):
     видна сервису без перезапуска (fallback immutable здесь НЕ срабатывает —
     он для случая «wal отсутствует» и свежесть НЕ гарантирует).
     """
+    # Писатель остается ОТКРЫТЫМ на время запроса: -wal/-shm существуют, и
+    # probe mode=ro обязан пройти (ветка fallback не задействована —
+    # иначе незачекпоинченная вставка не была бы видна и тест краснел).
     conn = sqlite3.connect(db_path)
     try:
         conn.execute(
@@ -317,19 +339,25 @@ def test_readonly_dir_with_live_writer(db_path, client):
             ("2026-10-03T00:00:00+03:00", "2026-10-03T00:00:00+03:00"),
         )
         conn.commit()
+
+        resp = client.get("/api/search")
+        assert resp.status_code == 200
+        assert 99 in [t["id"] for t in resp.json()["results"]]
     finally:
         conn.close()
 
-    resp = client.get("/api/search")
-    assert resp.status_code == 200
-    assert 99 in [t["id"] for t in resp.json()["results"]]
-
 
 def test_expired_session_select_only(db_path, anon_client):
-    """TC-openapi-214: истекшая сессия → 401 без попытки DELETE (SELECT-only).
+    """TC-openapi-214: истекшая сессия → 401 БЕЗ попытки записи (SELECT-only).
 
     Регресс ревью задачи 1.2: middleware копировал ядро (DELETE истекшей
     записи + sliding-TTL UPDATE) — на ro-маунте это 500 вместо 401.
+
+    Дискриминационная сила: каталог БД переводится в ro (как TC-212), БД —
+    с WAL-заголовком. Дефектный middleware (DELETE+commit через ro-conn)
+    падает «attempt to write a readonly database» → 500 и тест краснеет;
+    SELECT-only вариант проходит. На записываемой БД оба варианта дают 401 —
+    поэтому ro-условие обязательно (ревью 1.1, находка 1.1-b).
     """
     conn = sqlite3.connect(db_path)
     try:
@@ -340,6 +368,13 @@ def test_expired_session_select_only(db_path, anon_client):
         conn.commit()
     finally:
         conn.close()
-    resp = anon_client.get("/api/search")
-    assert resp.status_code == 401
-    assert resp.json() == {"error": "unauthorized"}
+
+    ro_dir = os.path.dirname(db_path)
+    mode = os.stat(ro_dir).st_mode
+    os.chmod(ro_dir, 0o500)  # каталог только для чтения (эмуляция ro-маунта)
+    try:
+        resp = anon_client.get("/api/search")
+        assert resp.status_code == 401
+        assert resp.json() == {"error": "unauthorized"}
+    finally:
+        os.chmod(ro_dir, mode)

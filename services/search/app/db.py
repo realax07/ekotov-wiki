@@ -51,11 +51,16 @@ def _open_readonly(path: str) -> sqlite3.Connection:
         conn = sqlite3.connect(uri, uri=True)
         conn.execute("SELECT count(*) FROM sqlite_master").fetchone()
         return conn
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
+        # OperationalError (attempt to write a readonly database — ro-маунт
+        # без -wal/-shm) и DatabaseError (поврежденный wal-index и т.п.) —
+        # оба означают «путь mode=ro недоступен», fallback immutable=1.
         try:
             conn.close()  # type: ignore[possibly-undefined]
         except NameError:
             pass
+    # immutable=1 запрещает sqlite ЛЮБОЙ доступ на запись, включая чтение
+    # wal; здесь ожидаемо читается main-db (см. докстринг модуля).
     conn = sqlite3.connect(f"file:{_uri_quote(path)}?immutable=1", uri=True)
     conn.execute("SELECT count(*) FROM sqlite_master").fetchone()
     return conn

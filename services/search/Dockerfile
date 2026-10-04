@@ -41,6 +41,8 @@ EXPOSE 8378
 
 # Healthcheck через urllib — curl в python:3.12-slim отсутствует (design §1).
 # /api/health не читает БД (exempt middleware) — health 200 и на пустом томе.
+# Каноничные значения интервалов/лимитов — в deploy/compose.yaml (healthcheck
+# у сервиса search); здесь те же числа, синхронизировать при изменении.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD ["python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8378/api/health', timeout=5).status == 200 else 1)"]
 
