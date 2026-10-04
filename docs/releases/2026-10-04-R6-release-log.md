@@ -84,3 +84,5 @@
 - [21:10 UTC] code_reviewer → ПМ: review-004-1.5.md — approve (major 1.5-a: перегенерация контракта до 2.1); ПМ: мета deleg_48346510 из реестра, чекбоксы 1.3/1.5 сняты
 - [21:30 UTC] 3× code_reviewer → ПМ: review-004-1.1 (request_changes: 2 major 1.1-a/b, 2 minor, 1 nit), review-004-1.2 (request_changes: 1 major 1.2-a, 3 minor, 2 nit), review-004-1.5 (approve); результаты доставлены из async_delegations (delivery_state=dropped, инцидент ротации #92859)
 - [21:32 UTC] ПМ: commits f926dbd (openapi.json + review-004-1.1/1.2 + release-log); зомби-холды закрыты админски (86aae105/f2d0a220/e00ecc0e/d9469d9f, журнальные записи в lifecycle)
+- [22:45 UTC] ПМ → 2× dev (deleg_777730b6, gate a4d1b09b/deleg-a4d1b09b + 756bade8/deleg-756bade8): фикс-циклы review-004-1.1 (1.1-a/b major + c/d/e, 1.2-f) и review-004-1.2 (1.2-a major + b/c/d/e); зоны services/search/** и deploy/**+services/backup/**
+- [22:40 UTC] ПМ: ложные BYPASS (54bc87e0/01491e0f) устранены — статусы flowctl синхронизированы (needs_attention→completed после админ-клоза зомби); вотчдог run2 exit=0
