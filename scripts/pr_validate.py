@@ -6,7 +6,7 @@
   2. GitHub Action на PR: парсит ID из title/body PR, валидирует наличие
      обязательных артефактов по контрактам artifact_contract.md.
 
-Маркер ID обязателен в title/body PR: [BUG-NNN] | [change-id] | [chore]
+Маркер ID обязателен в title/body PR: [BUG-NNN] | [change-id] | [chore] | [docs] | [ops]
 Каждый тип влечет свой набор обязательных артефактов (см. FLOWS ниже).
 
 Exit 0 — все артефакты на месте; exit 1 — список отсутствующих.
@@ -181,13 +181,42 @@ def check_chore(repo: Path, marker: str) -> list[str]:
     return []
 
 
+def check_docs(repo: Path, marker: str) -> list[str]:
+    """[docs]: документация без openspec-пакета. Верификация фактов вместо
+    код-ревью (контракт ops_task/docs_task). Запрещены код продукта и спеки
+    (env-конвенция PR_CHANGED_SPECS/PR_CHANGED_CODE, см. check_chore)."""
+    errs: list[str] = []
+    if os.environ.get("PR_CHANGED_SPECS", "").strip() in ("1", "true"):
+        errs.append(
+            "PR помечен [docs], но содержит изменения openspec/ — изменение as is "
+            "только через change-пакет (контракт 7)")
+    if os.environ.get("PR_CHANGED_CODE", "").strip() in ("1", "true"):
+        errs.append(
+            "PR помечен [docs], но содержит изменения кода продукта — используй "
+            "маркер [change-id]/[BUG-NNN]")
+    return errs
+
+
+def check_ops(repo: Path, marker: str) -> list[str]:
+    """[ops]: эксплуатационные работы (деплой, переключение, инфраструктура).
+    Артефакт — протокол приемки Заказчика, не review-файл (контракт ops_task)."""
+    errs: list[str] = []
+    if os.environ.get("PR_CHANGED_SPECS", "").strip() in ("1", "true"):
+        errs.append(
+            "PR помечен [ops], но содержит изменения openspec/ — изменение as is "
+            "только через change-пакет (контракт 7)")
+    return errs
+
+
 FLOWS = {
     "bug": check_bug,
     "change": check_change,
     "chore": check_chore,
+    "docs": check_docs,
+    "ops": check_ops,
 }
 
-MARKER_RE = re.compile(r"\[(BUG-\d+|[a-z0-9]+(?:-[a-z0-9]+)+|\bchore)\]")
+MARKER_RE = re.compile(r"\[(BUG-\d+|[a-z0-9]+(?:-[a-z0-9]+)+|\bchore|\bdocs|\bops)\]")
 
 # J10: извлечение номеров задач из текста PR (ветка/заголовок/тело).
 # Принимает формы: 1.1, 5.2, 2.1+2.2 (объединенная задача — обе).
@@ -226,6 +255,16 @@ def parse_id(text: str) -> tuple[str, str] | None:
     m = re.search(r"\[chore\]", text, re.I)
     if m:
         return "chore", "chore"
+    # [docs]/[ops]: задачи без openspec-пакета и без кода продукта (документация,
+    # эксплуатация; J10-семантика ops/docs-задач — приемка Заказчика/верификация
+    # фактов вместо код-ревью). Урок 2026-10-04: [docs]-PR валится из-за
+    # незнания маркера.
+    m = re.search(r"\[docs\]", text, re.I)
+    if m:
+        return "docs", "docs"
+    m = re.search(r"\[ops\]", text, re.I)
+    if m:
+        return "ops", "ops"
     m = re.search(r"\[([a-z0-9]+(?:-[a-z0-9]+)+)\]", text)
     if m and "-" in m.group(1):
         return "change", m.group(1)
@@ -264,7 +303,7 @@ def main() -> int:
     if not parsed:
         print(
             "pr_validate: маркер ID не найден. Обязателен в title/body PR: "
-            "[BUG-NNN] (баг-фикс) / [change-id] (функционал) / [chore] (обслуживание). Блок I."
+            "[BUG-NNN] (баг-фикс) / [change-id] (функционал) / [chore] (обслуживание) / [docs] (документация) / [ops] (эксплуатация). Блок I."
         )
         return 1
 
