@@ -28,3 +28,15 @@
 - Все диспатчи задач пакета — через `scripts/delegate_gate.py` (Флоу 1).
 - approval_ref для create_change-действий пакета: `2026-10-04-microservices-full`.
 - Прод-переход (задачи 2.3/2.4) — только с явным участием Заказчика (ops-протокол).
+
+```decision-record
+{
+  "schema_version": "decision-record/1",
+  "decision_id": "2026-10-04-microservices-full",
+  "date": "2026-10-04",
+  "scope": "ekotov-wiki: релиз R6 — переход на микросервисы (search + backup), пакет add-microservices-full",
+  "action": "release_direction",
+  "commit": "6632799",
+  "source": "Заказчик, Telegram DM 2026-10-03: «...следующий релиз - полный переход на микросервисы (в контейнерах)»; 2026-10-04: «погнали» (архивация add-containerization + ЭТАП A)"
+}
+```
