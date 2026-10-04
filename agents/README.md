@@ -19,7 +19,7 @@
 |---|---|---|---|
 | Бизнес-аналитик | plan-write | `requirements.md`, `docs/ba/answers_roundN.md` | нет |
 | Системный аналитик | auto-edit | `openspec/changes/<id>/**`, `sdd.md` | нет |
-| Разработчик | auto-edit | файлы своей задачи в продуктовых каталогах (`backend/**`, `frontend/**`, `e2e/**`, `contracts/**`, `scripts/**`), чекбокс в `tasks.md`, своя ветка `feature/*` | своей ветки — да; main — нет |
+| Разработчик | auto-edit | файлы своей задачи в продуктовых каталогах (`backend/**`, `frontend/**`, `e2e/**`, `contracts/**`, `scripts/**`, с 2026-10-04 — `deploy/**`: решение Заказчика на инфра-задачи add-microservices-full), чекбокс в `tasks.md`, своя ветка `feature/*` | своей ветки — да; main — нет |
 | Код-ревьюер | auto-edit | `code-reviews/<change-id>/review-*.md` | нет |
 | QA: аналитик чеклистов | auto-edit | `test-model/checklists/` | нет |
 | QA: автор кейсов | auto-edit | `test-model/new/<change-id>/` | нет |

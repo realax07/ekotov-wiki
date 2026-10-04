@@ -60,6 +60,11 @@ ROLE_ZONE_POLICY: dict[str, tuple[str, ...]] = {
         "services/**",
         "tests/**",
         "scripts/**",
+        # решение Заказчика 2026-10-04 (диалог, дословно: «Расширить зону
+        # dev на deploy/**»): инфра-задачи микросервисного релиза (deploy.sh
+        # v3 и последующие) исполняет роль dev — devops не входит в dev_task
+        # графа Флоу 1 (WRONG_ROLE), а devops-зона не покрывает код задачи.
+        "deploy/**",
         "test-model/bugs/*",
         "feature/*",
     ),
