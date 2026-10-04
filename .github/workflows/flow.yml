@@ -30,6 +30,20 @@ jobs:
       - name: Flow check
         run: python3 scripts/flow_check.py .
 
+      # Детерминированные код-гейты (J4, решение Заказчика 2026-10-04):
+      # auth-тайминг (bcrypt/dummy/сравнения секретов) + codegraph (I3-покрытие
+      # импортов). Быстрые, stdlib-only, детерминированные — ломаются только
+      # при реальном нарушении.
+      - name: Auth timing gate
+        run: python3 scripts/check_auth_timing.py backend
+
+      - name: Codegraph gate (I3)
+        run: python3 scripts/codegraph.py .
+
+      - name: PM bounds check (J3/J9/J10)
+        run: python3 scripts/pm_bounds_check.py --repo . --commits HEAD~5..HEAD
+        # На PR — дифф ветки; на push в main — последние 5 коммитов.
+
       - name: PR artifact validation (I3/I4, J6; code-review gate J10)
         if: github.event_name == 'pull_request'
         run: |
