@@ -1,6 +1,6 @@
 # Ревью задачи 1.3 — пакет add-microservices-full (nginx-маршрутизация search-семейства)
 
-Reviewer-Delegation: deleg_UNKNOWN <!-- мета требует ручной правки ПМ: платформенный delegation_id в goal делегации не передан -->
+Reviewer-Delegation: deleg_3eca7b18 <!-- платформенный id реестра async_delegations (state=completed); вписан ПМ из реестра после сдачи отчета ревьюера -->
 
 - Дата: 2026-10-04
 - Ревьюируемый коммит: `4902e3f` — «feat(frontend): nginx-маршрутизация /api/search*, /api/suggestions → search:8378»
