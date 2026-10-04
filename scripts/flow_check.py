@@ -7,6 +7,7 @@ State machine по файлам репозитория: каждый артеф�
 
 Usage: python3 scripts/flow_check.py <path-to-repo>
 """
+import json
 import re
 import sys
 from pathlib import Path
@@ -130,6 +131,27 @@ def approved_review_tasks(repo: Path, change_id: str) -> dict[str, str]:
             for task_id in tasks:
                 if task_id not in covered or rev > covered[task_id][0]:
                     covered[task_id] = (rev, rf.name)
+    # Исторические ревью с нестандартными именами (Флоу 4, карта покрытия
+    # review-mapping.json: файл → список task-id). Мета обязательна и здесь.
+    mapping_file = cr_dir / "review-mapping.json"
+    if mapping_file.is_file():
+        try:
+            mapping = json.loads(mapping_file.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            mapping = {}
+        for fname, task_ids in mapping.items():
+            if fname.startswith("_"):
+                continue
+            rf = cr_dir / fname
+            if not rf.is_file():
+                continue
+            verdict = parse_verdict(rf.read_text(encoding="utf-8", errors="replace"))
+            meta = REVIEWER_META_RE.search(rf.read_text(encoding="utf-8", errors="replace"))
+            if verdict == "approve" and meta:
+                rev = int(fname.split("-")[1]) if fname.split("-")[1].isdigit() else 0
+                for task_id in task_ids:
+                    if task_id not in covered or rev > covered[task_id][0]:
+                        covered[task_id] = (rev, fname)
     return {task: name for task, (_, name) in covered.items()}
 
 
