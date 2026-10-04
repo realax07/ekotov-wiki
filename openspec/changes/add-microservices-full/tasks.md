@@ -4,9 +4,9 @@
 
 ## ЭТАП A. Контракт и каркас (S)
 
-- [ ] 0.1 [S] SA: заморозка контракта поиска — `contracts/openapi-search.json`: экспорт схемы маршрутов `/api/search*` + `/api/suggestions` из монолита (тестовая сессия, `scripts/export_openapi_search.py` по образцу export_openapi.py); проверка «экспорт = зафиксированный файл» на пустом диффе; в `contracts/openapi.json` (app) маршруты поиска помечены `deprecated: true` с аннотацией «переезд в search-сервис». Одно инфраизменение: только контракты+скрипт. (design §3; план §3)
-- [ ] 0.2 [P] [S] SA: каркас `services/search/` — каталог по структуре monorepo (app/, tests/, openapi.yaml, README), `services/backup/` (README), правка `services/README.md` (статусы: search — в работе, backup — в работе, auth — не выделяется, решение плана §1.2). Без изменения кода. (design §2; план §6)
-- [ ] 0.3 [S] Devops: тест-каркас контрактного гейта — `tests/api/test_openapi_search_service.py` (заготовка: «экспорт = файл» + «ядро не содержит маршрутов поиска» — падает до выделения, xfail с причиной; активируется задачей 1.3). (design §4; план §3)
+- [x] 0.1 [S] SA: заморозка контракта поиска — `contracts/openapi-search.json`: экспорт схемы маршрутов `/api/search*` + `/api/suggestions` из монолита (тестовая сессия, `scripts/export_openapi_search.py` по образцу export_openapi.py); проверка «экспорт = зафиксированный файл» на пустом диффе; в `contracts/openapi.json` (app) маршруты поиска помечены `deprecated: true` с аннотацией «переезд в search-сервис». Одно инфраизменение: только контракты+скрипт. (design §3; план §3)
+- [x] 0.2 [P] [S] SA: каркас `services/search/` — каталог по структуре monorepo (app/, tests/, openapi.yaml, README), `services/backup/` (README), правка `services/README.md` (статусы: search — в работе, backup — в работе, auth — не выделяется, решение плана §1.2). Без изменения кода. (design §2; план §6)
+- [x] 0.3 [S] Devops: тест-каркас контрактного гейта — `tests/api/test_openapi_search_service.py` (заготовка: «экспорт = файл» + «ядро не содержит маршрутов поиска» — падает до выделения, xfail с причиной; активируется задачей 1.3). (design §4; план §3)
 
 ## ЭТАП B. Выделение сервисов (M)
 
