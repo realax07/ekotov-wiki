@@ -86,3 +86,5 @@
 - [21:32 UTC] ПМ: commits f926dbd (openapi.json + review-004-1.1/1.2 + release-log); зомби-холды закрыты админски (86aae105/f2d0a220/e00ecc0e/d9469d9f, журнальные записи в lifecycle)
 - [22:45 UTC] ПМ → 2× dev (deleg_777730b6, gate a4d1b09b/deleg-a4d1b09b + 756bade8/deleg-756bade8): фикс-циклы review-004-1.1 (1.1-a/b major + c/d/e, 1.2-f) и review-004-1.2 (1.2-a major + b/c/d/e); зоны services/search/** и deploy/**+services/backup/**
 - [22:40 UTC] ПМ: ложные BYPASS (54bc87e0/01491e0f) устранены — статусы flowctl синхронизированы (needs_attention→completed после админ-клоза зомби); вотчдог run2 exit=0
+- [23:05 UTC] dev → ПМ: фикс-циклы завершены — cda3d22 (1.1-a..e + 1.2-f, тесты 12/12, негативные пруфы дискриминации в REPORT-fix-11.md), 795aded (1.2-a..e, DRY_RUN EXIT=0, REPORT-fix-12.md); ПМ: верификация независимым прогоном — подтверждено
+- [23:07 UTC] ПМ: gate finish обеих dev-сессий — returned (OUT_OF_ZONE: пути параллельной сессии в общем base..HEAD; обе работы верифицированы независимо); сессии закрыты админски синхронно реестр+flowctl
