@@ -113,6 +113,46 @@ def check_change(repo: Path, change_id: str, marker: str = "") -> list[str]:
                 f"code-reviews/{change_id}/: нет review-файла с вердиктом approve "
                 f"для задач из дифа PR (J10): " + ", ".join(unreviewed)
             )
+    # SELF_REVIEW: approve засчитывается только если Reviewer-Delegation
+    # из файла существует в реестре async_delegations и это НЕ dev-делегация
+    # (независимость: delegation_id ревьюера != делегаций задачи).
+    import sqlite3 as _sq
+    _db = Path.home() / ".hermes" / "state.db"
+    _dev_delegs = set()
+    try:
+        import json as _json
+        _fstate = json.loads((Path.home() / ".hermes" / "state" / "flowctl_state.json").read_text(encoding="utf-8"))
+        for _r in _fstate.get("runs", {}).values():
+            _sc = _r.get("scope") or {}
+            if _sc.get("change") == change_id and _sc.get("task"):
+                _dd = _r.get("delegation_id")
+                if _dd:
+                    _dev_delegs.add(_dd.replace("-", "_"))
+    except Exception:
+        pass
+    for _rf in (repo / "code-reviews" / change_id).glob("review-*.md"):
+        _t = _rf.read_text(encoding="utf-8", errors="replace")
+        _m = re.search(r"Reviewer-Delegation:\s*\*\*?[^a-zA-Z]*\s*(deleg[-_][A-Za-z0-9]+)", _t, re.I)
+        if not _m:
+            continue
+        _rd = _m.group(1).replace("-", "_")
+        _exists = _ok = False
+        try:
+            _c = _sq.connect(f"file:{_db}?mode=ro", uri=True)
+            _row = _c.execute("SELECT state FROM async_delegations WHERE delegation_id=?", (_rd,)).fetchone()
+            _c.close()
+            _exists = _row is not None
+            _ok = _exists and _row[0] in ("completed",) and _rd not in _dev_delegs
+        except _sq.Error:
+            _exists = _ok = True  # реестр недоступен — не блокируем (SW-отказ ≠ нарушение)
+        if not _ok:
+            missing.append(
+                f"code-reviews/{change_id}/{_rf.name}: Reviewer-Delegation '{_rd}' "
+                + ("не найдена в реестре делегаций" if not _exists else
+                   "совпадает с dev-делегацией задачи (SELF_REVIEW)") +
+                " — ревью не засчитано"
+        )
+
 
     # Тесты: хотя бы один TC-ID change в tests/ (контракт 6, трассировка)
     tests_root = repo / "tests"
