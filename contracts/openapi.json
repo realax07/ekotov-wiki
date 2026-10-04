@@ -771,7 +771,8 @@
     },
     "/api/search": {
       "get": {
-        "description": "GET /api/search — структурированные условия (sdd §3.5, FR-10/11/8).\n\nВалидация типов/значений — FastAPI/pydantic: невалидный priority,\nдата не формата YYYY-MM-DD, archived вне true|false|all → 422\n(обработчик RequestValidationError, sdd §3). 401 без сессии —\nmiddleware. Пустой набор параметров = все задачи.\nРелиз 4 (FR-46, ОВ-24): assigned = login | none («без исполнителя»),\ncreator = login; несуществующий логин → 422 (5.2, «422 на\nневозможное значение»).",
+        "deprecated": true,
+        "description": "GET /api/search — структурированные условия (sdd §3.5, FR-10/11/8).\n\nВалидация типов/значений — FastAPI/pydantic: невалидный priority,\nдата не формата YYYY-MM-DD, archived вне true|false|all → 422\n(обработчик RequestValidationError, sdd §3). 401 без сессии —\nmiddleware. Пустой набор параметров = все задачи.\nРелиз 4 (FR-46, ОВ-24): assigned = login | none («без исполнителя»),\ncreator = login; несуществующий логин → 422 (5.2, «422 на\nневозможное значение»).\n\nПереезд в search-сервис (пакет add-microservices-full)",
         "operationId": "search_api_search_get",
         "parameters": [
           {
@@ -930,7 +931,8 @@
     },
     "/api/search/advanced": {
       "post": {
-        "description": "POST /api/search/advanced (sdd.md §3.5; FR-12).\n\nТело: {\"query\": \"<SQL-подобный текст фильтра>\"}.\n- 200: {\"results\": [Task], \"normalized_query\": build(фильтра)}.\n- 400 {\"error\": \"filter syntax: position N: причина\"} — синтаксическая\n  ошибка; запрос к БД не выполняется (parse до get_connection).\n  Невалидное JSON-тело тоже 400 (формат ошибок этого эндпоинта,\n  sdd §3.5), не 500: битый JSON = нечитаемый фильтр.\n- 401 без сессии — middleware.\n- 422 (тело читается, но query — не строка) — обработчик sdd §3.",
+        "deprecated": true,
+        "description": "POST /api/search/advanced (sdd.md §3.5; FR-12).\n\nТело: {\"query\": \"<SQL-подобный текст фильтра>\"}.\n- 200: {\"results\": [Task], \"normalized_query\": build(фильтра)}.\n- 400 {\"error\": \"filter syntax: position N: причина\"} — синтаксическая\n  ошибка; запрос к БД не выполняется (parse до get_connection).\n  Невалидное JSON-тело тоже 400 (формат ошибок этого эндпоинта,\n  sdd §3.5), не 500: битый JSON = нечитаемый фильтр.\n- 401 без сессии — middleware.\n- 422 (тело читается, но query — не строка) — обработчик sdd §3.\n\nПереезд в search-сервис (пакет add-microservices-full)",
         "operationId": "search_advanced_api_search_advanced_post",
         "responses": {
           "200": {
@@ -947,7 +949,8 @@
     },
     "/api/suggestions": {
       "get": {
-        "description": "GET /api/suggestions → {\"suggestions\": [str, ...]} (см. docstring модуля).\n\nkind (Релиз 6, FR-57/ОГР-26): None — прежний UNION тегов и категорий\n(обратная совместимость); \"tags\" — только теги; \"categories\" — только\nкатегории. Иное значение — 422 средствами FastAPI (Literal), явный\nотказ без ответа с множеством.",
+        "deprecated": true,
+        "description": "GET /api/suggestions → {\"suggestions\": [str, ...]} (см. docstring модуля).\n\nkind (Релиз 6, FR-57/ОГР-26): None — прежний UNION тегов и категорий\n(обратная совместимость); \"tags\" — только теги; \"categories\" — только\nкатегории. Иное значение — 422 средствами FastAPI (Literal), явный\nотказ без ответа с множеством.\n\nПереезд в search-сервис (пакет add-microservices-full)",
         "operationId": "suggestions_api_suggestions_get",
         "parameters": [
           {
@@ -1000,7 +1003,8 @@
     },
     "/api/suggestions/users": {
       "get": {
-        "description": "GET /api/suggestions/users → {\"users\": [login, ...]} (5.2, FR-46).\n\nУникальные логины из tasks.creator_id ∪ tasks.assigned_to_id (JOIN\ntasks→users), отсортированы. 401 без сессии — middleware (путь не в\nexempt-списке). Потребитель: опции select'ов «Исполнитель»/\n«Создатель» конструктора поиска (search.js); опцию «без исполнителя»\nдобавляет клиент (статическая, ОВ-24).",
+        "deprecated": true,
+        "description": "GET /api/suggestions/users → {\"users\": [login, ...]} (5.2, FR-46).\n\nУникальные логины из tasks.creator_id ∪ tasks.assigned_to_id (JOIN\ntasks→users), отсортированы. 401 без сессии — middleware (путь не в\nexempt-списке). Потребитель: опции select'ов «Исполнитель»/\n«Создатель» конструктора поиска (search.js); опцию «без исполнителя»\nдобавляет клиент (статическая, ОВ-24).\n\nПереезд в search-сервис (пакет add-microservices-full)",
         "operationId": "user_suggestions_api_suggestions_users_get",
         "responses": {
           "200": {
