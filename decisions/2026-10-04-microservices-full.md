@@ -34,7 +34,12 @@
   "schema_version": "decision-record/1",
   "decision_id": "2026-10-04-microservices-full",
   "date": "2026-10-04",
-  "scope": "ekotov-wiki: релиз R6 — переход на микросервисы (search + backup), пакет add-microservices-full",
+  "scope": {
+    "project": "/home/openclaw/ekotov-wiki",
+    "change_id": "add-microservices-full",
+    "phase": 1,
+    "description": "релиз R6 — переход на микросервисы (search + backup)"
+  },
   "action": "create_change",
   "actions_covered": ["release_direction", "create_change"],
   "commit": "6632799",
