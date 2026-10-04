@@ -23,6 +23,11 @@ REVIEW_FILE_REV_FIRST = re.compile(r"^review-(\d{3})-(.+)\.md$", re.I)
 REVIEW_FILE_TASK_FIRST = re.compile(r"^review-(.+?)-(\d{3})\.md$", re.I)
 VERDICT_LINE_RE = re.compile(r"^#{1,4}\s*Вердикт\s*:?\s*(.+)$", re.I | re.M)
 VERDICT_APPROVE_RE = re.compile(r"\b(approve|approved|одобрен\w*)\b", re.I)
+# SELF_REVIEW-защита (решение Заказчика 2026-10-03): review-файл обязан нести
+# Reviewer-Delegation: deleg_<id> — платформенный id делегации ревьюера
+# (реестр async_delegations устойчив к пересозданию main-сессий: id
+# уникален и не зависит от имени сессии).
+REVIEWER_META_RE = re.compile(r"Reviewer-Delegation[^A-Za-z0-9]{0,6}(deleg[-_][A-Za-z0-9]+)", re.I)
 VERDICT_RETURN_RE = re.compile(r"\b(return|доработк\w*)\b", re.I)
 QA_SECTION = "6"  # раздел 6.x — QA-цикл, не dev (J10)
 
@@ -120,7 +125,8 @@ def approved_review_tasks(repo: Path, change_id: str) -> dict[str, str]:
         nums = re.findall(r"\d+(?:\.\d+)*", task)
         tasks = nums if nums else [task]
         verdict = parse_verdict(rf.read_text(encoding="utf-8", errors="replace"))
-        if verdict == "approve":
+        if verdict == "approve" and REVIEWER_META_RE.search(
+                rf.read_text(encoding="utf-8", errors="replace")):
             for task_id in tasks:
                 if task_id not in covered or rev > covered[task_id][0]:
                     covered[task_id] = (rev, rf.name)

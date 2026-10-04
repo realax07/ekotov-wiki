@@ -1,5 +1,6 @@
 # Ревью задачи 0.4: каркас монорепо services/frontend, e2e, contracts
 
+- **Reviewer-Delegation:** deleg_ed4b95e1
 - **Change:** add-containerization (ЭТАП 1), диф 0.4 в коммите 5ccf644 (dev-p11-services)
 - **Дата:** 2026-10-03
 

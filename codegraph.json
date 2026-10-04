@@ -9,6 +9,7 @@
   "nodes": [
     "backend.app.__init__",
     "backend.app.auth",
+    "backend.app.avatar",
     "backend.app.board",
     "backend.app.categories",
     "backend.app.comments",
@@ -17,27 +18,52 @@
     "backend.app.main",
     "backend.app.middleware",
     "backend.app.migrate_categories",
+    "backend.app.migrate_r4",
     "backend.app.pages",
+    "backend.app.profile",
     "backend.app.search",
     "backend.app.seed_users",
     "backend.app.suggestions",
     "backend.app.tasks",
+    "backend.app.users",
     "frontend/static/js/app.js",
+    "frontend/static/js/avatar-crop.js",
     "frontend/static/js/board/api.js",
+    "frontend/static/js/board/auto-textarea.js",
     "frontend/static/js/board/board-init.js",
+    "frontend/static/js/board/card-tooltip.js",
     "frontend/static/js/board/cards.js",
     "frontend/static/js/board/dom.js",
     "frontend/static/js/board/priority-icons.js",
     "frontend/static/js/board/state.js",
+    "frontend/static/js/board/tag-combobox.js",
     "frontend/static/js/board/task-detail.js",
     "frontend/static/js/board/task-form.js",
     "frontend/static/js/login.js",
+    "frontend/static/js/profile-settings.js",
+    "frontend/static/js/profile.js",
     "frontend/static/js/search.js",
-    "frontend/static/js/settings.js"
+    "frontend/static/js/settings.js",
+    "frontend/static/js/tooltip.js"
   ],
   "edges": [
     {
       "from": "backend.app.auth",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.avatar",
+      "to": "backend.app.auth",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.avatar",
+      "to": "backend.app.config",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.avatar",
       "to": "backend.app.db",
       "kind": "from"
     },
@@ -69,6 +95,11 @@
     {
       "from": "backend.app.main",
       "to": "backend.app.auth",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
+      "to": "backend.app.avatar",
       "kind": "from"
     },
     {
@@ -108,6 +139,11 @@
     },
     {
       "from": "backend.app.main",
+      "to": "backend.app.profile",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
       "to": "backend.app.search",
       "kind": "from"
     },
@@ -119,6 +155,11 @@
     {
       "from": "backend.app.main",
       "to": "backend.app.tasks",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.main",
+      "to": "backend.app.users",
       "kind": "from"
     },
     {
@@ -138,6 +179,26 @@
     },
     {
       "from": "backend.app.migrate_categories",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.migrate_r4",
+      "to": "backend.app.config",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.migrate_r4",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.profile",
+      "to": "backend.app.auth",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.profile",
       "to": "backend.app.db",
       "kind": "from"
     },
@@ -163,6 +224,11 @@
     },
     {
       "from": "backend.app.tasks",
+      "to": "backend.app.auth",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.tasks",
       "to": "backend.app.board",
       "kind": "from"
     },
@@ -173,6 +239,11 @@
     },
     {
       "from": "backend.app.tasks",
+      "to": "backend.app.db",
+      "kind": "from"
+    },
+    {
+      "from": "backend.app.users",
       "to": "backend.app.db",
       "kind": "from"
     },
@@ -197,8 +268,18 @@
       "kind": "es-import"
     },
     {
+      "from": "frontend/static/js/board/card-tooltip.js",
+      "to": "frontend/static/js/board/dom.js",
+      "kind": "es-import"
+    },
+    {
       "from": "frontend/static/js/board/cards.js",
       "to": "frontend/static/js/board/api.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/cards.js",
+      "to": "frontend/static/js/board/card-tooltip.js",
       "kind": "es-import"
     },
     {
@@ -217,13 +298,18 @@
       "kind": "es-import"
     },
     {
-      "from": "frontend/static/js/board/task-detail.js",
-      "to": "frontend/static/js/board/api.js",
+      "from": "frontend/static/js/board/tag-combobox.js",
+      "to": "frontend/static/js/board/dom.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/tag-combobox.js",
+      "to": "frontend/static/js/board/task-form.js",
       "kind": "es-import"
     },
     {
       "from": "frontend/static/js/board/task-detail.js",
-      "to": "frontend/static/js/board/cards.js",
+      "to": "frontend/static/js/board/api.js",
       "kind": "es-import"
     },
     {
@@ -248,6 +334,11 @@
     },
     {
       "from": "frontend/static/js/board/task-form.js",
+      "to": "frontend/static/js/board/auto-textarea.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/task-form.js",
       "to": "frontend/static/js/board/cards.js",
       "kind": "es-import"
     },
@@ -258,15 +349,29 @@
     },
     {
       "from": "frontend/static/js/board/task-form.js",
+      "to": "frontend/static/js/board/priority-icons.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/task-form.js",
       "to": "frontend/static/js/board/state.js",
+      "kind": "es-import"
+    },
+    {
+      "from": "frontend/static/js/board/task-form.js",
+      "to": "frontend/static/js/board/tag-combobox.js",
       "kind": "es-import"
     }
   ],
   "js_entry_points": [
     "frontend/static/js/app.js",
+    "frontend/static/js/avatar-crop.js",
     "frontend/static/js/board/board-init.js",
     "frontend/static/js/login.js",
+    "frontend/static/js/profile-settings.js",
+    "frontend/static/js/profile.js",
     "frontend/static/js/search.js",
-    "frontend/static/js/settings.js"
+    "frontend/static/js/settings.js",
+    "frontend/static/js/tooltip.js"
   ]
 }
