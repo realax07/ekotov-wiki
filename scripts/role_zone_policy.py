@@ -47,11 +47,19 @@ ROLE_ZONE_POLICY: dict[str, tuple[str, ...]] = {
         "openspec/changes/*/design.md",
         "openspec/changes/*/tasks.md",
         "sdd.md",
+        # проектная адаптация (wiki): контракты продукта + генерирующие скрипты
+        "contracts/**",
+        "scripts/export_openapi*.py",
     ),
     "dev": (
         "openspec/changes/*/tasks.md",
-        "src/**",
+        # проектная адаптация (wiki): реальная структура монорепо
+        "backend/**",
+        "frontend/**",
+        "e2e/**",
+        "services/**",
         "tests/**",
+        "scripts/**",
         "test-model/bugs/*",
         "feature/*",
     ),
