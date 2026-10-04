@@ -82,3 +82,5 @@
 - [21:01 UTC] ПМ → 3 независимых code_reviewer (deleg_a8abc895, deleg_e6e0df28, deleg_48346510): ревью диффов f0e5a37+41ffe87 / 980bbac / f0fe4ec; зоны review-004-{1.1,1.2,1.5}.md
 - [21:15 UTC] ПМ → SA (deleg_01491e0f, corr e00ecc0e): перегенерация contracts/openapi.json (находка 1.5-a major из review-004-1.5); зомби-hold deleg-751bf741 (0.1, finished→completed) закрыт админски с журнальной записью
 - [21:10 UTC] code_reviewer → ПМ: review-004-1.5.md — approve (major 1.5-a: перегенерация контракта до 2.1); ПМ: мета deleg_48346510 из реестра, чекбоксы 1.3/1.5 сняты
+- [21:30 UTC] 3× code_reviewer → ПМ: review-004-1.1 (request_changes: 2 major 1.1-a/b, 2 minor, 1 nit), review-004-1.2 (request_changes: 1 major 1.2-a, 3 minor, 2 nit), review-004-1.5 (approve); результаты доставлены из async_delegations (delivery_state=dropped, инцидент ротации #92859)
+- [21:32 UTC] ПМ: commits f926dbd (openapi.json + review-004-1.1/1.2 + release-log); зомби-холды закрыты админски (86aae105/f2d0a220/e00ecc0e/d9469d9f, журнальные записи в lifecycle)
