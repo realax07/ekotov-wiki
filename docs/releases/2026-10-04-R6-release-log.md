@@ -101,3 +101,4 @@
 - [07:07 UTC] ПМ → code_reviewer (deleg_ae91c6a8, gate d647709e): ревью QA-отчета 2.1 → review-007-2.1.md
 - [07:20 UTC] code_reviewer → ПМ: review-007-2.1 request_changes (F-1 major: web-сьют не прогнан, playwright работает; F-2..F-4 minor); ПМ: сессия ревьюера закрыта
 - [07:25 UTC] ПМ → QA (deleg_0260fc2d, gate 399c23ce): фикс-цикл F-1..F-4 (прогон tests/web + правки REPORT-regress-21.md)
+- [08:20 UTC] ПМ: фикс-делегация 2.1 (deleg_0260fc2d / flowctl 399c23ce) оборвана ротацией шлюза на фоновом web-прогоне (state=error/dropped, результата в дереве нет); ПМ перезапустил повтором deleg_af1b2fe2 В ТУ ЖЕ flowctl-сессию 399c23ce (зона tests/** сохранена), gated_map вписан синхронно
