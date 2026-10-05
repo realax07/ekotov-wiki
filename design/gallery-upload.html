@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап 1.1в — форма загрузки изображения (add-gallery-service)</title>
+<style>
+/* =====================================================================
+   Мокап задачи 1.1 [design] add-gallery-service: форма загрузки
+   (design §0(г); FR-79/FR-80, NFR-21). Токены V3 «Бумага» — дословно
+   из frontend/static/css/app.css (:root). Без внешних библиотек (ОГР-8).
+   Поля — паттерн V3 «нижняя линия 2px» (board.css .task-form),
+   теги — combobox по образцу task-form (design/tag-combobox-v3.html:
+   дропдаун, <mark>-подсветка, «+ Добавить тег», chips с крестиком),
+   категория — select + опция «Новая категория…».
+   Показаны состояния: default / hover / focus-visible / disabled /
+   error (лимит 10 МБ, тип файла, пустой комментарий-паттерн).
+   ===================================================================== */
+:root {
+  /* primitives (V3 «Бумага») */
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;
+  --p-clay-700: #93391f;
+  --p-clay-050: #f7e8e4;
+  --p-red-700: #9c3524;
+  --p-red-050: #f8ecea;
+  --p-amber-700: #8a5a1e;
+  --p-olive-700: #5f6f34;
+
+  /* semantic */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-text-on-accent: #fff;
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-bg-subtle: var(--p-paper-100);
+  --color-border-default: var(--p-paper-200);
+  --color-border-strong: var(--p-ink-600);
+  --color-accent: var(--p-clay-600);
+  --color-accent-hover: var(--p-clay-700);
+  --color-accent-soft: var(--p-clay-050);
+  --status-error: var(--p-red-700);
+  --status-error-bg: var(--p-red-050);
+
+  /* spacing — 8px сетка */
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+
+  /* geometry */
+  --radius-field: 6px;
+  --radius-card: 10px;
+
+  /* elevation */
+  --shadow-modal: 0 16px 40px rgba(61, 54, 48, 0.18);
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+
+  /* typography */
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --speed-fast: 160ms;
+  --speed-modal: 220ms;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+}
+
+/* =====================================================================
+   ФОН-КОНТЕКСТ: приглушенная страница галереи под модалкой (не дельта)
+   ===================================================================== */
+.bg-page { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 200px; flex-shrink: 0;
+  background: var(--p-ink-900); color: var(--p-paper-050);
+  padding: var(--space-2) 0; min-height: 560px;
+}
+.sidebar-nav { display: flex; flex-direction: column; }
+.nav-item {
+  display: flex; align-items: center; gap: var(--space-1);
+  padding: 10px 20px; color: var(--p-paper-050);
+  text-decoration: none; opacity: 0.85;
+}
+.nav-item.active { background: var(--color-accent); opacity: 1; font-weight: bold; }
+.nav-item .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+.bg-content { flex: 1; padding: var(--space-3); }
+.bg-content h1 { font-family: var(--font-family-display); font-weight: 400; font-size: 26px; margin: 0; }
+
+/* =====================================================================
+   МОДАЛКА ФОРМЫ — паттерн .modal-overlay + .modal (board.css 1:1)
+   ===================================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(61, 54, 48, 0.4);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+  z-index: 10;
+}
+.modal {
+  position: relative;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  width: 100%;
+  max-width: 560px;
+  box-shadow: var(--shadow-modal);
+  animation: modal-in var(--speed-modal) cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Крестик 40×40 — паттерн .modal-close (FR-28) */
+.modal-close {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font: inherit;
+}
+.modal-close:hover { background: var(--color-bg-subtle); color: var(--color-text-primary); }
+.modal-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.modal h2 {
+  margin: 0 40px var(--space-1) 0;   /* место под крестик */
+  font-family: var(--font-family-display);
+  font-size: 22px;
+  font-weight: 400;
+}
+.modal .form-sub { margin: 0 0 var(--space-2); font-size: var(--font-size-label); color: var(--color-text-secondary); }
+
+/* =====================================================================
+   Поля формы — паттерн V3: label + поле с нижней линией 2px
+   ===================================================================== */
+.field { display: block; margin-bottom: var(--space-2); }
+.field > span.lab {
+  display: block;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+.req { color: var(--status-error); }   /* обязательная звезда — как .task-form .req */
+.field input[type="text"],
+.field select,
+.field textarea {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-05);
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+}
+.field input:hover, .field select:hover { border-bottom-color: var(--color-border-strong); }
+.field input:focus-visible, .field select:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
+}
+.field :disabled { color: var(--color-text-secondary); cursor: not-allowed; }
+.field select { cursor: pointer; }
+.hint { display: block; font-size: var(--font-size-micro); color: var(--color-text-secondary); margin-top: var(--space-05); }
+
+/* Ошибка поля: красная линия + мягкий красный фон (паттерн .field-invalid)
+   + текст рядом (aria-describedby) — паттерн .field-error */
+.field.invalid input { border-bottom-color: var(--status-error); background: var(--status-error-bg); }
+.field.invalid input:focus-visible { box-shadow: 0 1px 0 var(--status-error); }
+.field-error { display: block; color: var(--status-error); font-size: 12px; margin-top: var(--space-05); }
+
+/* =====================================================================
+   (1) ФАЙЛ: drag&drop зона + кнопка выбора. Ниже — previews.
+   ===================================================================== */
+.dropzone {
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-page);
+  padding: var(--space-3);
+  text-align: center;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+.dropzone .dz-icon { width: 32px; height: 32px; color: var(--color-text-secondary); }
+.dropzone .dz-title { margin: var(--space-1) 0 var(--space-05); color: var(--color-text-primary); font-size: var(--font-size-body); }
+.dropzone .dz-title b { color: var(--color-accent-hover); text-decoration: underline; text-underline-offset: 3px; }
+.dropzone:hover { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.dropzone:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+/* Состояние dragover (JS ставит класс; в мокапе — демо-строка) */
+.dropzone.dragover { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.dz-limits { font-size: var(--font-size-micro); }
+
+/* Превью выбранного файла до отправки (мини-миниатюра + имя + размер) */
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  background: var(--color-bg-page);
+  padding: var(--space-1) 10px;
+  margin-bottom: var(--space-1);
+}
+.file-thumb {
+  width: 56px; height: 42px; flex-shrink: 0;
+  border-radius: var(--radius-field);
+  background: linear-gradient(135deg, var(--p-paper-100), var(--p-paper-200));
+  display: grid; place-items: center;
+  color: var(--p-ink-600);
+}
+.file-thumb svg { width: 20px; height: 20px; }
+.file-name { font-size: var(--font-size-label); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-meta { font-size: var(--font-size-micro); color: var(--color-text-secondary); }
+.file-remove {
+  margin-left: auto;
+  border: none; background: none; cursor: pointer;
+  font: inherit; font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  text-decoration: underline; text-underline-offset: 2px;
+  padding: 4px;
+}
+.file-remove:hover { color: var(--color-accent-hover); }
+.file-remove:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-field); }
+
+/* Файл с ошибкой размера/типа: красная рамка + текст ошибки (NFR-21) */
+.file-row.invalid { border-color: var(--status-error); background: var(--status-error-bg); }
+.file-row.invalid .file-meta { color: var(--status-error); font-weight: 600; }
+
+/* =====================================================================
+   (2) ТЕГИ — combobox по образцу task-form (tag-combobox-v3):
+   chips выбранных + input с дропдауном (подсказки + «добавить новое»)
+   ===================================================================== */
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-05); margin: 0 0 var(--space-1); }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-bg-subtle);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+.chip button {
+  border: none; background: none; cursor: pointer;
+  padding: 0; font: inherit; line-height: 1;
+  color: var(--color-text-secondary);
+}
+.chip button:hover { color: var(--color-text-primary); }
+.chip button:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: 50%; }
+
+.tag-combobox-wrap { position: relative; }
+.combobox-popup {
+  position: absolute;
+  left: 0; right: 0;
+  top: calc(100% + 4px);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-05);
+  z-index: 5;
+}
+.combobox-list { list-style: none; margin: 0; padding: 0; }
+.option {
+  padding: var(--space-1);
+  border-radius: var(--radius-field);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+.option:hover { background: var(--color-bg-subtle); }
+.option[aria-selected="true"] { background: var(--color-accent-soft); color: var(--color-accent-hover); font-weight: 600; }
+/* Подсветка совпавшего фрагмента — паттерн <mark> (FR-58) */
+.option mark { background: var(--color-accent-soft); color: var(--color-accent); border-radius: 3px; padding: 0 1px; }
+.option-add {
+  margin-top: var(--space-05);
+  padding: var(--space-1);
+  border-top: 1px solid var(--color-border-default);
+  border-radius: 0 0 var(--radius-field) var(--radius-field);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.option-add:hover { background: var(--color-bg-subtle); color: var(--color-text-primary); }
+.option-add .add-fragment { color: var(--color-accent); font-weight: 600; }
+
+/* =====================================================================
+   Кнопки — паттерны V3 (board.css): primary пилюля / secondary контур
+   ===================================================================== */
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.btn-primary {
+  font: inherit;
+  cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+}
+.btn-primary:hover { background: var(--color-accent-hover); }
+.btn-primary:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.btn-secondary {
+  font: inherit;
+  cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+.btn-secondary:hover { background: var(--color-bg-subtle); }
+.btn-secondary:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.form-error { color: var(--status-error); font-size: var(--font-size-label); }
+
+/* Прогресс загрузки (индикация — design §0(г)) */
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-bg-subtle);
+  overflow: hidden;
+  margin-top: var(--space-1);
+}
+.progress-bar {
+  height: 100%;
+  width: 64%;
+  border-radius: 999px;
+  background: var(--color-accent);
+}
+
+/* =====================================================================
+   ДЕМО-ЗОНА (вне продукта): состояние ошибки + dragover + disabled
+   ===================================================================== */
+.demo-strip {
+  position: fixed;
+  left: 232px;
+  bottom: var(--space-2);
+  z-index: 20;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-2) var(--space-2);
+  max-width: 560px;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+.demo-strip strong { color: var(--color-text-primary); }
+kbd {
+  font-family: inherit; font-size: var(--font-size-micro);
+  border: 1px solid var(--color-border-default);
+  border-bottom-width: 2px; border-radius: var(--radius-field);
+  padding: 0 5px; background: var(--color-bg-surface);
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Фон-контекст (приглушен overlay'ем) -->
+<div class="bg-page" aria-hidden="true">
+  <aside class="sidebar">
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item" tabindex="-1">Доска</a>
+      <a href="#" class="nav-item" tabindex="-1">Поиск</a>
+      <a href="#" class="nav-item" tabindex="-1">Wiki</a>
+      <a href="#" class="nav-item active" tabindex="-1">
+        <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        Галерея
+      </a>
+    </nav>
+  </aside>
+  <main class="bg-content"><h1>Галерея</h1></main>
+</div>
+
+<!-- =====================================================================
+     МОДАЛКА «Загрузить изображение» (дельта 1.1(г)). role=dialog,
+     aria-modal, aria-labelledby. Закрытие: Esc / крестик 40×40.
+     Focus trap + возврат фокуса на кнопку «Загрузить» — задача dev (1.5).
+     ===================================================================== -->
+<div class="modal-overlay">
+  <form class="modal" role="dialog" aria-modal="true" aria-labelledby="upload-title">
+    <button type="button" class="modal-close" aria-label="Закрыть форму (без сохранения)">
+      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </button>
+
+    <h2 id="upload-title">Загрузить изображение</h2>
+    <p class="form-sub">JPEG, PNG, GIF или WebP, до 10 МБ. Оригинал сохраняется, для сетки создается превью.</p>
+
+    <!-- (1) ФАЙЛ: drag&drop + клик (скрытый input[type=file]) -->
+    <label class="field">
+      <span class="lab">Файл <span class="req" aria-hidden="true">*</span></span>
+    </label>
+    <div class="dropzone" role="button" tabindex="0" aria-label="Выбрать файл или перетащите его сюда">
+      <svg class="dz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V5M12 5l-4 4M12 5l4 4M5 19h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <p class="dz-title">Перетащите файл сюда или <b>выберите на диске</b></p>
+      <span class="dz-limits">JPEG · PNG · GIF · WebP — до 10 МБ</span>
+    </div>
+
+    <!-- Выбранный файл: превью до отправки -->
+    <div class="file-row">
+      <div class="file-thumb" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+      </div>
+      <div>
+        <div class="file-name">kitchen-after.jpg</div>
+        <div class="file-meta">3,2 МБ · image/jpeg · превью будет создано автоматически</div>
+      </div>
+      <button type="button" class="file-remove" aria-label="Убрать файл">убрать</button>
+    </div>
+
+    <!-- ОШИБКА РАЗМЕРА (демо, NFR-21): красная строка вместо/рядом с валидной -->
+    <div class="file-row invalid">
+      <div class="file-thumb" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm-1 4h2v5h-2V9zm0 6h2v2h-2v-2z" fill="currentColor"/></svg>
+      </div>
+      <div>
+        <div class="file-name">scan-archive.tif</div>
+        <div class="file-meta" id="err-size">Файл больше 10 МБ (24,8 МБ) — уменьшите или сожмите изображение</div>
+      </div>
+      <button type="button" class="file-remove" aria-label="Убрать файл">убрать</button>
+    </div>
+
+    <!-- ОШИБКА ТИПА (демо, NFR-21) -->
+    <div class="file-row invalid">
+      <div class="file-thumb" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm-1 4h2v5h-2V9zm0 6h2v2h-2v-2z" fill="currentColor"/></svg>
+      </div>
+      <div>
+        <div class="file-name">notes.pdf</div>
+        <div class="file-meta">Тип не поддерживается: PDF. Разрешены JPEG, PNG, GIF, WebP</div>
+      </div>
+      <button type="button" class="file-remove" aria-label="Убрать файл">убрать</button>
+    </div>
+
+    <!-- (2) КАТЕГОРИЯ: select справочника галереи + «Новая категория…»
+         (при выборе опции new — JS показывает текстовое поле, демо ниже) -->
+    <label class="field" for="up-category">
+      <span class="lab">Категория</span>
+      <select id="up-category">
+        <option value="" selected>Без категории</option>
+        <option>Интерьеры</option>
+        <option>Участок</option>
+        <option>Документы</option>
+        <option>Рецепты</option>
+        <option value="new">+ Новая категория…</option>
+      </select>
+      <span class="hint">Общий справочник галереи (не категории задач)</span>
+    </label>
+
+    <!-- Демо: поле «новая категория» после выбора «+ Новая категория…» -->
+    <label class="field" for="up-category-new">
+      <span class="lab">Название новой категории</span>
+      <input type="text" id="up-category-new" value="Балкон">
+      <span class="hint">Будет создана в справочнике галереи</span>
+    </label>
+
+    <!-- (3) ТЕГИ: chips выбранных + combobox (подсказки + новое значение) -->
+    <div class="field">
+      <span class="lab" id="tags-lab">Теги</span>
+      <div class="chips" aria-label="Выбранные теги">
+        <span class="chip">ремонт <button type="button" aria-label="Убрать тег ремонт">✕</button></span>
+        <span class="chip">кухня <button type="button" aria-label="Убрать тег кухня">✕</button></span>
+      </div>
+      <div class="tag-combobox-wrap">
+        <input type="text" id="up-tags" role="combobox" aria-expanded="true"
+               aria-controls="tags-popup" aria-labelledby="tags-lab"
+               placeholder="Начните вводить тег…" autocomplete="off" value="кус">
+        <!-- Дропдаун: совпадение с <mark>; «+ Добавить тег» — новое значение -->
+        <div class="combobox-popup" id="tags-popup">
+          <ul class="combobox-list" role="listbox" aria-label="Подсказки тегов">
+            <li class="option" role="option" aria-selected="true"><mark>кус</mark>точки</li>
+            <li class="option" role="option" aria-selected="false">по<mark>кус</mark>ка</li>
+            <li class="option-add" role="option" aria-selected="false">+ Добавить тег <span class="add-fragment">«кус»</span></li>
+          </ul>
+        </div>
+        <span class="hint">Подсказки — из заведенных тегов галереи; можно ввести новый</span>
+      </div>
+    </div>
+
+    <!-- Действия: вторичная «Отмена» + primary «Загрузить» -->
+    <div class="form-actions">
+      <button type="submit" class="btn-primary">Загрузить</button>
+      <button type="button" class="btn-secondary">Отмена</button>
+      <span class="form-error" aria-live="polite">Исправьте ошибки в файле — загрузка заблокирована</span>
+    </div>
+
+    <!-- Индикация процесса (появляется после сабмита; демо-блок) -->
+    <div aria-hidden="true">
+      <div class="progress"><div class="progress-bar"></div></div>
+      <span class="hint">Загрузка… 64% (после успеха — модалка закрывается, карточка появляется в сетке)</span>
+    </div>
+  </form>
+</div>
+
+<!-- =====================================================================
+     ДЕМО-ЗОНА (не продукт): сводка состояний для Заказчика.
+     ===================================================================== -->
+<aside class="demo-strip" aria-label="Пояснения к мокапу">
+  <strong>Состояния формы (демо):</strong>
+  dragover зоны файла — терракотовая рамка + мягкий фон;
+  ошибки файла — красная строка с причиной (размер / тип, NFR-21), загрузка заблокирована;
+  «+ Новая категория…» раскрывает текстовое поле;
+  теги — combobox как в форме задач (<mark>-подсветка, «+ Добавить тег „…“», chips с крестиком);
+  <kbd>Esc</kbd>/крестик — закрытие без сохранения; прогресс — после сабмита.
+</aside>
+
+</body>
+</html>
