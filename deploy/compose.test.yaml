@@ -130,6 +130,40 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Images-сервис галереи — те же параметры, что в проде (FR-67 паритет
+  # NFR-10); тома — именованные тома проекта wiki-test (изоляция от прода,
+  # см. шапку). RW-профиль БД и том файлов — design §2 add-gallery-service.
+  images:
+    image: ${IMAGES_IMAGE:-ekotov-wiki/images:test}
+    build:
+      context: ..
+      dockerfile: services/images/Dockerfile
+    restart: unless-stopped
+    # design §5: images 128m (FastAPI+Pillow; вводные пакета).
+    mem_limit: 128m
+    environment:
+      EKOTOV_WIKI_DB_PATH: /data/wiki.db
+      EKOTOV_WIKI_IMAGES_DIR: /data/images
+    volumes:
+      # RW: таблицы gallery + SELECT users (design §2 — сервис-писатель).
+      - wiki-test-data:/data:rw
+      # Файлы изображений — свой том проекта стенда.
+      - images-test-data:/data/images
+    depends_on:
+      - app
+    # Порты НЕ публикуются (паритет прода; nginx-маршрутизация — задача 1.4).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8379/api/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # Sidecar-бэкап на стенде: цикл укорочен до 3600с (проверяемость на
   # стенде без суточного ожидания), retention тот же (14 дней). Каталог
   # бэкапов — bind проекта стенда (НЕ /var/backups хоста — изоляция NFR-10).
@@ -162,3 +196,7 @@ volumes:
   # Фактическое имя в docker: wiki-test_wiki-test-data (пространство проекта
   # изолировано от продового ekotov-wiki_wiki-data — NFR-10).
   wiki-test-data:
+  # Файлы изображений галереи (оригинал + превью; FR-79) — том проекта
+  # стенда (wiki-test_images-test-data), изоляция от прода — NFR-10;
+  # очистка — down -v (шапка).
+  images-test-data:

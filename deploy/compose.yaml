@@ -89,6 +89,52 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Images-сервис галереи (задача 1.3, add-gallery-service; design §1/§2/§4):
+  # uvicorn :8379. Первый сервис-писатель в общую БД после ядра (RW-профиль:
+  # только таблицы gallery + SELECT users — design §2) + свой том файлов
+  # images-data (оригиналы + превью, FR-79: файлы вне БД). По образцу search.
+  images:
+    image: ${IMAGES_IMAGE:-ekotov-wiki/images:local}
+    build:
+      context: ..
+      dockerfile: services/images/Dockerfile
+    restart: unless-stopped
+    # design §5: images 128m (FastAPI+Pillow; вводные пакета). Стабильное
+    # превышение — эскалация до прод (замер факта — задача 1.3/2.1).
+    mem_limit: 128m
+    environment:
+      # Путь БД — тот же файл, что у app (env-имя свое —
+      # services/images/app/db.py). RW: пишет только таблицы gallery.
+      EKOTOV_WIKI_DB_PATH: /data/wiki.db
+      # Том файлов изображений (дефолт кода /data/images — app/gallery.py).
+      EKOTOV_WIKI_IMAGES_DIR: /data/images
+    volumes:
+      # RW-маунт общей БД (design §2): таблицы gallery + чтение users.
+      # Гарантии профиля — на уровне кода сервиса (short transactions,
+      # busy_timeout, только таблицы gallery); файловая ro-гарантия,
+      # как у search, здесь невозможна — сервис пишет.
+      - wiki-data:/data:rw
+      # Файлы изображений (оригинал + превью) — отдельный том (FR-79).
+      # nginx (задача 1.4) получит второй, ro-маунт для alias-отдачи.
+      - images-data:/data/images
+    # Поднять после app: на пустом томе БД-схему (включая таблицы gallery —
+    # миграция ядра) создает app; без users FK images.uploaded_by нарушится.
+    depends_on:
+      - app
+    # Порты НЕ публикуются (design §1: наружу только nginx :10443, FR-65):
+    # nginx-маршрутизация — задача 1.4.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8379/api/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # Sidecar-бэкап (задача 1.2; design §5): cron-цикл средствами python
   # (sqlite3 .backup + tar avatars), retention 14 дней. Релизный бэкап
   # deploy.sh (задача 1.4) вызывает ТОТ ЖЕ модуль — без дубля кода.
@@ -164,3 +210,7 @@ volumes:
     # wiki.db + avatars/. Бэкап — сервис backup (sidecar, design §5):
     # суточный цикл внутри контейнера + релизный бэкап в deploy.sh (шаг 2/8),
     # оба — один модуль services/backup/backup.py.
+  images-data:
+    # Файлы изображений галереи (оригинал + превью; FR-79 — вне БД;
+    # design §4). Новый том, пустой при первом старте; включается в контур
+    # бэкапов релиза (design §7: tar images-data). nginx — ro-маунт (1.4).
