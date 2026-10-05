@@ -6,6 +6,8 @@
 - **Предмет:** ТОЛЬКО фикс-дифф к review-007: коммит `a4aee1c` (tests/web/test_search_r4_ui.py, test_board_tasks_ui.py, test_view_modal_r4.py, tests/README.md, tests/REPORT-regress-21.md, tests/REPORT-fix-21-F1.md) + релизный журнал f5dd31d/8817895 (вне ревью, записи [pipeline])
 - **Задача:** add-microservices-full / 2.1; предыдущий вердикт — review-007-2.1.md: request_changes (F-1 major, F-2…F-4 minor)
 
+## Вердикт
+
 **Вердикт: approve.**
 
 ## 1. F-1 (major, блокировал) — устранен, подтвержден фактами
