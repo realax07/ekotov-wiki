@@ -185,7 +185,7 @@ def test_design_validator_markup_and_tokens(logged_in_page, web_base_url):
           const el = document.querySelector('.nav-item-monitoring');
           el.focus();
           // :focus-visible недоступен из JS напрямую; проверяем примененное
-          // правило через matches + box-shadow при键盘ном фокусе из Tab:
+          // правило через matches + box-shadow при клавиатурном фокусе из Tab:
           const cs = getComputedStyle(el);
           return {matches: el.matches(':focus-visible'), shadow: cs.boxShadow};
         }"""

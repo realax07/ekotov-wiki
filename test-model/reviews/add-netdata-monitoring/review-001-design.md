@@ -1,5 +1,7 @@
 # review-001-design — design_validator 2.1(г): пункт «Мониторинг» vs мокап 1.1а (add-netdata-monitoring)
 
+- **Reviewer-Delegation:** deleg_0b722e1e
+
 - **Дата:** 2026-10-05
 - **Роль:** design_validator (часть задачи 2.1; correlation 97a81b928f744dd6a76cdce801802699)
 - **Дерево:** worktree `/home/openclaw/ekotov-wiki-worktrees/qa-21-netdata`, ветка `add-netdata-monitoring`, HEAD `2e6efb5` (факт 1.4 = `7abdf12`)
