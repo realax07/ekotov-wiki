@@ -20,8 +20,10 @@ COPY frontend/static/ /srv/static/
 # Конфиг образа: база deploy/nginx-ekotov-wiki-10443.conf, upstream — DNS
 # compose-сети (app:8377) + resolver против stale-DNS (design §1); с задачи
 # 1.3 (add-microservices-full) — маршрутизация /api/search* и
-# /api/suggestions на search:8378 (X-Service, 503-деградация).
-COPY services/frontend/nginx/ekotov-wiki.conf services/frontend/nginx/search-proxy.inc services/frontend/nginx/search-headers.inc /etc/nginx/conf.d/
+# /api/suggestions на search:8378 (X-Service, 503-деградация); задача 1.4
+# (add-gallery-service) — /api/images* на images:8379 (пара = + ^~,
+# 503-деградация @images_down) и отдача файлов /images/ из тома images-data.
+COPY services/frontend/nginx/ekotov-wiki.conf services/frontend/nginx/search-proxy.inc services/frontend/nginx/search-headers.inc services/frontend/nginx/images-proxy.inc services/frontend/nginx/images-headers.inc /etc/nginx/conf.d/
 
 # 10443 — внутренний порт (публикуемый задает compose: ${NGINX_PORT:-10443}:10443).
 EXPOSE 10443

@@ -197,8 +197,13 @@ services:
       # Аватары nginx отдает из того же тома, ro (design §1/§3).
       # Маунт ТОМ ЖЕ глубиной, что у app (том:/data), — иначе alias
       # /data/avatars/ резолвится в корень тома и мимо каталога
-      # avatars/ (факт 2.3: 404 при непустом /avatars в томе).
+      # мимо каталога avatars/ (факт 2.3: 404 при непустом /avatars в томе).
       - wiki-data:/data:ro
+      # Файлы галереи (задача 1.4 add-gallery-service; design §1/§4):
+      # ro-маунт ТОМ ЖЕ глубиной, что у images (том:/data/images) —
+      # alias /data/images/ в конфиге резолвится точно в каталог файлов
+      # (урок тома avatars: глубина маунта = глубина alias-пути).
+      - images-data:/data/images:ro
     logging:
       driver: json-file
       options:

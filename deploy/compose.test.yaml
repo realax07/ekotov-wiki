@@ -97,6 +97,10 @@ services:
       # тома той же глубиной (/data), как в проде; e2e может гонять
       # аватар-контент (снимает компромисс rev.008 замечание 1).
       - wiki-test-data:/data:ro
+      # Файлы галереи (задача 1.4 add-gallery-service; design §4, NFR-10
+      # паритет прода): том проекта стенда, ro, глубина как у images
+      # (том:/data/images) — alias /data/images/ в конфиге.
+      - images-test-data:/data/images:ro
     logging:
       driver: json-file
       options:
