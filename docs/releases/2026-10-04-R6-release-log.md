@@ -89,3 +89,5 @@
 - [23:05 UTC] dev → ПМ: фикс-циклы завершены — cda3d22 (1.1-a..e + 1.2-f, тесты 12/12, негативные пруфы дискриминации в REPORT-fix-11.md), 795aded (1.2-a..e, DRY_RUN EXIT=0, REPORT-fix-12.md); ПМ: верификация независимым прогоном — подтверждено
 - [23:07 UTC] ПМ: gate finish обеих dev-сессий — returned (OUT_OF_ZONE: пути параллельной сессии в общем base..HEAD; обе работы верифицированы независимо); сессии закрыты админски синхронно реестр+flowctl
 - [23:12 UTC] ПМ → 2× code_reviewer (deleg_9cf35336, gate e7fdc320 + f546b8c1): ре-ревью коротким кругом фикс-диффов cda3d22 / 795aded → review-005-{1.1,1.2}.md
+- [23:25 UTC] 2× code_reviewer → ПМ: review-005-1.1 approve (R-1 minor не блокирует), review-005-1.2 request_changes (1.2-g minor — регресс дубль-бэкапа от retry-фикса, 1.2-h nit); ПМ: мета Reviewer-Delegation вписана (59e478b)
+- [23:27 UTC] ПМ → dev (deleg_4f19dd1c, gate 14f93497): фикс 1.2-g/h; ре-ревьюер: повторное ревью после него не требуется
