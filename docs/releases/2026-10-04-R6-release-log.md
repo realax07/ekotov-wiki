@@ -97,3 +97,5 @@
 - [04:57 UTC] ПМ → code_reviewer (deleg_edb7a5de, gate 24112044): ре-ревью №6 фикс-диффа cb5e65b (1.2-g/h) → review-006-1.2.md
 - [06:05 UTC] code_reviewer → ПМ: review-006-1.2 approve (репликация 4 сценария, регрессий нет); ПМ: мета вписана, [x] 1.2 (54213db); flow_check: OK — ЭТАП B закрыт
 - [06:10 UTC] ПМ → QA (deleg_5339bc4c, gate 9ba2c5ec): задача 2.1 — полный регресс (api на стенде + юниты сервисов); DENY ZONE_OUTSIDE_POLICY (test-model/bugs/** vs политики bugs/*) разобран уточнением паттерна
+- [07:04 UTC] QA → ПМ: 2.1 завершена (a9f8176) — tests/api 201p/9s/2xf/0f на маршрутизированном стенде (app:8080+search:8378+nginx:18443), юниты search 12p/0f, смоук маршрутизации + 503-деградация green; BUG-006 major (pytest tests/ не собирается, pytest_plugins в не-корневом conftest); ПМ: gate finish returned (OUT_OF_ZONE журнала), сессия закрыта
+- [07:07 UTC] ПМ → code_reviewer (deleg_ae91c6a8, gate d647709e): ревью QA-отчета 2.1 → review-007-2.1.md
