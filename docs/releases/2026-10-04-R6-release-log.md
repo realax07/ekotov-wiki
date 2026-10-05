@@ -91,3 +91,5 @@
 - [23:12 UTC] ПМ → 2× code_reviewer (deleg_9cf35336, gate e7fdc320 + f546b8c1): ре-ревью коротким кругом фикс-диффов cda3d22 / 795aded → review-005-{1.1,1.2}.md
 - [23:25 UTC] 2× code_reviewer → ПМ: review-005-1.1 approve (R-1 minor не блокирует), review-005-1.2 request_changes (1.2-g minor — регресс дубль-бэкапа от retry-фикса, 1.2-h nit); ПМ: мета Reviewer-Delegation вписана (59e478b)
 - [23:27 UTC] ПМ → dev (deleg_4f19dd1c, gate 14f93497): фикс 1.2-g/h; ре-ревьюер: повторное ревью после него не требуется
+- [04:40 UTC] dev → ПМ: фикс 1.2-g/h — патчи applied (делегация оборвана шлюзом на репликации), ПМ докатил: верификация py_compile+bash -n+репликация main() A/B/C PASS, коммит cb5e65b, REPORT-fix-12g.md
+- [04:42 UTC] ПМ: gate finish 14f93497 returned (OUT_OF_ZONE релизного журнала); сессии закрыты синхронно; вотчдог run2 exit=0
