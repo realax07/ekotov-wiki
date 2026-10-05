@@ -1,8 +1,8 @@
 # Архитектурная карта ekotov-wiki («как есть»)
 
-Статус: актуальна на 2026-10-03 (2.5 change add-containerization; прод переключен на контейнерную схему — docker compose, задачи 2.3/2.4 пакета; база — deploy-v2 `7065a71` в бою; systemd-прод остановлен, юнит сохранен как чекпоинт отката, см. §1.3).
-Задача выполнена по Флоу 4 (обслуживание). Артефакт только фиксирует факты и решения; задачи сюда не входят.
-Источники: код `backend/app/`, `frontend/`; `sdd.md` r7; спеки `openspec/specs/*/spec.md`; `deploy/RUNBOOK.md` (E9, факты прода 2026-09-26); `PRODUCT_BACKLOG.md` (DEF-001…005); архив `openspec/changes/archive/`.
+Статус: актуальна на 2026-10-05 (2.5 change add-microservices-full; прод переключен на МАТРИЧНЫЙ стек p12-rc1 — app + frontend(nginx) + search + backup, задачи 2.3/2.4 пакета: прод-параллель :10444 с приемкой Заказчика, затем переключение :10443; nginx маршрутизирует `/api/search*` и `/api/suggestions*` на search:8378 — заголовок `X-Service: search`, управляемая 503-деградация при недоступном search; search читает БД в read-only профиле (URI ro + fallback immutable, нюансы WAL — `services/search/app/db.py`); бэкап-трасса без sidecar (`services/backup/backup.py::run_backup`) + sidecar-ретеншн; systemd-прод остановлен ранее и остается чекпоинтом v1-отката. Детали эксплуатации — `deploy/RUNBOOK.md` (переписан по факту, 2.5); инструменты переключения — `deploy/2.3-par.sh`, `deploy/2.4-switch.sh`).
+Задача выполнена по Флоу 1 (ПМ-проход docs-части: зоны architecture/**/sdd.md вне политики роли dev — DENY машины, задокументирован в release-log). Артефакт только фиксирует факты и решения; задачи сюда не входят.
+Источники: код `backend/app/`, `frontend/`, `services/search/`, `services/backup/`; `sdd.md` r13; спеки `openspec/specs/*/spec.md`; `deploy/RUNBOOK.md` (2.5, факты прода 2026-10-05); `contracts/openapi-search.json`; архив `openspec/changes/archive/`.
 
 ## 1. Компоненты и границы
 
