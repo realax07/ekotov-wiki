@@ -189,6 +189,12 @@ def main() -> None:
                     "restart: unless-stopped поднимет контейнер снова "
                     "(БД, вероятно, еще не создана app'ом на свежем хосте)"
                 )
+            # 1.2-g (review-005-1.2): первый цикл удался (сразу или через
+            # ретраи) — пауза INTERVAL_SEC, как после обычного успеха, иначе
+            # while уводит в else-ветку и run_backup() вызывается повторно
+            # НЕМЕДЛЕННО (дубль-бэкап; секундный stamp тот же → ложный
+            # FileExistsError в логах).
+            time.sleep(INTERVAL_SEC)
         else:
             try:
                 run_backup()

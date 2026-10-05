@@ -135,7 +135,7 @@ case "${COMPOSE_FILE}" in
   *)
     run mkdir -p "${BACKUP_DIR}"
     if [ "${DRY_RUN}" = "1" ]; then
-      echo "   [DRY-RUN] stat -c %u ${BACKUP_DIR}   # владелец уже 10001 — не трогаем; иначе chown 10001:10001"
+      echo "   [DRY-RUN] stat -c %u ${BACKUP_DIR}   # dry-run: проверка прав НЕ выполнялась (будет при реальном прогоне; если владелец не 10001 — chown 10001:10001)"
     elif [ "$(stat -c %u "${BACKUP_DIR}" 2>/dev/null)" = "10001" ]; then
       ok "BACKUP_DIR ${BACKUP_DIR}: владелец уже 10001 — sidecar-бэкап запишет"
     else
