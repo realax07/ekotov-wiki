@@ -74,11 +74,18 @@ phase_pre() {
   # бэкапим на хосте. Проще: docker run БЕЗ :ro (sqlite откроет rw, создаст
   # -wal/-shm в самом томе — это норма, app их и так создает), VACUUM INTO
   # пишет только в /bkp.
-  docker run --rm -v "${PAR_VOLUME}:/data" -v "${BACKUP_DIR}:/bkp" \
+  # USER 10001 в образе app: /bkp должен быть доступен uid 10001 на запись.
+  # Каталог бэкапов исторически принадлежит 999:988 (контейнерные uid прошлых
+  # деплоев) с 775 — 10001 НЕ может писать. Решение: одноразовый chown 10001
+  # на подкаталог 2.4 (не трогая исторические файлы чужих uid).
+  local bdir="${BACKUP_DIR}/pre-2.4"
+  mkdir -p "${bdir}"
+  chown 10001:10001 "${bdir}" || fail "chown ${bdir} под uid 10001 упал"
+  docker run --rm -v "${PAR_VOLUME}:/data" -v "${bdir}:/bkp" \
     "ekotov-wiki/app:p12-rc1" \
     python -c "import sqlite3; sqlite3.connect('/data/wiki.db').execute(\"VACUUM INTO '/bkp/wiki-pre-2.4-${stamp}.db'\")" \
     || fail "бэкап тома параллели упал"
-  ok "бэкап: ${BACKUP_DIR}/wiki-pre-2.4-${stamp}.db ($(du -h "${BACKUP_DIR}/wiki-pre-2.4-${stamp}.db" | cut -f1))"
+  ok "бэкап: ${bdir}/wiki-pre-2.4-${stamp}.db ($(du -h "${bdir}/wiki-pre-2.4-${stamp}.db" | cut -f1))"
 
   log "  фикс текущих контейнеров старого стека (для отката)"
   old_compose ps || true
