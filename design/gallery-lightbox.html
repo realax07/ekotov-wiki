@@ -165,18 +165,29 @@ body.app-shell {
   box-shadow: var(--shadow-modal);
   background: var(--color-bg-surface);
 }
-/* Плейсхолдер изображения (реальный файл отдаст nginx /images/<filename>) */
+/* УТОЧНЕНИЕ ЗАКАЗЧИКА (1.1-инкремент): детализация показывает изображение
+   ПОЛНОСТЬЮ КАК ЕСТЬ — оригинальные пропорции, без кропа: max-width/max-height
+   100% (влезает в сцену), aspect-ratio сохранен, изображение по центру сцены.
+   Показаны три «изображения» разных пропорций — у каждого свой aspect-ratio
+   (реальный файл отдаст nginx /images/<filename>; dev: <img> c max-w/max-h
+   100%, width/height auto — объект сам держит свои пропорции).
+   DECISION: рамку/фон под изображением не добавляем — фон сцены ink-900
+   читает границы любого формата, включая прозрачные PNG/WebP. */
 .lb-placeholder {
-  width: min(72%, 820px);
-  aspect-ratio: 4 / 3;
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-modal);
   background: linear-gradient(150deg, #efe6d8, #dccfb9 55%, #cbbca5);
   display: grid;
   place-items: center;
   color: rgba(255, 253, 249, 0.75);
+  max-width: 100%;
+  max-height: 100%;
 }
 .lb-placeholder svg { width: 56px; height: 56px; }
+/* Пропорции конкретного файла (как в оригинале — без кропа): */
+.lb-img-landscape { width: min(72%, 820px); aspect-ratio: 4 / 3; }    /* горизонтальный */
+.lb-img-portrait  { height: 100%;    aspect-ratio: 3 / 4; }           /* вертикальный   */
+.lb-img-square    { height: 88%;     aspect-ratio: 1 / 1; }           /* квадратный     */
 
 /* Клик-зоны ←/→: прозрачные зоны по бокам изображения, ≥48px,
    внутри — шеврон; появляются при hover зоны. Кнопки — реальные
@@ -412,14 +423,14 @@ kbd {
 .demo-strip {
   position: fixed;
   left: 232px;
-  bottom: var(--space-2);
+  top: var(--space-2);   /* инкремент: сверху сцены — не перекрывает счетчик 2/8 и форму комментария */
   z-index: 20;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-modal);
   padding: var(--space-2);
-  max-width: 640px;
+  max-width: min(560px, calc(100vw - 640px));
   font-size: var(--font-size-label);
   color: var(--color-text-secondary);
 }
@@ -474,13 +485,16 @@ kbd {
 <div class="lightbox-overlay">
   <div class="lightbox" role="dialog" aria-modal="true" aria-labelledby="lb-title">
 
-    <!-- ===== Сцена: изображение по центру + клик-зоны ←/→ ===== -->
+    <!-- ===== Сцена: изображение по центру + клик-зоны ←/→ =====
+         Уточнение Заказчика: изображение показывается ПОЛНОСТЬЮ КАК ЕСТЬ —
+         оригинальные пропорции без кропа; в мокапе показан вертикальный
+         формат (3:4). Демо-зона ниже — горизонтальный и квадратный. ===== -->
     <div class="lb-stage">
       <button type="button" class="lb-nav-zone prev" aria-label="Предыдущее изображение (стрелка влево)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
 
-      <div class="lb-placeholder" aria-hidden="true">
+      <div class="lb-placeholder lb-img-portrait" aria-hidden="true">
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
       </div>
 
@@ -574,6 +588,16 @@ kbd {
   повторный клик по своей кнопке <strong>снимает голос</strong>, клик по второй — <strong>переносит</strong> (FR-81, ровно один голос).
   «удалить» — только у СВОИХ комментариев (чужих — нет, 403 по API).
   Клик-зоны ←/→ — края сцены 15% (≥64px); листание цикличное по текущей отфильтрованной выдаче (design §6).
+  <div style="margin-top: var(--space-1);">
+    <strong>Детализация без кропа (демо)</strong> — оригинальные пропорции, каждый вписан в сцену
+    целиком (<code>max-width/max-height: 100%</code>):
+    <span aria-hidden="true" style="display:inline-flex; align-items:flex-end; gap: var(--space-1); vertical-align: middle; margin-left: var(--space-1);">
+      <span style="width:32px; aspect-ratio:4/3; border-radius:4px; background:linear-gradient(150deg,#efe6d8,#dccfb9); box-shadow:var(--shadow-soft);"></span>
+      <span style="width:24px; aspect-ratio:3/4; border-radius:4px; background:linear-gradient(150deg,#efe6d8,#dccfb9); box-shadow:var(--shadow-soft);"></span>
+      <span style="width:24px; aspect-ratio:1/1; border-radius:4px; background:linear-gradient(150deg,#efe6d8,#dccfb9); box-shadow:var(--shadow-soft);"></span>
+      <span style="font-size: var(--font-size-micro);">4:3 · 3:4 · 1:1</span>
+    </span>
+  </div>
 </aside>
 
 </body>

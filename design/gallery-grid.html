@@ -252,19 +252,49 @@ body.app-shell {
 .g-card:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .g-card:active { transform: translateY(0); }
 
-/* Превью 4:3; плейсхолдеры — бумажные градиенты (реальные thumb отдаст nginx /images/) */
+/* УТОЧНЕНИЕ ЗАКАЗЧИКА (1.1-инкремент): ячейка сетки остается 4:3 (ритм
+   сетки), но изображение НЕ обрезается — вписывается ЦЕЛИКОМ
+   (object-fit: contain), фон ячейки — нейтральный бумажный токен.
+   Плейсхолдеры РАЗНЫХ пропорций (вертикальные/горизонтальные/квадратные)
+   показывают поведение contain; реальные thumb отдаст nginx /images/
+   (<img> с object-fit: contain). */
 .g-thumb {
+  position: relative;
   aspect-ratio: 4 / 3;
   display: grid;
   place-items: center;
+  padding: var(--space-1);
+  background: var(--color-bg-subtle);
   border-bottom: 1px solid var(--color-border-default);
 }
-.g-thumb .ph-icon { width: 32px; height: 32px; color: var(--p-ink-600); opacity: 0.45; }
-.ph-1 { background: linear-gradient(135deg, var(--p-paper-100), var(--p-paper-200)); }
-.ph-2 { background: linear-gradient(160deg, var(--p-clay-050), var(--p-paper-100)); }
-.ph-3 { background: linear-gradient(135deg, var(--p-paper-200), var(--p-paper-100) 60%, #dfe4d2); }
-.ph-4 { background: linear-gradient(20deg, var(--p-paper-100), #efe4d8); }
-.ph-5 { background: linear-gradient(120deg, #e3e7dc, var(--p-paper-100)); }
+/* «Изображение» в ячейке: оригинальные пропорции сохранены, габариты
+   ограничены ячейкой (contain) — кропа нет при любой ориентации */
+.ph-img {
+  border-radius: 4px;
+  box-shadow: var(--shadow-soft);
+  background: linear-gradient(150deg, #efe6d8, #dccfb9 55%, #cbbca5);
+}
+.ph-landscape { width: 96%; aspect-ratio: 16 / 9; }
+.ph-portrait  { height: 96%; aspect-ratio: 3 / 4; }
+.ph-square    { height: 84%; aspect-ratio: 1 / 1; }
+.ph-standard  { width: 96%; aspect-ratio: 4 / 3; }
+
+/* Бейдж формата файла (уточнение Заказчика): микро-текстовый лейбл
+   токенной окраски; формат — из content_type списка (GET /api/images) */
+.fmt-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: var(--font-size-micro);
+  line-height: 1.7;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
+}
 
 .g-card-body { padding: var(--space-1) 10px 10px; display: flex; flex-direction: column; gap: 6px; }
 .g-card-title {
@@ -419,9 +449,10 @@ kbd {
 
   <!-- ===== СЕТКА ПРЕВЬЮ (4 колонки на ≥1280px; превью — плейсхолдеры) ===== -->
   <div class="gallery-grid">
-    <a href="#" class="g-card" aria-label="Кухня после ремонта — открыть просмотр">
-      <div class="g-thumb ph-2" aria-hidden="true">
-        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+    <a href="#" class="g-card" aria-label="Кухня после ремонта (формат jpeg) — открыть просмотр">
+      <div class="g-thumb" aria-hidden="true">
+        <div class="ph-img ph-landscape"></div>
+        <span class="fmt-badge">jpeg</span>
       </div>
       <div class="g-card-body">
         <h3 class="g-card-title">Кухня после ремонта</h3>
@@ -447,9 +478,10 @@ kbd {
       </div>
     </a>
 
-    <a href="#" class="g-card" aria-label="План участка — открыть просмотр">
-      <div class="g-thumb ph-3" aria-hidden="true">
-        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+    <a href="#" class="g-card" aria-label="План участка (формат png) — открыть просмотр">
+      <div class="g-thumb" aria-hidden="true">
+        <div class="ph-img ph-portrait"></div>
+        <span class="fmt-badge">png</span>
       </div>
       <div class="g-card-body">
         <h3 class="g-card-title">План участка</h3>
@@ -475,9 +507,10 @@ kbd {
       </div>
     </a>
 
-    <a href="#" class="g-card" aria-label="Смета на материалы — открыть просмотр">
-      <div class="g-thumb ph-1" aria-hidden="true">
-        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+    <a href="#" class="g-card" aria-label="Смета на материалы (формат jpeg) — открыть просмотр">
+      <div class="g-thumb" aria-hidden="true">
+        <div class="ph-img ph-portrait"></div>
+        <span class="fmt-badge">jpeg</span>
       </div>
       <div class="g-card-body">
         <h3 class="g-card-title">Смета на материалы (фото стр. 1)</h3>
@@ -503,9 +536,10 @@ kbd {
       </div>
     </a>
 
-    <a href="#" class="g-card" aria-label="Рецепт борща — открыть просмотр">
-      <div class="g-thumb ph-4" aria-hidden="true">
-        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+    <a href="#" class="g-card" aria-label="Рецепт борща (формат png) — открыть просмотр">
+      <div class="g-thumb" aria-hidden="true">
+        <div class="ph-img ph-square"></div>
+        <span class="fmt-badge">png</span>
       </div>
       <div class="g-card-body">
         <h3 class="g-card-title">Рецепт борща</h3>
@@ -530,9 +564,10 @@ kbd {
       </div>
     </a>
 
-    <a href="#" class="g-card" aria-label="Гостиная, черновик — открыть просмотр">
-      <div class="g-thumb ph-5" aria-hidden="true">
-        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+    <a href="#" class="g-card" aria-label="Гостиная (формат webp), черновик — открыть просмотр">
+      <div class="g-thumb" aria-hidden="true">
+        <div class="ph-img ph-standard"></div>
+        <span class="fmt-badge">webp</span>
       </div>
       <div class="g-card-body">
         <h3 class="g-card-title">Гостиная, черновик расстановки</h3>
@@ -558,9 +593,10 @@ kbd {
       </div>
     </a>
 
-    <a href="#" class="g-card" aria-label="Теплица, схема — открыть просмотр">
-      <div class="g-thumb ph-2" aria-hidden="true">
-        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+    <a href="#" class="g-card" aria-label="Теплица (формат gif), схема — открыть просмотр">
+      <div class="g-thumb" aria-hidden="true">
+        <div class="ph-img ph-standard"></div>
+        <span class="fmt-badge">gif</span>
       </div>
       <div class="g-card-body">
         <h3 class="g-card-title">Теплица, схема</h3>
@@ -585,9 +621,10 @@ kbd {
       </div>
     </a>
 
-    <a href="#" class="g-card" aria-label="Чек крепеж — открыть просмотр">
-      <div class="g-thumb ph-1" aria-hidden="true">
-        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+    <a href="#" class="g-card" aria-label="Чек крепеж (формат jpeg) — открыть просмотр">
+      <div class="g-thumb" aria-hidden="true">
+        <div class="ph-img ph-portrait"></div>
+        <span class="fmt-badge">jpeg</span>
       </div>
       <div class="g-card-body">
         <h3 class="g-card-title">Чек: крепеж и уголки</h3>
@@ -613,9 +650,10 @@ kbd {
       </div>
     </a>
 
-    <a href="#" class="g-card" aria-label="Сырники, результат — открыть просмотр">
-      <div class="g-thumb ph-4" aria-hidden="true">
-        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+    <a href="#" class="g-card" aria-label="Сырники (формат webp), результат — открыть просмотр">
+      <div class="g-thumb" aria-hidden="true">
+        <div class="ph-img ph-square"></div>
+        <span class="fmt-badge">webp</span>
       </div>
       <div class="g-card-body">
         <h3 class="g-card-title">Сырники, результат</h3>
@@ -655,7 +693,7 @@ kbd {
     </p>
     <div class="gallery-grid">
       <a href="#" class="g-card demo-force-hover" tabindex="-1" aria-hidden="true">
-        <div class="g-thumb ph-2"><svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+        <div class="g-thumb"><div class="ph-img ph-landscape"></div><span class="fmt-badge">jpeg</span></div>
         <div class="g-card-body">
           <h3 class="g-card-title">hover: подъем + тень + акцент заголовка</h3>
           <div class="g-card-tags"><span class="task-category">Интерьеры</span></div>
@@ -663,7 +701,7 @@ kbd {
         </div>
       </a>
       <a href="#" class="g-card demo-force-focus" tabindex="-1" aria-hidden="true">
-        <div class="g-thumb ph-3"><svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+        <div class="g-thumb"><div class="ph-img ph-portrait"></div><span class="fmt-badge">png</span></div>
         <div class="g-card-body">
           <h3 class="g-card-title">focus-visible: focus-ring (клавиатура)</h3>
           <div class="g-card-tags"><span class="task-category">Участок</span></div>
@@ -671,7 +709,7 @@ kbd {
         </div>
       </a>
       <a href="#" class="g-card demo-force-active" tabindex="-1" aria-hidden="true">
-        <div class="g-thumb ph-1"><svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+        <div class="g-thumb"><div class="ph-img ph-square"></div><span class="fmt-badge">webp</span></div>
         <div class="g-card-body">
           <h3 class="g-card-title">active: нажатие (возврат на место)</h3>
           <div class="g-card-tags"><span class="task-category">Документы</span></div>
