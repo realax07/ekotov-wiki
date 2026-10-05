@@ -95,3 +95,5 @@
 - [04:42 UTC] ПМ: gate finish 14f93497 returned (OUT_OF_ZONE релизного журнала); сессии закрыты синхронно; вотчдог run2 exit=0
 - [04:55 UTC] ПМ: [x] 1.1 закрыта (approve 005-1.1); попытка закрыть 1.2 до approve — DENY INVALID_GATE машиной («история не переписывается»), чекбокс откачен честно
 - [04:57 UTC] ПМ → code_reviewer (deleg_edb7a5de, gate 24112044): ре-ревью №6 фикс-диффа cb5e65b (1.2-g/h) → review-006-1.2.md
+- [06:05 UTC] code_reviewer → ПМ: review-006-1.2 approve (репликация 4 сценария, регрессий нет); ПМ: мета вписана, [x] 1.2 (54213db); flow_check: OK — ЭТАП B закрыт
+- [06:10 UTC] ПМ → QA (deleg_5339bc4c, gate 9ba2c5ec): задача 2.1 — полный регресс (api на стенде + юниты сервисов); DENY ZONE_OUTSIDE_POLICY (test-model/bugs/** vs политики bugs/*) разобран уточнением паттерна
