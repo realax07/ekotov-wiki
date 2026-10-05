@@ -81,9 +81,19 @@ phase_pre() {
     ok "deploy/.env уже есть"
   fi
 
-  # Прод жив и не тронут (контрольная точка):
-  systemctl is-active --quiet ekotov-wiki && ok "systemd-прод: active (не трогаем)" \
-    || fail "systemd-прод ekotov-wiki не active — сначала разберись с продом"
+  # Прод жив и не тронут (контрольная точка). Топология с 2026-10-03: прод
+  # работает КОНТЕЙНЕРНО на 10443 (systemd-юнит отключен легитимно после
+  # переключения add-containerization) — критерий здоровья: 10443 отвечает
+  # 200. Дополнительно: юнит не должен быть active (иначе два конкурирующих
+  # стека на одной БД).
+  if systemctl is-active --quiet ekotov-wiki 2>/dev/null; then
+    fail "systemd-прод ekotov-wiki ACTIVE — конфликт топологии (ожидаем контейнерный прод); останови юнит или разберись до параллели"
+  fi
+  ok "systemd-юнит: inactive (норма — прод контейнерный с 2026-10-03)"
+  local prod_code
+  prod_code="$(curl -sk -o /dev/null -w '%{http_code}' 'https://127.0.0.1:10443/login' || true)"
+  [[ "${prod_code}" == "200" ]] && ok "контейнерный прод :10443/login: 200 (не трогаем)" \
+    || fail "контейнерный прод :10443 не отвечает (${prod_code:-нет связи}) — сначала прод"
   echo
   log "предусловия выполнены. Дальше: bash $0 full"
 }
@@ -195,10 +205,13 @@ phase_smoke() {
   echo "${hdr}" | grep -qi '^HTTP.* 200' && ok "поиск: 200" || { echo "${hdr}" | head -3; fail "поиск"; }
   echo "${hdr}" | grep -qi '^x-service: *search' && ok "X-Service: search" || { echo "${hdr}" | head -8; fail "X-Service отсутствует"; }
 
-  log "  прод НЕ ТРОНУТ — контрольная точка"
-  systemctl is-active --quiet ekotov-wiki && ok "systemd-прод: active" || fail "systemd-прод НЕ active!"
+  log "  прод НЕ ТРОНУТ — контрольная точка (контейнерный прод на 10443)"
   code="$(curl -sk -o /dev/null -w '%{http_code}' 'https://127.0.0.1:10443/login' 2>/dev/null || true)"
   [[ "${code}" == "200" ]] && ok "прод :10443/login: 200" || fail "прод :10443 не отвечает: ${code}"
+  if systemctl is-active --quiet ekotov-wiki 2>/dev/null; then
+    fail "systemd-юнит стал ACTIVE во время параллели — конфликт двух стеков"
+  fi
+  ok "systemd-юнит: inactive (норма)"
 
   echo
   log "СМОУК ПРОЙДЕН. Приемка браузером: https://194.58.34.122:${NGINX_PORT}"
