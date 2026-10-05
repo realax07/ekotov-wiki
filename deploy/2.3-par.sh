@@ -202,7 +202,10 @@ phase_smoke() {
   [[ "${code}" == "200" ]] && ok "статика: 200" || fail "статика: ${code}"
 
   hdr="$(curl -sk -D - -o /tmp/s23-search.json 'https://127.0.0.1:10444/api/search?q=')"
-  echo "${hdr}" | grep -qi '^HTTP.* 200' && ok "поиск: 200" || { echo "${hdr}" | head -3; fail "поиск"; }
+  # Критерий — по деплой-смоку (deploy.sh _search_smoke): маршрутизация
+  # доказана кодом 200/401/422 ОТ SEARCH + заголовком X-Service (401 = search
+  # ответил без сессии — его middleware, контракт sdd §3.5; 502/503 = FAIL).
+  echo "${hdr}" | grep -qi '^HTTP.* \(200\|401\|422\)' && ok "поиск: ответ от search (200/401/422)" || { echo "${hdr}" | head -3; fail "поиск: НЕ ответ search (502/503/таймаут = маршрутизация сломана)"; }
   echo "${hdr}" | grep -qi '^x-service: *search' && ok "X-Service: search" || { echo "${hdr}" | head -8; fail "X-Service отсутствует"; }
 
   log "  прод НЕ ТРОНУТ — контрольная точка (контейнерный прод на 10443)"
