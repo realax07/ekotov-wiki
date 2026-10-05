@@ -13,13 +13,25 @@
 |---|---|---|
 | `tests/api` + `tests/test_walkthrough_probe.py` (212 тестов, маршрутизированный стенд) | **201 passed, 9 skipped, 2 xfailed, 0 failed, 0 errors** | 114 c |
 | `services/search/tests/` (TestClient, без стенда) | **12 passed, 0 failed**, 1 warning (deprecation `ast.Str`) | 1.3 c |
+| `tests/web` (Playwright, маршрутизированный стенд nginx :18443 → app:8080 + search:8378) — **дополнение фикс-цикла F-1 (review-007)** | **165 passed, 0 failed, 1 skipped** (фикс изоляции `test_search_r4_ui` — REPORT-fix-21-F1.md) | ~6.5 мин |
 | `pytest tests/` (совместный сбор api+web+probe) | **1 error на КОЛЛЕКЦИИ** → BUG-006 (pytest 8+ hard error на `pytest_plugins` в tests/web/conftest.py:47) | — |
 | services/backup, services/auth | тестов в репозитории нет (backup-логика верифицируется репликацией `main()` — REPORT-fix-12g; auth не выделяется по плану §1.2) | — |
 
 Состав skip в api-сьюте (проверено составом, не env): 2 × manual-рестарт НФТ
-(TC-tasks-015/016), 1 × bcrypt-БД НФТ, UI-fastline/web_ui-skip, TC-sel-102
-(manual-запрет автоматизации) — ожидаемые по tests/README.md. xfailed —
-BUG-002 (strict; XPASS не зафиксирован).
+(TC-tasks-015/016), 1 × bcrypt-БД НФТ, 6 × UI/web_ui-skip (categories 3,
+fastline 2, fast2 1) — ожидаемые по tests/README.md. **Исправление F-3**
+(review-007): TC-sel-102 (manual-запрет автоматизации) в api-сьют НЕ входил —
+тест находится в tests/web (`tests/web/test_r3_selects_ui.py:67`,
+`test_sel_102_manual_customer_production_session`), в api-прогоне не собирался.
+
+**Исправление F-2** (review-007): оба xfailed — **BUG-003** (empty-name
+validation body format, `test-model/bugs/BUG-003-empty-name-validation-body-format.md`):
+`tests/api/test_categories.py:165` (`test_category_empty_name_rejected_422`,
+TC-cat-008) и `tests/api/test_categories.py:189`
+(`test_category_empty_name_422_sdd_body`), reason обоих — «каркас FastAPI
+отвечает validation error вместо sdd validation — BUG-003». BUG-002
+(fast priority=null) — снятый ранее xfail (TC-fast2-004), в текущем сьюте
+меток xfail не имеет; XPASS не зафиксирован.
 
 Логи: `/tmp/pytest-api-final.log`, `/tmp/pytest-search.log` (вне репо).
 
@@ -66,6 +78,25 @@ BUG-002 (strict; XPASS не зафиксирован).
   иначе режутся 413 до валидации app; прод-лимит «исходник ≤ 2 MiB» обеспечивает
   `MAX_AVATAR_BYTES` в app, что и проверяют кейсы); TLS не терминировался
   (self-signed ронял штатный health-poll conftest; на семантику тестов не влияет).
+- **Исправление F-4** (review-007): задекларированное третье отличие стенда —
+  `proxy_read_timeout 5s` в `/tmp/nginx-qa/nginx-qa.conf` против **30s**
+  в продукте (`services/frontend/nginx/ekotov-wiki.conf:47`; значение 5s —
+  сознательно, чтобы SIGSTOP-нутый uvicorn успел принять RST быстрее
+  клиентского curl-таймаута 10s). Следствие: вывод §3 о деградации
+  («не клиентский таймаут») валиден ТОЛЬКО для сценария «stop search»
+  (connection refused → proxy_next_upstream error → быстрый 503); для
+  сценария «зависший search» (SIGSTOP, медленный ответ) прод-таймаут 30s
+  дает иную динамику (5s vs 30s до 504). Прод-parитет read-timeout —
+  на стенд-матрицу 2.2 / прод-параллель 2.3.
+- **Дефект локального /tmp-стенда (первый массово-красный web-прогон, НЕ
+  продукт):** в `/tmp/nginx-qa/nginx-qa.conf` отсутствовал
+  `include /etc/nginx/mime.types` — nginx отдавал ВСЮ статику как
+  `text/plain`; браузер отбрасывает ES-модули с неверным MIME
+  (strict MIME checking), `board-init.js` не исполнялся,
+  `#board data-loaded` не выставлялся → ~50% web-сьюта красный.
+  Исправлено в /tmp-конфиге (include добавлен), повторный прогон — штатный.
+  Продуктовый образ не затронут: базовый образ nginx-unprivileged несет
+  mime.types, статика в нем отдается корректно.
 - compose-стенд deploy/compose.test.yaml НЕ поднимался: docker недоступен
   под текущим пользователем (см. §5). Прод-parитет TLS/X-Service/limits
   образа остается на стенд-матрицу 2.2 / прод-параллель 2.3.
@@ -87,8 +118,9 @@ search-сервиса на :8378. Новых продуктовых дефект
 
 1. docker/`compose.test.yaml` — не проверялись (права); компенсация —
    nginx-контур §3 + задачa 2.2 (стенд-матрица) и 2.3 (прод-параллель).
-2. web-сьют (playwright) в этой сессии не гонялся — вне делегированного
-   скопа стенда; `pytest tests/` до исправления BUG-006 всё равно не собирается.
+2. **Устранено фикс-циклом (review-007 F-1):** web-сьют прогнан на
+   маршрутизированном стенде — 165p/0f/1s (таблица §1; детали —
+   `tests/REPORT-fix-21-F1.md`).
 3. Стенды search/app в docker-профиле (ro-маунт тома, USER 10001, mem_limit)
    не воспроизводились — RO-инварианты покрыты юнит-сьютом сервиса
    (TC-211…214, включая immutable=1-fallback на ro-каталоге).

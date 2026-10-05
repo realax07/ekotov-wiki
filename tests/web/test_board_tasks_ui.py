@@ -46,7 +46,10 @@ def test_modals_hidden_on_board_load(page, web_base_url, board_page, web_cleanup
     detail_id = _card_task_id(card)
     web_cleanup_created(detail_id)
     card.click()
-    expect(board_page.get_by_role("heading", name="Модалки-фон")).to_be_visible()
+    # Локатор скоуплен на #task-detail-overlay: карточка на доске — тоже
+    # heading с тем же именем, голый get_by_role дает strict violation.
+    expect(board_page.locator("#task-detail-overlay").get_by_role(
+        "heading", name="Модалки-фон")).to_be_visible()
     board_page.get_by_role("button", name="Закрыть", exact=True).click()
     expect(board_page.locator("#task-detail-overlay")).to_be_hidden()
 
