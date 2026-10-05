@@ -2,7 +2,7 @@
 
 - **Дата:** 2026-10-05
 - **Ревьюер:** независимый code_reviewer (auto-edit, итерация review-003)
-- **Reviewer-Delegation: deleg-14246228188a432f**
+- **Reviewer-Delegation: deleg_2f73124b**
 - **Correlation:** 14246228188a432fa149edce6bfffead
 - **Диф:** `9c8a7f7` (qa(2.1): tests/web/test_qa21_netdata_sidebar_ui.py +200, tests/REPORT-2.1-netdata-qa.md +193, test-model/reviews/add-netdata-monitoring/review-001-design.md +40, test-model/bugs/BUG-007… +37). Контекст (без ревью): `[pipeline]` 35a943d (меты Reviewer-Delegation), f0bc6a5 (TC-ADD-201..206 + трассировка-строка в тесте).
 - **Арбитры:** дельта specs/navigation (FR-78, 4 Scenario), requirements.md FR-76/77/78 + NFR-19, design.md §0/§2/§3, tasks.md 2.1, agents/code_reviewer_agent.md, tests/README.md

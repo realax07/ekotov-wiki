@@ -1,8 +1,8 @@
 # Ревью test-модели: add-netdata-monitoring (impact, чеклист, approved-кейсы)
 
 - **Дата:** 2026-10-05
-- **Ревьюер:** независимый code_reviewer (review-003-2.1, deleg-14246228188a432f — содержательная верификация REPORT-2.1, тест-файла и трассировок, вердикт approve 5ddd133) + ПМ-проход оформления по прецеденту R6 (ccacc7b: машина не проводит qa_review поверх approved/ без new/ — DENY зафиксирован в релизном журнале)
-- **Reviewer-Delegation:** deleg-14246228188a432f
+- **Ревьюер:** независимый code_reviewer (review-003-2.1, deleg_2f73124b — содержательная верификация REPORT-2.1, тест-файла и трассировок, вердикт approve 5ddd133) + ПМ-проход оформления по прецеденту R6 (ccacc7b: машина не проводит qa_review поверх approved/ без new/ — DENY зафиксирован в релизном журнале)
+- **Reviewer-Delegation:** deleg_2f73124b
 - **Предмет:** test-model/impact/add-netdata-monitoring.md, test-model/checklists/add-netdata-monitoring.md, test-model/approved/add-netdata-monitoring/TC-ADD-201…206.md
 
 ## Вердикт: **ОДОБРИТЬ** (6 кейсов, impact + чеклист)
