@@ -2,7 +2,7 @@
 
 - **Дата:** 2026-10-05
 - **Ревьюер:** независимый code_reviewer (auto-edit, итерация review-002)
-- **Reviewer-Delegation:** deleg-54e97c3b731c4e55
+- **Reviewer-Delegation:** deleg_56063e79
 - **Correlation:** 54e97c3b731c4e55b9d65af3470244a7
 - **Диф:** `aeaa447` (deploy/compose.yaml +42, deploy/compose.test.yaml +34; итого +76)
 - **Арбитры:** tasks.md 1.2 (FR-75, NFR-19; NFR-10 паритет), design.md §1/§4/§5, requirements.md дельта monitoring

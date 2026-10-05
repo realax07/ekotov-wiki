@@ -2,7 +2,7 @@
 
 - **Дата:** 2026-10-05
 - **Ревьюер:** независимый code_reviewer (auto-edit, итерация review-001)
-- **Reviewer-Delegation:** deleg-d6364e0360184f23
+- **Reviewer-Delegation:** deleg_b6b65365
 - **Correlation:** d6364e0360184f23a149c909a5bfc639
 - **Диф:** `7abdf12` (frontend/static/js/profile.js +70, frontend/static/css/app.css +41, frontend/static/REPORT-1.4-netdata-link.md)
 - **Арбитры:** specs/navigation дельты (FR-78, 3 Scenario), tasks.md 1.4, design.md §0/§3, утвержденный мокап design/netdata-sidebar-mockup.html + design/netdata-icon.svg (решение Заказчика 2026-10-05, коммит 4099f86), sdd
