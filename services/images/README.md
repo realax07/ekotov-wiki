@@ -26,8 +26,8 @@ env:
 |---|---|
 | `GET /api/health` | 200 `{"status":"ok"}` (exempt, без БД) |
 | `POST /api/images` | multipart (file, category?, tags?) → 201; валидация JPEG/PNG/GIF/WebP по magic-байтам и ≤10 МБ **до записи**; оригинал+превью (JPEG ≤800px) в том, метаданные в БД; 422 — тип/размер/битый файл |
-| `GET /api/images?category=&tag=` | список, created_at DESC, фильтры комбинируются; элемент: метаданные + URL + счетчики + мой голос |
-| `GET /api/images/{id}` | метаданные + реакции + комментарии (автор, время) |
+| `GET /api/images?category=&tag=` | список, created_at DESC, фильтры комбинируются; элемент: метаданные + теги `tags: [имена]` (1.6/Э-3, паритет с detail) + URL + счетчики + мой голос |
+| `GET /api/images/{id}` | метаданные + теги + реакции + комментарии (автор, время) |
 | `PUT/DELETE /api/images/{id}/like` | голос +1 (upsert; повторный — снятие) / явное снятие |
 | `PUT/DELETE /api/images/{id}/dislike` | голос −1 (перенос противоположного) / снятие |
 | `POST /api/images/{id}/comments` | `{body}` → 201; пустой после trim → 422 |

@@ -1,4 +1,4 @@
-"""Юнит-тесты images-сервиса (задача 1.2, add-gallery-service).
+"""Юнит-тесты images-сервиса (задачи 1.2/1.6, add-gallery-service).
 
 По конвенции services/search/tests: TestClient над app.main, БД —
 временная sqlite в фикстуре (EKOTOV_WIKI_DB_PATH на время теста); для
@@ -10,6 +10,10 @@ images дополнительно том файлов — временный к�
 Схема БД — дословно design.md §2 (6 таблиц gallery + users/sessions ядра).
 Миграцию ядра (задача 1.3) тесты не исполняют — таблицы создаются
 фикстурой по той же схеме (сверка — задача 1.3/ревью).
+
+Трассировка: сценарии дельты specs/gallery (FR-79…FR-82); новые проверки
+задачи 1.6 (Э-3, tags в списке) — TC-gal-104/105 (нумерация по образцу
+TC-openapi-203+: TC-ID в docstring юнитов сервиса, 1 сценарий = 1 тест).
 """
 
 import io
@@ -415,7 +419,7 @@ def test_list_order_and_fields(client, seeded_gallery):
     item = body[-1]
     assert set(item.keys()) == {
         "id", "filename", "thumb_name", "original_name", "mime", "size",
-        "uploaded_by", "created_at", "category", "likes", "dislikes",
+        "uploaded_by", "created_at", "category", "tags", "likes", "dislikes",
         "comments", "my_reaction", "url", "thumb_url",
     }
     assert item["category"] == "семья"
@@ -448,6 +452,36 @@ def test_list_shows_my_reaction(client, client2, seeded_gallery):
     theirs = {i["id"]: i["my_reaction"] for i in client2.get("/api/images").json()["images"]}
     assert mine[target] == 1
     assert theirs[target] is None
+
+
+def test_list_includes_tags_of_each_image(client):
+    """TC-gal-104 (1.6, Э-3): список возвращает теги каждого изображения —
+    upload с 2 тегами → элемент списка содержит оба (паритет с detail)."""
+    r = _upload(client, category="семья", tags="лето, дача")
+    assert r.status_code == 201
+    image_id = r.json()["id"]
+    items = client.get("/api/images").json()["images"]
+    assert [i["id"] for i in items] == [image_id]
+    # Порядок тегов — алфавитный (agregat image_tags+gallery_tags).
+    assert items[0]["tags"] == ["дача", "лето"]
+    # Паритет с detail-ответом (тот же SELECT).
+    detail = client.get(f"/api/images/{image_id}").json()
+    assert detail["tags"] == items[0]["tags"]
+    # Фильтр по одному из тегов не меняет состав поля tags.
+    r = client.get("/api/images", params={"tag": "лето"})
+    assert r.json()["images"][0]["tags"] == ["дача", "лето"]
+
+
+def test_list_tags_empty_when_no_tags(client):
+    """TC-gal-105 (1.6, Э-3): изображение без тегов — tags: [] в списке
+    (пустой массив, не null/отсутствующее поле) — и в detail."""
+    r = _upload(client)
+    assert r.status_code == 201
+    image_id = r.json()["id"]
+    items = client.get("/api/images").json()["images"]
+    assert items[0]["id"] == image_id
+    assert items[0]["tags"] == []
+    assert client.get(f"/api/images/{image_id}").json()["tags"] == []
 
 
 # --------------------------------------------------------------------------

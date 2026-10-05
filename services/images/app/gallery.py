@@ -4,8 +4,9 @@
 дельта specs/gallery (FR-79…FR-82, NFR-21). Пути и коды ошибок:
 
 - POST   /api/images                      — загрузка (multipart); 422 тип/размер
-- GET    /api/images?category=&tag=       — список, created_at DESC, счетчики + мой голос
-- GET    /api/images/{id}                 — метаданные + реакции + комментарии
+- GET    /api/images?category=&tag=       — список, created_at DESC, теги,
+                                           счетчики + мой голос (1.6, Э-3)
+- GET    /api/images/{id}                 — метаданные + теги + реакции + комментарии
 - PUT    /api/images/{id}/like            — голос +1 (upsert; повторное — снятие)
 - DELETE /api/images/{id}/like            — снятие голоса
 - PUT    /api/images/{id}/dislike         — голос −1 (перенос противоположного)
@@ -222,11 +223,20 @@ def _resolve_tag(conn: sqlite3.Connection, name: str) -> int:
 # Список / получение (FR-80)
 # --------------------------------------------------------------------------
 
-# SQL общего элемента списка: метаданные + URL превью + счетчики + мой голос.
+# SQL общего элемента списка: метаданные + URL превью + счетчики + мой голос
+# + теги (Э-3/задача 1.6: поле tags в списке, паритет с detail-ответом —
+# SELECT общий для list и detail). Теги — агрегат image_tags+gallery_tags,
+# имена через ',' в порядке алфавита (group_concat в скалярном подзапросе
+# с ORDER BY); разделитель ',' безопасен: имена тегов не могут содержать
+# запятую — ввод формы режется по запятым (tags «a,b» → два тега).
 _LIST_SELECT = """
 SELECT i.id, i.filename, i.thumb_name, i.original_name, i.mime, i.size,
        i.uploaded_by, i.created_at,
        c.name AS category,
+       (SELECT group_concat(name, ',') FROM
+          (SELECT g.name FROM image_tags it
+             JOIN gallery_tags g ON g.id = it.tag_id
+            WHERE it.image_id = i.id ORDER BY g.name)) AS tags_csv,
        (SELECT count(*) FROM image_reactions r
          WHERE r.image_id = i.id AND r.value = 1) AS likes,
        (SELECT count(*) FROM image_reactions r
@@ -243,6 +253,8 @@ def _serialize_list_row(row: sqlite3.Row) -> dict:
     d = dict(row)
     d["url"] = f"/images/{d['filename']}"
     d["thumb_url"] = f"/images/{d['thumb_name']}"
+    # tags_csv → tags: [имена]; без тегов (NULL от group_concat) → [].
+    d["tags"] = d.pop("tags_csv").split(",") if d["tags_csv"] else []
     d["my_reaction"] = d.pop("my_reaction")  # 1 / -1 / None
     return d
 

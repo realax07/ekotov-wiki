@@ -7,11 +7,11 @@
  * Данные — API images-сервиса (истина — services/images/app/gallery.py):
  * - GET    /api/images?category=<ИМЯ>&tag=<имя> — список (created_at DESC):
  *          {id, filename, thumb_name, original_name, mime, size,
- *          uploaded_by, created_at, category, likes, dislikes, comments,
- *          my_reaction, url, thumb_url}. ВНИМАНИЕ: теги в списке НЕ
- *          возвращаются (расхождение мокапа с API зафиксировано в отчете
- *          1.5 — на карточке рисуется только категория);
- * - GET    /api/images/{id} — метаданные + реакции + комментарии
+ *          uploaded_by, created_at, category, tags, likes, dislikes,
+ *          comments, my_reaction, url, thumb_url}; tags — [имена] из
+ *          агрегата image_tags+gallery_tags (задача 1.6, Э-3: паритет
+ *          с detail-ответом; пилюли тегов на карточке — мокап 1.1);
+ * - GET    /api/images/{id} — метаданные + теги + реакции + комментарии
  *          ({id, body, created_at, user_id, author});
  * - POST   /api/images (multipart: file, category?, tags?) — 201; 422
  *          {error, details} — текст показывается в форме (NFR-21);
@@ -21,10 +21,9 @@
  * - DELETE /api/images/{id}/comments/{cid} — только автор (чужой → 403).
  *
  * «Свой комментарий» (кнопка «удалить» — только у своих): автор в ответе —
- * display_name/логин (COALESCE), «свой» определяется по user_id через
- * мост GET /api/users (id → login) + GET /api/auth/me (мой login).
- * Прямого «моего id» API ядра не отдает — состав /api/auth/me не
- * расширялся (зона задачи 1.5 — фронтенд, бэкенд-API не трогаем).
+ * display_name/логин (COALESCE), «свой» определяется прямым сравнением
+ * comment.user_id === me.id из GET /api/auth/me (задача 1.6, Э-4: ядро
+ * добавило id в состав /me; мост GET /api/users демонтирован).
  *
  * Фильтр category — по ИМЕНИ (эскалация Э-2 ревьюера 1.2 принята):
  * селекты фильтров и формы заполняются из фактических данных списка.
@@ -46,9 +45,8 @@
 var state = {
   images: [],          // текущая отфильтрованная выдача (для листания)
   categories: [],      // фактические имена категорий (из данных)
-  tags: [],            // фактические имена тегов — из детального GET (Э-3)
-  me: null,            // {user, ...} из /api/auth/me
-  usersById: {},       // id → login (мост «свой комментарий»)
+  tags: [],            // фактические имена тегов — из поля tags списка (Э-3)
+  me: null,            // {id, user, ...} из /api/auth/me (id — Э-4/1.6)
   lightboxIndex: -1,   // позиция в state.images
   triggerCard: null,   // карточка-триггер (возврат фокуса)
   uploadFile: null,    // выбранный в форме файл
@@ -177,27 +175,6 @@ function fetchMe() {
     });
 }
 
-function fetchUsers() {
-  /* Мост «свой комментарий»: id → login (состав /api/users — sdd). */
-  return fetch("/api/users", { credentials: "same-origin" })
-    .then(function (response) {
-      if (!response.ok) {
-        return null;
-      }
-      return parseBody(response);
-    })
-    .then(function (body) {
-      var map = {};
-      (body && body.users ? body.users : []).forEach(function (u) {
-        map[u.id] = u.login;
-      });
-      state.usersById = map;
-    })
-    .catch(function () {
-      state.usersById = {};
-    });
-}
-
 function fetchImages() {
   var category = document.getElementById("filter-category").value;
   var tag = document.getElementById("filter-tag").value;
@@ -226,8 +203,8 @@ function fetchImages() {
       state.images = Array.isArray(result.body && result.body.images)
         ? result.body.images
         : [];
-      collectFacets();
-      fillFilterOptions(); // опции категорий — из фактических данных (Э-2)
+      collectFacets();       // категории + теги — из фактических данных (Э-2/Э-3)
+      fillFilterOptions();   // опции категорий — из фактических данных (Э-2)
       renderGrid();
     })
     .catch(function () {
@@ -235,27 +212,34 @@ function fetchImages() {
     });
 }
 
-/* Факты для селектов (Э-2: фильтр category по ИМЕНИ — значения из
- * фактических данных, не из фантазии; теги — из детальных ответов,
- * см. Э-3 в отчете: список API тегов не возвращает). */
+/* Факты для селектов и пилюль (Э-2: фильтр category по ИМЕНИ — значения из
+ * фактических данных; Э-3/1.6: теги теперь приходят в поле tags списка —
+ * словарь тегов фильтра наполняется сразу, не по мере открытий лайтбокса). */
 function collectFacets() {
   var categories = {};
   state.images.forEach(function (img) {
     if (img.category) {
       categories[img.category] = true;
     }
+    if (Array.isArray(img.tags)) {
+      img.tags.forEach(function (name) {
+        if (name && state.tags.indexOf(name) === -1) {
+          state.tags.push(name);
+        }
+      });
+    }
   });
   state.categories = Object.keys(categories).sort(function (a, b) {
     return a.localeCompare(b, "ru");
   });
+  state.tags.sort(function (a, b) {
+    return a.localeCompare(b, "ru");
+  });
 }
 
-function loadTagFacets() {
-  /* Теги для фильтра/подсказок: GET /api/images/{id} тегов тоже не
-   * возвращает — словарь тегов соберем из детальных ответов постепенно
-   * (при открытии лайтбокса) + из отправленных пользователем в форме.
-   * До накопления фильтр по тегу — ручной ввод значения недопустим
-   * (селект), поэтому без данных показывается только «Все теги» (Э-3). */
+function refreshFiltersFromData() {
+  fillFilterOptions();
+  fillTagFilterOptions(); // опции тегов — из поля tags списка (Э-3 закрыт)
 }
 
 /* ---------------------------------------------------------------------
@@ -328,8 +312,13 @@ function buildCard(img, index) {
   if (img.category) {
     tagsRow.appendChild(el("span", "task-category", img.category));
   }
-  /* Теги на карточке НЕ рисуются: список API их не возвращает
-   * (расхождение мокапа vs API — отчет 1.5, Э-3). */
+  /* Пилюли тегов — по мокапу 1.1 (design/gallery-grid.html); tags приходят
+   * в элементе списка (задача 1.6, Э-3 — паритет с detail-ответом). */
+  if (Array.isArray(img.tags)) {
+    img.tags.forEach(function (name) {
+      tagsRow.appendChild(el("span", "task-tag", name));
+    });
+  }
   body.appendChild(tagsRow);
 
   var stats = el("div", "g-card-stats");
@@ -403,18 +392,12 @@ function fillFilterOptions() {
 
 function refreshFiltersFromData() {
   fillFilterOptions();
-  /* Теги — Э-3: API тегов не возвращает; селект тегов заполняется по
-   * мере накопления известных тегов (см. appendKnownTag). */
+  fillTagFilterOptions(); // опции тегов — из поля tags списка (Э-3 закрыт)
 }
 
-function appendKnownTag(name) {
-  if (!name || state.tags.indexOf(name) !== -1) {
-    return;
-  }
-  state.tags.push(name);
-  state.tags.sort(function (a, b) {
-    return a.localeCompare(b, "ru");
-  });
+/* Селект тегов: пересборка с сохранением выбора (общая для первичного
+ * наполнения из списка и точечных добавлений appendKnownTag). */
+function fillTagFilterOptions() {
   var select = document.getElementById("filter-tag");
   var current = select.value;
   select.textContent = "";
@@ -427,6 +410,17 @@ function appendKnownTag(name) {
   if (current && state.tags.indexOf(current) !== -1) {
     select.value = current;
   }
+}
+
+function appendKnownTag(name) {
+  if (!name || state.tags.indexOf(name) !== -1) {
+    return;
+  }
+  state.tags.push(name);
+  state.tags.sort(function (a, b) {
+    return a.localeCompare(b, "ru");
+  });
+  fillTagFilterOptions();
 }
 
 function bindFilters() {
@@ -505,18 +499,22 @@ function loadLightboxImage(index) {
   elems.image.alt = title;
   elems.counterPos.textContent = (index + 1) + " / " + state.images.length;
 
-  /* Мета: категория + дата + загрузивший (uploaded_by → login через мост). */
+  /* Мета: категория + теги (пилюли — мокап gallery-lightbox.html) + дата.
+   * Загрузивший НЕ показывается: uploaded_by — числовой id, резолвить его
+   * в логин без моста /api/users нечем (мост демонтирован, Э-4/1.6);
+   * авторство видно по комментариям (author резолвит сам сервис). */
   elems.meta.textContent = "";
   if (img.category) {
     elems.meta.appendChild(el("span", "task-category", img.category));
   }
-  var uploader = state.usersById[img.uploaded_by];
+  if (Array.isArray(img.tags)) {
+    img.tags.forEach(function (name) {
+      elems.meta.appendChild(el("span", "task-tag", name));
+    });
+  }
   var metaParts = [];
   if (img.created_at) {
     metaParts.push("загружено " + formatDate(img.created_at));
-  }
-  if (uploader) {
-    metaParts.push(uploader);
   }
   if (metaParts.length > 0) {
     elems.meta.appendChild(el("span", null, "· " + metaParts.join(", ")));
@@ -657,11 +655,10 @@ function navigateLightbox(delta) {
 /* --- Комментарии (FR-82): список / добавление / удаление своего --- */
 
 function isMyComment(comment) {
-  if (!state.me || !state.me.user) {
-    return false;
-  }
-  var authorLogin = state.usersById[comment.user_id];
-  return authorLogin === state.me.user;
+  /* Прямое сравнение по me.id (Э-4/1.6: ядро добавило id в /api/auth/me;
+   * мост /api/users демонтирован). */
+  return Boolean(state.me && state.me.id != null) &&
+    Number(comment.user_id) === Number(state.me.id);
 }
 
 function renderComments(comments) {
@@ -1157,11 +1154,9 @@ function init() {
   bindLightbox();
   bindUpload();
 
-  Promise.all([fetchMe(), fetchUsers()])
-    .then(fetchImages)
-    .catch(function () {
-      showGalleryError("Не удалось загрузить галерею.");
-    });
+  fetchMe().then(fetchImages).catch(function () {
+    showGalleryError("Не удалось загрузить галерею.");
+  });
 }
 
 init();
