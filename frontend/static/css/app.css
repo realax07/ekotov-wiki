@@ -121,6 +121,23 @@ body.app-shell {
   box-shadow: inset var(--focus-ring);
 }
 
+/* 1.5 add-gallery-service (FR-85; мокап design/gallery-grid.html): пункт
+ * «Галерея» — с inline-SVG иконкой 16px; flex-ряд с зазором 8px
+ * (--space-1), геометрия/цвета прежних .nav-item не меняются
+ * (соседние пункты без иконки выглядят как прежде — flex сам по себе
+ * не меняет блок из одного текста). */
+.nav-item-gallery {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.nav-item-gallery .nav-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
 .todo-badge {
   display: inline-block;
   margin-left: 6px;
