@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап 1.1б — страница-переход на Netdata</title>
+<style>
+/* =====================================================================
+   Мокап задачи 1.1 [design] add-netdata-monitoring: страница-переход на
+   Netdata (промпт-экран «Дашборд откроется в новой вкладке» + приглашение
+   к basic auth браузера). Токены V3 «Бумага» из app.css :root.
+   Без внешних зависимостей (ОГР-8).
+   ===================================================================== */
+:root {
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;
+  --p-clay-700: #93391f;
+  --p-clay-050: #f7e8e4;
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-border-default: var(--p-paper-200);
+  --color-accent: var(--p-clay-600);
+  --color-accent-hover: var(--p-clay-700);
+  --color-accent-soft: var(--p-clay-050);
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --radius-field: 6px;
+  --radius-card: 10px;
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+  --shadow-modal: 0 16px 40px rgba(61, 54, 48, 0.18);
+  --speed-fast: 160ms;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+}
+
+/* --- служебная обвязка мокапа (не часть продукта) --- */
+.demo-note { font-family: var(--font-family-display); font-size: 18px; margin: var(--space-3); color: var(--p-clay-700); max-width: 760px; }
+.demo-hint { font-size: var(--font-size-micro); color: var(--color-text-secondary); max-width: 480px; margin: var(--space-1) var(--space-3); }
+.board { display: flex; gap: var(--space-4); padding: var(--space-3); flex-wrap: wrap; align-items: flex-start; }
+.demo-col { display: flex; flex-direction: column; }
+.demo-label { font-size: var(--font-size-label); color: var(--color-text-secondary); margin-bottom: var(--space-1); }
+
+/* каркас страницы wiki: сайдбар + content, как в base.html */
+.app-shell { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 200px; flex-shrink: 0;
+  background: var(--p-ink-900);
+  color: var(--p-paper-050);
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: var(--space-2) 0;
+}
+.nav-item {
+  display: flex; align-items: center; gap: var(--space-1);
+  padding: 10px 20px; color: var(--p-paper-050);
+  text-decoration: none; opacity: 0.85;
+}
+.nav-item.active { background: var(--color-accent); opacity: 1; font-weight: bold; }
+.nav-item-monitoring { opacity: 1; }
+.nav-item-monitoring .nav-icon { width: 16px; height: 16px; }
+.sidebar-footer { padding: 0 20px; }
+.content { flex: 1; padding: var(--space-4); }
+
+/* =====================================================================
+   ДЕЛЬТА 1.1б: карточка-переход «Мониторинг».
+   По умолчанию (design §3) ссылка в сайдбаре ведет на /netdata/ напрямую
+   (target=_blank) — отдельной страницы в продукте НЕТ. Мокап фиксирует
+   вид страховочного промпт-экрана: модальная карточка поверх wiki,
+   если Заказчик выберет вариант с подтверждением кликом.
+   ===================================================================== */
+.transition-card {
+  max-width: 480px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-4);
+}
+.transition-card h1 {
+  font-family: var(--font-family-display);
+  font-size: 24px;
+  margin: 0 0 var(--space-2);
+  color: var(--p-ink-900);
+}
+.transition-card p { margin: 0 0 var(--space-2); line-height: 1.5; }
+.transition-card .muted { color: var(--color-text-secondary); font-size: var(--font-size-label); }
+.transition-card code {
+  background: var(--p-paper-100); padding: 1px 6px;
+  border-radius: var(--radius-field); font-size: var(--font-size-label);
+}
+.open-btn {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding: 10px var(--space-3);
+  background: var(--color-accent);
+  color: #fff;
+  border: none; border-radius: var(--radius-field);
+  font: inherit; font-weight: bold;
+  cursor: pointer;
+}
+.open-btn:hover { background: var(--color-accent-hover); }
+.open-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.open-btn:active { transform: translateY(1px); }
+.open-btn svg { width: 16px; height: 16px; }
+.cancel-btn {
+  display: inline-flex; align-items: center;
+  margin-top: var(--space-2); margin-left: var(--space-1);
+  padding: 10px var(--space-3);
+  background: transparent;
+  color: var(--color-text-primary);
+  border: 1px solid var(--p-paper-200);
+  border-radius: var(--radius-field);
+  font: inherit; cursor: pointer;
+}
+.cancel-btn:hover { background: var(--p-paper-100); }
+.cancel-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* тот же контент без модальной тени (вариант B) */
+.transition-flat {
+  max-width: 480px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-soft);
+}
+.transition-flat h1 { font-family: var(--font-family-display); font-size: 24px; margin: 0 0 var(--space-2); }
+.transition-flat p { margin: 0 0 var(--space-2); line-height: 1.5; }
+.transition-flat .muted { color: var(--color-text-secondary); font-size: var(--font-size-label); }
+.transition-flat code { background: var(--p-paper-100); padding: 1px 6px; border-radius: var(--radius-field); font-size: var(--font-size-label); }
+
+/* имитация системного basic-auth-приглашения браузера */
+.auth-sim {
+  margin-top: var(--space-2);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--p-paper-050);
+  padding: var(--space-2);
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  display: flex; align-items: center; gap: var(--space-2);
+}
+.auth-sim svg { width: 24px; height: 24px; flex-shrink: 0; color: var(--color-text-secondary); }
+</style>
+</head>
+<body>
+<p class="demo-note">Задача 1.1 (б) — страница-переход на Netdata. Вариант А: модальная карточка поверх wiki (клик «Открыть дашборд» открывает /netdata/ в новой вкладке). Вариант B: та же карточка без затемнения. В обоих показана имитация системного basic-auth-приглашения браузера. По умолчанию (design §3) ссылка сайдбара открывает /netdata/ напрямую — этот экран нужен, только если Заказчик выберет вариант с подтверждением.</p>
+
+<div class="board">
+  <!-- ================= ВАРИАНТ А: модальная карточка поверх wiki ================= -->
+  <div class="demo-col">
+    <div class="demo-label">Вариант А — модальная карточка (поверх страницы wiki)</div>
+    <div class="app-shell" style="height: 640px; border: 1px solid var(--p-paper-200); border-radius: var(--radius-card); overflow: hidden; min-height: 640px;">
+      <aside class="sidebar" aria-label="Разделы">
+        <nav>
+          <a href="#" class="nav-item">Доска</a>
+          <a href="#" class="nav-item">Поиск</a>
+          <a href="#" class="nav-item">Wiki</a>
+        </nav>
+        <div class="sidebar-footer">
+          <a href="#" class="nav-item nav-item-monitoring">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <polyline points="2.5 12 7 12 10 5.5 14 18.5 17 12 21.5 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Мониторинг
+          </a>
+          <a href="#" class="nav-item">Настройки</a>
+        </div>
+      </aside>
+      <div class="content" style="position: relative;">
+        <!-- затемнение подложки -->
+        <div style="position: absolute; inset: 0; background: rgba(61,54,48,0.35);"></div>
+        <!-- модальная карточка -->
+        <div class="transition-card" style="position: relative; margin-top: 10vh;">
+          <h1 id="nd-modal-title">Мониторинг</h1>
+          <p>Дашборд Netdata откроется в <strong>новой вкладке</strong>. Эта страница wiki останется открытой.</p>
+          <p class="muted">Браузер запросит логин и пароль базовой аутентификации — используйте креды доступа к мониторингу (выдаются отдельно от пароля wiki).</p>
+          <div class="auth-sim">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v5c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V7l8-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            <span>Так выглядит приглашение браузера: <code>https://…:10443</code> запросит имя пользователя и пароль.</span>
+          </div>
+          <div>
+            <button type="button" class="open-btn">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 13v6H4V5h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Открыть дашборд
+            </button>
+            <button type="button" class="cancel-btn">Отмена</button>
+          </div>
+          <!-- DECISION: модальный вариант добавляет лишний клик к target=_blank;
+               если Заказчик выбирает его — dev добавляет промпт-карточку;
+               иначе пункт сайдбара открывает /netdata/ напрямую (умолчание design §3) -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ВАРИАНТ B: карточка без модальности ================= -->
+  <div class="demo-col">
+    <div class="demo-label">Вариант B — та же карточка без затемнения (inline)</div>
+    <div class="transition-flat">
+      <h1>Мониторинг</h1>
+      <p>Дашборд Netdata откроется в <strong>новой вкладке</strong>. Эта страница wiki останется открытой.</p>
+      <p class="muted">Браузер запросит логин и пароль базовой аутентификации — используйте креды доступа к мониторингу (выдаются отдельно от пароля wiki).</p>
+      <div class="auth-sim">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v5c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V7l8-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        <span>Так выглядит приглашение браузера: <code>https://…:10443</code> запросит имя пользователя и пароль.</span>
+      </div>
+      <div>
+        <button type="button" class="open-btn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 13v6H4V5h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Открыть дашборд
+        </button>
+        <button type="button" class="cancel-btn">Отмена</button>
+      </div>
+    </div>
+    <p class="demo-hint">Оба варианта — статический мокап; в продукте кнопка «Открыть дашборд» = ссылка target="_blank" rel="noopener" на /netdata/.</p>
+  </div>
+</div>
+</body>
+</html>

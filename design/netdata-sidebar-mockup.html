@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап 1.1а — пункт «Мониторинг» в sidebar-footer</title>
+<style>
+/* =====================================================================
+   Мокап задачи 1.1 [design] add-netdata-monitoring: пункт «Мониторинг»
+   в sidebar-footer. Токены V3 «Бумага» — дословно из frontend/static/css/app.css
+   (:root, primitives → semantic). Без внешних библиотек/шрифтов (ОГР-8).
+   Вариант Б (базовый): иконка + текст на уровне «Настройки».
+   ===================================================================== */
+:root {
+  /* primitives (V3 «Бумага») */
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;
+  --p-clay-700: #93391f;
+  --p-clay-050: #f7e8e4;
+  --p-olive-700: #5f6f34;
+  --p-blue-700: #33608c;
+
+  /* semantic */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-border-default: var(--p-paper-200);
+  --color-accent: var(--p-clay-600);
+  --color-accent-hover: var(--p-clay-700);
+  --color-accent-soft: var(--p-clay-050);
+
+  /* spacing 8px */
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+
+  /* geometry */
+  --radius-field: 6px;
+  --radius-card: 10px;
+
+  /* typography */
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --speed-fast: 160ms;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+}
+
+/* --- служебная обвязка мокапа (не часть продукта) --- */
+.board { display: flex; gap: var(--space-4); padding: var(--space-3); flex-wrap: wrap; align-items: flex-start; }
+.demo-note {
+  font-family: var(--font-family-display);
+  font-size: 18px;
+  margin: var(--space-3) var(--space-3) 0;
+  color: var(--p-clay-700);
+}
+.demo-col { display: flex; flex-direction: column; gap: var(--space-1); align-items: flex-start; }
+.demo-label {
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-05);
+}
+.demo-label code { font-size: var(--font-size-micro); background: var(--color-accent-soft); padding: 1px 6px; border-radius: var(--radius-field); }
+.demo-hint { font-size: var(--font-size-micro); color: var(--color-text-secondary); max-width: 220px; }
+
+/* =====================================================================
+   САЙДБАР — каркас 1:1 из app.css (фон ink-900, nav-item, footer, профиль).
+   ===================================================================== */
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--p-ink-900);
+  color: var(--p-paper-050);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+  min-height: 560px;
+}
+.sidebar-nav { display: flex; flex-direction: column; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 10px 20px;
+  color: var(--p-paper-050);
+  text-decoration: none;
+  opacity: 0.85;
+}
+.nav-item:hover { background: rgba(255, 253, 249, 0.08); opacity: 1; }
+.nav-item.active { background: var(--color-accent); opacity: 1; font-weight: bold; }
+.nav-item:focus-visible { outline: none; box-shadow: inset var(--focus-ring); }
+.todo-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 6px;
+  font-size: var(--font-size-micro); font-weight: normal;
+  background: var(--p-amber-700, #8a5a1e); color: #fff;
+  border-radius: 999px; vertical-align: middle;
+}
+.sidebar-footer { padding: 0 20px; }
+.logout-button {
+  width: 100%; padding: var(--space-1);
+  background: transparent; color: var(--p-paper-050);
+  border: 1px solid var(--p-ink-600); border-radius: var(--radius-field);
+  cursor: pointer; font: inherit;
+}
+.logout-button:hover { background: rgba(255, 253, 249, 0.08); }
+.logout-button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.sidebar-profile {
+  display: flex; align-items: center; gap: var(--space-1);
+  margin-top: var(--space-1); padding-top: var(--space-1);
+  border-top: 1px solid var(--p-ink-600);
+  color: var(--p-paper-050);
+}
+.profile-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 50%; background: var(--color-accent);
+  color: var(--color-bg-surface); font-size: var(--font-size-label); font-weight: bold;
+}
+.profile-name { font-size: var(--font-size-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* =====================================================================
+   ДЕЛЬТА: пункт «Мониторинг» (spec: FR-78, design §3).
+   <a href="/netdata/" target="_blank" rel="noopener"> перед «Настройки».
+   Иконка inline-SVG 16px, stroke: currentColor → токенная окраска.
+   ===================================================================== */
+.nav-item-monitoring { color: var(--p-paper-050); }
+.nav-item-monitoring .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+.nav-item-monitoring .ext-hint {
+  margin-left: auto;
+  opacity: 0.6;
+  width: 12px; height: 12px;
+}
+.nav-item-monitoring:hover { background: rgba(255, 253, 249, 0.08); opacity: 1; }
+.nav-item-monitoring:focus-visible { outline: none; box-shadow: inset var(--focus-ring); }
+.nav-item-monitoring:active { background: var(--color-accent); opacity: 1; }
+
+/* Демо подсказка «внешняя ссылка» на hover */
+.nav-item-monitoring .ext-hint { opacity: 0.35; transition: opacity var(--speed-fast); }
+.nav-item-monitoring:hover .ext-hint { opacity: 0.85; }
+</style>
+</head>
+<body>
+<p class="demo-note">Задача 1.1 (а) — пункт «Мониторинг» в <code>sidebar-footer</code>, вариант Б (иконка + текст). Продукт-каркас сайдбара воспроизведен из app.css/base.html; дельта выделена комментарием в разметке.</p>
+
+<div class="board">
+  <!-- ============ КОЛОНКА 1: сайдбар по умолчанию ============ -->
+  <div class="demo-col">
+    <div class="demo-label">Состояние default (owner: пункт виден)</div>
+    <aside class="sidebar" aria-label="Разделы">
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item">Доска</a>
+        <a href="#" class="nav-item">Поиск</a>
+        <a href="#" class="nav-item">Wiki <span class="todo-badge">todo</span></a>
+      </nav>
+      <div class="sidebar-footer">
+        <!-- ===== ДЕЛЬТА 1.1а: пункт «Мониторинг» — ПЕРЕД «Настройки» ===== -->
+        <a href="#" class="nav-item nav-item-monitoring" target="_blank" rel="noopener">
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="2.5 12 7 12 10 5.5 14 18.5 17 12 21.5 12"
+                      fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Мониторинг
+          <svg class="ext-hint" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14 4h6v6M20 4l-9 9M18 13v6H4V5h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <!-- DECISION: стрелка «внешняя ссылка» справа — маркер target=_blank;
+               может быть убрана Заказчиком без потери смысла -->
+        </a>
+        <a href="#" class="nav-item">Настройки</a>
+        <button type="button" class="logout-button">Выйти</button>
+        <div class="sidebar-profile">
+          <span class="profile-badge" aria-hidden="true">Е</span>
+          <span class="profile-name">ekotov</span>
+        </div>
+      </div>
+      <div style="height: var(--space-1)"></div>
+    </aside>
+    <p class="demo-hint">Пункт виден только owner (роль «Product manager» из /api/auth/me). PE/анон — пункт не создается.</p>
+  </div>
+
+  <!-- ============ КОЛОНКА 2: states ============ -->
+  <div class="demo-col">
+    <div class="demo-label">hover</div>
+    <aside class="sidebar" aria-label="hover" style="min-height:auto; padding-top: var(--space-2);">
+      <div class="sidebar-footer" style="margin: var(--space-2) 0;">
+        <a href="#" class="nav-item nav-item-monitoring demo-force-hover">
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="2.5 12 7 12 10 5.5 14 18.5 17 12 21.5 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Мониторинг
+        </a>
+      </div>
+    </aside>
+
+    <div class="demo-label" style="margin-top: var(--space-2);">focus-visible (клавиатурный фокус)</div>
+    <aside class="sidebar" aria-label="focus-visible" style="min-height:auto; padding-top: var(--space-2);">
+      <div class="sidebar-footer" style="margin: var(--space-2) 0;">
+        <a href="#" class="nav-item nav-item-monitoring demo-force-focus">
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="2.5 12 7 12 10 5.5 14 18.5 17 12 21.5 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Мониторинг
+        </a>
+      </div>
+    </aside>
+
+    <div class="demo-label" style="margin-top: var(--space-2);">active (нажатие)</div>
+    <aside class="sidebar" aria-label="active" style="min-height:auto; padding-top: var(--space-2);">
+      <div class="sidebar-footer" style="margin: var(--space-2) 0;">
+        <a href="#" class="nav-item nav-item-monitoring demo-force-active">
+          <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="2.5 12 7 12 10 5.5 14 18.5 17 12 21.5 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Мониторинг
+        </a>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- Принудительные состояния для мокапа (продукт-стили навешивают псевдоклассы) -->
+<style>
+.demo-force-hover { background: rgba(255, 253, 249, 0.08); opacity: 1; }
+.demo-force-hover .ext-hint { opacity: 0.85; }
+.demo-force-focus { outline: none; box-shadow: inset var(--focus-ring); }
+.demo-force-active { background: var(--color-accent); opacity: 1; }
+</style>
+
+<p class="demo-note" style="max-width: 720px;">
+  Примечания для dev (1.4): <code>&lt;a href="/netdata/" target="_blank" rel="noopener"&gt;</code>,
+  класс <code>nav-item nav-item-monitoring</code>; пункт создается в <code>profile.js</code>
+  после fetch <code>/api/auth/me</code> при <code>me.role === 'Product manager'</code>,
+  перед «Настройки»; иконка inline-SVG 16px, <code>stroke="currentColor"</code>.
+</p>
+</body>
+</html>

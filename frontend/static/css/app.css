@@ -153,6 +153,47 @@ body.app-shell {
   box-shadow: var(--focus-ring);
 }
 
+/* --- Пункт «Мониторинг» (1.4 add-netdata-monitoring, FR-78; строго по
+   утвержденному мокапу 1.1а design/netdata-sidebar-mockup.html): в
+   sidebar-footer перед «Настройки», иконка-пульс 16px inline-SVG
+   (stroke="currentColor" → окраска токенами). Состояния — те же, что у
+   nav-item (hover — светлая вуаль на ink-900, focus-visible — inset
+   focus-ring, active — акцентная заливка), только токены V3. Создается
+   из profile.js при роли «Product manager»; без пункта стили молчат. */
+.nav-item-monitoring {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--p-paper-050);
+}
+
+.nav-item-monitoring .nav-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.nav-item-monitoring .nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-item-monitoring:hover {
+  background: rgba(255, 253, 249, 0.08);
+  opacity: 1;
+}
+
+.nav-item-monitoring:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+
+.nav-item-monitoring:active {
+  background: var(--color-accent);
+  opacity: 1;
+}
+
 /* --- Блок профиля (1.2, FR-33, Д-7): кружок с первой буквой логина +
    подпись (Д-10: display_name, если задан, иначе логин целиком); внизу
    сайдбара, существующие разделы не вытесняет. Цвет кружка — акцентный

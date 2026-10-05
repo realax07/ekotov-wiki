@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап 1.1в — иконка «Мониторинг» (масштабируемый SVG)</title>
+<style>
+:root {
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;
+  --p-clay-050: #f7e8e4;
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-border-default: var(--p-paper-200);
+  --color-accent: var(--p-clay-600);
+  --color-accent-soft: var(--p-clay-050);
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --radius-field: 6px;
+  --radius-card: 10px;
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: var(--space-3); font-family: var(--font-family); color: var(--color-text-primary); background: var(--color-bg-page); }
+h1 { font-family: var(--font-family-display); font-size: 22px; margin: 0 0 var(--space-1); color: var(--p-clay-600); }
+.note { font-size: var(--font-size-micro); color: var(--color-text-secondary); margin: 0 0 var(--space-3); max-width: 640px; }
+.grid { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.cell { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2); border: 1px solid var(--color-border-default); border-radius: var(--radius-card); background: var(--color-bg-surface); min-width: 120px; }
+.cell figcaption { font-size: var(--font-size-micro); color: var(--color-text-secondary); }
+.cell .icon { color: var(--p-ink-900); }
+.cell.on-ink { background: var(--p-ink-900); }
+.cell.on-ink .icon { color: var(--p-paper-050); }
+.cell.on-ink figcaption { color: var(--p-paper-100); }
+.cell.on-accent { background: var(--color-accent); }
+.cell.on-accent .icon { color: #fff; }
+.cell.on-accent figcaption { color: var(--p-clay-050); }
+pre {
+  margin-top: var(--space-3); padding: var(--space-2);
+  background: var(--color-accent-soft); border-radius: var(--radius-card);
+  font-size: var(--font-size-micro); overflow-x: auto; max-width: 760px;
+}
+</style>
+</head>
+<body>
+<h1>Иконка «Мониторинг» (в)</h1>
+<p class="note">Пульс-линия (polyline), stroke="currentColor" — токенная окраска наследуется от текста пункта. Один источник: design/netdata-icon.svg. Ниже — та же геометрия в размерах 16/24/32/48px на всех фонах сайдбара (ink-900, акцент active, бумага).</p>
+
+<div class="grid">
+  <figure class="cell on-ink"><span class="icon">
+    <svg width="16" height="16" viewBox="0 0 24 24" role="img" aria-label="Пульс 16px"><polyline points="2.5 12 7 12 10 5.5 14 18.5 17 12 21.5 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </span><figcaption>16px · ink-900 (сайдбар)</figcaption></figure>
+
+  <figure class="cell on-ink"><span class="icon">
+    <svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Пульс 24px"><polyline points="2.5 12 7 12 10 5.5 14 18.5 17 12 21.5 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </span><figcaption>24px · ink-900 (сайдбар)</figcaption></figure>
+
+  <figure class="cell on-accent"><span class="icon">
+    <svg width="24" height="24" viewBox="0 0 24 24" role="img" aria-label="Пульс 24px акцент"><polyline points="2.5 12 7 12 10 5.5 14 18.5 17 12 21.5 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </span><figcaption>24px · clay-600 (active)</figcaption></figure>
+
+  <figure class="cell"><span class="icon">
+    <svg width="32" height="32" viewBox="0 0 24 24" role="img" aria-label="Пульс 32px"><polyline points="2.5 12 7 12 10 5.5 14 18.5 17 12 21.5 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </span><figcaption>32px · бумага</figcaption></figure>
+
+  <figure class="cell"><span class="icon">
+    <svg width="48" height="48" viewBox="0 0 24 24" role="img" aria-label="Пульс 48px"><polyline points="2.5 12 7 12 10 5.5 14 18.5 17 12 21.5 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </span><figcaption>48px · бумага</figcaption></figure>
+</div>
+
+<pre>&lt;svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-label="Пульс — мониторинг"&gt;
+  &lt;polyline points="2.5 12 7 12 10 5.5 14 18.5 17 12 21.5 12"
+            fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/&gt;
+&lt;/svg&gt;</pre>
+</body>
+</html>
