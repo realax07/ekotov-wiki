@@ -18,7 +18,7 @@
 | юнит-тесты images | **PASS** | 26 passed (python 3.14, fastapi 0.141.1, Pillow 12.3.0) |
 | юнит-тесты search (регресс эталона) | **PASS** | 12 passed — эталон не задет |
 | smoke-запуск uvicorn :8379 | **PASS** | `/api/health` → 200 без сессии; `/api/images` → 401 `{"error":"unauthorized"}` |
-| openspec validate --all --strict | **SKIPPED** | зона спек не тронута (дельты не менялись); прогон — на ПМ при приемке |
+| openspec validate --all --strict | **PASS** | 15 passed, 0 failed (прогон в worktree после коммита 55ea2dc; спеки не менялись) |
 | push | **SKIPPED (запрещен)** | коммиты локальные, пушит ПМ |
 
 ## Что реализовано
@@ -156,5 +156,5 @@ Dockerfile и compose — НЕ моя зона, см. «Зависимости/�
 
 ## Коммиты
 
-(см. git log ветки add-gallery-service в worktree dev-12-gallery; хеши
-вносит ПМ при приемке — ниже статус на момент отчета)
+- **55ea2dc** — [1.2] dev: сервис images (10 файлов, +1610; push НЕТ).
+- Правка отчета (статус ворот openspec) — следующим коммитом.
