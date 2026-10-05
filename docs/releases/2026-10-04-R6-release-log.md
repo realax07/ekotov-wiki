@@ -99,3 +99,5 @@
 - [06:10 UTC] ПМ → QA (deleg_5339bc4c, gate 9ba2c5ec): задача 2.1 — полный регресс (api на стенде + юниты сервисов); DENY ZONE_OUTSIDE_POLICY (test-model/bugs/** vs политики bugs/*) разобран уточнением паттерна
 - [07:04 UTC] QA → ПМ: 2.1 завершена (a9f8176) — tests/api 201p/9s/2xf/0f на маршрутизированном стенде (app:8080+search:8378+nginx:18443), юниты search 12p/0f, смоук маршрутизации + 503-деградация green; BUG-006 major (pytest tests/ не собирается, pytest_plugins в не-корневом conftest); ПМ: gate finish returned (OUT_OF_ZONE журнала), сессия закрыта
 - [07:07 UTC] ПМ → code_reviewer (deleg_ae91c6a8, gate d647709e): ревью QA-отчета 2.1 → review-007-2.1.md
+- [07:20 UTC] code_reviewer → ПМ: review-007-2.1 request_changes (F-1 major: web-сьют не прогнан, playwright работает; F-2..F-4 minor); ПМ: сессия ревьюера закрыта
+- [07:25 UTC] ПМ → QA (deleg_0260fc2d, gate 399c23ce): фикс-цикл F-1..F-4 (прогон tests/web + правки REPORT-regress-21.md)
