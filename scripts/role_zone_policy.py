@@ -43,6 +43,11 @@ ROLE_ZONE_POLICY: dict[str, tuple[str, ...]] = {
     ),
     "sa": (
         "openspec/changes/*/proposal.md",
+        # решение Заказчика 2026-10-05 (дословно: «Расширяем (обе репы учти)»):
+        # requirements.md/research.md — выходы роли SA (sa_agent.md), зона ранее
+        # давала честный OUT_OF_ZONE (эскалация E1, REPORT-0.1 add-netdata-monitoring)
+        "openspec/changes/*/requirements.md",
+        "openspec/changes/*/research.md",
         "openspec/changes/*/specs/**",
         "openspec/changes/*/design.md",
         "openspec/changes/*/tasks.md",

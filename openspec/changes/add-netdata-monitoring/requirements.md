@@ -1,6 +1,6 @@
 # requirements.md — ТЗ change-пакета add-netdata-monitoring (цикл R7, пакет 1)
 
-> Статус: ГОТОВ К УТВЕРЖДЕНИЮ (утверждение ставит Заказчик) | Автор: sa_agent
+> Статус: **УТВЕРЖДЕН** Заказчиком 2026-10-05 (decision 2026-10-05-netdata-monitoring-requirements) | Автор: sa_agent
 > | История: r1
 >
 > Источники вводных: PLAN-R7.md (пакет 1), Telegram DM Заказчика 2026-10-05
