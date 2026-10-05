@@ -182,10 +182,10 @@ phase_smoke() {
   local base="https://127.0.0.1:${NGINX_PORT}"
   local code hdr
 
-  code="$(curl -sk -o /tmp/s23-health.json -w '%{http_code}' "${base}/api/health")"
-  grep -q '"status":"ok"' /tmp/s23-health.json && ok "health app: 200 ok" || { cat /tmp/s23-health.json; fail "health app"; }
+  code="$(curl -sk -o /tmp/s23-health.json -w '%{http_code}' "${base}/api/health" || true)"
+  grep -q '"status":"ok"' /tmp/s23-health.json && ok "health app: 200 ok" || { echo "health: HTTP ${code:-нет соединения}"; fail "health app (стек поднят? ./2.3-par.sh status)"; }
 
-  code="$(curl -sk -o /dev/null -w '%{http_code}' "${base}/login")"
+  code="$(curl -sk -o /dev/null -w '%{http_code}' "${base}/login" || true)"
   [[ "${code}" == "200" ]] && ok "login: 200" || fail "login: ${code}"
 
   code="$(curl -sk -o /dev/null -w '%{http_code}' "${base}/static/css/app.css")"
