@@ -50,6 +50,83 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Search-сервис (задача 1.2, add-microservices-full; design §1/§2/§7):
+  # uvicorn :8378, БД — тот же named volume, НО маунт :ro — файловая гарантия
+  # read-only (design §2; сервис ничего не пишет в общую БД).
+  search:
+    image: ${SEARCH_IMAGE:-ekotov-wiki/search:local}
+    build:
+      context: ..
+      dockerfile: services/search/Dockerfile
+    restart: unless-stopped
+    # FR-73 паритет: search 512m (VPS 3.9 GB, резерв хосту >= 2 GB).
+    mem_limit: 512m
+    environment:
+      # Путь БД — тот же файл, что у app (DB_PATH app'а; env-имя свое —
+      # services/search/app/db.py).
+      EKOTOV_WIKI_DB_PATH: /data/wiki.db
+    volumes:
+      # ГЛАВНАЯ ГАРАНТИЯ read-only: маунт тома в режиме ro (design §2).
+      # wiki.db + WAL-файлы читает; schema/seed — зона app (init_db при
+      # старте app применяет схему idempotent'но).
+      - wiki-data:/data:ro
+    # БЕЗ condition: service_healthy (design ТЗ: search читает БД независимо).
+    # Образ БД с приложенной схемой должен СУЩЕСТВОВАТЬ к моменту запросов:
+    # его создает app при первом старте (python -m app.db / init_db в app) —
+    # на пустом томе search вернет 500 (sqlite создаст пустой файл только
+    # при записи, а ro-маунт ее исключает; /api/health при этом 200).
+    depends_on:
+      - app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8378/api/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Sidecar-бэкап (задача 1.2; design §5): cron-цикл средствами python
+  # (sqlite3 .backup + tar avatars), retention 14 дней. Релизный бэкап
+  # deploy.sh (задача 1.4) вызывает ТОТ ЖЕ модуль — без дубля кода.
+  backup:
+    image: ${BACKUP_IMAGE:-ekotov-wiki/backup:local}
+    build:
+      context: ..
+      dockerfile: services/backup/Dockerfile
+    restart: unless-stopped
+    # FR-73 паритет / design §7: backup 64m (пик при tar).
+    mem_limit: 64m
+    environment:
+      EKOTOV_WIKI_DB_PATH: /data/wiki.db
+      EKOTOV_WIKI_AVATARS_DIR: /data/avatars
+      BACKUP_DIR: /backups
+      # Суточный цикл; retention 14 дней (design §5).
+      BACKUP_INTERVAL_SEC: "86400"
+      BACKUP_RETENTION_DAYS: "14"
+    volumes:
+      # Данные — только чтение (безопасный профиль, plan §1.2 / README сервиса).
+      - wiki-data:/data:ro
+      # Каталог бэкапов — bind хоста (как у deploy.sh, design §5). Образ
+      # работает под ЧИСЛОВЫМ uid 10001 (USER 10001 в Dockerfile) — bind-каталог
+      # на хосте должен иметь владельца 10001:10001 (имя wiki:wiki на хосте
+      # НЕ гарантирует этот uid — требуй именно числа). Права приводит
+      # deploy/deploy.sh в шаге 1/8 (idempotent: stat %u, chown при отличии);
+      # для свежего хоста вручную: mkdir -p + chown 10001:10001 (RUNBOOK §7).
+      - /var/backups/ekotov-wiki:/backups
+    # Sidecar вне цепочки запросов: depends_on нужен только чтобы БД
+    # существовала к первому циклу; health — heartbeat-процесс (в образе).
+    depends_on:
+      - app
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   nginx:
     image: ${FRONTEND_IMAGE:-ekotov-wiki/frontend:local}
     build:
@@ -84,5 +161,6 @@ services:
 
 volumes:
   wiki-data:
-    # wiki.db + avatars/. Бэкап — docker exec python sqlite3 .backup
-    # (design §6, метод зафиксирован до реализации).
+    # wiki.db + avatars/. Бэкап — сервис backup (sidecar, design §5):
+    # суточный цикл внутри контейнера + релизный бэкап в deploy.sh (шаг 2/8),
+    # оба — один модуль services/backup/backup.py.

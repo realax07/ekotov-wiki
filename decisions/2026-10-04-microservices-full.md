@@ -1,0 +1,48 @@
+# Решение: полный переход на микросервисы (релиз R6)
+
+- **decision_id:** 2026-10-04-microservices-full
+- **Дата решения Заказчика:** 2026-10-03 (дословная фиксация из диалога)
+- **Статус:** принято
+
+## Дословная фиксация
+
+> «В общем доделывай и подготовь план перехода сразу всех сервисов. Не будем
+> ждать, следующий релиз - полный переход на микросервисы (в контейнерах)»
+> — Заказчик, 2026-10-03 (Telegram DM)
+
+Далее, на запуск пакета и этапных ворот:
+
+> «погнали» — Заказчик, 2026-10-04 (Telegram DM; ответ на статус+план:
+> архивация add-containerization + старт ЭТАП A add-microservices-full)
+
+## Что решено
+
+1. Следующий релиз wiki — полный переход на микросервисы в контейнерах
+   (search + backup; auth не выделяется — план §1.2).
+2. Пакет `add-microservices-full` — форма реализации (proposal/design/tasks
+   созданы 2026-10-03, strict-валидация).
+3. ЭТАП A стартует немедленно после архивации `add-containerization`.
+
+## Последствия
+
+- Все диспатчи задач пакета — через `scripts/delegate_gate.py` (Флоу 1).
+- approval_ref для create_change-действий пакета: `2026-10-04-microservices-full`.
+- Прод-переход (задачи 2.3/2.4) — только с явным участием Заказчика (ops-протокол).
+
+```decision-record
+{
+  "schema_version": "decision-record/1",
+  "decision_id": "2026-10-04-microservices-full",
+  "date": "2026-10-04",
+  "scope": {
+    "project": "wiki",
+    "change_id": "add-microservices-full",
+    "phase": 1,
+    "description": "релиз R6 — переход на микросервисы (search + backup)"
+  },
+  "action": "create_change",
+  "actions_covered": ["release_direction", "create_change"],
+  "commit": "6632799",
+  "source": "Заказчик, Telegram DM 2026-10-03: «...следующий релиз - полный переход на микросервисы (в контейнерах)»; 2026-10-04: «погнали» (архивация add-containerization + ЭТАП A)"
+}
+```

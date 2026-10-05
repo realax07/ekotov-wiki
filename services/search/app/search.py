@@ -52,7 +52,11 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from app.db import get_connection
-from app.tasks import TASK_COLUMNS, _row_to_task
+# Задача 1.1 (add-microservices-full): TASK_COLUMNS/_row_to_task — локальная
+# копия из backend/app/tasks.py (services/search/app/row_schema.py,
+# трассировка на источник — в шапке того модуля). Импорт изменен точечно,
+# остальной код роутера — дословная копия backend/app/search.py.
+from app.row_schema import TASK_COLUMNS, _row_to_task
 
 router = APIRouter(prefix="/api/search")
 

@@ -323,7 +323,10 @@ def test_search_card_click_opens_view(page, web_base_url, board_page,
 
     results.get_by_role("article").filter(has_text="QAT-view-поиск").click()
     expect(page.locator(OVERLAY)).to_be_visible()
-    expect(page.get_by_role("heading", name="QAT-view-поиск")).to_be_visible()
+    # Локатор скоуплен на OVERLAY: карточка в #search-results за модалкой —
+    # тоже heading с тем же именем, голый get_by_role дает strict violation.
+    expect(page.locator(OVERLAY).get_by_role(
+        "heading", name="QAT-view-поиск")).to_be_visible()
     attrs = page.locator("#task-detail-attrs")
     expect(attrs.get_by_text("найди меня", exact=True)).to_be_visible()
     expect(attrs.get_by_text("medium", exact=True)).to_be_visible()

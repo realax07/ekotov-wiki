@@ -1,0 +1,652 @@
+{
+  "components": {
+    "schemas": {
+      "Body_upload_avatar_api_profile_avatar_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_avatar_api_profile_avatar_post",
+        "type": "object"
+      },
+      "CategoryCreate": {
+        "additionalProperties": false,
+        "description": "Тело POST /api/categories: только name (sdd r2 §3.1).",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CategoryCreate",
+        "type": "object"
+      },
+      "CategoryUpdate": {
+        "additionalProperties": false,
+        "description": "Тело PATCH /api/categories/{id}: только name (sdd r2 §3.1).",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CategoryUpdate",
+        "type": "object"
+      },
+      "CommentCreate": {
+        "additionalProperties": false,
+        "description": "Тело POST /api/tasks/{id}/comments: обязателен непустой текст (sdd §4\ncomments.body NOT NULL; пустой текст — 422). Поле author_id в теле не\nсуществует: автор всегда из сессии (extra=forbid отсекает подмену).",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "title": "CommentCreate",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "properties": {
+          "login": {
+            "title": "Login",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "login",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "PasswordChange": {
+        "properties": {
+          "current_password": {
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChange",
+        "type": "object"
+      },
+      "ProfileUpdate": {
+        "properties": {
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "title": "ProfileUpdate",
+        "type": "object"
+      },
+      "TaskCreate": {
+        "additionalProperties": false,
+        "description": "Тело POST /api/tasks: title обязателен, остальное опционально (sdd §3.2).",
+        "properties": {
+          "assigned_to_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned To Id"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "is_fast": {
+            "default": false,
+            "title": "Is Fast",
+            "type": "boolean"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "TaskCreate",
+        "type": "object"
+      },
+      "TaskMove": {
+        "additionalProperties": false,
+        "description": "Тело POST /api/tasks/{id}/move (sdd §3.2 дословно):\n{\"status\": \"todo|in_progress|done\"}; иное значение — 422.",
+        "properties": {
+          "status": {
+            "enum": [
+              "todo",
+              "in_progress",
+              "done"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "TaskMove",
+        "type": "object"
+      },
+      "TaskUpdate": {
+        "additionalProperties": false,
+        "description": "Тело PATCH /api/tasks/{id}: все поля опциональны, применяется только\nпереданное (model_fields_set). status/is_fast/archived_at не входят\n(см. докстринг модуля).",
+        "properties": {
+          "assigned_to_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned To Id"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "TaskUpdate",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "ekotov-wiki",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/search": {
+      "get": {
+        "description": "GET /api/search — структурированные условия (sdd §3.5, FR-10/11/8).\n\nВалидация типов/значений — FastAPI/pydantic: невалидный priority,\nдата не формата YYYY-MM-DD, archived вне true|false|all → 422\n(обработчик RequestValidationError, sdd §3). 401 без сессии —\nmiddleware. Пустой набор параметров = все задачи.\nРелиз 4 (FR-46, ОВ-24): assigned = login | none («без исполнителя»),\ncreator = login; несуществующий логин → 422 (5.2, «422 на\nневозможное значение»).",
+        "operationId": "search_api_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "priority",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Priority"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Tag",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "due_before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Due Before"
+            }
+          },
+          {
+            "in": "query",
+            "name": "due_after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Due After"
+            }
+          },
+          {
+            "in": "query",
+            "name": "archived",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "true",
+                "false",
+                "all"
+              ],
+              "title": "Archived",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "assigned",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Assigned"
+            }
+          },
+          {
+            "in": "query",
+            "name": "creator",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Creator"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search"
+      }
+    },
+    "/api/search/advanced": {
+      "post": {
+        "description": "POST /api/search/advanced (sdd.md §3.5; FR-12).\n\nТело: {\"query\": \"<SQL-подобный текст фильтра>\"}.\n- 200: {\"results\": [Task], \"normalized_query\": build(фильтра)}.\n- 400 {\"error\": \"filter syntax: position N: причина\"} — синтаксическая\n  ошибка; запрос к БД не выполняется (parse до get_connection).\n  Невалидное JSON-тело тоже 400 (формат ошибок этого эндпоинта,\n  sdd §3.5), не 500: битый JSON = нечитаемый фильтр.\n- 401 без сессии — middleware.\n- 422 (тело читается, но query — не строка) — обработчик sdd §3.",
+        "operationId": "search_advanced_api_search_advanced_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Search Advanced"
+      }
+    },
+    "/api/suggestions": {
+      "get": {
+        "description": "GET /api/suggestions → {\"suggestions\": [str, ...]} (см. docstring модуля).\n\nkind (Релиз 6, FR-57/ОГР-26): None — прежний UNION тегов и категорий\n(обратная совместимость); \"tags\" — только теги; \"categories\" — только\nкатегории. Иное значение — 422 средствами FastAPI (Literal), явный\nотказ без ответа с множеством.",
+        "operationId": "suggestions_api_suggestions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "tags",
+                    "categories"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Suggestions Api Suggestions Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Suggestions"
+      }
+    },
+    "/api/suggestions/users": {
+      "get": {
+        "description": "GET /api/suggestions/users → {\"users\": [login, ...]} (5.2, FR-46).\n\nУникальные логины из tasks.creator_id ∪ tasks.assigned_to_id (JOIN\ntasks→users), отсортированы. 401 без сессии — middleware (путь не в\nexempt-списке). Потребитель: опции select'ов «Исполнитель»/\n«Создатель» конструктора поиска (search.js); опцию «без исполнителя»\nдобавляет клиент (статическая, ОВ-24).",
+        "operationId": "user_suggestions_api_suggestions_users_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response User Suggestions Api Suggestions Users Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "User Suggestions"
+      }
+    }
+  }
+}

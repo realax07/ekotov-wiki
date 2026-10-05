@@ -47,11 +47,24 @@ ROLE_ZONE_POLICY: dict[str, tuple[str, ...]] = {
         "openspec/changes/*/design.md",
         "openspec/changes/*/tasks.md",
         "sdd.md",
+        # проектная адаптация (wiki): контракты продукта + генерирующие скрипты
+        "contracts/**",
+        "scripts/export_openapi*.py",
     ),
     "dev": (
         "openspec/changes/*/tasks.md",
-        "src/**",
+        # проектная адаптация (wiki): реальная структура монорепо
+        "backend/**",
+        "frontend/**",
+        "e2e/**",
+        "services/**",
         "tests/**",
+        "scripts/**",
+        # решение Заказчика 2026-10-04 (диалог, дословно: «Расширить зону
+        # dev на deploy/**»): инфра-задачи микросервисного релиза (deploy.sh
+        # v3 и последующие) исполняет роль dev — devops не входит в dev_task
+        # графа Флоу 1 (WRONG_ROLE), а devops-зона не покрывает код задачи.
+        "deploy/**",
         "test-model/bugs/*",
         "feature/*",
     ),

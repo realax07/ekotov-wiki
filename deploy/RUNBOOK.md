@@ -147,7 +147,7 @@ curl -k -o /dev/null -w '%{http_code}\n' https://127.0.0.1:10443/static/css/app.
 | Порт занят, uvicorn не стартует (`address already in use`) | висячий процесс прошлого запуска / чужой слушатель на 8377 | `ss -tlnp \| grep 8377`; убить висяка (`kill <pid>`), затем `systemctl start ekotov-wiki` |
 | У пользователя частичный рендер, старые стили после релиза | кеш браузера: nginx отдает `/static/` с `expires 7d` | проверить, что забамплен `static_v`; пользователю — обычный F5 (новые `?v=` сами обходят кеш) |
 | `curl` на 10443 — connection refused, приложение живо на 8377 | nginx не перечитал конфиг / упал | `sudo nginx -t && sudo systemctl reload nginx`; `ss -tln \| grep 10443` |
-| Бэкап не создался | нет каталога/прав у `/var/backups/ekotov-wiki` | скрипт останавливает деплой до всяких изменений; создать каталог, `chown wiki:wiki`, повторить |
+| Бэкап не создался | нет каталога/прав у `/var/backups/ekotov-wiki` | скрипт останавливает деплой до всяких изменений; каталог и владельца приводит `deploy.sh` в шаге 1/8 (`mkdir -p` + idempotent `chown 10001:10001` — sidecar-образ работает под uid 10001); вручную: `sudo mkdir -p /var/backups/ekotov-wiki && sudo chown 10001:10001 /var/backups/ekotov-wiki`, повторить |
 | rsync затирает лишнее | неправильная пара источник/назначение при `--delete` | источник — `~/ekotov-wiki/` (с хвостовым слэшем), приемник — `/opt/ekotov-wiki/`; сначала `DRY_RUN=1` и смотреть itemize |
 
 ## 6. Границы
@@ -282,33 +282,54 @@ sudo docker logs ekotov-wiki-nginx-1 2>&1 | grep -c 502           # 0 (stale-DNS
 - Стенд (e2e/репетиции, tasks 1.4/2.1): `docker compose -f deploy/compose.test.yaml -p wiki-test up -d --build`
   → порт 8443, tmpfs-том (данные исчезают при down), seed:
   `docker compose -p wiki-test exec app python -m app.seed_users` (пароли интерактивно).
-- Обновление контейнерного прода — канонический скрипт `deploy/deploy.sh` (v2,
-  контейнерный, задача 1.6; v1 systemd/rsync сохранен как `deploy/deploy-v1-systemd.sh`
+- Обновление контейнерного прода — канонический скрипт `deploy/deploy.sh`
+  (**v3 — матрица сервисов**, задача 1.4 add-microservices-full, design §6;
+  v1 systemd/rsync сохранен как `deploy/deploy-v1-systemd.sh`
   — только для отката на systemd-схему, RUNBOOK §4.1–4.3). Запуск (Заказчик,
   из-под root, из клона с целевым коммитом):
   `sudo RELEASE_TAG=<метка> bash deploy/deploy.sh`
   (миграционные релизы — с `MIGRATE_MODULE=app.migrate_rN`; `latest` запрещен —
   FR-72, скрипт падает без валидного тега).
 
-  Шаги скрипта (design §6): предусловия → **бэкап до КАЖДОГО деплоя, БЕЗ
-  остановки** (метод/путь: БД — python-модуль `sqlite3` `.backup` через
-  `docker exec` в контейнер `app` — sqlite3 CLI в slim отсутствует — во
-  временный файл контейнера + `docker compose cp` наружу;
-  аватары — `tar` каталога `/data/avatars` тем же exec; файлы:
+  Матрица сервисов (design §6): `SERVICES="app frontend search backup"`
+  (env-оверрайд — осознанно), теги образов `ekotov-wiki/<name>:<RELEASE_TAG>`
+  (compose-переменные `APP_IMAGE`/`FRONTEND_IMAGE`/`SEARCH_IMAGE`/
+  `BACKUP_IMAGE` — по-сервисный оверрайд для горячего фикса одного сервиса).
+  Порядок шагов скрипта (design §6): предусловия → **бэкап ДО ВСЕХ** —
+  предусловия включают подготовку bind-каталога бэкапов: `mkdir -p` +
+  idempotent `chown 10001:10001 /var/backups/ekotov-wiki` (образ backup
+  работает под ЧИСЛОВЫМ uid 10001; имя `wiki` на хосте может иметь другой
+  uid — 1.2-a, review-004-1.2) —
+  вызывает МОДУЛЬ `services/backup/backup.py` (`from backup import
+  run_backup` — один код с sidecar-контейнером, без дубля; файлы
   `/var/backups/ekotov-wiki/wiki-pre-<release>-<дата>-<время>.db` и
-  `avatars-pre-<release>-<дата>-<время>.tar`) → build образов
-  `ekotov-wiki/{app,frontend}:<release>` → one-shot миграция
-  `docker compose run --rm app python -m app.migrate_rN` (СТРОГО до `up`,
-  только после репетиции — tasks 2.1) → `up -d` → смоук (health/login/статика/
-  avatars + «после up нового образа app nginx не отдает 502» — stale-DNS,
-  design §1; fallback — `docker compose restart nginx` внутри скрипта;
-  полный смоук статики `scripts/smoke_static.py` — применим против
-  контейнерного nginx, статика в образе) → `docker image prune -f`.
+  `avatars-pre-<release>-<дата>-<время>.tar`; вынос из контейнера идет в
+  staging-подкаталог `/var/backups/ekotov-wiki/release-staging/` и mv в
+  релизные имена — только свежевынесенные файлы, суточная история sidecar
+  `wiki-daily-*`/`avatars-daily-*` НЕ трогается; sidecar-retention релизные
+  `wiki-pre-*`/`avatars-pre-*` не трогает — релизный бэкап остается в деплое,
+  sidecar страхует МЕЖДУ релизами) → build ВСЕХ образов матрицы →
+  one-shot миграция ЯДРА `docker compose run --rm app python -m app.migrate_rN`
+  (СТРОГО до `up`; search/backup — читатели одной схемы, миграций не требуют;
+  только после репетиции — tasks 2.1) → `up -d app` → healthy →
+  `up -d search backup` → healthy → `up -d nginx` → healthy → смоук-матрица
+  (health app 200; health search напрямую 200; поиск через nginx:
+  200/401/422 + заголовок `X-Service: search`; /login 200; статика 200;
+  avatars 200/403/404 — не 502; 502=0 в логах nginx (502>0 — FAIL, а не
+  WARN — фикс review-001 1.4-b); образы контейнеров =
+  релизные теги; полный смоук статики `scripts/smoke_static.py`) →
+  `docker image prune -f`.
   **Первый деплой нового метода — только после `DRY_RUN=1` прогона**
   (обязателен; показывает все шаги, ничего не меняет).
-- Откат кода контейнерного прода: предыдущий `RELEASE_TAG` (образы тегированы,
-  `latest` не используется — FR-72); несовместимая схема — восстановление БД
-  из пред-деплойного бэкапа парой «код+БД».
+- Откат (design §8, матрица): предыдущий `RELEASE_TAG` ЦЕЛИКОМ (совместимая
+  пара app+search по умолчанию — один тег): повторный запуск скрипта с
+  предыдущей меткой, либо точечно `docker compose up -d` с образами
+  предыдущего тега (`APP_IMAGE=... SEARCH_IMAGE=...`). Горячий фикс одного
+  сервиса — его `*_IMAGE=<base>:<тег>` при неизменных остальных. Отдельные
+  сценарии: search тормозит/течет — `docker compose stop search` (nginx
+  отвечает управляемым 503 — design §4) + запасной конфиг с роутерами в app
+  (заготовка в ветке); backup шумит — `stop backup` (релизный бэкап
+  остается в deploy.sh); том/БД — предыдущий RELEASE_TAG + бэкап.
 - Возврат на systemd-схему целиком (аварийный, после недели+ эксплуатации):
   откат = §7.4 откат + восстановление БД из пред-деплойного бэкапа (§4.3),
   контейнерный стек `docker compose down` (том wiki-data сохранить до сверки данных).
@@ -322,5 +343,5 @@ sudo docker logs ekotov-wiki-nginx-1 2>&1 | grep -c 502           # 0 (stale-DNS
 | app не стартует, в логах «обязательная переменная SECRET_KEY» | нет `/opt/ekotov-wiki/deploy/.env` или compose запущен вне каталога deploy | создать .env (§7.1 п.3), запускать из `deploy/` |
 | `permission denied` на /var/run/docker.sock | openclaw вне группы docker / старый сеанс | `sudo usermod -aG docker openclaw` + перелогин |
 | после переключения «не открывается извне» | ufw закрыл 10443 | `sudo ufw status`; `sudo ufw allow 10443/tcp` |
-| диск растет после каждого деплоя | dangling-образы | `docker image prune -f` (после каждого деплоя — шаг 7/7 в deploy.sh) |
+| диск растет после каждого деплоя | dangling-образы | `docker image prune -f` (после каждого деплоя — шаг 7/8 в deploy.sh) |
 | контейнеры не поднялись после ребута VPS | docker.service не в автозапуске | `sudo systemctl enable docker`; стек поднимется сам (`restart: unless-stopped`) |

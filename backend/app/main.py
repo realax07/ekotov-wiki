@@ -14,8 +14,6 @@ from app.db import get_connection
 from app.middleware import register as register_auth_middleware
 from app.pages import router as pages_router
 from app.profile import router as profile_router
-from app.search import router as search_router
-from app.suggestions import router as suggestions_router
 from app.tasks import install_error_handlers
 from app.tasks import router as tasks_router
 from app.users import router as users_router
@@ -39,8 +37,6 @@ app.include_router(tasks_router)
 app.include_router(categories_router)
 app.include_router(comments_router)
 app.include_router(board_router)
-app.include_router(search_router)
-app.include_router(suggestions_router)
 app.include_router(users_router)
 install_error_handlers(app)
 register_auth_middleware(app)

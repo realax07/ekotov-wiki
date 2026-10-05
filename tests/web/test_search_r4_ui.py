@@ -13,6 +13,8 @@ TC-ID: TC-search-r4-ui-001…004. Формат: 1 кейс = 1 тест (contrac
 R4.2 нет — QA-цикл 6.1 впереди; в отчете ПМ).
 """
 
+import uuid
+
 import pytest
 from playwright.sync_api import expect
 
@@ -27,14 +29,24 @@ def _open_search(logged_in_page, web_base_url):
 
 
 def _make_pair(web_owner_session, web_base_url, web_cleanup_created):
-    """Пара задач через API: с исполнителем wife и без исполнителя."""
+    """Пара задач через API: с исполнителем wife и без исполнителя.
+
+    Заголовки уникальны для запуска (QAT-R4UI-… + короткий uuid): ассерты
+    тестов проверяют СВОИ карточки пары, а не глобальный count выдачи —
+    на живом стенде (внешний EKOTOV_WIKI_BASE_URL) в БД остаются
+    unassigned-хвосты прошлых прогонов, чистую БД гарантирует только
+    автостенд conftest."""
+    marker = uuid.uuid4().hex[:8]
+    title_assigned = f"QAT-R4UI-с-исполнителем-{marker}"
+    title_unassigned = f"QAT-R4UI-без-исполнителя-{marker}"
+
     resp = web_owner_session.get(f"{web_base_url}/api/users")
     assert resp.status_code == 200
     users = {u["login"]: u["id"] for u in resp.json()["users"]}
 
     created = web_owner_session.post(
         f"{web_base_url}/api/tasks",
-        json={"title": "QAT-R4UI-с-исполнителем"},
+        json={"title": title_assigned},
     )
     assert created.status_code == 201
     task_assigned = created.json()
@@ -47,12 +59,15 @@ def _make_pair(web_owner_session, web_base_url, web_cleanup_created):
 
     created = web_owner_session.post(
         f"{web_base_url}/api/tasks",
-        json={"title": "QAT-R4UI-без-исполнителя"},
+        json={"title": title_unassigned},
     )
     assert created.status_code == 201
     task_unassigned = created.json()
     web_cleanup_created(task_unassigned["id"])
-    return task_assigned, task_unassigned
+    return (
+        {"id": task_assigned["id"], "title": title_assigned},
+        {"id": task_unassigned["id"], "title": title_unassigned},
+    )
 
 
 def test_builder_filters_assigned_creator_present_with_hints(
@@ -95,8 +110,11 @@ def test_builder_filter_assigned_none_shows_unassigned_rows(
     logged_in_page, web_base_url, web_owner_session, web_cleanup_created
 ):
     """TC-search-r4-ui-002 (FR-46, ОВ-24, дельта «Фильтр «без исполнителя»»):
-    выбор «без исполнителя» + «Найти» → в выдаче только задачи без
-    исполнителя; в строке карточки — курсивный «Unassigned»."""
+    выбор «без исполнителя» + «Найти» → в выдаче ТОЛЬКО задачи без
+    исполнителя (у каждой карточки нет assigned-логина); в строке СВОЕЙ
+    карточки — курсивный «Unassigned». Изоляция: заголовки пары уникальны
+    для запуска, count выдачи не ассертится — на живом стенде в БД есть
+    unassigned-хвосты прошлых прогонов (см. tests/README.md, «чистая БД»)."""
     _make_pair(web_owner_session, web_base_url, web_cleanup_created)
     page = _open_search(logged_in_page, web_base_url)
 
@@ -104,15 +122,18 @@ def test_builder_filter_assigned_none_shows_unassigned_rows(
     page.locator("#search-builder-submit").click()
 
     results = page.locator("#search-results")
-    expect(results.locator(".task-card")).to_have_count(1, timeout=5000)
-    card = results.locator(".task-card").first
-    expect(card).to_contain_text("QAT-R4UI-без-исполнителя")
+    own = results.locator(".task-card", has_text="QAT-R4UI-без-исполнителя-")
+    expect(own).to_have_count(1, timeout=5000)
+    card = own.first
+    expect(card).to_contain_text("QAT-R4UI-без-исполнителя-")
     # ОВ-24: «Unassigned» — курсивный <em> в строке пользователей карточки
     unassigned = card.locator(".task-user-unassigned")
     expect(unassigned).to_have_text("Unassigned")
     expect(unassigned).to_have_css("font-style", "italic")
-    # assigned-фильтр исключил задачу с исполнителем
-    expect(results).not_to_contain_text("QAT-R4UI-с-исполнителем")
+    # FR-46: assigned=none исключает задачи с исполнителем — СВОЯ
+    # assigned-карточка не в выдаче, ни одна карточка не имеет assigned-логина
+    expect(results).not_to_contain_text("QAT-R4UI-с-исполнителем-")
+    expect(results.locator(".task-user-assigned")).to_have_count(0)
 
 
 def test_builder_filter_assigned_by_login(
@@ -141,7 +162,10 @@ def test_advanced_assigned_is_null_and_eq(
 ):
     """TC-search-r4-ui-004 (FR-46, дельта «Режим advanced»): в advanced
     условие `assigned = "wife"` и `assigned IS NULL` фильтруют выдачу;
-    normalized_query показывается под полем (синхронизация)."""
+    normalized_query показывается под полем (синхронизация). Изоляция:
+    ассерты — на СВОЮ пару (уникальные заголовки); count выдачи для
+    IS NULL не ассертится — на живом стенде есть unassigned-хвосты
+    прошлых прогонов (см. tests/README.md, «чистая БД»)."""
     _make_pair(web_owner_session, web_base_url, web_cleanup_created)
     page = _open_search(logged_in_page, web_base_url)
 
@@ -151,18 +175,27 @@ def test_advanced_assigned_is_null_and_eq(
     query.fill('assigned = "wife"')
     page.locator("#search-advanced-submit").click()
     results = page.locator("#search-results")
-    expect(results.locator(".task-card")).to_have_count(1, timeout=5000)
-    expect(results).to_contain_text("QAT-R4UI-с-исполнителем")
+    own_assigned = results.locator(
+        ".task-card", has_text="QAT-R4UI-с-исполнителем-"
+    )
+    expect(own_assigned).to_have_count(1, timeout=5000)
+    expect(own_assigned.first.locator(".task-user-assigned")).to_have_text("wife")
     expect(page.locator("#search-advanced-normalized")).to_contain_text(
         'assigned = "wife"'
     )
 
     query.fill("assigned IS NULL")
     page.locator("#search-advanced-submit").click()
-    expect(results.locator(".task-card")).to_have_count(1, timeout=5000)
-    expect(results).to_contain_text("QAT-R4UI-без-исполнителя")
+    # assigned IS NULL: СВОЯ unassigned-карточка в выдаче с курсивным
+    # «Unassigned»; СВОЯ assigned-карточка исключена (FR-46)
+    own_unassigned = results.locator(
+        ".task-card", has_text="QAT-R4UI-без-исполнителя-"
+    )
+    expect(own_unassigned).to_have_count(1, timeout=5000)
+    expect(results).not_to_contain_text("QAT-R4UI-с-исполнителем-")
+    expect(results.locator(".task-user-assigned")).to_have_count(0)
     # ОВ-24 в выдаче advanced-поиска: курсивный «Unassigned»
-    unassigned = results.locator(".task-user-unassigned")
+    unassigned = own_unassigned.first.locator(".task-user-unassigned")
     expect(unassigned).to_have_text("Unassigned")
     expect(unassigned).to_have_css("font-style", "italic")
     expect(page.locator("#search-advanced-normalized")).to_contain_text(

@@ -6,7 +6,7 @@
   2. GitHub Action на PR: парсит ID из title/body PR, валидирует наличие
      обязательных артефактов по контрактам artifact_contract.md.
 
-Маркер ID обязателен в title/body PR: [BUG-NNN] | [change-id] | [chore]
+Маркер ID обязателен в title/body PR: [BUG-NNN] | [change-id] | [chore] | [docs] | [ops]
 Каждый тип влечет свой набор обязательных артефактов (см. FLOWS ниже).
 
 Exit 0 — все артефакты на месте; exit 1 — список отсутствующих.
@@ -95,9 +95,9 @@ def check_change(repo: Path, change_id: str, marker: str = "") -> list[str]:
         covered = approved_review_tasks(repo, change_id)
         # J10 требует review только для DEV-задач: ops/docs-задачи ([ops]/[docs])
         # и незакрытые задачи tasks.md исключаются (контракт flow_control:
-        # ops_task/docs_task; упоминание задачи в тексте PR — контекст, не
-        # требование ревью). Урок add-containerization: «задачи 2.3/2.4» в body
-        # при [ops]-маркере давали ложный FAIL.
+        # ops_task/docs_task; упоминание незакрытой задачи в тексте PR —
+        # контекст, не требование ревью). Урок add-containerization: «задачи
+        # 2.3/2.4» в body при [ops]-маркере давали ложный FAIL.
         try:
             from flow_check import closed_dev_tasks
             tasks_md = repo / "openspec" / "changes" / change_id / "tasks.md"
@@ -113,15 +113,19 @@ def check_change(repo: Path, change_id: str, marker: str = "") -> list[str]:
                 f"code-reviews/{change_id}/: нет review-файла с вердиктом approve "
                 f"для задач из дифа PR (J10): " + ", ".join(unreviewed)
             )
-    # SELF_REVIEW: approve засчитывается только если Reviewer-Delegation
-    # из файла существует в реестре async_delegations и это НЕ dev-делегация
-    # (независимость: delegation_id ревьюера != делегаций задачи).
+
+    # SELF_REVIEW (решение Заказчика 2026-10-03): approve засчитывается только
+    # если Reviewer-Delegation существует в async_delegations, completed, и это
+    # НЕ dev-делегация задачи. Git-учетка одна — независимость подтверждается
+    # платформенными id (устойчивы к пересозданию main-сессий). Проверка ВНЕ
+    # привязки к pr_tasks: подделка артефакта ловится даже когда задачи не
+    # упомянуты в тексте PR.
     import sqlite3 as _sq
     _db = Path.home() / ".hermes" / "state.db"
-    _dev_delegs = set()
+    _dev_delegs: set = set()
     try:
         import json as _json
-        _fstate = json.loads((Path.home() / ".hermes" / "state" / "flowctl_state.json").read_text(encoding="utf-8"))
+        _fstate = _json.loads((Path.home() / ".hermes" / "state" / "flowctl_state.json").read_text(encoding="utf-8"))
         for _r in _fstate.get("runs", {}).values():
             _sc = _r.get("scope") or {}
             if _sc.get("change") == change_id and _sc.get("task"):
@@ -130,29 +134,33 @@ def check_change(repo: Path, change_id: str, marker: str = "") -> list[str]:
                     _dev_delegs.add(_dd.replace("-", "_"))
     except Exception:
         pass
-    for _rf in (repo / "code-reviews" / change_id).glob("review-*.md"):
-        _t = _rf.read_text(encoding="utf-8", errors="replace")
-        _m = re.search(r"Reviewer-Delegation[^A-Za-z0-9]{0,6}(deleg[-_][A-Za-z0-9]+)", _t, re.I)
-        if not _m:
-            continue
-        _rd = _m.group(1).replace("-", "_")
-        _exists = _ok = False
-        try:
-            _c = _sq.connect(f"file:{_db}?mode=ro", uri=True)
-            _row = _c.execute("SELECT state FROM async_delegations WHERE delegation_id=?", (_rd,)).fetchone()
-            _c.close()
-            _exists = _row is not None
-            _ok = _exists and _row[0] in ("completed",) and _rd not in _dev_delegs
-        except _sq.Error:
-            _exists = _ok = True  # реестр недоступен — не блокируем (SW-отказ ≠ нарушение)
-        if not _ok:
-            missing.append(
-                f"code-reviews/{change_id}/{_rf.name}: Reviewer-Delegation '{_rd}' "
-                + ("не найдена в реестре делегаций" if not _exists else
-                   "совпадает с dev-делегацией задачи (SELF_REVIEW)") +
-                " — ревью не засчитано"
-        )
-
+    _cr_dir = repo / "code-reviews" / change_id
+    if _cr_dir.is_dir():
+        for _rf in _cr_dir.glob("review-*.md"):
+            _t = _rf.read_text(encoding="utf-8", errors="replace")
+            _m = re.search(r"Reviewer-Delegation[^A-Za-z0-9]{0,6}(deleg[-_][A-Za-z0-9]+)", _t, re.I)
+            if not _m:
+                missing.append(
+                    f"code-reviews/{change_id}/{_rf.name}: нет Reviewer-Delegation (SELF_REVIEW-защита) — ревью не засчитано"
+                )
+                continue
+            _rd = _m.group(1).replace("-", "_")
+            _exists = _ok = False
+            try:
+                _c = _sq.connect(f"file:{_db}?mode=ro", uri=True)
+                _row = _c.execute("SELECT state FROM async_delegations WHERE delegation_id=?", (_rd,)).fetchone()
+                _c.close()
+                _exists = _row is not None
+                _ok = _exists and _row[0] in ("completed",) and _rd not in _dev_delegs
+            except _sq.Error:
+                _exists = _ok = True
+            if not _ok:
+                missing.append(
+                    f"code-reviews/{change_id}/{_rf.name}: Reviewer-Delegation '{_rd}' "
+                    + ("не найдена в реестре делегаций" if not _exists else
+                       "совпадает с dev-делегацией задачи (SELF_REVIEW)") +
+                    " — ревью не засчитано"
+                )
 
     # Тесты: хотя бы один TC-ID change в tests/ (контракт 6, трассировка)
     tests_root = repo / "tests"
@@ -181,19 +189,51 @@ def check_chore(repo: Path, marker: str) -> list[str]:
     return []
 
 
+def check_docs(repo: Path, marker: str) -> list[str]:
+    """[docs]: документация без openspec-пакета. Верификация фактов вместо
+    код-ревью (контракт ops_task/docs_task). Запрещены код продукта и спеки."""
+    errs: list[str] = []
+    # Конвенция CI: PR_CHANGED_SPECS / PR_CHANGED_CODE — "1", если дифф трогает
+    # openspec/changes/ (активные) / код продукта соответственно (см. check_chore).
+    if os.environ.get("PR_CHANGED_SPECS", "").strip() in ("1", "true"):
+        errs.append(
+            "PR помечен [docs], но содержит изменения openspec/ — изменение as is "
+            "только через change-пакет (контракт 7)")
+    if os.environ.get("PR_CHANGED_CODE", "").strip() in ("1", "true"):
+        errs.append(
+            "PR помечен [docs], но содержит изменения кода продукта — используй "
+            "маркер [change-id]/[BUG-NNN]")
+    return errs
+
+
+def check_ops(repo: Path, marker: str) -> list[str]:
+    """[ops]: эксплуатационные работы (деплой, переключение, инфраструктура).
+    Артефакт — протокол приемки Заказчика, не review-файл (контракт ops_task).
+    В git-диффе запрещены спеки; деплой-скрипты разрешены."""
+    errs: list[str] = []
+    if os.environ.get("PR_CHANGED_SPECS", "").strip() in ("1", "true"):
+        errs.append(
+            "PR помечен [ops], но содержит изменения openspec/ — изменение as is "
+            "только через change-пакет (контракт 7)")
+    return errs
+
+
 FLOWS = {
     "bug": check_bug,
     "change": check_change,
     "chore": check_chore,
+    "docs": check_docs,
+    "ops": check_ops,
 }
 
-MARKER_RE = re.compile(r"\[(BUG-\d+|[a-z0-9]+(?:-[a-z0-9]+)+|\bchore)\]")
+MARKER_RE = re.compile(r"\[(BUG-\d+|[a-z0-9]+(?:-[a-z0-9]+)+|\bchore|\bdocs|\bops)\]")
 
 # J10: извлечение номеров задач из текста PR (ветка/заголовок/тело).
 # Принимает формы: 1.1, 5.2, 2.1+2.2 (объединенная задача — обе).
 PR_TASK_RE = re.compile(
     r"(?<![\d.])"          # не часть большего числа (5.12, 1.5.2)
     r"(?<!§)"              # §4.1 — ссылка на раздел документа, не задача
+    r"(?<!шаг\s)(?<!шаги\s)"  # «шаг 4/6», «шаг 4.1» — шаги процедуры
     r"(\d+\.\d+)(?:\s*\+\s*(\d+\.\d+))?(?![\d.])"
 )
 
@@ -201,11 +241,14 @@ PR_TASK_RE = re.compile(
 def extract_pr_tasks(text: str) -> list[str]:
     """Номера задач из текста PR: 'feature/add-x-1.2', 'Merge 2.1+2.2: ...', 'задача 3.1'.
 
-    Исключения (не задачи): §N.N (разделы документов), «шаг N.N» и диапазоны
-    после «шаги» (урок J10 add-containerization: «RUNBOOK §4.1» в body
-    потребовал ревью несуществующей задачи 4.1).
+    Исключения (не задачи): §N.N (разделы документов), «шаг N.N» (шаги
+    процедуры), N.N внутри N.N.N. Ложные срабатывания (урок J10 на
+    add-containerization: «RUNBOOK §4.1» в body потребовал ревью задачи 4.1).
     """
+    # §-ссылки вырезаем до матчинга (lookbehind переменной длины для «шаг »
+    # не работает в re, поэтому текстовая предобработка):
     text = re.sub(r"§\d+(?:\.\d+)*", "", text)
+    # «шаг 4.1», «шаги 4.1–4.2, 5» — вся хвостовая перечисление после слова:
     text = re.sub(
         r"\bшаг[аи]?\s+\d+(?:\.\d+)*(?:\s*[–,—]\s*\d+(?:\.\d+)*)*",
         "", text, flags=re.I,
@@ -226,6 +269,16 @@ def parse_id(text: str) -> tuple[str, str] | None:
     m = re.search(r"\[chore\]", text, re.I)
     if m:
         return "chore", "chore"
+    # [docs]/[ops]: задачи без openspec-пакета и без кода продукта (документация,
+    # эксплуатация; J10-семантика ops/docs-задач — приемка Заказчика/верификация
+    # фактов вместо код-ревью). Урок 2026-10-04: J36-запись в BACKLOG с [docs]
+    # в title валится из-за незнания маркера.
+    m = re.search(r"\[docs\]", text, re.I)
+    if m:
+        return "docs", "docs"
+    m = re.search(r"\[ops\]", text, re.I)
+    if m:
+        return "ops", "ops"
     m = re.search(r"\[([a-z0-9]+(?:-[a-z0-9]+)+)\]", text)
     if m and "-" in m.group(1):
         return "change", m.group(1)
@@ -264,7 +317,7 @@ def main() -> int:
     if not parsed:
         print(
             "pr_validate: маркер ID не найден. Обязателен в title/body PR: "
-            "[BUG-NNN] (баг-фикс) / [change-id] (функционал) / [chore] (обслуживание). Блок I."
+            "[BUG-NNN] (баг-фикс) / [change-id] (функционал) / [chore] (обслуживание) / [docs] (документация) / [ops] (эксплуатация). Блок I."
         )
         return 1
 

@@ -6,8 +6,25 @@
 # паритет кодов ответов с монолитом (design §1 FR-64). Образы те же, что у
 # прода (FR-67); файл АВТОНОМЕН — не мержится с compose.yaml.
 #
+# ПРЕДОСЛОВИЕ ПЕРЕД ПЕРВЫМ up (1.2-e, review-004-1.2): bind-каталог бэкапов
+# обязан существовать и принадлежать uid 10001:10001 (образ backup работает
+# под USER 10001) — иначе backup не сможет писать и останется unhealthy:
+#   mkdir -p deploy/backups-test && chown 10001:10001 deploy/backups-test
+#
 # Отличия от прода (NFR-10 — изоляция от прода):
-#   - tmp-том БД (tmpfs): данные стенда исчезают при пересоздании;
+#   - ИМЕНОВАННЫЙ ТОМ ПРОЕКТА wiki-test-data (НЕ продовый wiki-data: проект
+#     name: wiki-test дает собственное пространство томов — wiki-test-data
+#     никогда не совпадает с продовым). Данные стенда исчезают при
+#     `down -v` (см. Останов ниже);
+#     ИЗМЕНЕНИЕ задачи 1.2 (add-microservices-full): раньше /data app был
+#     tmpfs. tmpfs НЕ шарится между контейнерами, а в пакете появились
+#     search (ro-читатель БД) и backup — на tmpfs они видели бы пустой /data:
+#     search отдавал бы 500 (sqlite-схемы нет; sqlite3.connect на read-only
+#     маунте пустой файл создать не может), backup — пустые бэкапы. Вариант
+#     «каждому сервису свой tmpfs» отвергнут: данные должны быть ОДНИ.
+#     Named volume проекта сохраняет обе гарантии: изоляцию от прода
+#     (другое имя тома + отдельный проект compose) и общий /data для
+#     app(RW)/search(RO)/backup(RO) — топология ~к проду.
 #   - ДРУГОЙ порт публикации: 8443 (прод 10443, переходный 10444 — не заняты);
 #   - seeded-юзеры (owner/wife) — заводятся командой после подъема;
 #   - SECRET_KEY стенда — НЕ продовый (дефолт ниже, можно TEST_SECRET_KEY=...).
@@ -22,7 +39,9 @@
 #   curl -s http://127.0.0.1:8443/api/health          # {"status":"ok"}
 #   curl -k -o /dev/null -w '%{http_code}\n' https://127.0.0.1:8443/login   # 200
 #
-# Останов: docker compose -p wiki-test down   (tmpfs-данные исчезают)
+# Останов: docker compose -f deploy/compose.test.yaml -p wiki-test down -v
+#   (-v ОБЯЗАТЕЛЕН: том wiki-test-data — не tmpfs, без -v данные стенда
+#   переживают пересоздание контейнеров; свежий прогон = чистый том).
 
 name: wiki-test
 
@@ -38,9 +57,11 @@ services:
       SECRET_KEY: ${TEST_SECRET_KEY:-00000000000000000000000000000000}
       DB_PATH: /data/wiki.db
       AVATARS_DIR: /data/avatars
-    tmpfs:
-      # tmp-том БД+аватаров: изоляция стенда от прод-данных (NFR-10).
-      - /data:size=256m,mode=1777
+    volumes:
+      # Именованный том ПРОЕКТА wiki-test (не tmpfs — решение задачи 1.2,
+      # см. шапку): app пишет (RW), search/backup читают (RO). Isolation от
+      # прода — по имени проекта+тома; очистка — down -v (шапка).
+      - wiki-test-data:/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8377/api/health', timeout=5).status == 200 else 1)"]
       interval: 30s
@@ -71,14 +92,65 @@ services:
       # клиенты e2e ходят с игнором валидации TLS.
       - /etc/nginx/ssl/ekotov-wiki.crt:/etc/nginx/ssl/ekotov-wiki.crt:ro
       - /etc/nginx/ssl/ekotov-wiki.key:/etc/nginx/ssl/ekotov-wiki.key:ro
-      # app пишет аватары в свой tmpfs /data/avatars — nginx-маунт avatars-test
-      # скрывал их (пустой volume поверх); маунтим tmpfs-каталог app нельзя
-      # (tmpfs не шарится), поэтому nginx читает через общий маунт тома как в
-      # проде невозможен — avatars на стенде отдается из tmpfs app напрямую
-      # только если nginx и app делят fs. Компромисс стенда: e2e не гоняет
-      # аватар-контент (rev.008 замечание 1); avatars-test оставлен пустым
-      # для /avatars/=403 смоука (не 502).
-      - avatars-test:/data/avatars:ro
+      # Аватары: app теперь пишет в том же именованном томе проекта
+      # (wiki-test-data:/data, не tmpfs) — nginx читает avatars из ТОГО ЖЕ
+      # тома той же глубиной (/data), как в проде; e2e может гонять
+      # аватар-контент (снимает компромисс rev.008 замечание 1).
+      - wiki-test-data:/data:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Search-сервис — те же параметры, что в проде (FR-67 паритет); том —
+  # именованный том проекта wiki-test (изоляция от прода, см. шапку).
+  search:
+    image: ${SEARCH_IMAGE:-ekotov-wiki/search:test}
+    build:
+      context: ..
+      dockerfile: services/search/Dockerfile
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      EKOTOV_WIKI_DB_PATH: /data/wiki.db
+    volumes:
+      - wiki-test-data:/data:ro
+    depends_on:
+      - app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8378/api/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Sidecar-бэкап на стенде: цикл укорочен до 3600с (проверяемость на
+  # стенде без суточного ожидания), retention тот же (14 дней). Каталог
+  # бэкапов — bind проекта стенда (НЕ /var/backups хоста — изоляция NFR-10).
+  backup:
+    image: ${BACKUP_IMAGE:-ekotov-wiki/backup:test}
+    build:
+      context: ..
+      dockerfile: services/backup/Dockerfile
+    restart: unless-stopped
+    mem_limit: 64m
+    environment:
+      EKOTOV_WIKI_DB_PATH: /data/wiki.db
+      EKOTOV_WIKI_AVATARS_DIR: /data/avatars
+      BACKUP_DIR: /backups
+      BACKUP_INTERVAL_SEC: "3600"
+      BACKUP_RETENTION_DAYS: "14"
+    volumes:
+      - wiki-test-data:/data:ro
+      - ./backups-test:/backups
+    depends_on:
+      - app
     logging:
       driver: json-file
       options:
@@ -86,4 +158,7 @@ services:
         max-file: "3"
 
 volumes:
-  avatars-test:
+  # Данные стенда (wiki.db + avatars/) — именованный том ПРОЕКТА wiki-test.
+  # Фактическое имя в docker: wiki-test_wiki-test-data (пространство проекта
+  # изолировано от продового ekotov-wiki_wiki-data — NFR-10).
+  wiki-test-data:

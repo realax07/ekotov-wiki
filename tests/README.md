@@ -284,8 +284,40 @@ python -m pytest tests/web -q
 # Прогон против внешнего стенда (например, прод-подобного) вместо автостенда:
 EKOTOV_WIKI_BASE_URL=https://<host> EKOTOV_WIKI_DB_PATH=<путь БД> python -m pytest tests/web -q
 # (без EKOTOV_WIKI_DB_PATH DB-крюк-кейсы TC-UI-017/018 skip — как в tests/api)
+```
 
-# Выбор наборов: -m web / -m e2e / -m must (маркеры в tests/web/conftest-модулях).
+### Протокол «чистая БД на сессию» (web-сьют на живом/маршрутизированном стенде)
+
+Автостенд conftest гарантирует пустую БД на сессию (см. «Изоляция» выше).
+При прогоне против ВНЕШНЕГО стенда (`EKOTOV_WIKI_BASE_URL` задан) автоподъем
+отключен и чистоту БД обязан обеспечить запускающий. Прецедент R6/2.1: живая
+БД копит unassigned-хвосты прошлых прогонов — тесты, ассертящие глобальный
+count выдачи, ловят strict/count-фейлы, невоспроизводимые на чистой БД.
+Протокол (обязателен для воспроизводимого прогона tests/web на живом стенде):
+
+1. **Свежая БД на сессию** (порядок критичен): `python -m app.db` (схема) →
+   seed owner/wife (пароли неинтерактивно — stdin-pipe по 2 строки на
+   пользователя, либо программный `app.seed_users.seed_user` с bcrypt) →
+   **`python -m app.migrate_r4`** (обязателен: без него роли NULL → красные
+   профиль-кейсы) → seed категорий «Дом», «Работа», «Личное» (автосеем
+   внешний стенд НЕ занимается — руками/API).
+2. **env обязателен весь:** `EKOTOV_WIKI_BASE_URL` (nginx-контур стенда),
+   `EKOTOV_WIKI_DB_PATH` (та же БД), `EKOTOV_WIKI_AVATARS_DIR` (иначе
+   teardown-errors r5_crop/settings_profile/tooltip).
+3. **Health до прогона:** `:8080/api/health` (app), `:8378/api/health`
+   (search), `/api/health` через nginx = ok; статика через nginx —
+   `application/javascript` (см. ниже про mime.types).
+4. **Прогон** — `python -m pytest tests/web -q` с этими env; после прогона
+   убедиться, что хвостов не осталось (задачи `QAT-*` удаляются teardown'ом;
+   хвосты от ПРЕДЫДУЩИХ сессий — признак нарушения п.1, их наличие ломает
+   count-ассерты поиска).
+5. Известное отклонение локального /tmp-nginx-контура: без
+   `include /etc/nginx/mime.types` вся статика отдается `text/plain`,
+   браузер отбрасывает ES-модули → краснеет весь сьют (дефект стенда, не
+   продукта). Проверка до прогона: `curl -I <nginx>/static/js/search.js` →
+   `application/javascript`.
+6. Выбор наборов: `-m web` / `-m e2e` / `-m must` (маркеры в
+   tests/web/conftest-модулях).
 ```
 
 Примечание: плагин pytest-base-url (транзитивная зависимость pytest-playwright)
