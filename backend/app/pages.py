@@ -32,7 +32,7 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # Кеш-бастинг статики (DEF-003): nginx отдаёт /static/ с expires 7d; при релизах
 # URL обязан меняться, иначе браузер держит прошлую версию CSS/JS. Бампать при
 # каждом релизе, меняющем статику.
-templates.env.globals["static_v"] = "r6.0"
+templates.env.globals["static_v"] = "r6.1"
 
 
 @router.get("/login")
