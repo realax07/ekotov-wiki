@@ -1,7 +1,8 @@
 # Ревью №7 задачи 2.1 — QA-отчет (регресс)
 
 - **Дата:** 2026-10-05
-- **Ревьюер:** независимый code_reviewer (не QA-делегация; Reviewer-Delegation не вписывается — ПМ впишет из реестра)
+- **Ревьюер:** независимый code_reviewer
+- **Reviewer-Delegation:** deleg-ae91c6a8 (реестр async_delegations: ревью QA-отчета 2.1, gate d647709e, completed/delivered)
 - **Предмет:** `tests/REPORT-regress-21.md` + `test-model/bugs/BUG-006-pytest-plugins-nonroot-conftest-collection-error.md`, коммит `a9f8176` (автор deleg_5339bc4c)
 - **Задача:** add-microservices-full / 2.1 (полный QA-регресс)
 
