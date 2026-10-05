@@ -68,7 +68,13 @@ phase_pre() {
   log "  бэкап БД ПАРАЛЛЕЛИ (в ней данные приемки 2.3 — свежее прода)"
   mkdir -p "${BACKUP_DIR}"
   local stamp; stamp="$(date +%Y-%m-%d-%H%M)"
-  docker run --rm -v "${PAR_VOLUME}:/data:ro" -v "${BACKUP_DIR}:/bkp" \
+  # WAL-БД: VACUUM INTO требует записи wal-index — поэтому ЧТЕНИЕ снапшота
+  # делаем через .backup (URI ro не дает создать -wal рядом с :ro маунтом).
+  # Точнее: копируем БД из тома во временный контейнер-путь через tar, затем
+  # бэкапим на хосте. Проще: docker run БЕЗ :ro (sqlite откроет rw, создаст
+  # -wal/-shm в самом томе — это норма, app их и так создает), VACUUM INTO
+  # пишет только в /bkp.
+  docker run --rm -v "${PAR_VOLUME}:/data" -v "${BACKUP_DIR}:/bkp" \
     "ekotov-wiki/app:p12-rc1" \
     python -c "import sqlite3; sqlite3.connect('/data/wiki.db').execute(\"VACUUM INTO '/bkp/wiki-pre-2.4-${stamp}.db'\")" \
     || fail "бэкап тома параллели упал"
