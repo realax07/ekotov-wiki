@@ -33,8 +33,76 @@
 const PROFILE_CONTAINER_ID = "sidebar-profile";
 const SETTINGS_PROFILE_URL = "/settings/profile";
 
+/* Ссылка «Мониторинг» (1.4, FR-78, дельта navigation; change
+ * add-netdata-monitoring): константа — XSS-дисциплина (href не
+ * собирается из данных ответа, design §3). Дашборд Netdata за nginx
+ * basic auth (design §2); до поднятия контейнера (задача 1.2/1.3)
+ * /netdata/ отвечает 404/401 — норма, ссылка видна owner. */
+const NETDATA_URL = "/netdata/";
+/* Роль owner («Product manager» = owner-логин, бэкфилл ОВ-21): только
+ * ей создается пункт (design §2; скрытие — удобство, НЕ защита). */
+const NETDATA_ALLOWED_ROLE = "Product manager";
+
 export function firstLetterUpper(login) {
   return login.charAt(0).toUpperCase();
+}
+
+/* Пункт «Мониторинг» (1.4, FR-78): <a href="/netdata/" target="_blank"
+ * rel="noopener"> с иконкой-пульсом (утвержденный мокап 1.1а
+ * design/netdata-sidebar-mockup.html, иконка design/netdata-icon.svg —
+ * inline-SVG 16px, stroke="currentColor" → токенная окраска) и текстом;
+ * вставляется в sidebar-footer ПЕРЕД «Настройки». Без промпт-карточки
+ * и без маркера внешней ссылки (решение Заказчика 2026-10-05,
+ * decision 2026-10-05-netdata-mockup-approval). XSS-дисциплина:
+ * только createElement + textContent, href — константа. */
+function buildMonitoringItem() {
+  const link = document.createElement("a");
+  link.className = "nav-item nav-item-monitoring";
+  link.href = NETDATA_URL;
+  link.target = "_blank";
+  link.rel = "noopener";
+
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("class", "nav-icon");
+  icon.setAttribute("aria-hidden", "true");
+
+  const pulse = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  pulse.setAttribute("points", "2.5 12 7 12 10 5.5 14 18.5 17 12 21.5 12");
+  pulse.setAttribute("fill", "none");
+  pulse.setAttribute("stroke", "currentColor");
+  pulse.setAttribute("stroke-width", "2");
+  pulse.setAttribute("stroke-linecap", "round");
+  pulse.setAttribute("stroke-linejoin", "round");
+  icon.appendChild(pulse);
+
+  const label = document.createElement("span");
+  label.className = "nav-label";
+  label.textContent = "Мониторинг";
+
+  link.append(icon, label);
+  return link;
+}
+
+/* Пункт создается при заполненном блоке профиля (успешный /api/auth/me)
+ * и только для роли «Product manager» (owner); позиция — перед
+ * «Настройки» (мокап 1.1а). До ответа/при 401/другой роли пункт не
+ * создается — паттерн блока профиля (design §2, §3). */
+function insertMonitoringItem(me) {
+  if (me.role !== NETDATA_ALLOWED_ROLE) {
+    return;
+  }
+  const footer = document.querySelector(".sidebar-footer");
+  if (!footer || footer.querySelector(".nav-item-monitoring")) {
+    return;
+  }
+  const settingsLink = footer.querySelector(".nav-item-settings");
+  const item = buildMonitoringItem();
+  if (settingsLink) {
+    footer.insertBefore(item, settingsLink);
+  } else {
+    footer.insertBefore(item, footer.firstChild);
+  }
 }
 
 /* Контент tooltip профиля (3.2, ОВ-25): аватар (или кружок-фоллбек),
@@ -178,6 +246,8 @@ async function loadProfile() {
     const body = await response.json().catch(() => null);
     if (body && typeof body.user === "string" && body.user) {
       fillProfile(container, body);
+      /* 1.4 (FR-78): после успешного /api/auth/me — при роли owner. */
+      insertMonitoringItem(body);
     }
   } catch {
     /* сеть/сервер — блок не отображается */
