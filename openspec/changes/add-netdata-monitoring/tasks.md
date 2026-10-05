@@ -20,7 +20,7 @@ green на каждом шаге. Инфра-изменения — послед
 
 ## ЭТАП B. Фронтенд (по утвержденному мокапу 1.1)
 
-- [ ] 1.4 [S] Dev: ссылка «Мониторинг» в сайдбаре **строго по утвержденному Заказчиком мокапу** (задача 1.1) — `frontend/static/js/profile.js`: после fetch `/api/auth/me` при `me.role === 'Product manager'` создает пункт в `sidebar-footer` (перед «Настройки»): `<a href="/netdata/" target="_blank" rel="noopener">` с иконкой и текстом; до ответа/401/другой роли — пункт не создается (паттерн блока профиля). XSS-дисциплина: createElement + textContent, href — константа; CSS — токены V3, состояния hover/focus-visible/active. Регресс: сайдбар (все разделы, блок профиля, tooltip) не сломан. Границы: `frontend/static/**` только (шаблоны не трогаются — design §3). (design §0, §3; FR-78 → navigation: «Ссылка „Мониторинг“…»; ОВ-2)
+- [x] 1.4 [S] Dev: ссылка «Мониторинг» в сайдбаре **строго по утвержденному Заказчиком мокапу** (задача 1.1) — `frontend/static/js/profile.js`: после fetch `/api/auth/me` при `me.role === 'Product manager'` создает пункт в `sidebar-footer` (перед «Настройки»): `<a href="/netdata/" target="_blank" rel="noopener">` с иконкой и текстом; до ответа/401/другой роли — пункт не создается (паттерн блока профиля). XSS-дисциплина: createElement + textContent, href — константа; CSS — токены V3, состояния hover/focus-visible/active. Регресс: сайдбар (все разделы, блок профиля, tooltip) не сломан. Границы: `frontend/static/**` только (шаблоны не трогаются — design §3). (design §0, §3; FR-78 → navigation: «Ссылка „Мониторинг“…»; ОВ-2)
 
 ## ЭТАП C. QA
 

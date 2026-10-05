@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап 1.1а — страница /gallery: сетка, фильтры, загрузка (add-gallery-service)</title>
+<style>
+/* =====================================================================
+   Мокап задачи 1.1 [design] add-gallery-service: страница /gallery.
+   Токены V3 «Бумага» — дословно из frontend/static/css/app.css (:root,
+   primitives → semantic). Без внешних библиотек/шрифтов/CDN (ОГР-8).
+   Каркас сайдбара — 1:1 из base.html + app.css (эталон
+   design/netdata-sidebar-mockup.html). Дельта — 4-й пункт «Галерея»
+   в sidebar-nav после «Wiki» (FR-85), иконка inline-SVG 16px.
+   Surface: EXPLORE (фильтры + сетка результатов — композиция, не hero).
+   ===================================================================== */
+:root {
+  /* primitives (V3 «Бумага») */
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;
+  --p-clay-700: #93391f;
+  --p-clay-050: #f7e8e4;
+  --p-olive-700: #5f6f34;
+  --p-amber-700: #8a5a1e;
+
+  /* semantic */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-text-on-accent: #fff;
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-bg-subtle: var(--p-paper-100);
+  --color-border-default: var(--p-paper-200);
+  --color-border-strong: var(--p-ink-600);
+  --color-accent: var(--p-clay-600);
+  --color-accent-hover: var(--p-clay-700);
+  --color-accent-soft: var(--p-clay-050);
+
+  /* spacing — 8px сетка */
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+
+  /* geometry */
+  --radius-field: 6px;
+  --radius-card: 10px;
+
+  /* elevation */
+  --shadow-modal: 0 16px 40px rgba(61, 54, 48, 0.18);
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+
+  /* typography */
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --speed-fast: 160ms;
+}
+
+* { box-sizing: border-box; }
+
+body.app-shell {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  display: flex;
+  min-height: 100vh;
+}
+
+/* =====================================================================
+   САЙДБАР — каркас 1:1 из app.css / base.html
+   ===================================================================== */
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--p-ink-900);
+  color: var(--p-paper-050);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+}
+.sidebar-nav { display: flex; flex-direction: column; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 10px 20px;
+  color: var(--p-paper-050);
+  text-decoration: none;
+  opacity: 0.85;
+}
+.nav-item:hover { background: rgba(255, 253, 249, 0.08); opacity: 1; }
+.nav-item.active { background: var(--color-accent); opacity: 1; font-weight: bold; }
+.nav-item:focus-visible { outline: none; box-shadow: inset var(--focus-ring); }
+.todo-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 6px;
+  font-size: var(--font-size-micro); font-weight: normal;
+  background: var(--p-amber-700); color: #fff;
+  border-radius: 999px; vertical-align: middle;
+}
+.sidebar-footer { padding: 0 20px; }
+.logout-button {
+  width: 100%; padding: var(--space-1);
+  background: transparent; color: var(--p-paper-050);
+  border: 1px solid var(--p-ink-600); border-radius: var(--radius-field);
+  cursor: pointer; font: inherit;
+}
+.logout-button:hover { background: rgba(255, 253, 249, 0.08); }
+.logout-button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.sidebar-profile {
+  display: flex; align-items: center; gap: var(--space-1);
+  margin-top: var(--space-1); padding-top: var(--space-1);
+  border-top: 1px solid var(--p-ink-600);
+  color: var(--p-paper-050); cursor: pointer;
+}
+.profile-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 50%; background: var(--color-accent);
+  color: var(--color-text-on-accent); font-weight: bold;
+}
+.profile-name { font-size: var(--font-size-label); overflow-wrap: anywhere; }
+
+/* =====================================================================
+   ДЕЛЬТА: пункт «Галерея» — 4-й в sidebar-nav, ПОСЛЕ «Wiki» (FR-85).
+   Отличие от «Мониторинга» (пакет 1): виден ВСЕМ (без role-рендера,
+   ОВ-4) — серверный шаблон base.html, не profile.js. Иконка
+   inline-SVG 16px, stroke: currentColor → токенная окраска.
+   ===================================================================== */
+.nav-item-gallery .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* =====================================================================
+   КОНТЕНТ — .content 1:1 из app.css (flex:1, padding 24px, h1 Georgia)
+   ===================================================================== */
+.content { flex: 1; padding: var(--space-3); min-width: 0; }
+.content h1 {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 26px;
+  margin: 0 0 var(--space-2);
+}
+
+/* --- Тулбар: фильтры (паттерн search-builder) + кнопка загрузки --- */
+.gallery-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: 14px;
+  margin-bottom: var(--space-2);
+  box-shadow: var(--shadow-soft);
+}
+.gallery-toolbar .filter label {
+  display: block;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+.gallery-toolbar .filter select {
+  display: block;
+  width: 200px;
+  margin-top: var(--space-05);
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+  cursor: pointer;
+}
+.gallery-toolbar .filter select:hover { border-bottom-color: var(--color-border-strong); }
+.gallery-toolbar .filter select:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
+}
+.filter-count { font-size: var(--font-size-micro); color: var(--color-text-secondary); margin-left: var(--space-1); }
+/* Сброс фильтра — текстовая ссылка (вторичный цвет → акцент на hover) */
+.filter-reset {
+  font: inherit; font-size: var(--font-size-label);
+  background: none; border: none; padding: 0 0 6px;
+  color: var(--color-text-secondary); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.filter-reset:hover { color: var(--color-accent-hover); }
+.filter-reset:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-field); }
+
+/* Первичная кнопка — паттерн #create-task-button (board.css, V3) */
+.upload-button {
+  margin-left: auto;
+  font: inherit;
+  cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+  display: inline-flex; align-items: center; gap: var(--space-1);
+}
+.upload-button:hover { background: var(--color-accent-hover); }
+.upload-button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.upload-button:active { transform: translateY(1px); }
+.upload-button:disabled { opacity: 0.45; cursor: not-allowed; }
+.upload-button .btn-icon { width: 16px; height: 16px; }
+
+/* =====================================================================
+   СЕТКА ПРЕВЬЮ — адаптив: 2 / 3 / 4 колонки (по вводной Заказчика).
+   ===================================================================== */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);   /* < 880px: 2 колонки */
+  gap: var(--space-2);
+}
+@media (min-width: 880px)  { .gallery-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1280px) { .gallery-grid { grid-template-columns: repeat(4, 1fr); } }
+
+/* Карточка = ссылка (клик → full-screen просмотр, FR-83): вся зона кликабельна */
+.g-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  text-decoration: none;
+  color: var(--color-text-primary);
+  transition: transform var(--speed-fast) ease, box-shadow var(--speed-fast) ease;
+}
+.g-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(61, 54, 48, 0.16);
+}
+.g-card:hover .g-card-title { color: var(--p-clay-700); }
+.g-card:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.g-card:active { transform: translateY(0); }
+
+/* Превью 4:3; плейсхолдеры — бумажные градиенты (реальные thumb отдаст nginx /images/) */
+.g-thumb {
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+  border-bottom: 1px solid var(--color-border-default);
+}
+.g-thumb .ph-icon { width: 32px; height: 32px; color: var(--p-ink-600); opacity: 0.45; }
+.ph-1 { background: linear-gradient(135deg, var(--p-paper-100), var(--p-paper-200)); }
+.ph-2 { background: linear-gradient(160deg, var(--p-clay-050), var(--p-paper-100)); }
+.ph-3 { background: linear-gradient(135deg, var(--p-paper-200), var(--p-paper-100) 60%, #dfe4d2); }
+.ph-4 { background: linear-gradient(20deg, var(--p-paper-100), #efe4d8); }
+.ph-5 { background: linear-gradient(120deg, #e3e7dc, var(--p-paper-100)); }
+
+.g-card-body { padding: var(--space-1) 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+.g-card-title {
+  margin: 0;
+  font-family: var(--font-family-display);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  /* 1 строка + многоточие: длинные названия не ломают ритм сетки */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.g-card-tags { display: flex; gap: var(--space-05); flex-wrap: wrap; align-items: center; }
+/* Пилюли категории/тега — паттерн .task-category / .task-tag (board.css, search.css) */
+.task-category, .task-tag {
+  background: var(--color-bg-subtle);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+.g-card-stats {
+  margin-top: auto;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.g-card-stats .stat { display: inline-flex; align-items: center; gap: 4px; }
+.g-card-stats .stat svg { width: 14px; height: 14px; }
+/* Бейдж «мой голос» на карточке (design §3: список возвращает my_vote) —
+   иконка окрашивается акцентом; различимость без цвета дает заливка фона */
+.g-card-stats .stat.my-vote {
+  color: var(--color-accent-hover);
+  background: var(--color-accent-soft);
+  border-radius: 999px;
+  padding: 1px 8px 1px 6px;
+  font-weight: 600;
+}
+.g-card-date { margin-left: auto; font-size: var(--font-size-micro); }
+
+/* Пустой результат фильтра — тихий state на бумажном токене */
+.gallery-empty {
+  grid-column: 1 / -1;
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-subtle);
+}
+
+/* =====================================================================
+   ДЕМО-ЗОНА СОСТОЯНИЙ КАРТОЧКИ (вне продукта): default / hover /
+   focus-visible / active — требование правил роли (все состояния).
+   ===================================================================== */
+.demo-strip { margin-top: var(--space-4); }
+.demo-strip h2 {
+  font-family: var(--font-family-display);
+  font-size: 18px; font-weight: 600; margin: 0 0 var(--space-1);
+}
+.demo-strip .gallery-grid { max-width: 1100px; }
+.demo-force-hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(61, 54, 48, 0.16); }
+.demo-force-hover .g-card-title { color: var(--p-clay-700); }
+.demo-force-focus { outline: none; box-shadow: var(--focus-ring); }
+.demo-force-active { transform: translateY(0); box-shadow: var(--shadow-soft); }
+.demo-note {
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  max-width: 860px;
+  margin: var(--space-1) 0 var(--space-2);
+}
+.demo-note code {
+  font-size: var(--font-size-micro);
+  background: var(--color-accent-soft);
+  padding: 1px 6px; border-radius: var(--radius-field);
+}
+kbd {
+  font-family: inherit; font-size: var(--font-size-micro);
+  border: 1px solid var(--color-border-default);
+  border-bottom-width: 2px; border-radius: var(--radius-field);
+  padding: 0 5px; background: var(--color-bg-surface);
+}
+</style>
+</head>
+<body class="app-shell">
+
+<!-- ===== САЙДБАР: каркас 1:1 base.html; ДЕЛЬТА — 4-й пункт «Галерея» ===== -->
+<aside class="sidebar" aria-label="Разделы">
+  <nav class="sidebar-nav">
+    <a href="#" class="nav-item">Доска</a>
+    <a href="#" class="nav-item">Поиск</a>
+    <a href="#" class="nav-item">Wiki <span class="todo-badge">todo</span></a>
+    <!-- ===== ДЕЛЬТА 1.1(д): «Галерея» — 4-й пункт, ПОСЛЕ «Wiki» (FR-85/FR-86).
+         Виден всем авторизованным (ОВ-4) — серверный рендер в base.html,
+         БЕЗ проверки роли (в отличие от «Мониторинга» из profile.js).
+         Иконка inline-SVG 16px, stroke="currentColor". ===== -->
+    <a href="/gallery" class="nav-item nav-item-gallery active" aria-current="page">
+      <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="9" cy="9.5" r="1.6" fill="currentColor"/>
+        <path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Галерея
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="#" class="nav-item nav-item-settings">Настройки</a>
+    <button type="button" class="logout-button">Выйти</button>
+    <div class="sidebar-profile">
+      <span class="profile-badge" aria-hidden="true">Е</span>
+      <span class="profile-name">ekotov</span>
+    </div>
+  </div>
+</aside>
+
+<main class="content">
+  <h1>Галерея</h1>
+
+  <!-- ===== ТУЛБАР: фильтры (паттерн конструктора поиска) + кнопка загрузки ===== -->
+  <div class="gallery-toolbar">
+    <div class="filter">
+      <label for="filter-category">Категория</label>
+      <select id="filter-category">
+        <option value="">Все категории</option>
+        <option selected>Интерьеры</option>
+        <option>Участок</option>
+        <option>Документы</option>
+        <option>Рецепты</option>
+      </select>
+    </div>
+    <div class="filter">
+      <label for="filter-tag">Тег</label>
+      <select id="filter-tag">
+        <option value="" selected>Все теги</option>
+        <option>ремонт</option>
+        <option>кухня</option>
+        <option>план</option>
+        <option>смета</option>
+      </select>
+    </div>
+    <button type="button" class="filter-reset">Сбросить</button>
+    <span class="filter-count" aria-live="polite">Найдено: 8</span>
+    <!-- Кнопка загрузки — открывает форму (мокап gallery-upload.html) -->
+    <button type="button" class="upload-button">
+      <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 16V5M12 5l-4 4M12 5l4 4M5 19h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Загрузить
+    </button>
+  </div>
+
+  <!-- ===== СЕТКА ПРЕВЬЮ (4 колонки на ≥1280px; превью — плейсхолдеры) ===== -->
+  <div class="gallery-grid">
+    <a href="#" class="g-card" aria-label="Кухня после ремонта — открыть просмотр">
+      <div class="g-thumb ph-2" aria-hidden="true">
+        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>
+      <div class="g-card-body">
+        <h3 class="g-card-title">Кухня после ремонта</h3>
+        <div class="g-card-tags">
+          <span class="task-category">Интерьеры</span>
+          <span class="task-tag">ремонт</span><span class="task-tag">кухня</span>
+        </div>
+        <div class="g-card-stats">
+          <span class="stat my-vote" title="Ваш голос: нравится">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0l4-7a2.4 2.4 0 0 1 2.4 2.4V9H19a2 2 0 0 1 2 2.2l-1 6.6A2 2 0 0 1 18 19.5H7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            3
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0l-4 7a2.4 2.4 0 0 1-2.4-2.4V15H5a2 2 0 0 1-2-2.2l1-6.6A2 2 0 0 1 6 4.5h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            1
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            2
+          </span>
+          <span class="g-card-date">сегодня</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="#" class="g-card" aria-label="План участка — открыть просмотр">
+      <div class="g-thumb ph-3" aria-hidden="true">
+        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>
+      <div class="g-card-body">
+        <h3 class="g-card-title">План участка</h3>
+        <div class="g-card-tags">
+          <span class="task-category">Участок</span>
+          <span class="task-tag">план</span>
+        </div>
+        <div class="g-card-stats">
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0l4-7a2.4 2.4 0 0 1 2.4 2.4V9H19a2 2 0 0 1 2 2.2l-1 6.6A2 2 0 0 1 18 19.5H7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            5
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0l-4 7a2.4 2.4 0 0 1-2.4-2.4V15H5a2 2 0 0 1-2-2.2l1-6.6A2 2 0 0 1 6 4.5h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            0
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            0
+          </span>
+          <span class="g-card-date">вчера</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="#" class="g-card" aria-label="Смета на материалы — открыть просмотр">
+      <div class="g-thumb ph-1" aria-hidden="true">
+        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>
+      <div class="g-card-body">
+        <h3 class="g-card-title">Смета на материалы (фото стр. 1)</h3>
+        <div class="g-card-tags">
+          <span class="task-category">Документы</span>
+          <span class="task-tag">смета</span>
+        </div>
+        <div class="g-card-stats">
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0l4-7a2.4 2.4 0 0 1 2.4 2.4V9H19a2 2 0 0 1 2 2.2l-1 6.6A2 2 0 0 1 18 19.5H7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            0
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0l-4 7a2.4 2.4 0 0 1-2.4-2.4V15H5a2 2 0 0 1-2-2.2l1-6.6A2 2 0 0 1 6 4.5h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            2
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            1
+          </span>
+          <span class="g-card-date">2 окт</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="#" class="g-card" aria-label="Рецепт борща — открыть просмотр">
+      <div class="g-thumb ph-4" aria-hidden="true">
+        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>
+      <div class="g-card-body">
+        <h3 class="g-card-title">Рецепт борща</h3>
+        <div class="g-card-tags">
+          <span class="task-category">Рецепты</span>
+        </div>
+        <div class="g-card-stats">
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0l4-7a2.4 2.4 0 0 1 2.4 2.4V9H19a2 2 0 0 1 2 2.2l-1 6.6A2 2 0 0 1 18 19.5H7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            1
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0l-4 7a2.4 2.4 0 0 1-2.4-2.4V15H5a2 2 0 0 1-2-2.2l1-6.6A2 2 0 0 1 6 4.5h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            0
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            4
+          </span>
+          <span class="g-card-date">30 сен</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="#" class="g-card" aria-label="Гостиная, черновик — открыть просмотр">
+      <div class="g-thumb ph-5" aria-hidden="true">
+        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>
+      <div class="g-card-body">
+        <h3 class="g-card-title">Гостиная, черновик расстановки</h3>
+        <div class="g-card-tags">
+          <span class="task-category">Интерьеры</span>
+          <span class="task-tag">ремонт</span>
+        </div>
+        <div class="g-card-stats">
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0l4-7a2.4 2.4 0 0 1 2.4 2.4V9H19a2 2 0 0 1 2 2.2l-1 6.6A2 2 0 0 1 18 19.5H7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            2
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0l-4 7a2.4 2.4 0 0 1-2.4-2.4V15H5a2 2 0 0 1-2-2.2l1-6.6A2 2 0 0 1 6 4.5h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            0
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            0
+          </span>
+          <span class="g-card-date">28 сен</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="#" class="g-card" aria-label="Теплица, схема — открыть просмотр">
+      <div class="g-thumb ph-2" aria-hidden="true">
+        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>
+      <div class="g-card-body">
+        <h3 class="g-card-title">Теплица, схема</h3>
+        <div class="g-card-tags">
+          <span class="task-category">Участок</span>
+        </div>
+        <div class="g-card-stats">
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0l4-7a2.4 2.4 0 0 1 2.4 2.4V9H19a2 2 0 0 1 2 2.2l-1 6.6A2 2 0 0 1 18 19.5H7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            0
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0l-4 7a2.4 2.4 0 0 1-2.4-2.4V15H5a2 2 0 0 1-2-2.2l1-6.6A2 2 0 0 1 6 4.5h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            1
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            0
+          </span>
+          <span class="g-card-date">25 сен</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="#" class="g-card" aria-label="Чек крепеж — открыть просмотр">
+      <div class="g-thumb ph-1" aria-hidden="true">
+        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>
+      <div class="g-card-body">
+        <h3 class="g-card-title">Чек: крепеж и уголки</h3>
+        <div class="g-card-tags">
+          <span class="task-category">Документы</span>
+          <span class="task-tag">смета</span><span class="task-tag">ремонт</span>
+        </div>
+        <div class="g-card-stats">
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0l4-7a2.4 2.4 0 0 1 2.4 2.4V9H19a2 2 0 0 1 2 2.2l-1 6.6A2 2 0 0 1 18 19.5H7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            1
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0l-4 7a2.4 2.4 0 0 1-2.4-2.4V15H5a2 2 0 0 1-2-2.2l1-6.6A2 2 0 0 1 6 4.5h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            0
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            1
+          </span>
+          <span class="g-card-date">21 сен</span>
+        </div>
+      </div>
+    </a>
+
+    <a href="#" class="g-card" aria-label="Сырники, результат — открыть просмотр">
+      <div class="g-thumb ph-4" aria-hidden="true">
+        <svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>
+      <div class="g-card-body">
+        <h3 class="g-card-title">Сырники, результат</h3>
+        <div class="g-card-tags">
+          <span class="task-category">Рецепты</span>
+        </div>
+        <div class="g-card-stats">
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0l4-7a2.4 2.4 0 0 1 2.4 2.4V9H19a2 2 0 0 1 2 2.2l-1 6.6A2 2 0 0 1 18 19.5H7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            4
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0l-4 7a2.4 2.4 0 0 1-2.4-2.4V15H5a2 2 0 0 1-2-2.2l1-6.6A2 2 0 0 1 6 4.5h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            0
+          </span>
+          <span class="stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            2
+          </span>
+          <span class="g-card-date">18 сен</span>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <!-- =====================================================================
+       ДЕМО-ЗОНА (не продукт): состояния карточки 1.1(в) — hover /
+       focus-visible / active; пустой результат фильтра.
+       ===================================================================== -->
+  <div class="demo-strip">
+    <h2>Состояния карточки (1.1в) — демо, не часть страницы</h2>
+    <p class="demo-note">
+      Карточка — цельная ссылка: клик открывает full-screen просмотр (FR-83);
+      <code>hover</code> — подъем + тень + терракотовый заголовок (паттерн preset-V);
+      <code>focus-visible</code> — focus-ring токен; бейдж «мой голос» — мягкая
+      терракотовая пилюля (различим без цвета: заливка + счетчик).
+    </p>
+    <div class="gallery-grid">
+      <a href="#" class="g-card demo-force-hover" tabindex="-1" aria-hidden="true">
+        <div class="g-thumb ph-2"><svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+        <div class="g-card-body">
+          <h3 class="g-card-title">hover: подъем + тень + акцент заголовка</h3>
+          <div class="g-card-tags"><span class="task-category">Интерьеры</span></div>
+          <div class="g-card-stats"><span class="stat my-vote">3</span><span class="stat">1</span><span class="stat">2</span></div>
+        </div>
+      </a>
+      <a href="#" class="g-card demo-force-focus" tabindex="-1" aria-hidden="true">
+        <div class="g-thumb ph-3"><svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+        <div class="g-card-body">
+          <h3 class="g-card-title">focus-visible: focus-ring (клавиатура)</h3>
+          <div class="g-card-tags"><span class="task-category">Участок</span></div>
+          <div class="g-card-stats"><span class="stat">5</span><span class="stat">0</span><span class="stat">0</span></div>
+        </div>
+      </a>
+      <a href="#" class="g-card demo-force-active" tabindex="-1" aria-hidden="true">
+        <div class="g-thumb ph-1"><svg class="ph-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></div>
+        <div class="g-card-body">
+          <h3 class="g-card-title">active: нажатие (возврат на место)</h3>
+          <div class="g-card-tags"><span class="task-category">Документы</span></div>
+          <div class="g-card-stats"><span class="stat">0</span><span class="stat">2</span><span class="stat">1</span></div>
+        </div>
+      </a>
+      <div class="gallery-empty" aria-hidden="true">
+        Пустой результат фильтра: «По фильтру ничего не найдено» + кнопка «Сбросить фильтры».
+      </div>
+    </div>
+  </div>
+
+  <p class="demo-note" style="margin-top: var(--space-3);">
+    Примечания для dev (1.5): сетка из <code>GET /api/images</code> (сортировка
+    created_at DESC); фильтры — <code>?category=&amp;tag=</code>, комбинируются,
+    пустые — все (FR-80); карточка — <code>&lt;a&gt;</code> на весь блок,
+    состояния hover/focus-visible/active; бейдж «мой голос» — из
+    <code>my_vote</code> списка; связей с трекером нет (ОВ-3); клавиатура:
+    <kbd>Tab</kbd> — карточки/фильтры, <kbd>Enter</kbd> — открыть просмотр.
+  </p>
+</main>
+
+</body>
+</html>
