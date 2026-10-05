@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-label="Пульс — мониторинг">
+  <!-- Иконка пункта «Мониторинг» (задача 1.1 add-netdata-monitoring).
+       Токенная окраска: stroke="currentColor" — цвет наследуется от текста
+       пункта сайдбара (--p-paper-050 на ink-900 / --color-accent при active).
+       Масштабируется 16/24px без потерь. Без внешних зависимостей (ОГР-8). -->
+  <polyline points="2.5 12 7 12 10 5.5 14 18.5 17 12 21.5 12"
+            fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
