@@ -125,6 +125,16 @@ def browser_instance(browser):
     yield browser
 
 
+@pytest.fixture(autouse=True)
+def _clean_qagal_before_each():
+    """Чистая галерея на каждый тест: сетка/порядок листания/счетчики карточек
+    в шагах кейсов рассчитаны на выдачу ТОЛЬКО своих загрузок (перегон
+    3430e4f: без очистки хвосты предыдущего теста ломали ожидания count=3 и
+    порядок created_at DESC). QAGAL-префикс — своя зона, чужие данные
+    (задачи/аватары) не затрагиваются."""
+    _cleanup()
+
+
 def _login(page, user: str):
     """Вход через /login (UI): cookie session Secure — localhost trustworthy."""
     page.goto(f"{BASE_URL}/login")
@@ -168,10 +178,15 @@ def gallery_js_page(browser_instance):
 # ---------------------------------------------------------------------------
 
 
-def test_tc_gal_115_grid_and_filters_owner_vs_pe(gallery_js_page):
+def test_tc_gal_115_grid_and_filters_owner_vs_pe(gallery_js_page, browser_instance):
     """TC-GAL-115: сетка (превью/название/категория/теги/счетчики); фильтры
     категория/тег/комбинация и сброс перерисовывают сетку по API-логике;
-    PE видит идентичную галерею (паритет ОВ-4)."""
+    PE видит идентичную галерею (паритет ОВ-4).
+
+    browser_instance запрашивается параметром (перегон 3430e4f): тело теста
+    ссылается на него для PE-контекста, но не запросило фикстуру — имя
+    резолвилось в FixtureFunctionDefinition (AttributeError на new_context);
+    дефект проявился только после снятия BUG-008-guard'а (тест не исполнялся)."""
     _upload_api("owner", MARKER + "A.png",
                 category=MARKER + "семья", tags=f"{MARKER}лето,{MARKER}дача")
     _upload_api("owner", MARKER + "B.png", category=MARKER + "семья")
@@ -229,7 +244,15 @@ def test_tc_gal_115_grid_and_filters_owner_vs_pe(gallery_js_page):
 def test_tc_gal_116_lightbox_nav_reactions_comment_download(gallery_js_page):
     """TC-GAL-116: клик по превью открывает full-screen модалку; ←/→ (кнопки
     и клавиши) листают циклично; Esc закрывает; лайк и комментарий из окна
-    (счетчик/подсветка обновляются без выхода); «скачать» — оригинал."""
+    (счетчик/подсветка обновляются без выхода); «скачать» — оригинал.
+
+    Порядок листания = текущая отфильтрованная выдача (created_at DESC,
+    свежие первыми — предусловие кейса «порядок = текущая выдача»): после
+    загрузки lb1/lb2/lb3 сетка [lb3, lb2, lb1]; от lb1 «назад» → lb2, от
+    lb1 «вперед» (циклично, lb1 последний) → lb3.
+    Примечание перегона 3430e4f: тест исполнился впервые (BUG-008-guard
+    снят); исходные шаги предполагали порядок ASC — сверены с семантикой
+    списка (TC-GAL-110 шаг 5, created_at DESC) и приведены к ней."""
     a = _upload_api("owner", MARKER + "lb1.png")
     _upload_api("owner", MARKER + "lb2.png")
     _upload_api("owner", MARKER + "lb3.png")
@@ -244,19 +267,22 @@ def test_tc_gal_116_lightbox_nav_reactions_comment_download(gallery_js_page):
     expect(overlay).to_be_visible()
     expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb1.png")
 
-    # Шаг 2: кнопки →/← циклично (последний → первый).
-    page.click("#lb-next")
+    # Шаг 2: кнопки ←/→ циклично по выдаче created_at DESC
+    # ([lb3, lb2, lb1]; lb1 — последний элемент выдачи).
+    page.click("#lb-prev")
     expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb2.png")
-    page.click("#lb-next")
-    expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb3.png")
-    page.click("#lb-next")
-    expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb1.png")
     page.click("#lb-prev")
     expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb3.png")
-
-    # Клавиатура: ArrowLeft/ArrowRight.
-    page.keyboard.press("ArrowRight")
+    page.click("#lb-prev")
     expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb1.png")
+    page.click("#lb-next")
+    expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb3.png")
+
+    # Клавиатура: ArrowRight от lb3 (индекс 0) → lb2, ArrowLeft → обратно lb3.
+    page.keyboard.press("ArrowRight")
+    expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb2.png")
+    page.keyboard.press("ArrowLeft")
+    expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb3.png")
 
     # Шаг 4: лайк из модалки — подсветка + счетчик без выхода из окна.
     page.click("#lb-like")
@@ -331,11 +357,12 @@ def test_tc_gal_117_like_highlight_comment_ui_xss(gallery_js_page, browser_insta
     expect(page.locator("#lb-dislike")).to_have_attribute("aria-pressed", "false")
     expect(page.locator("#lb-dislike-count")).to_have_text("0")
 
-    # Комментарий через UI.
+    # Комментарий через UI (автор — display_name «Владелец» seed-owner'а;
+    # COALESCE(display_name, login) в сервисе — комментарий «с автором»).
     page.fill("#comment-input", "QAGAL-коммент UI")
     page.click("#comment-send")
     expect(page.locator("#lb-comments-list")).to_contain_text("QAGAL-коммент UI")
-    expect(page.locator("#lb-comments-list")).to_contain_text("owner")
+    expect(page.locator("#lb-comments-list")).to_contain_text("Владелец")
 
     # Пустой комментарий → ошибка (кнопка disabled и/или 422-текст).
     page.fill("#comment-input", "   ")
@@ -355,7 +382,7 @@ def test_tc_gal_117_like_highlight_comment_ui_xss(gallery_js_page, browser_insta
     assert not leaked, "XSS: скрипт исполнился!"
 
     # Удаление своего комментария доступно (кнопка у своего).
-    own = page.locator("#lb-comments-list .lb-comment", has_text="QAGAL-").last
+    own = page.locator("#lb-comments-list .comment", has_text="QAGAL-").last
     expect(own.locator('button[aria-label*="далить"], button.del-btn, .comment-delete').first).to_be_visible()
 
     # Чужой комментарий (PE) — без кнопки удаления.
@@ -366,7 +393,7 @@ def test_tc_gal_117_like_highlight_comment_ui_xss(gallery_js_page, browser_insta
     pe_page.wait_for_load_state("networkidle")
     pe_page.locator(".g-card", has_text=MARKER + "x1.png").click()
     expect(pe_page.locator("#lightbox-overlay")).to_be_visible()
-    foreign = pe_page.locator("#lb-comments-list .lb-comment", has_text="QAGAL-").first
+    foreign = pe_page.locator("#lb-comments-list .comment", has_text="QAGAL-").first
     expect(foreign).to_be_visible()
     assert foreign.locator("button").count() == 0, "у чужого комментария есть кнопки"
     pe_context.close()
@@ -380,7 +407,12 @@ def test_tc_gal_117_like_highlight_comment_ui_xss(gallery_js_page, browser_insta
 def test_tc_gal_118_upload_form_happy_and_errors(gallery_js_page):
     """TC-GAL-118: happy-path через форму (file input + категория/теги);
     12 МБ → человекочитаемая too_large; PDF под .jpg → ошибка типа;
-    отказные не появляются в сетке."""
+    отказные не появляются в сетке.
+
+    Категория — «+ Новая категория…» (__new__ + имя в поле, паттерн формы:
+    селект наполняется из фактических категорий, Э-2; перегон 3430e4f —
+    select_option несуществующей категории ждал опцию и падал по таймауту,
+    кейс категории не диктует — happy-path с созданием новой)."""
     page = gallery_js_page
     page.reload()
     page.wait_for_load_state("networkidle")
@@ -394,7 +426,8 @@ def test_tc_gal_118_upload_form_happy_and_errors(gallery_js_page):
         "name": MARKER + "up.png", "mimeType": "image/png",
         "buffer": _png_bytes((30, 180, 90)),
     })
-    page.select_option("#up-category", MARKER + "семья-up")
+    page.select_option("#up-category", "__new__")
+    page.fill("#up-category-new", MARKER + "семья-up")
     page.fill("#up-tags", MARKER + "лето-up")
     page.click("#upload-submit")
     expect(form).to_be_hidden()
@@ -403,6 +436,11 @@ def test_tc_gal_118_upload_form_happy_and_errors(gallery_js_page):
     expect(card.locator(".task-tag", has_text=MARKER + "лето-up")).to_be_visible()
 
     # Слишком большой: 12 МБ → человекочитаемая ошибка, карточки нет.
+    # (после happy-загрузки gallery.js открывает лайтбокс загруженного —
+    # «карточка появляется в сетке» в интерпретации dev 1.5; закрываем Esc,
+    # чтобы клик по #upload-button не перехватывался оверлеем)
+    page.keyboard.press("Escape")
+    expect(page.locator("#lightbox-overlay")).to_be_hidden()
     big = _png_bytes() + b"\x00" * (12 * 1024 * 1024)
     page.click("#upload-button")
     expect(form).to_be_visible()
