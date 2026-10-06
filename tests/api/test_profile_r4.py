@@ -57,7 +57,7 @@ PM_ROLE = "Product manager"
 
 # Обязательный состав ответа профиля (sdd §3.1a-кватер).
 PROFILE_KEYS = {"login", "display_name", "role", "bio", "avatar_url"}
-ME_KEYS = {"user", "display_name", "role", "bio", "avatar_url"}
+ME_KEYS = {"user", "display_name", "role", "bio", "avatar_url", "id"}
 
 
 def _get_profile(base_url, session):
