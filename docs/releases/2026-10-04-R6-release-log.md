@@ -125,6 +125,12 @@
 - [15:35 UTC] Заказчик → ПМ: «Может внедрим design task?» → решение 2026-10-05-design-task-flow1: действие design_task (ui_designer) в Флоу 1 — STAGE_TABLE + check_design_task, ядро проекта [pipeline] 11ae595; эталон ai-factory — следующим ходом; gated_map вписан; ui_designer 1.1 (deleg_9537fb41) — мокапы в design/**
 - [16:00 UTC] Заказчик: мокапы 1.1 утверждены (без карточки / иконка ок / маркер не нужен; decision 2026-10-05-netdata-mockup-approval, 4099f86); [x] 1.1
 - [16:05 UTC] Заказчик: «Давай графану добавим» → пакет 2 R7; решение 2026-10-05-r7-launch-gallery (отдельный файл — машина ищет decision_id == имя файла, урок); SA add-gallery-service через ворота (deleg_5e3db820, gate ab97ad54); ветка add-gallery-service
+- [17:10 UTC] dev → ПМ: 1.4 завершена (7abdf12, playwright 29/29, регресс профиль/tooltip 20p; 2 pre-existing fails вне зоны эскалированы); finish returned (OUT_OF_ZONE: untracked мокапы галереи параллельной сессии в диффе — известная норма); сессия закрыта синхронно; code_review 1.4 (deleg_b6b65365, gate d6364e03) запущен
+- [17:25 UTC] code_reviewer → ПМ: review-001-1.4 — approve (0 blocker/major; 2 minor вне зоны 1.4: .ext-hint в мокапе → design_validator, rgba-каркас → бэклог); самостоятельные прогоны ревьюера 20p+3p совпали с dev; [x] 1.4; далее — 1.2 Netdata-контейнер + 1.3 nginx-локация (devops-волна)
+- [17:30 UTC] ПМ: review-001-1.4 approve (0 blocker/major, самостоятельные прогоны ревьюера совпали); [x] 1.4; devops-волна: 1.2 Netdata-compose (deleg_3f3a08c9, gate acf88974) запущена ([P]-задача, параллельна ui_designer галереи — зоны не пересекаются); 1.3 nginx-локация — следующая
+- [17:55 UTC] dev → ПМ: 1.2 завершена (aeaa447: netdata в обоих compose, curl-vs-wget обосновано официальным Dockerfile; 26/26 структурных проверок; живой подъем в 2.2); ПМ: приемка yaml-верификации (REPORT-1.2-netdata-compose.md), finish returned (норма), сессия закрыта; code_review 002-1.2 (deleg_56063e79, gate 54e97c3b) запущен
+- [17:45 UTC] code_reviewer → ПМ: review-002-1.2 — approve (33/33 независимых проверок; docker.sock-компромисс зафиксирован в design §4 осознанно; 1 minor: digest-пин — бэклог); [x] 1.2; gate 1.3 ALLOW (0dd08a0b: nginx-локация /netdata + basic auth, зоны frontend/**+deploy/**)
+- [17:50 UTC] ПМ: [x] 1.2 (review-002 approve 33/33); 1.3 nginx-локация /netdata через ворота (deleg_f5a5ef22, gate 0dd08a0b) — зоны frontend/**+deploy/**
 
 ## 2026-10-06 — add-gallery-service: ревью-волна 1.5/1.6 (ПМ)
 

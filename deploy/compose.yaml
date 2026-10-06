@@ -173,6 +173,48 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Netdata-мониторинг (задача 1.2, change add-netdata-monitoring; design §1/§4/§5):
+  # метрики железа хоста (proc/sys, ro) + контейнеров стека (docker-коллектор
+  # через docker.sock, ro). Дашборд :19999 слушает ВНУТРИ compose-сети, порт
+  # НЕ публикуется — доступ только через nginx (задача 1.3; FR-75, паритет
+  # app/search). Образ — канал stable: latest ЗАПРЕЩЕН (FR-72).
+  netdata:
+    image: ${NETDATA_IMAGE:-netdata/netdata:stable}
+    restart: unless-stopped
+    # NFR-19: netdata 256m (сумма лимитов стека 1.41 GB, резерв хосту >= 2.4 GB;
+    # стоковый образ ~150-300 MB, design §5).
+    mem_limit: 256m
+    environment:
+      # Docker-коллектор (go.d): путь к сокету контейнеров (design §4). Группу
+      # сокета (PGID) entrypoint образа определяет сам (docs netdata docker).
+      DOCKER_HOST: unix:///var/run/docker.sock
+      # Анонимная телеметрия наружу не нужна (легкий стек, ОВ-1).
+      DISABLE_TELEMETRY: "1"
+    volumes:
+      # Метрики железа хоста: CPU/RAM/диски/сеть (proc.plugin) — строго ro,
+      # пути по официальной документации netdata docker (design §4).
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      # Контейнеры стека: docker-коллектор через хост-сокет, строго ro —
+      # netdata НЕ управляет контейнерами (design §4, урок R6/PLAN-R7).
+      # На VPS других контейнеров нет (факт RUNBOOK §1).
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # Healthcheck (паритет самодостаточных healthcheck app/search): в текущем
+    # Debian-based образе есть curl — им же работает встроенный health.sh
+    # образа (poll /api/v1/info); wget НЕ гарантирован, поэтому curl —
+    # разрешенная замена по ТЗ 1.2 («иначе curl»).
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:19999/api/v1/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   nginx:
     image: ${FRONTEND_IMAGE:-ekotov-wiki/frontend:local}
     build:
@@ -204,6 +246,14 @@ services:
       # alias /data/images/ в конфиге резолвится точно в каталог файлов
       # (урок тома avatars: глубина маунта = глубина alias-пути).
       - images-data:/data/images:ro
+      # Креды basic auth дашборда Netdata (задача 1.3 add-netdata-monitoring,
+      # design §2): bind-mount ro с хоста; на VPS создается до пересоздания
+      # frontend (deploy.sh шаг «nginx -t до reload», design §6) — иначе
+      # nginx упадет на старте:
+      #   printf "owner:$(openssl passwd -apr1)" > /etc/nginx/netdata.htpasswd
+      # В репозиторий артефакт не попадает (deploy/.gitignore); пароль —
+      # ОТДЕЛЬНЫЙ от пароля wiki-owner (design §2, RUNBOOK в 2.2).
+      - /etc/nginx/netdata.htpasswd:/etc/nginx/netdata.htpasswd:ro
     logging:
       driver: json-file
       options:

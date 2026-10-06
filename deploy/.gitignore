@@ -1,0 +1,7 @@
+# Локальные артефакты deploy (правило зоны deploy/**, задача 1.3
+# add-netdata-monitoring): htpasswd-файлы содержат ХЕШИ паролей basic auth —
+# в репозиторий не попадают (spec monitoring: «htpasswd вне репозитория»,
+# design §2, NFR-5).
+netdata.htpasswd
+netdata.htpasswd.test
+*.htpasswd
