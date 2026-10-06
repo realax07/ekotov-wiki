@@ -40,7 +40,7 @@ FR → Requirement дельты. Правило: 1 задача = 1 сабаге
 
 ## ЭТАП A. Dev-волны (параллельные, зоны не пересекаются)
 
-- [ ] 2.1 [M] Dev: волна fastline+кнопки+настройки (группы A, E, H; параллельно
+- [ ] 2.1 [P] [M] Dev: волна fastline+кнопки+настройки (группы A, E, H; параллельно
   с 1.1/2.3/2.4 — зоны JS/CSS доски и поиска) — (а) п.5: убрать окраску столбца
   (`.board-column.has-fast`), подсветка только `.task-card-fast`; (б) п.6:
   блок `.fast-row` формы создания по макету V3 (токены; поведение
@@ -57,7 +57,7 @@ FR → Requirement дельты. Правило: 1 задача = 1 сабаге
   «автор · дата» по данным задачи 2.3. Регресс: просмотр/редактирование
   задачи, tooltip. Границы: `frontend/static/js/board/task-detail.js`,
   `frontend/static/css/board.css`. (FR-90 → board MODIFIED; design §1-B, §5)
-- [ ] 2.3 [M] Dev: волна комментарии + таг-combobox (группы C, D; параллельно)
+- [ ] 2.3 [P] [M] Dev: волна комментарии + таг-combobox (группы C, D; параллельно)
   — (а) п.3: `backend/app/comments.py` — GET списка с join users
   (`author_name` = display_name, fallback login; только добавление поля в
   ответ, POST-контракт не меняется); клиент — человекочитаемая дата/время из
@@ -69,7 +69,7 @@ FR → Requirement дельты. Правило: 1 задача = 1 сабаге
   `frontend/static/js/board/{tag-combobox,task-detail,task-form}.js` + юниты.
   (FR-91 → tasks MODIFIED «Признаки задачи»; FR-92 → tasks MODIFIED
   «Кастомный комбобокс…»; design §2, §5)
-- [ ] 2.4 [S] Dev: волна сайдбар+favicon (группы F, G; параллельно) — (а) п.9:
+- [ ] 2.4 [P] [S] Dev: волна сайдбар+favicon (группы F, G; параллельно) — (а) п.9:
   inline-SVG иконки разделов сайдбара (доска, поиск, wiki, настройки) в стиле
   иконок «Мониторинг»/«Галерея», окраска currentColor, base.html; (б) п.10:
   favicon data-URI inline-SVG (терракотовый акцент V3), URL с `?v=` — политика
@@ -77,7 +77,7 @@ FR → Requirement дельты. Правило: 1 задача = 1 сабаге
   «Мониторинг», tooltip), верстка не поехала. Границы:
   `frontend/templates/base.html`. (FR-94 → navigation MODIFIED «Навигация
   через сайдбар»; FR-95 → navigation ADDED «Favicon»)
-- [ ] 2.5 [S] Dev: волна галерея-rename (группа I; параллельно) —
+- [ ] 2.5 [P] [S] Dev: волна галерея-rename (группа I; параллельно) —
   `PUT /api/images/{id}/name` в сервисе images (тело `{"name"}`, 200/401/404/422,
   паритет существующим операциям; юниты happy/401/404/422 в
   `services/images/tests/`); UI лайтбокса: иконка «переименовать» у имени,
