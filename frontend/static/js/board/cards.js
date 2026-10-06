@@ -6,10 +6,11 @@
  * Средний/Высокий» — различим без цвета; без внешних библиотек.
  *
  * 4.3: карточки (title, priority-индикатор, category, due_date — FR-9).
- * 5.2 (FR-3): fast line подсвечена светло-синим прозрачным (столбец с
- * fast-задачей — класс has-fast, карточка — task-card-fast); fast-задачи
- * приходят с сервера уже отсортированными по приоритету (sdd §3.3) —
- * рендер сохраняет порядок ответа.
+ * 5.2 (FR-3) + 2.1 add-ui-polish-r8 (FR-87): fast line подсвечена
+ * светло-синим ТОЛЬКО на плитке fast-задачи (task-card-fast); окраска
+ * столбца (прежний класс has-fast) убрана. Fast-задачи приходят с
+ * сервера уже отсортированными по приоритету (sdd §3.3) — рендер
+ * сохраняет порядок ответа.
  *
 /**
  * 2.1/2.2 Релиза 3 (FR-31, ОГР-14, Д-6): drag-and-drop карточек между
@@ -181,20 +182,15 @@ export function renderBoard(data) {
       '.board-column[data-status="' + status + '"] [data-cards]'
     );
     container.textContent = "";
-    var hasFast = false;
-    /* Порядок ответа сервера сохраняется: сервер (sdd §3.3) уже
-     * отсортировал задачи в столбце по приоритету (fast — первыми). */
+    /* 2.1 add-ui-polish-r8 (FR-87): подсветка fast line — только на
+     * плитке (.task-card-fast в renderCard); класс столбца has-fast
+     * больше не ставится — окраска столбца убрана. */
     (columns[status] || []).forEach(function (task) {
-      if (task.is_fast) {
-        hasFast = true;
-      }
       container.appendChild(renderCard(task));
     });
-    /* 5.2 (FR-3): столбец с fast-задачей = подсвеченная fast line. */
-    var column = container.closest(".board-column");
-    column.classList.toggle("has-fast", hasFast);
     /* 3.1 (FR-32): оформленный пустой state пустого столбца —
      * пунктирная зона (board.css), текст дает CSS (::before). */
+    var column = container.closest(".board-column");
     var isEmpty = !container.firstElementChild;
     column.classList.toggle("board-column-empty", isEmpty);
     container.hidden = false;

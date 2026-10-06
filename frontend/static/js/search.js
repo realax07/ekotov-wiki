@@ -44,6 +44,20 @@
     return node;
   }
 
+  /* 2.1 add-ui-polish-r8 (FR-93): кнопкам действия «Найти» (id
+   * search-builder-submit / search-advanced-submit) проставляется
+   * единый класс .btn-action (app.css: токены V3, отступы 8px-сетки).
+   * Разметка шаблона не менялась — класс ставится здесь, id сохранены
+   * (ОГР-28), обработчики форм не затронуты. */
+  function applyActionButtonClass() {
+    ["search-builder-submit", "search-advanced-submit"].forEach(function (id) {
+      var button = document.getElementById(id);
+      if (button) {
+        button.classList.add("btn-action");
+      }
+    });
+  }
+
   /* --- Ошибки и сообщения --- */
 
   function showError(message) {
@@ -687,4 +701,6 @@
   loadCategoryFilterOptions();
   loadSuggestions();
   loadUserSuggestions();
+  /* FR-93: класс кнопки действия — после DOM (скрипт в конце body). */
+  applyActionButtonClass();
 })();
