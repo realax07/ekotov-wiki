@@ -1,6 +1,6 @@
 # requirements.md — ТЗ change-пакета add-ui-polish-r8 (P12 «UI-полировочный»)
 
-> Статус: **DRAFT** (не утвержден; утверждение BA/Заказчика — отдельный этап approve_requirements) | Автор: sa_agent | История: r1
+> Статус: **APPROVED r1** (утвержден Заказчиком 2026-10-06, решения по 4 эскалациям — decisions/2026-10-06-p12-requirements-approve.md) | Автор: sa_agent | История: r0 DRAFT → r1 APPROVED
 >
 > Источники вводных: PRODUCT_BACKLOG.md P12 пп.1–12 (заметки Заказчика
 > дословно, 2026-10-06) + доработка ПМ (интерпретация, помечена); план

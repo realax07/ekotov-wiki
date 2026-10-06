@@ -15,10 +15,11 @@ FR → Requirement дельты. Правило: 1 задача = 1 сабаге
 - [ ] 0.1 sa: create_change — пакет `add-ui-polish-r8` (proposal, requirements
   DRAFT, design, tasks, дельты specs по 4 capability; validate strict PASS,
   flow_check OK). Текущая задача. (Отчет — REPORT-0.1.md этого пакета)
-- [ ] 0.2 [approve] Заказчик: утверждение requirements.md (снятие DRAFT) —
-  отдельный этап approve_requirements; эскалации REPORT-0.1 (fastline в
-  редактировании: полноценное переключение vs read-only; вариант превью
-  галереи выбирается на мокапе). Dev НЕ стартует до утверждения ТЗ.
+- [x] 0.2 [docs] [approve] Заказчик: утверждение requirements.md (снятие DRAFT) —
+  УТВЕРЖДЕНО 2026-10-06: decisions/2026-10-06-p12-requirements-approve.md;
+  решения эскалаций: п.7 fastline = ПОЛНОЕ переключение (серверная дельта в объеме);
+  п.12 = три варианта превью на мокапе (развилка Д-паттерна); п.2 = один макет
+  на утверждение; п.10 favicon = на усмотрение ui_designer.
 
 ## ЭТАП D. Дизайн (до dev B и J; [design] параллелится с dev-волнами A/C/E-H/I)
 
