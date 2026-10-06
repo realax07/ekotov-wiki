@@ -17,7 +17,7 @@ jobs:
           node-version: 22
 
       - name: Install OpenSpec CLI
-        run: npm install -g @fission-ai/openspec@latest
+        run: npm install -g @fission-ai/openspec@1.14.0  # пин: @latest (>=1.15) поднял WARNING >500 chars до фейла strict — красит все ветки; апгрейд осознанно, отдельной задачей
 
       - name: Validate specs (strict)
         run: openspec validate --all --strict
