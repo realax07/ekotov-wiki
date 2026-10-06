@@ -65,13 +65,19 @@
   padding-bottom: 6px;
 }
 
-/* Сброс фильтра — текстовая ссылка (вторичный цвет → акцент на hover) */
+/* Сброс фильтра — текстовая ссылка (вторичный цвет → акцент на hover)
+ * по утвержденному мокапу design/gallery-grid.html. 2.1 add-ui-polish-r8
+ * (FR-93): кнопки ФИЛЬТРАЦИИ проверены на паттерн кнопок действия —
+ * «Сбросить» в утвержденном мокапе галереи сознательно текстовая ссылка
+ * (вторичное действие), вид мокапа сохранен; отступ-базовая линия
+ * приведен к 8px-сетке (6px → var(--space-05) + 2px кап-выравнивания
+ * убраны: padding-bottom дает базовую линию строки фильтров). */
 .filter-reset {
   font: inherit;
   font-size: var(--font-size-label);
   background: none;
   border: none;
-  padding: 0 0 6px;
+  padding: 0 0 var(--space-05);
   color: var(--color-text-secondary);
   cursor: pointer;
   text-decoration: underline;

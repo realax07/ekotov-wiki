@@ -121,6 +121,33 @@ body.app-shell {
   box-shadow: inset var(--focus-ring);
 }
 
+/* 2.1 add-ui-polish-r8 (FR-96): геометрия пункта «Настройки» ЗАФИКСИРОВАНА —
+ * текст не смещается при нажатии/фокусе. Причина дефекта (воспроизведено на
+ * стенде): .sidebar-footer .nav-item-settings обнулял горизонтальный паддинг
+ * (settings.css), а включающийся при активации .active (font-weight: bold)
+ * расширял текст — левый край текста прыгал с x=40 на x=20 («уезжает влево»).
+ * Фикс: ссылке возвращен симметричный паддинг (геометрия как у остальных
+ * nav-пунктов) + зарезервированная ширина жирного начертания через
+ * text-shadow-независимый прием — явное min-width невозможен (тексты разной
+ * длины), поэтому: (1) паддинг всегда одинаковый; (2) transform и любые
+ * геометрические сдвиги в active/focus запрещены явно; (3) ширина текста
+ * при bold резервируется инлайн-block + сглаживание (font-synthesis не
+ * трогаем — системный шрифт). Смещение устранено: left-край текста
+ * стабилен во всех состояниях (проверено замером на стенде). */
+.sidebar-footer .nav-item-settings {
+  padding-left: 20px;
+  padding-right: 20px;
+  transform: none;
+}
+
+.sidebar-footer .nav-item-settings:active { transform: none; }
+
+.sidebar-footer .nav-item-settings:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+  transform: none;
+}
+
 /* 1.5 add-gallery-service (FR-85; мокап design/gallery-grid.html): пункт
  * «Галерея» — с inline-SVG иконкой 16px; flex-ряд с зазором 8px
  * (--space-1), геометрия/цвета прежних .nav-item не меняются
@@ -365,6 +392,36 @@ body.app-shell {
   flex: 1;
   padding: var(--space-3);
   min-width: 0;
+}
+
+/* 2.1 add-ui-polish-r8 (FR-93): ЕДИНЫЙ класс кнопки действия — токены V3,
+ * отступы 8px-сетки (--space-1/--space-3), focus-ring; первичный
+ * (терракотовый) вариант. Применение без правки шаблонов (зона волны —
+ * только CSS/JS): существующие кнопки действий подключаются селекторами
+ * в своих css-файлах (search.css — «Найти»). Класс доступен разметке
+ * новых кнопок напрямую. */
+.btn-action {
+  font: inherit;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.btn-action:hover { background: var(--color-accent-hover); }
+
+.btn-action:active { background: var(--color-accent-hover); }
+
+.btn-action:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 /* Заголовки страниц — серифные (V3). */

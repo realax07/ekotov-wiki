@@ -146,12 +146,11 @@
   vertical-align: middle;
 }
 
-/* --- 5.2 Релиза 1: fast line (FR-3, ОГР-5) — подсветка на V3-токенах --- */
-
-.board-column.has-fast {
-  background: var(--p-blue-050);
-  border-color: var(--p-blue-200);
-}
+/* --- 5.2 Релиза 1: fast line (FR-3, ОГР-5) — подсветка на V3-токенах ---
+ * 2.1 add-ui-polish-r8 (FR-87): подсветка fast line — ТОЛЬКО на плитке
+ * (.task-card-fast); окраска/рамка всего столбца при наличии fast-задачи
+ * (прежний .board-column.has-fast) убрана. Позиция и порядок fast-задачи
+ * не меняются (sdd §3.3 — сортировка сервером сохраняется). */
 
 .task-card-fast {
   background: var(--p-blue-050);
@@ -588,20 +587,45 @@
 }
 
 /* Fast line — ряд-плашка на голубых токенах (мокап .fast-row, FR-3);
- * при reduced-motion transition не заводились — только цвета. */
+ * 2.1 add-ui-polish-r8 (FR-88): приведен к утвержденному макету V3
+ * (design/archive/form-style-v3.html, приемка мокапов P12 —
+ * design/polish-ticket-modal.html бейдж fast на тех же токенах):
+ * чекбокс 16px с отступом-выравниванием по первой строке (margin-top
+ * 1px мокапа), accent-color токеном, focus-visible кольцо на чекбоксе,
+ * label полужирный как в макете; отступ ряда до следующего поля —
+ * var(--space-2). Поведение блокировки приоритета (task-form.js,
+ * FR-27) не менялось. При reduced-motion transition не заводились —
+ * только цвета. */
 .task-form .fast-row {
   display: flex;
-  gap: var(--space-05);
+  gap: var(--space-1);
   align-items: flex-start;
   padding: var(--space-1);
   background: var(--p-blue-050);
   border: 1px solid var(--p-blue-200);
   border-radius: var(--radius-field);
-  font-size: 13px;
+  font-size: var(--font-size-label);
   margin-bottom: var(--space-2);
 }
 
 .task-form .fast-row[hidden] { display: none; }
+
+.task-form .fast-row .task-form-checkbox input {
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0; /* выравнивание по первой строке label (мокап) */
+  accent-color: var(--p-blue-700);
+}
+
+.task-form .fast-row .task-form-checkbox input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.task-form .fast-row .task-form-checkbox {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
 
 /* r6 3.1 (FR-63): единая зона действий — прежние .form-actions объединены
  * с #task-actions (в разметке остался один блок .task-actions); геометрия
