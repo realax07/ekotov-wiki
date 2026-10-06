@@ -204,7 +204,7 @@ function fetchImages() {
         ? result.body.images
         : [];
       collectFacets();       // категории + теги — из фактических данных (Э-2/Э-3)
-      fillFilterOptions();   // опции категорий — из фактических данных (Э-2)
+      refreshFiltersFromData(); // ОБА селекта (категории + теги) — из фактических данных (BUG-009)
       renderGrid();
     })
     .catch(function () {
