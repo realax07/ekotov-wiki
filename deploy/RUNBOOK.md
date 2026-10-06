@@ -81,24 +81,34 @@ git -C /home/openclaw/ekotov-wiki log --oneline -1
 | Сервис | Образ | Порт (внутр.) | mem_limit | Данные | Роль |
 |---|---|---|---|---|---|
 | app | `ekotov-wiki/app:<tag>` | 8377 | 512m | том **rw** | ядро: вся логика кроме поиска; ЕДИНСТВЕННЫЙ писатель БД; применяет схему idempotent'но при старте |
-| frontend | `ekotov-wiki/frontend:<tag>` | 10443 (публикует `${NGINX_PORT}`) | 64m | том :ro + серт хоста :ro | nginx: TLS, статика, avatars, маршрутизация app/search |
+| frontend | `ekotov-wiki/frontend:<tag>` | 10443 (публикует `${NGINX_PORT}`) | 64m | том :ro + images-data :ro + серт хоста :ro | nginx: TLS, статика, avatars, /images/ из тома, маршрутизация app/search/images |
 | search | `ekotov-wiki/search:<tag>` | 8378 | 512m | том **:ro** | поиск+suggestions (роутеры как в монолите, контракт `contracts/openapi-search.json`) |
 | backup | `ekotov-wiki/backup:<tag>` | — | 64m | том :ro + bind `/var/backups/ekotov-wiki` (uid 10001) | sidecar-бэкапы, cron-цикл 86400s, retention 14 дней |
+| images | `ekotov-wiki/images:<tag>` | 8379 | 128m | том **rw** (БД) + images-data **rw** | галерея (add-gallery-service): upload/валидация JPEG/PNG/GIF/WebP ≤10МБ (magic-байты), превью Pillow ≤800px, реакции/комментарии; пишет ТОЛЬКО таблицы gallery; файлы — в images-data (design §2, FR-79) |
 
 Теги: только релизные `<RELEASE_TAG>`; **latest ЗАПРЕЩЕН** (FR-72, deploy.sh падает).
-`depends_on`: nginx → app (service_healthy); search/backup → app БЕЗ condition
-(читают БД независимо; на пустом томе search вернет 500 на запросах, `/api/health`
-при этом 200 — схему создает app при первом старте).
+`depends_on`: nginx → app (service_healthy); search/backup/images → app БЕЗ condition
+(читают/пишут БД независимо; на пустом томе search вернет 500 на запросах, `/api/health`
+при этом 200 — схему создает app при первом старте; images требует users — FK
+images.uploaded_by). Все сервисы работают под **uid 10001** — владелец данных томов
+и bind-каталогов обязан быть 10001:10001 (новый том/каталог от root = PermissionError
+на записи; фикс: `docker run --rm -v <том>:/data alpine chown -R 10001:10001 /data`).
 
-### 2.2 Маршрутизация nginx (образ frontend, задача 1.3)
+### 2.2 Маршрутизация nginx (образ frontend, задачи 1.3 netdata / 1.4 gallery)
 
 - `location = /api/search`, `location ^~ /api/search/`, `location = /api/suggestions`(+семейство)
   → `proxy_pass http://search:8378` через `resolver 127.0.0.11` + переменную
   (stale-DNS после пересоздания search-контейнера лечится переразрешением valid=10s).
-- Заголовок `X-Service: search` на всех search-локациях (`search-headers.inc`) —
-  маркер «ответ пришел от search-сервиса», критерий смоука.
-- Деградация: `proxy_next_upstream` + `error_page` → `@search_down` —
-  остановленный search дает **управляемый 503** клиенту (не 502-залипание).
+- `location = /api/images`, `location ^~ /api/images/` → `http://images:8379`
+  (та же resolver-схема, `images-proxy.inc`), `client_max_body_size 12m` на локациях
+  (прод-лимит server 2m перебит — файл ≤10 МБ + multipart-обвязка, NFR-21);
+  `location /images/` — alias в том images-data, expires 7d (паритет /avatars/).
+- Заголовок `X-Service: search|images` на семейственных локациях — маркер
+  «ответ пришел от сервиса», критерий смоука.
+- Деградация: `proxy_next_upstream` + `error_page` → `@search_down` / `@images_down` —
+  остановленный сервис дает **управляемый 503** клиенту (не 502-залипание).
+- `/netdata` — basic auth (htpasswd bind :ro, chmod 644 — воркер непривилегирован)
+  → netdata:19999.
 - Остальные URI — app:8377 (proxy_pass через ту же resolver-схему).
 
 ### 2.3 RO-профиль search (services/search/app/db.py — читать при разборе нюансов)
@@ -200,6 +210,15 @@ sudo -E APP_IMAGE=ekotov-wiki/app:<hotfix-tag> \
 
 Владелец bind-каталога — **числовой uid 10001** (имя `wiki:wiki` на хосте может
 означать другой uid — deploy.sh приводит idempotent'но).
+
+**Галерея (r7.1-gallery+):** файлы изображений живут в отдельном томе
+`ekotov-wiki-par_images-data` (оригинал + превью `.jpg`, имена генерирует
+сервис — в БД только метаданные). Бэкап трассы деплоя пока покрывает БД +
+avatars; images-data включается в релизный контур (tar) — доработка deploy.sh
+(J38). Ручной снапшот тома: `docker run --rm -v ekotov-wiki-par_images-data:/data
+-v /var/backups/ekotov-wiki:/backup alpine tar czf /backup/images-pre-<метка>-$(date +%F).tar.gz -C /data .`.
+Владелец тома — uid 10001 (как выше); свежесозданный docker-том от root = 500
+на upload, фикс chown (§2.1).
 
 ## 6. Типовые отказы матрицы
 
