@@ -390,11 +390,6 @@ function fillFilterOptions() {
   }
 }
 
-function refreshFiltersFromData() {
-  fillFilterOptions();
-  fillTagFilterOptions(); // опции тегов — из поля tags списка (Э-3 закрыт)
-}
-
 /* Селект тегов: пересборка с сохранением выбора (общая для первичного
  * наполнения из списка и точечных добавлений appendKnownTag). */
 function fillTagFilterOptions() {
