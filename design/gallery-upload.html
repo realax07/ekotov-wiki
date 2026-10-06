@@ -427,7 +427,7 @@ kbd {
     </button>
 
     <h2 id="upload-title">Загрузить изображение</h2>
-    <p class="form-sub">JPEG, PNG, GIF или WebP, до 10 МБ. Оригинал сохраняется, для сетки создается превью.</p>
+    <p class="form-sub">Форматы JPEG, PNG, GIF или WebP — любые ориентации: горизонтальные, вертикальные и квадратные, до 10 МБ. Оригинал сохраняется как есть, для сетки создается превью.</p>
 
     <!-- (1) ФАЙЛ: drag&drop + клик (скрытый input[type=file]) -->
     <label class="field">
@@ -436,7 +436,7 @@ kbd {
     <div class="dropzone" role="button" tabindex="0" aria-label="Выбрать файл или перетащите его сюда">
       <svg class="dz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V5M12 5l-4 4M12 5l4 4M5 19h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <p class="dz-title">Перетащите файл сюда или <b>выберите на диске</b></p>
-      <span class="dz-limits">JPEG · PNG · GIF · WebP — до 10 МБ</span>
+      <span class="dz-limits">JPEG · PNG · GIF · WebP — до 10 МБ — любая ориентация (горизонтальные, вертикальные, квадратные)</span>
     </div>
 
     <!-- Выбранный файл: превью до отправки -->
@@ -446,7 +446,7 @@ kbd {
       </div>
       <div>
         <div class="file-name">kitchen-after.jpg</div>
-        <div class="file-meta">3,2 МБ · image/jpeg · превью будет создано автоматически</div>
+        <div class="file-meta">3,2 МБ · image/jpeg · 1600×1200 · оригинал сохраняется как есть, превью для сетки — автоматически</div>
       </div>
       <button type="button" class="file-remove" aria-label="Убрать файл">убрать</button>
     </div>
@@ -545,6 +545,7 @@ kbd {
   «+ Новая категория…» раскрывает текстовое поле;
   теги — combobox как в форме задач (<mark>-подсветка, «+ Добавить тег „…“», chips с крестиком);
   <kbd>Esc</kbd>/крестик — закрытие без сохранения; прогресс — после сабмита.
+  <div style="margin-top: var(--space-05);"><strong>Форматы и ориентации:</strong> принимаются JPEG/PNG/GIF/WebP в любой ориентации; превью в сетке — contain (изображение целиком), в детализации — оригинал без изменений.</div>
 </aside>
 
 </body>

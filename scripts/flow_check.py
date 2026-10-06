@@ -23,7 +23,7 @@ REVIEW_FILE_RE = re.compile(r"^review-(\d{3})-(.+?)-(\d{3})\.md$", re.I)  # rev-
 REVIEW_FILE_REV_FIRST = re.compile(r"^review-(\d{3})-(.+)\.md$", re.I)
 REVIEW_FILE_TASK_FIRST = re.compile(r"^review-(.+?)-(\d{3})\.md$", re.I)
 VERDICT_LINE_RE = re.compile(r"^#{1,4}\s*Вердикт\s*:?\s*(.+)$", re.I | re.M)
-VERDICT_APPROVE_RE = re.compile(r"\b(approve|approved|одобрен\w*)\b", re.I)
+VERDICT_APPROVE_RE = re.compile(r"\b(approve|approved|одобрен\w*|одобрить)\b", re.I)
 # SELF_REVIEW-защита (решение Заказчика 2026-10-03): review-файл обязан нести
 # Reviewer-Delegation: deleg_<id> — платформенный id делегации ревьюера
 # (реестр async_delegations устойчив к пересозданию main-сессий: id

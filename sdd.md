@@ -1,7 +1,7 @@
 # sdd.md — Системный дизайн: ekotov-wiki (changes add-kanban-core, add-r2-categories-settings, add-r3-visual-foundation, add-r4-user-profile-ticket-view, add-containerization)
 
 Источник требований: `requirements.md` (r4, утвержден), `test-model/requirements-r2.md` (r1, утвержден), `docs/ba/requirements-r4.md` (Релиз 4, УТВЕРЖДЕН Заказчиком 2026-09-29, ответы ОВ-21…26 — `docs/ba/answers_round4.md`). Пакеты: `openspec/changes/add-r4-user-profile-ticket-view/`, `openspec/changes/add-r3-visual-foundation/`, `openspec/changes/archive/2026-09-22-add-r2-categories-settings/`, `openspec/changes/archive/add-kanban-core/`.
-Версия sdd: r14 (2026-10-05, «как планируется» — change `add-netdata-monitoring`, дельты пакета): **мониторинг Netdata** — контейнер `netdata/netdata` в compose (прод+стенд, mem_limit 256m, healthcheck, порты не публикуются, маунты /proc,/sys ro + docker.sock ro — только чтение метрик), nginx-локации `/netdata` (= → 301, `=`+`^~` с basic auth htpasswd-owner → proxy `netdata:19999`, вырезание префикса по официальному паттерну Netdata subpath, resolver+переменная), ссылка «Мониторинг» в sidebar-footer по роли из `GET /api/auth/me` (только owner, target=_blank; вид — по мокапу ui_designer после утверждения Заказчиком, ревью design_validator — дизайн-фаза Р4/Р5), лимиты стека 1.41 GB / резерв ≥ 2.4 GB — §2, §3.9, §4-нет, §5, §6 (FR-75…FR-78, NFR-19). Предыдущая: r13 (2026-10-05) — change `add-microservices-full` закрыт полностью (ЭТАП A–C): **прод переключен на матричный стек сервисов** (задачи 2.3/2.4: прод-параллель p12-rc1 на 10444 с приемкой Заказчика, затем переключение 10443 через `deploy/2.4-switch.sh`; docker-хвосты 2.2 закрыты компенсацией на 2.3 — исполнено; F-цикл QA 2.1: web-сьют 165p/0f — изоляция test_search_r4_ui, скоупы локаторов; PROD = app + frontend(nginx) + search + backup, проект compose `ekotov-wiki-par`): сервисный разрез — поиск и подсказки обслуживаются `services/search` (контракт `contracts/openapi-search.json` заморожен, ядро без маршрутов, nginx-маршрутизация `X-Service: search`, 503-деградация), search читает БД в **RO-профиле** (URI `mode=ro` + probe-SELECT + fallback `immutable`, WAL-нюансы — `services/search/app/db.py`; копии сессионного middleware SELECT-only), границы — `architecture/map.md` (2026-10-05); откат: пара (app+search) одним RELEASE_TAG, точечный фикс `*_IMAGE`; RUNBOOK переписан по факту (2.5). Предыдущая: r12 (2026-10-03) — change `add-containerization` закрыт полностью (ЭТАП 0–2): **прод переключен на контейнерную схему** (задачи 2.3/2.4: параллельный запуск на 10444 с приемкой Заказчика, затем переключение 10443; systemd-юнит остановлен, сохранен как чекпоинт отката; дефект маунта аватаров найден и закрыт на 2.3 — коммит 7065a71); развертывание в §1 — docker compose В БОЮ (по факту переключения, задача 2.5). Предыдущая: r11 (2026-10-03) — change `add-containerization` (ЭТАП 0+1 плана P11, «как планируется», по дельтам пакета): контейнерная топология app (uvicorn) + nginx + именованный том `wiki-data`, compose прод/стенд (§3.8); машинный контракт `/openapi.json` под сессией (401 без нее), docs/redoc выключены (§3.8, план §3); e2e-сьют против compose-стенда (§3.8); миграции one-shot из образа до подъема app, бэкап+аватары до деплоя, откат тегами образов (§3.8); лимиты памяти, TLS томом, параллельный первый деплой с systemd (§3.8); развертывание в §1 — systemd → docker compose (переходный период); трассировка FR-64…FR-74/NFR-9…NFR-11 (§6). Предыдущая: r10 (2026-09-29) — Релиз 4, правки по ревью архитектора review-001 (коммит c1e9100): аватары хранятся в `/var/lib/ekotov-wiki/avatars/` (вне rsync-корня прода — blocker C-1: rsync `--delete` стирал бы файлы в `frontend/static/`), отдача nginx `location /avatars/` (§3.1a-кватер, §4); версия аватара — dedicated-колонка `users.avatar_updated_at` (minor B-3); миграция `migrate_r4.py` встроена в `deploy/deploy.sh` шагом после схемы, до рестарта, без остановки uvicorn (major C-2, §3.1a-ter); `GET /api/users` — read-only контракт, вне exempt (major B-1, §3.1a-кватер-бис); зависимости `Pillow==12.3.0` + `python-multipart==0.0.32` с пинами (minor B-2). Предыдущая: r9 (2026-09-29) — Релиз 4 (change add-r4-user-profile-ticket-view, «как планируется», по дельтам пакета): схема users (+display_name, +role, +bio, +avatar_path) и tasks (+creator_id, +assigned_to_id) с бэкфиллом creator=owner, assigned=owner (ОВ-23) и ролями по умолчанию owner→PM, wife→PE (ОВ-21) — §4, §3.1a-ter (миграция `migrate_r4.py`); API профиля/пароля/аватара и расширенный `GET /api/auth/me` — §3.1a-кватер; страница настроек пользователя — §3.6; assigned/creator в контрактах задач и поиске — §3.2/§3.5; единый tooltip-механизм (ОГР-17, reduced-motion TC-vis-105) и view-модалка (FR-47, Д-9) — design.md пакета; кеш-бастинг `static_v` при релизе (урок DEF-002/003) и бэкап прода до миграции (ОГР-19) — deploy-заметки design.md §1/§9; матрица трассировки дополнена FR-36…FR-48/NFR-9/10 (§6). Предыдущая: r8 (2026-09-27) — Релиз 3 (change add-r3-visual-foundation): эндпоинт `GET /api/auth/me` (§3.1a-бис); профиль внизу сайдбара (§3.6); DnD и эффекты доски — клиентские (§2 примечание); матрица FR-31…FR-35 (§6).
+Версия sdd: r15 (2026-10-05, «как планируется» — change `add-gallery-service`, дельты пакета): **сервис изображений «Галерея»** — новый контейнерный сервис `services/images` (FastAPI :8379 по образцу search: upload multipart, list с фильтрами категории/тега, get, like/dislike upsert — один голос пользователя, comments CRUD; healthcheck, mem_limit 128m, порты не публикуются), **RW-профиль общей БД** (первый сервис-писатель: свои таблицы gallery + read users; схему создает миграция ядра `backend/app/migrate_gallery.py` one-shot с репетицией на копии; 6 таблиц: image_categories, images, gallery_tags, image_tags, image_reactions, image_comments), том `images-data` (файлы+превью вне БД; отдача nginx `/images/` alias — паритет /avatars/), nginx-локации `/api/images*` (пара `=`+`^~`, include images-proxy.inc, resolver+переменная, client_max_body_size 12m, 503-деградация по паттерну search), страница `/gallery` в ядре + **4-й пункт сайдбара «Галерея»** для всех авторизованных (шаблон base.html, без role-рендера — ОВ-4), full-screen модалка с листанием ←/→ по утвержденным мокапам ui_designer (дизайн-фаза Р4/Р5, развилка Заказчика), лимиты стека 1.54 GB / резерв ≥ 2.3 GB — §2, §3.10, §4, §5, §6 (FR-79…FR-86, NFR-20/21).  (2026-10-05, «как планируется» — change `add-netdata-monitoring`, дельты пакета): **мониторинг Netdata** — контейнер `netdata/netdata` в compose (прод+стенд, mem_limit 256m, healthcheck, порты не публикуются, маунты /proc,/sys ro + docker.sock ro — только чтение метрик), nginx-локации `/netdata` (= → 301, `=`+`^~` с basic auth htpasswd-owner → proxy `netdata:19999`, вырезание префикса по официальному паттерну Netdata subpath, resolver+переменная), ссылка «Мониторинг» в sidebar-footer по роли из `GET /api/auth/me` (только owner, target=_blank; вид — по мокапу ui_designer после утверждения Заказчиком, ревью design_validator — дизайн-фаза Р4/Р5), лимиты стека 1.41 GB / резерв ≥ 2.4 GB — §2, §3.9, §4-нет, §5, §6 (FR-75…FR-78, NFR-19). Предыдущая: r13 (2026-10-05) — change `add-microservices-full` закрыт полностью (ЭТАП A–C): **прод переключен на матричный стек сервисов** (задачи 2.3/2.4: прод-параллель p12-rc1 на 10444 с приемкой Заказчика, затем переключение 10443 через `deploy/2.4-switch.sh`; docker-хвосты 2.2 закрыты компенсацией на 2.3 — исполнено; F-цикл QA 2.1: web-сьют 165p/0f — изоляция test_search_r4_ui, скоупы локаторов; PROD = app + frontend(nginx) + search + backup, проект compose `ekotov-wiki-par`): сервисный разрез — поиск и подсказки обслуживаются `services/search` (контракт `contracts/openapi-search.json` заморожен, ядро без маршрутов, nginx-маршрутизация `X-Service: search`, 503-деградация), search читает БД в **RO-профиле** (URI `mode=ro` + probe-SELECT + fallback `immutable`, WAL-нюансы — `services/search/app/db.py`; копии сессионного middleware SELECT-only), границы — `architecture/map.md` (2026-10-05); откат: пара (app+search) одним RELEASE_TAG, точечный фикс `*_IMAGE`; RUNBOOK переписан по факту (2.5). Предыдущая: r12 (2026-10-03) — change `add-containerization` закрыт полностью (ЭТАП 0–2): **прод переключен на контейнерную схему** (задачи 2.3/2.4: параллельный запуск на 10444 с приемкой Заказчика, затем переключение 10443; systemd-юнит остановлен, сохранен как чекпоинт отката; дефект маунта аватаров найден и закрыт на 2.3 — коммит 7065a71); развертывание в §1 — docker compose В БОЮ (по факту переключения, задача 2.5). Предыдущая: r11 (2026-10-03) — change `add-containerization` (ЭТАП 0+1 плана P11, «как планируется», по дельтам пакета): контейнерная топология app (uvicorn) + nginx + именованный том `wiki-data`, compose прод/стенд (§3.8); машинный контракт `/openapi.json` под сессией (401 без нее), docs/redoc выключены (§3.8, план §3); e2e-сьют против compose-стенда (§3.8); миграции one-shot из образа до подъема app, бэкап+аватары до деплоя, откат тегами образов (§3.8); лимиты памяти, TLS томом, параллельный первый деплой с systemd (§3.8); развертывание в §1 — systemd → docker compose (переходный период); трассировка FR-64…FR-74/NFR-9…NFR-11 (§6). Предыдущая: r10 (2026-09-29) — Релиз 4, правки по ревью архитектора review-001 (коммит c1e9100): аватары хранятся в `/var/lib/ekotov-wiki/avatars/` (вне rsync-корня прода — blocker C-1: rsync `--delete` стирал бы файлы в `frontend/static/`), отдача nginx `location /avatars/` (§3.1a-кватер, §4); версия аватара — dedicated-колонка `users.avatar_updated_at` (minor B-3); миграция `migrate_r4.py` встроена в `deploy/deploy.sh` шагом после схемы, до рестарта, без остановки uvicorn (major C-2, §3.1a-ter); `GET /api/users` — read-only контракт, вне exempt (major B-1, §3.1a-кватер-бис); зависимости `Pillow==12.3.0` + `python-multipart==0.0.32` с пинами (minor B-2). Предыдущая: r9 (2026-09-29) — Релиз 4 (change add-r4-user-profile-ticket-view, «как планируется», по дельтам пакета): схема users (+display_name, +role, +bio, +avatar_path) и tasks (+creator_id, +assigned_to_id) с бэкфиллом creator=owner, assigned=owner (ОВ-23) и ролями по умолчанию owner→PM, wife→PE (ОВ-21) — §4, §3.1a-ter (миграция `migrate_r4.py`); API профиля/пароля/аватара и расширенный `GET /api/auth/me` — §3.1a-кватер; страница настроек пользователя — §3.6; assigned/creator в контрактах задач и поиске — §3.2/§3.5; единый tooltip-механизм (ОГР-17, reduced-motion TC-vis-105) и view-модалка (FR-47, Д-9) — design.md пакета; кеш-бастинг `static_v` при релизе (урок DEF-002/003) и бэкап прода до миграции (ОГР-19) — deploy-заметки design.md §1/§9; матрица трассировки дополнена FR-36…FR-48/NFR-9/10 (§6). Предыдущая: r8 (2026-09-27) — Релиз 3 (change add-r3-visual-foundation): эндпоинт `GET /api/auth/me` (§3.1a-бис); профиль внизу сайдбара (§3.6); DnD и эффекты доски — клиентские (§2 примечание); матрица FR-31…FR-35 (§6).
 
 ## 1. Стек и обоснование
 
@@ -57,6 +57,7 @@
 - **Модуль категорий** — CRUD справочника `/api/categories*` + серверная валидация задач + миграционный скрипт внедрения (`backend/app/migrate_categories.py`).
 - **Фильтр-конвейер поиска** — builder→text→parse→параметризованный SQL (см. design.md §6).
 - **netdata** (change `add-netdata-monitoring`, «как планируется») — контейнер `netdata/netdata` в compose (прод и стенд): метрики железа хоста через ro-маунты `/proc`, `/sys`; метрики контейнеров — docker-коллектором через `/var/run/docker.sock:ro` (только чтение); `mem_limit: 256m`, healthcheck, порты НЕ публикуются; доступ — только nginx-локация `/netdata/` (basic auth htpasswd owner, файл вне репозитория, bind ro); ссылка «Мониторинг» в sidebar-footer — рендер по роли из `/api/auth/me` (owner), вид по мокапу ui_designer (дизайн-фаза Р4/Р5). Детали — design.md пакета §1–§6.
+- **images** (change `add-gallery-service`, «как планируется») — контейнерный сервис `services/images` (FastAPI, uvicorn 1 воркер, :8379, по образцу search): API изображений `/api/images*` (upload multipart, list с фильтрами категории/тега, get, like/dislike, comments CRUD — §3.10), healthcheck `/api/health`, `mem_limit: 128m`, порты НЕ публикуются, depends_on app, логи json-file 10m×3. Профиль данных — **RW своей схемы** (первый сервис-писатель): таблицы gallery (создает миграция ядра `backend/app/migrate_gallery.py` one-shot до подъема; репетиция на копии прод-БД обязательна) + `SELECT` из users; короткие транзакции, busy_timeout (§3.10, §4). Том `images-data` (оригинал + Pillow-превью ≤800px на upload) — файлы НЕ в БД; отдача — nginx `/images/` alias (паритет `/avatars/`). nginx-локации `/api/images*` — пара `=` + `^~` (include images-proxy.inc, resolver+переменная, client_max_body_size 12m, 503-деградация по паттерну `@search_down`). Страница `/gallery` — ядро (Jinja2+сессия); пункт «Галерея» — 4-й в сайдбаре после «Wiki», для всех авторизованных (base.html, без role-рендера — ОВ-4). Вид — по утвержденным Заказчиком мокапам ui_designer (дизайн-фаза Р4/Р5, развилка), ревью design_validator. Детали — design.md пакета §0–§8.
 
 ## 3. API-контракты (REST, JSON)
 
@@ -287,6 +288,73 @@ DnD-перемещение карточек (Релиз 3, FR-31) и визуа�
 
 
 
+### 3.10 Галерея (change add-gallery-service, цикл R7 — план)
+
+Нормативные источники: вводные Заказчика (PLAN-R7.md пакет 2, решение
+`decisions/2026-10-05-r7-launch-gallery`), дельты
+`openspec/changes/add-gallery-service/specs/{gallery,navigation,services,deploy}/spec.md`,
+design.md пакета. Формат — «как планируется». Сервис — `services/images`
+(:8379), маршрутизация — nginx (пара `=` + `^~ /api/images*`), авторизация —
+сессионная (без сессии — 401; exempt-список НЕ расширяется).
+
+| Метод/путь | Описание | Ответы |
+|---|---|---|
+| `POST /api/images` | Загрузка (multipart: file, category?, tags[]) | 201 ImageMeta; 422 (тип/размер); 401 |
+| `GET /api/images` | Список; query: `category` (id), `tag` (name) — комбинируются | 200 `{"images": [ImageListItem]}`; 401 |
+| `GET /api/images/{id}` | Метаданные + реакции + комментарии | 200 ImageFull; 404; 401 |
+| `PUT /api/images/{id}/like` | Голос +1 (upsert) | 200 `{counts, my_reaction}`; 401; 404 |
+| `DELETE /api/images/{id}/like` | Снять голос | 200 `{counts, my_reaction: null}`; 401; 404 |
+| `PUT /api/images/{id}/dislike` | Голос −1 (upsert) | 200 `{counts, my_reaction}`; 401; 404 |
+| `DELETE /api/images/{id}/dislike` | Снять голос | 200; 401; 404 |
+| `POST /api/images/{id}/comments` | `{body}` непустой | 201 Comment; 422; 401; 404 |
+| `DELETE /api/images/{id}/comments/{cid}` | Удалить СВОЙ комментарий | 200 `{ok: true}`; 403 (чужой); 404; 401 |
+| `GET /api/health` (images) | Health-check сервиса | 200 `{"status": "ok"}`; без БД-запроса (паритет search) |
+
+Объекты:
+
+```json
+ImageMeta = {
+  "id": 1, "filename": "a1b2….jpg", "thumb": "/images/thumbs/a1b2….jpg",
+  "original_name": "отпуск.jpg", "url": "/images/a1b2….jpg",
+  "mime": "image/jpeg", "size": 340000,
+  "category": {"id": 3, "name": "семья"} | null,
+  "tags": ["лето", "дача"], "uploaded_by": "owner", "created_at": "ISO"
+}
+ImageListItem = ImageMeta + {"likes": 2, "dislikes": 0, "comments": 3, "my_reaction": 1|-1|null}
+ImageFull    = ImageListItem + {"comments_list": [{"id", "author", "body", "created_at"}]}
+```
+
+- **Валидация загрузки (NFR-21):** тип по magic-байтам (JPEG/PNG/GIF/WebP),
+  размер ≤ 10 МБ — иначе 422 `{"error": "invalid file type|file too large"}`;
+  имя файла генерирует сервер (паттерн аватаров); превью — Pillow на upload
+  (длинная сторона ≤ 800px). nginx `client_max_body_size 12m` на локациях
+  загрузки (multipart-обвязка).
+- **Категории/теги:** категория — id существующей ИЛИ новое имя (создается
+  в справочнике галереи); теги — существующие + новые имена. Справочник
+  галереи (`image_categories`) отделен от справочника задач (`categories`);
+  теги галереи (`gallery_tags`) — свой словарь по механизму `tags` (design
+  пакета §2, research №3/№4).
+- **Реакции:** PK (image_id, user_id) — ровно один голос; like/dislike —
+  upsert; повторное действие того же знака снимает голос; ответ всегда —
+  актуальные счетчики + `my_reaction` (подсветка в UI).
+- **Комментарии:** удаление только автором (иначе 403); автор в ответе —
+  display_name или логин.
+- **Точки доступа nginx (дополнение к таблице §3.9):**
+
+| Путь | Поведение |
+|---|---|
+| `/api/images`, `/api/images/...` | `=` + `^~` → proxy `images:8379` (переменная + resolver 127.0.0.11; 503-деградация — паттерн `@search_down`) |
+| `/images/<файл>` | nginx alias в том `images-data` (ro), expires 7d — паритет `/avatars/`; сервис не в горячем пути |
+| `/gallery` | страница ядра (Jinja2, сессия; редирект без сессии) |
+
+- **Миграция:** `backend/app/migrate_gallery.py` — one-shot создание
+  таблиц §4 (идемпотентно, автосверка, exit 1 при расхождении); запуск
+  строго до `up` app (правило deploy: «Миграции БД — one-shot до подъема
+  нового app»); **репетиция на свежей копии прод-БД обязательна** до
+  боевой выкатки (задача 2.2).
+
+
+
 ## 4. Модель данных (SQLite)
 
 Файл БД — вне репозитория (NFR-5: `*.db`, `*.sqlite*` в `.gitignore`; путь — конфиг развертывания).
@@ -357,12 +425,58 @@ categories (
   id   INTEGER PK,
   name TEXT UNIQUE NOT NULL            -- справочник един (ОГР-7); дубль по регистру — другая запись (Д-2)
 )
+
+-- ===== Таблицы галереи (change add-gallery-service, R7 — план; владелец схемы —
+-- ===== сервис images; создает миграция ядра migrate_gallery.py one-shot) =====
+
+image_categories (     -- справочник категорий ГАЛЕРЕИ (отдельный от categories задач)
+  id   INTEGER PK,
+  name TEXT UNIQUE NOT NULL
+)
+
+images (
+  id            INTEGER PK,
+  filename      TEXT NOT NULL,         -- файл оригинала в томе images-data (генерирует сервер)
+  thumb_name    TEXT NOT NULL,         -- файл превью в томе (Pillow на upload, ≤800px)
+  original_name TEXT NOT NULL,         -- имя у загрузившего (для скачивания)
+  mime          TEXT NOT NULL,         -- image/jpeg|png|gif|webp (NFR-21)
+  size          INTEGER NOT NULL,      -- байты (≤ 10 МБ, NFR-21)
+  category_id   INTEGER FK -> image_categories.id,  -- nullable (категория опциональна)
+  uploaded_by   INTEGER NOT NULL FK -> users.id,
+  created_at    TEXT NOT NULL
+)
+
+gallery_tags (         -- словарь тегов галереи (механизм tags; свои таблицы — research №3)
+  id    INTEGER PK,
+  name  TEXT UNIQUE NOT NULL
+)
+
+image_tags (
+  image_id INTEGER NOT NULL FK -> images.id ON DELETE CASCADE,
+  tag_id   INTEGER NOT NULL FK -> gallery_tags.id,
+  PRIMARY KEY (image_id, tag_id)
+)
+
+image_reactions (
+  image_id INTEGER NOT NULL FK -> images.id ON DELETE CASCADE,
+  user_id  INTEGER NOT NULL FK -> users.id,
+  value    INTEGER NOT NULL CHECK (value IN (1, -1)),
+  PRIMARY KEY (image_id, user_id)      -- ровно один голос пользователя (FR-81)
+)
+
+image_comments (
+  id         INTEGER PK,
+  image_id   INTEGER NOT NULL FK -> images.id ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL FK -> users.id,
+  body       TEXT NOT NULL,
+  created_at TEXT NOT NULL
+)
 ```
 
 - `tasks.category` — TEXT (nullable), ссылка **по значению** на `categories.name`; FK не вводится: хранение по значению делает переименование категории переносом значения у всех задач-ссылок одним UPDATE (§3.7), а целостность «непустая category существует в справочнике» обеспечивает серверная валидация API (FR-21) — nullable-поле её схемой не выразить.
 - Инвариант priority-lock (FR-27): `is_fast = 1 ⇒ priority = 'high'` — поддержан серверной валидацией POST/PATCH (§3.2, §3.4) и приведением существующих fast-задач при миграции (§3.7); CHECK-ограничением в схеме не выражается (зависимость между двумя колонками).
 
-Индексы: `tasks(status, is_fast)`, `tasks(archived_at)`, `tasks(priority)`, `task_tags(tag_id)`, `comments(task_id)`, `tasks(done_at)` (фильтр ленивой автоархивации и столбца done, §3.3), `tasks(category)` (проверка использования при удалении категории — Д-1, и сверка миграции — NFR-8), `tasks(creator_id)`, `tasks(assigned_to_id)` (фильтры поиска FR-46, Релиз 4).
+Индексы: `tasks(status, is_fast)`, `tasks(archived_at)`, `tasks(priority)`, `task_tags(tag_id)`, `comments(task_id)`, `tasks(done_at)` (фильтр ленивой автоархивации и столбца done, §3.3), `tasks(category)` (проверка использования при удалении категории — Д-1, и сверка миграции — NFR-8), `tasks(creator_id)`, `tasks(assigned_to_id)` (фильтры поиска FR-46, Релиз 4); галерея (R7 план): `images(category_id)`, `images(created_at)` (сортировка сетки), `image_tags(tag_id)` (фильтр по тегу), `image_comments(image_id)` — PK image_reactions покрывает выборки голосов.
 
 Проверка NFR-5: `git check-ignore data/app.db` — проигнорирован.
 
@@ -488,5 +602,15 @@ categories (
 | FR-77 (add-netdata-monitoring) | Must | monitoring: «Дашборд покрывает показатели Заказчика» |
 | FR-78 (add-netdata-monitoring) | Must | navigation: «Ссылка «Мониторинг» в сайдбаре для owner» |
 | NFR-19 (add-netdata-monitoring) | Must | monitoring: «Ресурсы мониторинга ограничены»; deploy: «Лимиты памяти контейнеров» (MODIFIED: +netdata 256m) |
+| FR-79 (add-gallery-service) | Must | gallery: «Изображения обслуживаются отдельным сервисом images»; gallery: «Файлы изображений вне БД, в отдельном томе»; services: «Сервис images пишет в общую БД» |
+| FR-80 (add-gallery-service) | Must | gallery: «Категории и теги изображений» |
+| FR-81 (add-gallery-service) | Must | gallery: «Лайк/дизлайк — один голос пользователя» |
+| FR-82 (add-gallery-service) | Must | gallery: «Комментарии к изображениям» |
+| FR-83 (add-gallery-service) | Must | gallery: «Full-screen просмотр с листанием» (ОВ-3) |
+| FR-84 (add-gallery-service) | Must | gallery: «Доступ к галерее общий для всех пользователей» (ОВ-4) |
+| FR-85 (add-gallery-service) | Must | navigation: «Раздел «Галерея» в сайдбаре для всех» (ОВ-3/ОВ-4) |
+| FR-86 (add-gallery-service) | Must | navigation: «Раздел «Галерея»…» (сценарий «Вид пункта по утвержденным мокапам» — design_validator) |
+| NFR-20 (add-gallery-service) | Must | gallery: «Ресурсы сервиса изображений ограничены»; deploy: «Лимиты памяти контейнеров» (MODIFIED: +images 128m) |
+| NFR-21 (add-gallery-service) | Must | gallery: «Лимиты загрузки» |
 
-Покрытие Must: **все 13 Must-FR (FR-1…FR-7, FR-9…FR-14) и Must-NFR (NFR-3, NFR-4, NFR-7) имеют Requirements; NFR-6 (Must) — развертывание, покрыто задачей tasks 1.4** (дальнейшая детализация — не поведение системы; отмечено намеренно, не пропущено). Требования Релиза 2 (requirements-r2): **все 12 FR (FR-19…FR-30) и NFR-8 имеют Requirements** в доменах categories/settings/navigation/search/tasks/fastline master-спек. Требования Релиза 3 (requirements.md r4): **все 5 FR (FR-31…FR-35) имеют Requirements** в дельтах change-пакета `add-r3-visual-foundation` (board/auth/navigation/tasks/search). Требования Релиза 4 (requirements-r4): **все 13 FR (FR-36…FR-48) и NFR-9/10 имеют Requirements** в дельтах change-пакета `add-r4-user-profile-ticket-view` (auth/navigation/settings/board/tasks/search). Требования add-containerization (requirements.md r1, УТВЕРЖДЕН): **все 11 FR (FR-64…FR-74) и NFR-9/10 (Must) + NFR-11 (Should) имеют Requirements** в дельте change-пакета `add-containerization` (новая capability `deploy` — в `openspec/specs/` домена деплоя ранее не было; после архивации появится `openspec/specs/deploy/spec.md`). Требования add-netdata-monitoring (requirements.md пакета, статус ставит Заказчик): **все 4 FR (FR-75…FR-78) и NFR-19 (Must) имеют Requirements** в дельтах change-пакета `add-netdata-monitoring` (новая capability `monitoring` + ADDED в `navigation` + MODIFIED «Лимиты памяти» в `deploy`).
+Покрытие Must: **все 13 Must-FR (FR-1…FR-7, FR-9…FR-14) и Must-NFR (NFR-3, NFR-4, NFR-7) имеют Requirements; NFR-6 (Must) — развертывание, покрыто задачей tasks 1.4** (дальнейшая детализация — не поведение системы; отмечено намеренно, не пропущено). Требования Релиза 2 (requirements-r2): **все 12 FR (FR-19…FR-30) и NFR-8 имеют Requirements** в доменах categories/settings/navigation/search/tasks/fastline master-спек. Требования Релиза 3 (requirements.md r4): **все 5 FR (FR-31…FR-35) имеют Requirements** в дельтах change-пакета `add-r3-visual-foundation` (board/auth/navigation/tasks/search). Требования Релиза 4 (requirements-r4): **все 13 FR (FR-36…FR-48) и NFR-9/10 имеют Requirements** в дельтах change-пакета `add-r4-user-profile-ticket-view` (auth/navigation/settings/board/tasks/search). Требования add-containerization (requirements.md r1, УТВЕРЖДЕН): **все 11 FR (FR-64…FR-74) и NFR-9/10 (Must) + NFR-11 (Should) имеют Requirements** в дельте change-пакета `add-containerization` (новая capability `deploy` — в `openspec/specs/` домена деплоя ранее не было; после архивации появится `openspec/specs/deploy/spec.md`). Требования add-netdata-monitoring (requirements.md пакета, статус ставит Заказчик): **все 4 FR (FR-75…FR-78) и NFR-19 (Must) имеют Requirements** в дельтах change-пакета `add-netdata-monitoring` (новая capability `monitoring` + ADDED в `navigation` + MODIFIED «Лимиты памяти» в `deploy`). Требования add-gallery-service (requirements.md пакета, статус ставит Заказчик): **все 8 FR (FR-79…FR-86) и NFR-20/21 (Must) имеют Requirements** в дельтах change-пакета `add-gallery-service` (новая capability `gallery` + ADDED в `navigation` и `services` + MODIFIED «Лимиты памяти» в `deploy`).

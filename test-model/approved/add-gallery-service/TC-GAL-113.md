@@ -1,0 +1,14 @@
+# TC-GAL-113 — Э-6: /api/auth/me возвращает 6 ключей включая id (ME_KEYS-тесты обновлены)
+
+- **Change:** add-gallery-service
+- **Источник:** gallery (ADDED): «Доступ к галерее» (FR-84) + Э-6 (REPORT-1.6-escalations, дельта `/api/auth/me`: ключ `id`; задача 1.6(б)); impact-вердикт revalidate (ME_KEYS-тесты устарели на HEAD); CHK-GAL-30
+- **Тип:** ФТ, API, поз. + регр. | **Приоритет:** Must
+- **Маркер:** автоматизирован — `tests/api/test_profile_r4.py::test_me_extended_composition`, `::test_me_defaults_when_profile_empty` (строки 399/423, ME_KEYS) и `tests/api/test_gaps_r4.py:322` (TC-profile-r4-101) — **обновляются QA при прогоне 2.1**: точные ассерты множества `ME_KEYS = {"user","display_name","role","bio","avatar_url"}` дополняются `id` (сейчас 2 failed на HEAD, подтверждено review-002-1.5 — тесты устарели, не регресс); ручной/стендовый — REPORT-2.1 (api-сьют стенда)
+- **Предусловия:** стенд поднят с миграцией gallery; действующая сессия (owner); до прогона — обновить ассерты ME_KEYS в tests/api (правка тестов — зона QA, tasks 2.1; tests/ вне зоны dev)
+- **Шаги:**
+  1. Обновить обе константы `ME_KEYS` до состава 6 ключей `{user, display_name, role, bio, avatar_url, id}`: `tests/api/test_profile_r4.py:60` (используют ассерты :399 и :423) И `tests/api/test_gaps_r4.py:68` (собственная константа, используют ассерт :322 — TC-profile-r4-101); не пропустить вторую — файлы не делят константу.
+  2. `GET /api/auth/me` с сессией owner через nginx — зафиксировать JSON тела.
+  3. Прогнать обновленные `pytest tests/api/test_profile_r4.py::test_me_extended_composition tests/api/test_profile_r4.py::test_me_defaults_when_profile_empty tests/api/test_gaps_r4.py` на стенде.
+  4. Регресс 2.1 — при условии, что стенд имеет nginx-маршрутизацию (прецедент REPORT-1.6: без nginx прогоняется только /me-домен): прогнать `pytest tests/api/test_profile_r4.py tests/api/test_gaps_r4.py tests/api/test_auth_me.py` — без регресса (миграция gallery и изменение auth.py не сломали существующие проверки; полный api-сьют не дублировать — /me-домен покрыт перечисленными файлами).
+  5. `GET /api/auth/me` без сессии — 401.
+- **Ожидаемый результат:** шаг 2 — ответ содержит ровно 6 ключей включая `id` (значение = users.id; фактический живой прогон review-002-1.5: `{"id":1,"user":"owner","display_name":null,"role":null,"bio":null,"avatar_url":null}`), прежние ключи на месте (обратная совместимость — только добавление); шаг 3 — обновленные ME_KEYS-тесты зеленые (2 failed на HEAD устранены); шаг 4 — регресс /me-домена и auth (test_profile_r4, test_gaps_r4, test_auth_me) green (миграция gallery не сломала существующее; полный сьют — только на стенде с nginx-маршрутизацией); шаг 5 — без сессии 401. Замечание 5 review-002-1.5 закрыто; спек-сторона Э-7 (MODIFIED-дельта auth) — вне данного кейса, зона СА.

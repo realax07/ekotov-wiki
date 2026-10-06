@@ -1,0 +1,993 @@
+/* Галерея (tasks.md 1.5 add-gallery-service): стили страницы /gallery.
+ * Строго по утвержденным мокапам 1.1 (design/gallery-grid.html,
+ * gallery-lightbox.html, gallery-upload.html). Стиль V3 «Бумага» —
+ * токены из app.css :root (paper/ink/clay, Georgia display, радиусы
+ * 6/10px, focus-ring, 8px-сетка) — НИКАКОГО хардкода цветов (эталон
+ * design_validator'а 2.1(г)). Каркас — app.css (сайдбар, .content);
+ * модалки/крестики/ошибки — board.css (.modal-overlay, .modal,
+ * .modal-close, .form-error); паттерн фильтров — search.css.
+ * Здесь — только компоновка галереи. */
+
+/* =====================================================================
+   ТУЛБАР: фильтры + кнопка загрузки (мокап gallery-grid.html)
+   ===================================================================== */
+
+.gallery-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: 14px;
+  margin-bottom: var(--space-2);
+  box-shadow: var(--shadow-soft);
+}
+
+.gallery-toolbar .filter {
+  min-width: 0;
+}
+
+.gallery-toolbar .filter label {
+  display: block;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+
+.gallery-toolbar .filter select {
+  display: block;
+  width: 200px;
+  max-width: 100%;
+  margin-top: var(--space-05);
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.gallery-toolbar .filter select:hover { border-bottom-color: var(--color-border-strong); }
+
+.gallery-toolbar .filter select:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
+}
+
+.filter-count {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  margin-left: var(--space-1);
+  padding-bottom: 6px;
+}
+
+/* Сброс фильтра — текстовая ссылка (вторичный цвет → акцент на hover) */
+.filter-reset {
+  font: inherit;
+  font-size: var(--font-size-label);
+  background: none;
+  border: none;
+  padding: 0 0 6px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.filter-reset:hover { color: var(--color-accent-hover); }
+
+.filter-reset:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-field);
+}
+
+/* Первичная кнопка загрузки — паттерн #create-task-button (board.css, V3) */
+.upload-button {
+  margin-left: auto;
+  font: inherit;
+  cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.upload-button:hover { background: var(--color-accent-hover); }
+
+.upload-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.upload-button:active { transform: translateY(1px); }
+
+.upload-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.upload-button .btn-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* =====================================================================
+   СЕТКА ПРЕВЬЮ (мокап gallery-grid.html): адаптив 2 / 3 / 4 колонки
+   (<880 / ≥880 / ≥1280px). Превью — ЦЕЛИКОМ в ячейку 4:3
+   (object-fit: contain — уточнение Заказчика, не cover); фон ячейки —
+   бумажный токен. Бейдж формата в правом нижнем углу превью.
+   ===================================================================== */
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2);
+}
+
+@media (min-width: 880px)  { .gallery-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1280px) { .gallery-grid { grid-template-columns: repeat(4, 1fr); } }
+
+/* Карточка = ссылка (клик → full-screen, FR-83): вся зона кликабельна */
+.g-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  text-decoration: none;
+  color: var(--color-text-primary);
+  transition: transform var(--speed-fast) ease, box-shadow var(--speed-fast) ease;
+}
+
+.g-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(61, 54, 48, 0.16);
+}
+
+.g-card:hover .g-card-title { color: var(--p-clay-700); }
+
+.g-card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.g-card:active { transform: translateY(0); }
+
+/* Ячейка превью 4:3; изображение вписывается целиком (contain) */
+.g-thumb {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+  padding: var(--space-1);
+  background: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.g-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: var(--shadow-soft);
+}
+
+/* Бейдж формата файла (уточнение Заказчика 1.1): jpeg/png/webp/gif */
+.fmt-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: var(--font-size-micro);
+  line-height: 1.7;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
+}
+
+.g-card-body {
+  padding: var(--space-1) 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.g-card-title {
+  margin: 0;
+  font-family: var(--font-family-display);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  /* 1 строка + многоточие: длинные названия не ломают ритм сетки */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Пилюля категории — паттерн .task-category (board.css; имя — из списка,
+   рендер textContent) */
+.task-category,
+.task-tag {
+  background: var(--color-bg-subtle);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+
+.g-card-tags {
+  display: flex;
+  gap: var(--space-05);
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: 22px;
+}
+
+.g-card-stats {
+  margin-top: auto;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.g-card-stats .stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.g-card-stats .stat svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Бейдж «мой голос» на карточке (поле my_reaction списка): иконка
+   окрашивается акцентом; различимость без цвета — заливка фона */
+.g-card-stats .stat.my-vote {
+  color: var(--color-accent-hover);
+  background: var(--color-accent-soft);
+  border-radius: 999px;
+  padding: 1px 8px 1px 6px;
+  font-weight: 600;
+}
+
+.g-card-date {
+  margin-left: auto;
+  font-size: var(--font-size-micro);
+}
+
+/* Пустой результат фильтра / пустая галерея — тихий state на бумажном токене */
+.gallery-empty {
+  grid-column: 1 / -1;
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-subtle);
+}
+
+/* =====================================================================
+   FULL-SCREEN МОДАЛКА (мокап gallery-lightbox.html; FR-83):
+   overlay на весь экран (затемнение как .modal-overlay board.css),
+   сцена слева (фон ink-900) + панель справа 340px.
+   ===================================================================== */
+
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(61, 54, 48, 0.4);
+  display: flex;
+  z-index: 10;
+}
+
+.lightbox {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background: var(--color-bg-page);
+  animation: modal-in var(--speed-modal) cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lightbox { animation: none; }
+}
+
+/* --- Сцена: изображение ПОЛНОСТЬЮ КАК ЕСТЬ (уточнение Заказчика 1.1):
+   max-width/max-height 100%, пропорции сохранены (без кропа). --- */
+.lb-stage {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4) var(--space-3);
+  background: var(--p-ink-900);
+}
+
+.lb-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-modal);
+  background: var(--color-bg-surface);
+}
+
+/* Клик-зоны ←/→: края сцены 15% (≥64px), внутри шеврон */
+.lb-nav-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 15%;
+  min-width: 64px;
+  border: none;
+  background: transparent;
+  color: var(--p-paper-050);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  opacity: 0.55;
+  transition: opacity var(--speed-fast), background var(--speed-fast);
+}
+
+.lb-nav-zone:hover {
+  opacity: 1;
+  background: rgba(255, 253, 249, 0.06);
+}
+
+.lb-nav-zone:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+
+.lb-nav-zone.prev { left: 0; }
+.lb-nav-zone.next { right: 0; }
+
+.lb-nav-zone svg {
+  width: 40px;
+  height: 40px;
+}
+
+/* Счетчик позиции «N / M» + подсказка клавиш — снизу по центру сцены */
+.lb-counter {
+  position: absolute;
+  bottom: var(--space-2);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: rgba(255, 253, 249, 0.85);
+  font-size: var(--font-size-label);
+  pointer-events: none;
+  background: rgba(61, 54, 48, 0.55);
+  padding: 4px 14px;
+  border-radius: 999px;
+}
+
+.lb-counter kbd {
+  font-family: inherit;
+  font-size: var(--font-size-micro);
+  border: 1px solid rgba(255, 253, 249, 0.4);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-field);
+  padding: 0 5px;
+  color: var(--p-paper-050);
+}
+
+/* --- Панель справа: реакции / скачать / комментарии --- */
+.lb-panel {
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-surface);
+  border-left: 1px solid var(--color-border-default);
+  min-height: 0;
+}
+
+.lb-panel-head {
+  padding: var(--space-2) var(--space-2) var(--space-1);
+}
+
+.lb-title {
+  margin: 0 40px 4px 0; /* место под крестик */
+  font-family: var(--font-family-display);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.lb-meta {
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.lb-meta .task-category,
+.lb-meta .task-tag {
+  background: var(--color-bg-subtle);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+
+/* --- Ряд реакций: лайк/дизлайк (счетчики + «мой голос») + скачать --- */
+.lb-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.react-btn {
+  font: inherit;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-primary);
+}
+
+.react-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.react-btn:hover { background: var(--color-bg-subtle); }
+
+.react-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.react-btn:active { transform: translateY(1px); }
+
+.react-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Состояние «мой голос» (my_reaction): заливка мягкой терракотой +
+   акцентный текст/рамка; различимость без цвета — залитая иконка +
+   вес шрифта + заливка фона */
+.react-btn.my-vote {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent-hover);
+  font-weight: 600;
+}
+
+.react-btn.my-vote svg path {
+  fill: var(--color-accent);
+  stroke: var(--color-accent);
+}
+
+/* Кнопка «Скачать» — вторичная, прижата вправо */
+.download-btn {
+  margin-left: auto;
+  font: inherit;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.download-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.download-btn:hover { background: var(--color-bg-subtle); }
+
+.download-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.lb-error {
+  padding: 0 var(--space-2);
+  margin: var(--space-05) 0;
+}
+
+/* --- Комментарии: список + ввод (удаление — только своего) --- */
+.lb-comments {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+}
+
+.lb-comments h3 {
+  margin: 0;
+  font-family: var(--font-family-display);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.lb-comments h3 span {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.comment {
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  padding: var(--space-1) 10px;
+}
+
+.comment-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+}
+
+.comment-author {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-label);
+}
+
+.comment-delete {
+  margin-left: auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 2px 4px;
+}
+
+.comment-delete:hover { color: var(--color-accent-hover); }
+
+.comment-delete:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-field);
+}
+
+.comment-body {
+  margin: 4px 0 0;
+  font-size: var(--font-size-label);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lb-comments-empty {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-label);
+}
+
+/* Форма ввода — паттерн нижней линии 2px (board.css .task-comments) */
+.lb-comment-form {
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  border-top: 1px solid var(--color-border-default);
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-end;
+}
+
+.lb-comment-form label {
+  display: block;
+  flex: 1;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  min-width: 0;
+}
+
+.lb-comment-form textarea {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-05);
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+  resize: none;
+  min-height: 40px;
+}
+
+.lb-comment-form textarea:hover { border-bottom-color: var(--color-border-strong); }
+
+.lb-comment-form textarea:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
+}
+
+.send-btn {
+  font: inherit;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  padding: 8px var(--space-2);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+  white-space: nowrap;
+}
+
+.send-btn:hover { background: var(--color-accent-hover); }
+
+.send-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.send-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* =====================================================================
+   ФОРМА ЗАГРУЗКИ (мокап gallery-upload.html): паттерн .modal board.css;
+   здесь — только зоны галереи (dropzone, file-row, поля).
+   ===================================================================== */
+
+.gallery-upload {
+  max-width: 560px;
+}
+
+.gallery-upload h2 {
+  margin: 0 40px var(--space-1) 0; /* место под крестик */
+  font-family: var(--font-family-display);
+  font-size: 22px;
+  font-weight: 400;
+}
+
+.gallery-upload .form-sub {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+
+.gallery-upload .field {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.gallery-upload .field > span.lab {
+  display: block;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+
+.gallery-upload .req {
+  color: var(--status-error);
+}
+
+.gallery-upload .field select,
+.gallery-upload .field input[type="text"] {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-05);
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+}
+
+.gallery-upload .field select { cursor: pointer; }
+
+.gallery-upload .field select:hover,
+.gallery-upload .field input[type="text"]:hover {
+  border-bottom-color: var(--color-border-strong);
+}
+
+.gallery-upload .field select:focus-visible,
+.gallery-upload .field input[type="text"]:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
+}
+
+.gallery-upload .hint {
+  display: block;
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-05);
+}
+
+/* Dropzone: drag&drop + клик (скрытый input[type=file]) */
+.dropzone {
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-page);
+  padding: var(--space-3);
+  text-align: center;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.dropzone .dz-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--color-text-secondary);
+}
+
+.dropzone .dz-title {
+  margin: var(--space-1) 0 var(--space-05);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body);
+}
+
+.dropzone .dz-title b {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dropzone .dz-limits {
+  font-size: var(--font-size-micro);
+}
+
+.dropzone:hover,
+.dropzone.dragover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.dropzone:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Превью выбранного файла до отправки */
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  background: var(--color-bg-page);
+  padding: var(--space-1) 10px;
+  margin-bottom: var(--space-1);
+}
+
+.file-thumb {
+  width: 56px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: var(--radius-field);
+  background: var(--color-bg-subtle);
+  display: grid;
+  place-items: center;
+  color: var(--color-text-secondary);
+}
+
+.file-thumb svg {
+  width: 20px;
+  height: 20px;
+}
+
+.file-name {
+  font-size: var(--font-size-label);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-meta {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+}
+
+/* Файл с ошибкой размера/типа (422): красная рамка + текст (NFR-21) */
+.file-row.invalid {
+  border-color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
+.file-row.invalid .file-meta {
+  color: var(--status-error);
+  font-weight: 600;
+}
+
+.file-remove {
+  margin-left: auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 4px;
+}
+
+.file-remove:hover { color: var(--color-accent-hover); }
+
+.file-remove:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-field);
+}
+
+/* Чипы выбранных тегов — паттерн task-form .chips (board.css) */
+.gallery-upload .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-05);
+  margin: 0 0 var(--space-1);
+}
+
+.gallery-upload .chips[hidden] { display: none; }
+
+.gallery-upload .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-bg-subtle);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+
+.gallery-upload .chip button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  line-height: 1;
+  color: var(--color-text-secondary);
+}
+
+.gallery-upload .chip button:hover { color: var(--color-text-primary); }
+
+.gallery-upload .chip button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 50%;
+}
+
+/* Кнопки формы — пилюли V3 (геометрия .task-actions button board.css) */
+.gallery-upload .form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.gallery-upload .btn-primary,
+.gallery-upload .btn-secondary {
+  font: inherit;
+  cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.gallery-upload .btn-primary {
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+}
+
+.gallery-upload .btn-primary:hover { background: var(--color-accent-hover); }
+
+.gallery-upload .btn-primary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.gallery-upload .btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.gallery-upload .btn-secondary {
+  background: transparent;
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.gallery-upload .btn-secondary:hover { background: var(--color-bg-subtle); }
+
+.gallery-upload .btn-secondary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Прогресс загрузки (индикация после сабмита) */
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-bg-subtle);
+  overflow: hidden;
+  margin-top: var(--space-1);
+}
+
+.progress[hidden] { display: none; }
+
+.progress-bar {
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: var(--color-accent);
+  animation: gallery-progress 1.2s ease-in-out infinite;
+}
+
+@keyframes gallery-progress {
+  0% { margin-left: 0; width: 30%; }
+  50% { margin-left: 40%; width: 45%; }
+  100% { margin-left: 60%; width: 30%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar { animation: none; width: 100%; }
+  .g-card { transition: none; }
+  .lb-nav-zone { transition: none; }
+}
+
+/* ≤480px: панель лайтбокса во всю ширину, селекты фильтров — 100% */
+@media (max-width: 480px) {
+  .lightbox { flex-direction: column; }
+  .lb-panel { width: 100%; max-height: 55%; border-left: none; border-top: 1px solid var(--color-border-default); }
+  .gallery-toolbar .filter select { width: 100%; }
+}

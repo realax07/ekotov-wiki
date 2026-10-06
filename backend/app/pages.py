@@ -31,8 +31,9 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
 # Кеш-бастинг статики (DEF-003): nginx отдаёт /static/ с expires 7d; при релизах
 # URL обязан меняться, иначе браузер держит прошлую версию CSS/JS. Бампать при
-# каждом релизе, меняющем статику.
-templates.env.globals["static_v"] = "r6.1"
+# каждом релизе, меняющем статику. r7.0 — 1.5 add-gallery-service: app.css
+# (пункт «Галерея» в сайдбаре) + новые gallery.css/gallery.js.
+templates.env.globals["static_v"] = "r7.0"
 
 
 @router.get("/login")
@@ -95,4 +96,22 @@ def profile_settings_page(request: Request):
         request=request,
         name="profile-settings.html",
         context={"active_page": "settings-profile"},
+    )
+
+
+@router.get("/gallery")
+def gallery_page(request: Request):
+    """Страница «Галерея» (tasks.md 1.5 add-gallery-service; FR-83…FR-86,
+    дельта navigation — Requirement «Раздел «Галерея» в сайдбаре для всех»):
+    сетка превью из GET /api/images, фильтры категория/тег, форма загрузки,
+    full-screen просмотр — вся динамика из ES-модуля
+    frontend/static/js/gallery.js; вид — по утвержденным мокапам 1.1
+    (design/gallery-grid.html, gallery-lightbox.html, gallery-upload.html).
+    Доступ общий (ОВ-4): без role-логики; разделение прав MUST NOT
+    вводиться (дельта gallery, «Доступ к галерее общий для всех»).
+    Без сессии — редирект на /login middleware'ом (sdd.md §3.6,
+    дельта gallery, Scenario «Негативный: без сессии страница
+    недоступна») — здесь не дублируется, как у остальных страниц."""
+    return templates.TemplateResponse(
+        request=request, name="gallery.html", context={"active_page": "gallery"}
     )

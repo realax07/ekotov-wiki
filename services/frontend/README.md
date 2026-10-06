@@ -1,6 +1,6 @@
-# services/frontend — nginx-образ (ЭТАП 1, change add-containerization; задача 1.3 add-microservices-full)
+# services/frontend — nginx-образ (ЭТАП 1, change add-containerization; задачи 1.3 add-microservices-full + 1.4 add-gallery-service)
 
-> Статус: РЕАЛИЗУЕТСЯ (tasks 1.2; 1.3 add-microservices-full — маршрутизация search) | Источник: `openspec/changes/add-containerization/design.md` §1–2, `openspec/changes/add-microservices-full/design.md` §1/§4 | Конфиг-база: `deploy/nginx-ekotov-wiki-10443.conf`.
+> Статус: РЕАЛИЗУЕТСЯ (tasks 1.2; 1.3 add-microservices-full — маршрутизация search; 1.4 add-gallery-service — маршрутизация images + отдача /images/) | Источник: `openspec/changes/add-containerization/design.md` §1–2, `openspec/changes/add-microservices-full/design.md` §1/§4, `openspec/changes/add-gallery-service/design.md` §1/§4 | Конфиг-база: `deploy/nginx-ekotov-wiki-10443.conf`.
 
 ## Назначение
 
@@ -21,6 +21,17 @@
   503 с JSON-телом и `Retry-After` (`proxy_next_upstream` +
   `proxy_intercept_errors` + `error_page 502 503 504 = @search_down`,
   search-proxy.inc) — не 502 и не таймаут;
+- маршрутизация images-семейства и отдача файлов (задача 1.4,
+  add-gallery-service, design §1/§4): пара `location = /api/images` +
+  `location ^~ /api/images/` → `images:8379` — через переменную
+  `$upstream_images` + resolver (те же гарантии), заголовки —
+  `images-headers.inc` (`X-Service: images` + security), прокси —
+  `images-proxy.inc` (включая `client_max_body_size 12m` на локациях
+  загрузки — лимит 10 МБ + multipart-обвязка); остановленный images →
+  управляемый 503 (`error_page 502 503 504 = @images_down`, паттерн
+  @search_down); файлы галереи `/images/` — alias из маунта тома
+  images-data (`/data/images/`, ro в compose), `expires 7d` — паритет
+  `/avatars/`;
 - публикуемый порт — только у nginx (`${NGINX_PORT:-10443}:10443` в compose).
 
 ## Содержимое
@@ -31,7 +42,9 @@ services/frontend/
 └── nginx/
     ├── ekotov-wiki.conf      # база: deploy/nginx-ekotov-wiki-10443.conf + локации search
     ├── search-proxy.inc      # proxy_pass search:8378 (переменная) + 503-деградация
-    └── search-headers.inc    # X-Service: search + security-заголовки
+    ├── search-headers.inc    # X-Service: search + security-заголовки
+    ├── images-proxy.inc      # proxy_pass images:8379 (переменная) + 12m + 503-деградация (1.4)
+    └── images-headers.inc    # X-Service: images + security-заголовки (1.4)
 ```
 
 Композиция (compose-файлы, порты, тома, лимиты) — в `deploy/` (зона devops).

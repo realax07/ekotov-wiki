@@ -95,7 +95,11 @@ def me(request: Request) -> JSONResponse:
     токену куки (З-1 ревью-001). Ответ расширен составом профиля:
     {"user", "display_name", "role", "bio", "avatar_url"}; при незаполненном
     профиле поля профиля — null, ключ "user" (логин) сохранен всегда —
-    обратная совместимость с profile.js (sdd §3.1a-кватер).
+    обратная совместимость с profile.js (sdd §3.1a-кватер). Задача 1.6
+    (change add-gallery-service, Э-4 REPORT-1.5): добавлен ключ
+    "id" (users.id) — прямая идентификация «своего» для фронта галереи;
+    только добавление ключа, именованные ключи прежних потребителей
+    (profile.js, settings) не менялись — обратная совместимость.
     Read-only: никаких INSERT/UPDATE/DELETE.
     """
     token = request.cookies.get(SESSION_COOKIE_NAME)
@@ -119,6 +123,7 @@ def me(request: Request) -> JSONResponse:
     )
     return JSONResponse(
         content={
+            "id": row[6],
             "user": row[0],
             "display_name": row[1],
             "role": row[2],

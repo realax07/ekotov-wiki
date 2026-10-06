@@ -65,7 +65,7 @@ SEARCH_KEYS = {
 
 # Обязательный состав ответа профиля / me (sdd §3.1a-кватер).
 PROFILE_KEYS = {"login", "display_name", "role", "bio", "avatar_url"}
-ME_KEYS = {"user", "display_name", "role", "bio", "avatar_url"}
+ME_KEYS = {"user", "display_name", "role", "bio", "avatar_url", "id"}
 
 OWNER_DEFAULT_ROLE = "Product manager"  # ОВ-21 (бэкфилл migrate_r4)
 PE_ROLE = "Product engineer"
