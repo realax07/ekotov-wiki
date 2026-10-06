@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап 1.1 — сетка галереи: три варианта превью (add-ui-polish-r8, FR-98)</title>
+<!-- Favicon-эскиз (FR-95): тот же data-URI, что в polish-ticket-modal.html;
+     файл polish-favicon.svg приложен отдельно для просмотра/правки. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20x='1'%20y='1'%20width='30'%20height='30'%20rx='7'%20fill='%23faf7f2'/%3E%3Cpath%20d='M11%206h8l5%205v14a2%202%200%200%201-2%202H11a2%202%200%200%201-2-2V8a2%202%200%200%201%202-2z'%20fill='%23a8432c'/%3E%3Cpath%20d='M19%206l5%205h-5z'%20fill='%23f7e8e4'/%3E%3Crect%20x='12'%20y='15'%20width='9'%20height='2'%20rx='1'%20fill='%23faf7f2'/%3E%3Crect%20x='12'%20y='19'%20width='6'%20height='2'%20rx='1'%20fill='%23faf7f2'/%3E%3C/svg%3E">
+<style>
+/* =====================================================================
+   Мокап задачи 1.1 [design] add-ui-polish-r8: сетка галереи при
+   разнопропорциональных изображениях (FR-98, P12 п.12) — ТРИ КОНТРАСТНЫХ
+   варианта в одном файле, секции с ярлыками «Вариант А/Б/В» (решение
+   Заказчика 0.2: развилка — выбрать ОДИН вариант для dev 2.6).
+   Токены V3 «Бумага» дословно (app.css :root); ОГР-8: без внешних
+   библиотек/шрифтов/CDN; изображения — inline data-URI плейсхолдеры.
+   ===================================================================== */
+:root {
+  /* primitives (V3 «Бумага») */
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;
+  --p-clay-700: #93391f;
+  --p-clay-050: #f7e8e4;
+
+  /* semantic */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-bg-subtle: var(--p-paper-100);
+  --color-border-default: var(--p-paper-200);
+  --color-accent: var(--p-clay-600);
+  --color-accent-soft: var(--p-clay-050);
+
+  /* spacing — 8px сетка */
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+
+  /* geometry */
+  --radius-field: 6px;
+  --radius-card: 10px;
+
+  /* elevation */
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+  --shadow-modal: 0 16px 40px rgba(61, 54, 48, 0.18);
+
+  /* typography */
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --speed-fast: 160ms;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  padding: var(--space-3);
+}
+
+.page-title {
+  font-family: var(--font-family-display);
+  font-size: 22px; margin: 0 0 var(--space-1);
+}
+.page-sub {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-label);
+  margin: 0 0 var(--space-3); max-width: 720px; line-height: 1.5;
+}
+
+/* --- секция варианта --- */
+.variant {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.variant-label {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  font-size: var(--font-size-label); font-weight: 700;
+  padding: var(--space-05) var(--space-2);
+  border-radius: 999px;
+  background: var(--color-accent); color: #fff;
+  margin-bottom: var(--space-1);
+}
+.variant-title {
+  font-family: var(--font-family-display);
+  font-size: 17px; margin: 0 0 var(--space-05);
+}
+.variant-desc {
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-2); line-height: 1.5; max-width: 720px;
+}
+.variant-desc code {
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-field);
+  padding: 1px 5px; font-size: var(--font-size-micro);
+}
+
+/* --- общая карточка галереи (компоновка из утвержденного мокапа
+       design/gallery-grid.html: превью + название + мета) --- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+}
+@media (max-width: 1100px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 780px)  { .grid { grid-template-columns: repeat(2, 1fr); } }
+
+.card {
+  margin: 0;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  transition: box-shadow var(--speed-fast);
+}
+.card:hover { box-shadow: var(--shadow-soft); }
+.card a { display: block; text-decoration: none; color: inherit; }
+.card a:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.thumb { width: 100%; }
+.thumb img { display: block; width: 100%; height: 100%; }
+.card-cap { display: flex; flex-direction: column; gap: 2px; padding: var(--space-1) var(--space-2) var(--space-2); }
+.card-name {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-body);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-meta { font-size: var(--font-size-micro); color: var(--color-text-secondary); }
+
+/* =====================================================================
+   ВАРИАНТ А: фикс-высота ячейки + object-fit: cover (КРОП).
+   Ритм идеальный; края разнопропорциональных изображений теряются.
+   ===================================================================== */
+.variant-a .thumb { aspect-ratio: 4 / 3; }
+.variant-a .thumb img { object-fit: cover; }
+
+/* =====================================================================
+   ВАРИАНТ Б: фикс-высота + object-fit: contain на подложке
+   (--color-bg-subtle). Изображение целиком; ячейки ровные, но
+   появляются «поля» у непропорциональных загрузок.
+   ===================================================================== */
+.variant-b .thumb { aspect-ratio: 4 / 3; background: var(--color-bg-subtle); }
+.variant-b .thumb img { object-fit: contain; }
+
+/* =====================================================================
+   ВАРИАНТ В: masonry (естественная высота, CSS columns).
+   Никаких полей и кропа; нижняя граница ряда «рваная» —
+   визуальный ритм свободный.
+   ===================================================================== */
+.variant-v .masonry {
+  columns: 4 var(--space-4);
+  column-gap: var(--space-2);
+}
+@media (max-width: 1100px) { .variant-v .masonry { columns: 3; } }
+@media (max-width: 780px)  { .variant-v .masonry { columns: 2; } }
+.variant-v .card {
+  display: inline-block; width: 100%;
+  margin: 0 0 var(--space-2);
+  break-inside: avoid;
+}
+.variant-v .thumb img { height: auto; }
+
+/* --- рекомендация-футер --- */
+.verdict {
+  border-left: 4px solid var(--color-accent);
+  background: var(--color-accent-soft);
+  border-radius: 0 var(--radius-field) var(--radius-field) 0;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-label);
+  line-height: 1.5;
+  max-width: 720px;
+}
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Галерея — варианты сетки при разнопропорциональных изображениях</h1>
+<p class="page-sub">P12 п.12 (FR-98): одинаковый набор из 6 загрузок разной пропорции
+(4:3 · 1:1 · 3:4 · 9:16 · 16:6) в трех контрастных вариантах превью.
+Выбирается <b>один</b> вариант — dev 2.6 реализует его в gallery.css (сетка 2/3/4 колонки сохраняется).
+Изображения в мокапе — плейсхолдеры; пропорции подписаны на самих плитках.</p>
+
+<!-- ===================== ВАРИАНТ А ===================== -->
+<section class="variant variant-a" aria-labelledby="va-title">
+  <span class="variant-label">Вариант А</span>
+  <h2 class="variant-title" id="va-title">Фикс-высота + cover — кроп</h2>
+  <p class="variant-desc">Ячейки строго одинаковые (<code>aspect-ratio: 4/3</code>,
+  <code>object-fit: cover</code>). Идеальный ритм, самый «магазинный» вид.
+  Цена: края изображений обрезаются — панорамы теряют бока, портреты — верх/низ.
+  В лайтбоксе изображение по-прежнему показывается целиком (FR-83 — не меняется).</p>
+  <div class="grid">
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 300'%3E%3Crect width='800' height='300' fill='%23f7e8e4'/%3E%3Ccircle cx='576' cy='90' r='42' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 234 L240 156 L464 240 L624 186 L800 240 V300 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='48' y='45' font-family='sans-serif' font-size='27' fill='%233d3630' opacity='0.75'%3E16:6 %D0%BF%D0%B0%D0%BD%D0%BE%D1%80%D0%B0%D0%BC%D0%B0%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Дача, лето (pano)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Дача, лето</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Crect width='400' height='400' fill='%23f3ede4'/%3E%3Ccircle cx='288' cy='120' r='56' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 312 L120 208 L232 320 L312 248 L400 320 V400 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='24' y='60' font-family='sans-serif' font-size='36' fill='%233d3630' opacity='0.75'%3E1:1 %D0%BA%D0%B2%D0%B0%D0%B4%D1%80%D0%B0%D1%82%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Сборка теплицы (sq)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Сборка теплицы</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 400'%3E%3Crect width='300' height='400' fill='%23e9e1d4'/%3E%3Ccircle cx='216' cy='120' r='42' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 312 L90 208 L174 320 L234 248 L300 320 V400 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='18' y='60' font-family='sans-serif' font-size='27' fill='%233d3630' opacity='0.75'%3E3:4 %D0%BF%D0%BE%D1%80%D1%82%D1%80%D0%B5%D1%82%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Паспорт проекта (port)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Паспорт проекта</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23efe8dd'/%3E%3Ccircle cx='288' cy='90' r='42' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 234 L120 156 L232 240 L312 186 L400 240 V300 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='24' y='45' font-family='sans-serif' font-size='27' fill='%233d3630' opacity='0.75'%3E4:3 %D0%B0%D0%BB%D1%8C%D0%B1%D0%BE%D0%BC%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Обед на веранде (std)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Обед на веранде</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 225 400'%3E%3Crect width='225' height='400' fill='%23e4dccb'/%3E%3Ccircle cx='162' cy='120' r='32' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 312 L68 208 L130 320 L176 248 L225 320 V400 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='14' y='60' font-family='sans-serif' font-size='20' fill='%233d3630' opacity='0.75'%3E9:16 %D1%81%D1%82%D0%BE%D1%80%D0%B8%D1%81%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Ремонт забора (tall)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Ремонт забора</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23efe8dd'/%3E%3Ccircle cx='288' cy='90' r='42' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 234 L120 156 L232 240 L312 186 L400 240 V300 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='24' y='45' font-family='sans-serif' font-size='27' fill='%233d3630' opacity='0.75'%3E4:3 %D0%B0%D0%BB%D1%8C%D0%B1%D0%BE%D0%BC%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Новый домик (std)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Новый домик</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+  </div>
+</section>
+
+<!-- ===================== ВАРИАНТ Б ===================== -->
+<section class="variant variant-b" aria-labelledby="vb-title">
+  <span class="variant-label">Вариант Б</span>
+  <h2 class="variant-title" id="vb-title">Фикс-высота + contain на подложке</h2>
+  <p class="variant-desc">Те же ровные ячейки, но изображение вписывается целиком
+  (<code>object-fit: contain</code>) на однотонную бумажную подложку
+  (<code>--color-bg-subtle</code>). Ничего не обрезается; у непропорциональных
+  загрузок появляются симметричные поля — ритм мягче, чем в А, но аккуратнее,
+  чем в В. Преемственно текущему поведению сетки (contain — инкремент 1.1
+  add-gallery-service).</p>
+  <div class="grid">
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 300'%3E%3Crect width='800' height='300' fill='%23f7e8e4'/%3E%3Ccircle cx='576' cy='90' r='42' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 234 L240 156 L464 240 L624 186 L800 240 V300 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='48' y='45' font-family='sans-serif' font-size='27' fill='%233d3630' opacity='0.75'%3E16:6 %D0%BF%D0%B0%D0%BD%D0%BE%D1%80%D0%B0%D0%BC%D0%B0%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Дача, лето (pano)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Дача, лето</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Crect width='400' height='400' fill='%23f3ede4'/%3E%3Ccircle cx='288' cy='120' r='56' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 312 L120 208 L232 320 L312 248 L400 320 V400 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='24' y='60' font-family='sans-serif' font-size='36' fill='%233d3630' opacity='0.75'%3E1:1 %D0%BA%D0%B2%D0%B0%D0%B4%D1%80%D0%B0%D1%82%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Сборка теплицы (sq)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Сборка теплицы</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 400'%3E%3Crect width='300' height='400' fill='%23e9e1d4'/%3E%3Ccircle cx='216' cy='120' r='42' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 312 L90 208 L174 320 L234 248 L300 320 V400 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='18' y='60' font-family='sans-serif' font-size='27' fill='%233d3630' opacity='0.75'%3E3:4 %D0%BF%D0%BE%D1%80%D1%82%D1%80%D0%B5%D1%82%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Паспорт проекта (port)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Паспорт проекта</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23efe8dd'/%3E%3Ccircle cx='288' cy='90' r='42' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 234 L120 156 L232 240 L312 186 L400 240 V300 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='24' y='45' font-family='sans-serif' font-size='27' fill='%233d3630' opacity='0.75'%3E4:3 %D0%B0%D0%BB%D1%8C%D0%B1%D0%BE%D0%BC%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Обед на веранде (std)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Обед на веранде</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 225 400'%3E%3Crect width='225' height='400' fill='%23e4dccb'/%3E%3Ccircle cx='162' cy='120' r='32' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 312 L68 208 L130 320 L176 248 L225 320 V400 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='14' y='60' font-family='sans-serif' font-size='20' fill='%233d3630' opacity='0.75'%3E9:16 %D1%81%D1%82%D0%BE%D1%80%D0%B8%D1%81%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Ремонт забора (tall)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Ремонт забора</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23efe8dd'/%3E%3Ccircle cx='288' cy='90' r='42' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 234 L120 156 L232 240 L312 186 L400 240 V300 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='24' y='45' font-family='sans-serif' font-size='27' fill='%233d3630' opacity='0.75'%3E4:3 %D0%B0%D0%BB%D1%8C%D0%B1%D0%BE%D0%BC%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Новый домик (std)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Новый домик</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+  </div>
+</section>
+
+<!-- ===================== ВАРИАНТ В ===================== -->
+<section class="variant variant-v" aria-labelledby="vv-title">
+  <span class="variant-label">Вариант В</span>
+  <h2 class="variant-title" id="vv-title">Masonry — естественная высота</h2>
+  <p class="variant-desc">Каждая плитка сохраняет собственные пропорции
+  (CSS columns, <code>break-inside: avoid</code>). Максимум информации с первого
+  экрана, ничего не режется и без полей; нижняя граница рядов неровная —
+  сетка выглядит «живой», но менее строгой. Вариант самый контрастный к А и Б.</p>
+  <div class="masonry">
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 400'%3E%3Crect width='300' height='400' fill='%23e9e1d4'/%3E%3Ccircle cx='216' cy='120' r='42' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 312 L90 208 L174 320 L234 248 L300 320 V400 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='18' y='60' font-family='sans-serif' font-size='27' fill='%233d3630' opacity='0.75'%3E3:4 %D0%BF%D0%BE%D1%80%D1%82%D1%80%D0%B5%D1%82%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Паспорт проекта (port)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Паспорт проекта</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 300'%3E%3Crect width='800' height='300' fill='%23f7e8e4'/%3E%3Ccircle cx='576' cy='90' r='42' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 234 L240 156 L464 240 L624 186 L800 240 V300 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='48' y='45' font-family='sans-serif' font-size='27' fill='%233d3630' opacity='0.75'%3E16:6 %D0%BF%D0%B0%D0%BD%D0%BE%D1%80%D0%B0%D0%BC%D0%B0%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Дача, лето (pano)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Дача, лето</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 225 400'%3E%3Crect width='225' height='400' fill='%23e4dccb'/%3E%3Ccircle cx='162' cy='120' r='32' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 312 L68 208 L130 320 L176 248 L225 320 V400 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='14' y='60' font-family='sans-serif' font-size='20' fill='%233d3630' opacity='0.75'%3E9:16 %D1%81%D1%82%D0%BE%D1%80%D0%B8%D1%81%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Ремонт забора (tall)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Ремонт забора</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Crect width='400' height='400' fill='%23f3ede4'/%3E%3Ccircle cx='288' cy='120' r='56' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 312 L120 208 L232 320 L312 248 L400 320 V400 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='24' y='60' font-family='sans-serif' font-size='36' fill='%233d3630' opacity='0.75'%3E1:1 %D0%BA%D0%B2%D0%B0%D0%B4%D1%80%D0%B0%D1%82%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Сборка теплицы (sq)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Сборка теплицы</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23efe8dd'/%3E%3Ccircle cx='288' cy='90' r='42' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 234 L120 156 L232 240 L312 186 L400 240 V300 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='24' y='45' font-family='sans-serif' font-size='27' fill='%233d3630' opacity='0.75'%3E4:3 %D0%B0%D0%BB%D1%8C%D0%B1%D0%BE%D0%BC%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Новый домик (std)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Новый домик</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+        <figure class="card">
+          <div class="thumb"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23efe8dd'/%3E%3Ccircle cx='288' cy='90' r='42' fill='%23a8432c' opacity='0.85'/%3E%3Cpath d='M0 234 L120 156 L232 240 L312 186 L400 240 V300 H0 Z' fill='%236b6158' opacity='0.35'/%3E%3Ctext x='24' y='45' font-family='sans-serif' font-size='27' fill='%233d3630' opacity='0.75'%3E4:3 %D0%B0%D0%BB%D1%8C%D0%B1%D0%BE%D0%BC%3C/text%3E%3C/svg%3E" alt="Плейсхолдер Обед на веранде (std)" loading="lazy"></div>
+          <figcaption class="card-cap">
+            <span class="card-name">Обед на веранде</span>
+            <span class="card-meta">JPEG · 12.09.2026</span>
+          </figcaption>
+        </figure>
+  </div>
+</section>
+
+<p class="verdict"><b>Для сравнения:</b> прокрутите секции — набор плиток в вариантах
+одинаковый. А — идеальный ритм, но кроп; Б — ровно и без потерь, но с полями;
+В — без потерь и полей, но рваный низ. Решение — за Заказчиком (развилка Д-паттерна:
+утвержденный вариант фиксируется как эталон для design_validator).</p>
+
+<!-- DECISION: высота превью в А/Б — 4:3 (как в утвержденной сетке add-gallery-service);
+     если Заказчик предпочитает более «плотный» ритм, легко меняется на 1:1/3:2 без
+     смены варианта. Порядок карточек в В отличается намеренно — показать независимость
+     masonry от порядка загрузки. -->
+</body>
+</html>
