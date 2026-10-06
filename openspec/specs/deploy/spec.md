@@ -190,8 +190,9 @@ up search/backup → healthy → смоук-матрица (health×2, поис�
 
 ### Requirement: Лимиты памяти контейнеров
 
-Лимиты памяти MUST быть: app 512m, frontend 64m, search 512m, backup 64m —
-суммарно 1.15 GB, резерв хосту (VPS 3.9 GB) ≥ 2.7 GB.
+Лимиты памяти MUST быть: app 512m, frontend 64m, search 512m, backup 64m,
+netdata 256m, images 128m — суммарно 1.54 GB, резерв хосту (VPS 3.9 GB)
+≥ 2.3 GB (проверка резерва ≥ 2 GB сохраняется; NFR-20).
 
 #### Scenario: Лимиты применены
 
@@ -206,8 +207,8 @@ up search/backup → healthy → смоук-матрица (health×2, поис�
 #### Scenario: Лимиты применены (матрица)
 
 - **Когда** полный стек работает
-- **то** `docker stats --no-stream` каждого контейнера в пределах лимита,
-  свободная память хоста ≥ 2 GB.
+- **то** `docker stats --no-stream` каждого контейнера (включая netdata и
+  images) в пределах лимита, свободная память хоста ≥ 2 GB.
 
 ### Requirement: TLS self-signed монтируется томом
 
