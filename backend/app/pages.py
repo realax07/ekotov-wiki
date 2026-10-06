@@ -32,8 +32,10 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # Кеш-бастинг статики (DEF-003): nginx отдаёт /static/ с expires 7d; при релизах
 # URL обязан меняться, иначе браузер держит прошлую версию CSS/JS. Бампать при
 # каждом релизе, меняющем статику. r7.0 — 1.5 add-gallery-service: app.css
-# (пункт «Галерея» в сайдбаре) + новые gallery.css/gallery.js.
-templates.env.globals["static_v"] = "r7.0"
+# (пункт «Галерея» в сайдбаре) + новые gallery.css/gallery.js. r7.1 — релизный
+# бамп выката 2.2 (BUG-008/009 фиксы gallery.js уже под r7.0; r7.1 гарантирует
+# свежую статику у браузеров, урок R7 3a27aac).
+templates.env.globals["static_v"] = "r7.1"
 
 
 @router.get("/login")
