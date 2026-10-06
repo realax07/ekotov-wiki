@@ -89,7 +89,20 @@
       </button>
 
       <div class="lb-panel-head">
-        <h2 class="lb-title" id="lb-title"></h2>
+        <div class="lb-title-row">
+          <h2 class="lb-title" id="lb-title"></h2>
+          <button type="button" id="lb-rename" class="rename-btn" aria-label="Переименовать файл" title="Переименовать">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11a2.1 2.1 0 0 0-3-3L5 17v3zm11-13l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <!-- Инлайн-редактирование имени (FR-97): Enter/✓ — сохранить, Esc — отмена -->
+        <div class="lb-rename-field" id="lb-rename-field" hidden>
+          <input type="text" id="lb-rename-input" class="rename-input" maxlength="255"
+                 aria-label="Новое имя файла" autocomplete="off" spellcheck="false" />
+          <button type="button" id="lb-rename-confirm" class="rename-confirm" aria-label="Сохранить имя" title="Сохранить (Enter)" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
         <div class="lb-meta" id="lb-meta"></div>
       </div>
 

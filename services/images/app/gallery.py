@@ -13,6 +13,10 @@
 - DELETE /api/images/{id}/dislike         — снятие голоса
 - POST   /api/images/{id}/comments        — {body}; пустой после trim → 422
 - DELETE /api/images/{id}/comments/{cid}  — только автор; чужой → 403
+- PUT    /api/images/{id}/name            — {"name"}; переименование файла
+                                           (original_name, 2.5 add-ui-polish-r8,
+                                           FR-97/design §4); 422 пустое/длинное/
+                                           недопустимые символы
 
 Файлы (оригинал + превью) — в томе IMAGES_DIR (env EKOTOV_WIKI_IMAGES_DIR,
 дефолт /data/images — том images-data), НЕ в БД (FR-79). Имена файлов
@@ -488,3 +492,67 @@ def delete_comment(request: Request, image_id: int, comment_id: int):
 
 
 # Единая форма 422 (паритет search/backend) — см. exception_handler в app/main.py.
+
+
+# --------------------------------------------------------------------------
+# Переименование файла (FR-97, 2.5 add-ui-polish-r8; design §4)
+# --------------------------------------------------------------------------
+
+MAX_NAME_LENGTH = 255  # design §4: непустая строка ≤ 255 (ограничение поля)
+
+
+def _validation_error(loc: str, msg: str) -> RequestValidationError:
+    """422 в форме ядра/search: {"error": "validation error", "details": [...]}.
+
+    Паритет загрузке (invalid file): через RequestValidationError — его
+    маппит exception_handler в app/main.py (design §4 «валидационный
+    обработчик сервиса»).
+    """
+    return RequestValidationError(
+        [{"loc": [loc], "msg": msg, "type": "value_error"}], body=b""
+    )
+
+
+def _validate_image_name(name) -> str:
+    """Валидация нового отображаемого имени (original_name):
+
+    - непустая строка после trim (пустое/отсутствующее → 422);
+    - длина ≤ MAX_NAME_LENGTH (255);
+    - без недопустимых символов: разделители путей "/" и "\\" (имя —
+      отображаемое, но попадает в атрибут download/aria-label) и
+      управляющие символы (паритет ограничениям полей ядра).
+    """
+    if not isinstance(name, str) or not name.strip():
+        raise _validation_error("name", "image name is empty")
+    value = name.strip()
+    if len(value) > MAX_NAME_LENGTH:
+        raise _validation_error(
+            "name", f"image name is too long (max {MAX_NAME_LENGTH})"
+        )
+    if "/" in value or "\\" in value or any(ord(ch) < 0x20 for ch in value):
+        raise _validation_error("name", "image name contains invalid characters")
+    return value
+
+
+@router.put("/api/images/{image_id}/name")
+def rename_image(request: Request, image_id: int, payload: dict):
+    """PUT {"name"}: меняет ТОЛЬКО original_name в БД (design §4).
+
+    Физические файлы (filename/thumb_name) и пути /images/… НЕ меняются —
+    ссылки и кеш не инвалидируются. Оба пользователя паритетно (ОВ-4).
+    Ответ 200: {"id", "name"} — паритет форме реакций (минимальные поля).
+    """
+    name = _validate_image_name((payload or {}).get("name"))
+    conn = get_connection()
+    try:
+        _require_image(conn, image_id)
+        conn.execute(
+            "UPDATE images SET original_name = ? WHERE id = ?", (name, image_id)
+        )
+        conn.commit()
+        return {"id": image_id, "name": name}
+    except sqlite3.Error:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail="database error")
+    finally:
+        conn.close()

@@ -18,7 +18,14 @@
  * - PUT    /api/images/{id}/like | /dislike — голос (повторное — снятие,
  *          противоположное — перенос); ответ {likes, dislikes, my_reaction};
  * - POST   /api/images/{id}/comments {body} — 201; пустой → 422;
- * - DELETE /api/images/{id}/comments/{cid} — только автор (чужой → 403).
+ * - DELETE /api/images/{id}/comments/{cid} — только автор (чужой → 403);
+ * - PUT    /api/images/{id}/name {name} — переименование файла (original_name;
+ *          2.5 add-ui-polish-r8, FR-97): 200 {"id","name"}; меняется только
+ *          отображаемое имя — filename/url не инвалидируются.
+ *
+ * Rename-UI лайтбокса (FR-97): иконка «переименовать» у имени; клик —
+ * инлайн-поле редактирования; Enter/✓ — сохранить (PUT), Esc — отмена;
+ * после сохранения имя обновляется в сетке и лайтбоксе через textContent.
  *
  * «Свой комментарий» (кнопка «удалить» — только у своих): автор в ответе —
  * display_name/логин (COALESCE), «свой» определяется прямым сравнением
@@ -265,6 +272,11 @@ var ICON_LIKE =
 var ICON_DISLIKE =
   "M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0l-4 7a2.4 2.4 0 0 1-2.4-2.4V15H5a2 2 0 0 1-2-2.2l1-6.6A2 2 0 0 1 6 4.5h11";
 var ICON_COMMENT = "M4 5h16v11H9l-5 4V5z";
+/* Карандаш (переименование файла, FR-97) и галочка (подтверждение) —
+ * inline-SVG (ОГР-8), стиль иконок реакций. */
+var ICON_RENAME =
+  "M4 20h4l11-11a2.1 2.1 0 0 0-3-3L5 17v3zm11-13l3 3";
+var ICON_CHECK = "M4 12.5l5 5L20 6.5";
 
 function renderGrid() {
   var grid = document.getElementById("gallery-grid");
@@ -287,7 +299,7 @@ function renderGrid() {
 function buildCard(img, index) {
   var card = el("a", "g-card");
   card.href = "#";
-  var title = img.original_name || img.filename || "Без названия";
+  var title = displayName(img);
   card.setAttribute("aria-label",
     title + (formatExt(img.mime) ? " (формат " + formatExt(img.mime) + ")" : "") +
     " — открыть просмотр");
@@ -454,6 +466,10 @@ function lightboxElements() {
     error: document.getElementById("lb-error"),
     prev: document.getElementById("lb-prev"),
     next: document.getElementById("lb-next"),
+    renameBtn: document.getElementById("lb-rename"),
+    renameField: document.getElementById("lb-rename-field"),
+    renameInput: document.getElementById("lb-rename-input"),
+    renameConfirm: document.getElementById("lb-rename-confirm"),
   };
 }
 
@@ -488,7 +504,7 @@ function loadLightboxImage(index) {
   var elems = lightboxElements();
   hideBox("lb-error");
 
-  var title = img.original_name || img.filename || "Без названия";
+  var title = displayName(img);
   elems.title.textContent = title;
   elems.image.src = img.url || ("/images/" + img.filename);
   elems.image.alt = title;
@@ -531,6 +547,9 @@ function loadLightboxImage(index) {
   elems.send.disabled = true;
   elems.commentsList.textContent = "";
   elems.commentsCount.textContent = "";
+
+  /* Rename (FR-97): редактор сбрасывается при открытии/листании. */
+  closeNameEditor();
 
   /* Детальные данные + комментарии (заодно накапливаем теги, Э-3). */
   fetch("/api/images/" + img.id, { credentials: "same-origin" })
@@ -645,6 +664,128 @@ function navigateLightbox(delta) {
   var next = (state.lightboxIndex + delta + state.images.length) % state.images.length;
   state.lightboxIndex = next;
   loadLightboxImage(next);
+}
+
+/* --- Переименование файла (FR-97): иконка у имени + инлайн-поле ---
+ * DOM создается один раз (bindLightbox) и переключается hidden'ом;
+ * рендер только textContent/value (XSS-дисциплина ОГР-11). */
+
+function displayName(img) {
+  return (img && (img.original_name || img.filename)) || "Без названия";
+}
+
+function closeNameEditor() {
+  var elems = lightboxElements();
+  elems.renameField.hidden = true;
+  elems.renameInput.value = "";
+  elems.renameConfirm.hidden = true;
+  elems.renameBtn.hidden = false;
+  elems.title.hidden = false;
+}
+
+function openNameEditor() {
+  var elems = lightboxElements();
+  var img = state.images[state.lightboxIndex];
+  if (!img) {
+    return;
+  }
+  hideBox("lb-error");
+  elems.renameInput.value = displayName(img);
+  elems.renameConfirm.disabled = true;
+  elems.title.hidden = true;
+  elems.renameBtn.hidden = true;
+  elems.renameConfirm.hidden = false;
+  elems.renameField.hidden = false;
+  elems.renameInput.focus();
+  elems.renameInput.select();
+}
+
+function applyRenamedName(name) {
+  /* Обновить state + имя в лайтбоксе и карточке сетки (textContent). */
+  var index = state.lightboxIndex;
+  var img = state.images[index];
+  if (!img) {
+    return;
+  }
+  img.original_name = name;
+  var elems = lightboxElements();
+  elems.title.textContent = name;
+  var card = document.querySelectorAll(".g-card")[index];
+  if (card) {
+    var cardTitle = card.querySelector(".g-card-title");
+    if (cardTitle) {
+      cardTitle.textContent = name;
+    }
+    card.setAttribute("aria-label",
+      name + (formatExt(img.mime) ? " (формат " + formatExt(img.mime) + ")" : "") +
+      " — открыть просмотр");
+  }
+  if (elems.image.alt) {
+    elems.image.alt = name; // alt — тоже отображаемое имя
+  }
+}
+
+function submitRename() {
+  var elems = lightboxElements();
+  var img = state.images[state.lightboxIndex];
+  var name = elems.renameInput.value.trim();
+  if (!img || !name) {
+    return; // пустое не отправляем (кнопка и так disabled)
+  }
+  if (name === displayName(img)) {
+    closeNameEditor(); // без изменений — просто закрыть
+    return;
+  }
+  elems.renameConfirm.disabled = true;
+  fetch("/api/images/" + img.id + "/name", {
+    method: "PUT",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name }),
+  })
+    .then(function (response) {
+      return response.json().then(function (payload) {
+        return { response: response, body: payload };
+      });
+    })
+    .then(function (result) {
+      if (!result.response.ok) {
+        handleApiError(result.response, result.body, function (message) {
+          showBox("lb-error", message);
+        });
+        elems.renameConfirm.disabled = elems.renameInput.value.trim() === "";
+        return;
+      }
+      hideBox("lb-error");
+      closeNameEditor();
+      applyRenamedName(result.body.name || name);
+    })
+    .catch(function () {
+      elems.renameConfirm.disabled = false;
+      showBox("lb-error", "Не удалось переименовать файл.");
+    });
+}
+
+function bindRename() {
+  var elems = lightboxElements();
+  elems.renameBtn.addEventListener("click", openNameEditor);
+  elems.renameConfirm.addEventListener("click", submitRename);
+  elems.renameInput.addEventListener("input", function () {
+    elems.renameConfirm.disabled = elems.renameInput.value.trim() === "";
+  });
+  elems.renameInput.addEventListener("keydown", function (event) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (!elems.renameConfirm.disabled) {
+        submitRename();
+      }
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation(); // Esc в поле — отмена, НЕ закрытие лайтбокса
+      closeNameEditor();
+      elems.renameBtn.focus();
+    }
+  });
 }
 
 /* --- Комментарии (FR-82): список / добавление / удаление своего --- */
@@ -1069,6 +1210,8 @@ function bindLightbox() {
     elems.send.disabled = elems.input.value.trim() === "";
   });
   document.getElementById("lb-comment-form").addEventListener("submit", submitComment);
+
+  bindRename();
 
   /* Клавиатура (FR-83): стрелки — листание, Esc — закрытие.
    * Слушаем на document: фокус может быть в панели. */

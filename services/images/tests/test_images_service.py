@@ -212,7 +212,7 @@ def test_endpoints_require_session(anon_client):
 
 
 def test_openapi_paths(client):
-    """Схема (под сессией) содержит ровно маршруты design §3."""
+    """Схема (под сессией) содержит ровно маршруты design §3 + rename (2.5)."""
     paths = set(client.get("/openapi.json").json()["paths"].keys())
     assert paths == {
         "/api/images",
@@ -221,6 +221,7 @@ def test_openapi_paths(client):
         "/api/images/{image_id}/dislike",
         "/api/images/{image_id}/comments",
         "/api/images/{image_id}/comments/{comment_id}",
+        "/api/images/{image_id}/name",
         "/api/health",
     }
 
@@ -509,6 +510,73 @@ def test_get_missing_image_404(client):
     assert client.get("/api/images/9999").status_code == 404
     assert client.put("/api/images/9999/like").status_code == 404
     assert client.post("/api/images/9999/comments", json={"body": "x"}).status_code == 404
+
+
+# --------------------------------------------------------------------------
+# Переименование файла (FR-97, 2.5 add-ui-polish-r8; design §4)
+# --------------------------------------------------------------------------
+
+
+def test_rename_happy_path(client, seeded_gallery):
+    """PUT {name} → 200 {"id","name"}; в БД новое original_name;
+    физические файлы (filename/thumb_name) НЕ менялись (design §4)."""
+    img = seeded_gallery[0]
+    before = client.get(f"/api/images/{img}").json()
+    resp = client.put(f"/api/images/{img}/name", json={"name": "  Новый кадр  "})
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"id": img, "name": "Новый кадр"}  # trim
+
+    body = client.get(f"/api/images/{img}").json()
+    assert body["original_name"] == "Новый кадр"
+    # Метаданные, кроме имени, не тронуты.
+    for key in ("filename", "thumb_name", "mime", "size", "category", "created_at"):
+        assert body[key] == before[key], key
+    assert body["url"] == before["url"]
+
+
+def test_rename_no_session_401(anon_client, client, seeded_gallery):
+    """Scenario «Негативный: без сессии» → 401; имя не изменилось."""
+    img = seeded_gallery[0]
+    assert anon_client.put(
+        f"/api/images/{img}/name", json={"name": "взлом"}
+    ).status_code == 401
+    body = client.get(f"/api/images/{img}").json()
+    assert body["original_name"] != "взлом"
+
+
+def test_rename_missing_image_404(client):
+    """Несуществующее изображение → 404 (валидное имя)."""
+    resp = client.put("/api/images/9999/name", json={"name": "что-то.png"})
+    assert resp.status_code == 404
+
+
+def test_rename_validation_422(client, seeded_gallery):
+    """Пустое/отсутствующее/длинное/с недопустимыми символами → 422
+    формы ядра {"error","details"}; имя в БД не изменилось."""
+    img = seeded_gallery[0]
+    old = client.get(f"/api/images/{img}").json()["original_name"]
+    bad_payloads = [
+        {"name": ""},
+        {"name": "   "},
+        {},
+        {"name": None},
+        {"name": "x" * 256},
+        {"name": "путь/внутрь.png"},   # слэш
+        {"name": "back\\slash.png"},   # обратный слэш
+        {"name": "перенос\nстроки"},   # управляющий символ
+    ]
+    for payload in bad_payloads:
+        resp = client.put(f"/api/images/{img}/name", json=payload)
+        assert resp.status_code == 422, payload
+        body = resp.json()
+        assert body["error"] == "validation error"
+        assert isinstance(body["details"], list) and body["details"]
+    # Пограничное допустимое: ровно 255 символов → 200.
+    assert client.put(
+        f"/api/images/{img}/name", json={"name": "и" * 255}
+    ).status_code == 200
+    # 422-серия имя не меняла (кроме последнего осознанного 200).
+    assert client.get(f"/api/images/{img}").json()["original_name"] == "и" * 255
 
 
 # --------------------------------------------------------------------------
