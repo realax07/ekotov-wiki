@@ -892,6 +892,290 @@
  * em: элемент addDetailRow не используется, ряд строит task-detail.js). */
 .task-view-unassigned { color: var(--color-text-secondary); }
 
+/* --- r8 2.2 (FR-90): view-модалка по утвержденному мокапу
+ * design/polish-ticket-modal.html («По карточке красиво», 2026-10-06).
+ * Все значения — токены V3 из app.css :root, дублирования значений нет
+ * (ОГР-8/NFR-22). Разметку блоков строит task-detail.js (зона 2.2) —
+ * стили вешаются на классы мокапа; DOM-id не тронуты (ОГР-28). ---
+ */
+
+/* Окно: мокап .modal — 640px, без собственного паддинга (шапка/тело/
+ * футер несут свои отступы, у мокапа разделители во всю ширину окна). */
+.task-view {
+  max-width: 640px;
+  padding: 0;
+}
+
+/* Шапка (мокап .modal-head): кикер, сериф-название 22px/1.25, бейдж-ряд. */
+.task-view-head {
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  border-bottom: 1px solid var(--color-border-default);
+  position: relative;
+}
+
+.task-view-kicker {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 var(--space-05);
+  padding-right: 40px; /* место под крестик 40×40 (FR-28) */
+}
+
+.task-view-title {
+  margin: 0 var(--space-4) var(--space-1) 0;
+  font-family: var(--font-family-display);
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 400;
+}
+
+.badge-row {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-micro);
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.badge svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+/* Приоритет: цвет + иконка + текст (различимо без цвета, FR-29-паттерн).
+ * Мягкие фоны — существующие токены --priority-*-soft. */
+.badge-priority-low {
+  background: var(--priority-low-soft);
+  color: var(--priority-low);
+}
+.badge-priority-medium {
+  background: var(--priority-medium-soft);
+  color: var(--priority-medium);
+}
+.badge-priority-high {
+  background: var(--priority-high-soft);
+  color: var(--priority-high);
+}
+
+/* Статус — оливковый (мокап .badge-status: --status-active на
+ * --status-active-soft; в app.css те же значения — --status-success /
+ * --priority-low-soft; новых токенов не заводим). */
+.badge-status {
+  background: var(--priority-low-soft);
+  color: var(--status-success);
+}
+
+/* Fast line — голубые токены (мокап .badge-fast; те же, что у
+ * .task-fast-badge и .task-card-fast). */
+.badge-fast {
+  background: var(--p-blue-050);
+  color: var(--p-blue-700);
+}
+
+/* Тело окна (мокап .modal-body). */
+.task-view-body { padding: var(--space-2) var(--space-4); }
+
+/* Подпись секции (мокап .section-label). */
+.task-view-body .section-label {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: var(--space-2) 0 var(--space-1);
+}
+
+.task-view-desc {
+  margin: 0;
+  line-height: 1.55;
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+/* Приглушенное значение (мокап .attr-muted). */
+.attr-muted {
+  color: var(--color-text-secondary);
+  font-weight: normal;
+}
+
+/* Сетка признаков (мокап .attr-grid/.attr): 2 колонки, карточки
+ * bg-subtle с радиусом поля. */
+.task-view .attr-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+}
+
+.task-view .attr {
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-field);
+  padding: var(--space-1) var(--space-2);
+}
+
+.task-view .attr dt {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  margin: 0 0 2px;
+}
+
+.task-view .attr dd {
+  margin: 0;
+  font-weight: 600;
+  font-size: var(--font-size-label);
+  border-bottom: none;
+  padding-bottom: 0;
+  white-space: normal;
+}
+
+/* Теги-чипы (мокап .tag-chips/.tag-chip). */
+.task-view .tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.task-view .tag-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-micro);
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+/* Люди (мокап .people-row/.person): аватар-инициалы 28px + имя + роль. */
+.task-view .people-row {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.task-view .person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.task-view .person-avatar {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-size: var(--font-size-micro);
+  font-weight: bold;
+}
+
+.task-view .person.secondary .person-avatar {
+  background: var(--color-border-strong);
+}
+
+.task-view .person-meta { line-height: 1.3; }
+
+.task-view .person-name {
+  display: block;
+  font-size: var(--font-size-label);
+  font-weight: 600;
+}
+
+.task-view .person-role {
+  display: block;
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+}
+
+/* Комментарии view-модалки (мокап .comment): карточки с рамкой; шапка
+ * «Автор (bold) · дата, время» (FR-91, r8 2.2/2.3 — классы мокапа
+ * .comment-head/.comment-author/.comment-sep/.comment-date; рендер —
+ * task-detail.js). Список task-comment унаследован (см. ниже). */
+.task-view .task-comments-list { margin-bottom: 0; }
+
+.task-view .task-comment {
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  padding: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-1);
+  background: var(--color-bg-surface);
+}
+
+.comment-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: var(--space-05);
+}
+
+.comment-author { font-weight: 600; font-size: var(--font-size-label); }
+
+.comment-sep { color: var(--color-text-secondary); }
+
+.comment-date {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+}
+
+.task-view-comments {
+  padding: 0 var(--space-4) var(--space-2);
+}
+
+.task-view-comments h3 {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-family);
+  font-weight: normal;
+  margin: var(--space-2) 0 var(--space-1);
+}
+
+/* Футер (мокап .modal-foot): прижатая вправо кнопка «Редактировать»,
+ * разделитель во всю ширину окна. «Закрыть» сохранен (вторичный
+ * контур, сценарий 5 закрытия). */
+.task-view-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  border-top: 1px solid var(--color-border-default);
+  margin-top: 0;
+}
+
+/* «Редактировать» — первичная кнопка мокапа .btn-primary (пилюля V3). */
+.task-view #task-edit-button {
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  border-color: transparent;
+  padding: var(--space-1) var(--space-3);
+}
+
+.task-view #task-edit-button:hover {
+  background: var(--color-accent-hover);
+}
+
+.task-view #task-edit-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Конец блока r8 2.2 (FR-90). */
+
 /* --- 5.1 (FR-44, ОВ-25): состав tooltip карточки (модуль card-tooltip.js,
  * механизм единый с профилем — tooltip.js/#app-tooltip, app.css).
  * Ряд «метка: значение»; пустой assigned — em.task-card-unassigned
