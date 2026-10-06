@@ -82,7 +82,7 @@ body.app-shell {
   color: var(--color-text-primary);
   background: var(--color-bg-page);
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
 }
 
 /* --- Сайдбар (V3: глубокий «чернильный», активный раздел — терракота) --- */
@@ -96,6 +96,14 @@ body.app-shell {
   flex-direction: column;
   justify-content: space-between;
   padding: var(--space-2) 0;
+  /* Микрофикс (Заказчик, 2026-10-06): на галерее длинная сетка растягивала
+     документ, и footer сайдбара («Настройки»/«Выйти») уезжал за нижний край
+     экрана. Сайдбар прижат к viewport: высота = экран, при переполнении —
+     собственный скролл; footer виден всегда. */
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
 }
 
 .sidebar-nav { display: flex; flex-direction: column; }
@@ -392,6 +400,10 @@ body.app-shell {
   flex: 1;
   padding: var(--space-3);
   min-width: 0;
+  /* Микрофикс (2026-10-06, парный к .sidebar): прокрутка контента внутри
+     экрана — длинные страницы (сетка галереи) не растягивают документ. */
+  height: 100vh;
+  overflow-y: auto;
 }
 
 /* 2.1 add-ui-polish-r8 (FR-93): ЕДИНЫЙ класс кнопки действия — токены V3,
