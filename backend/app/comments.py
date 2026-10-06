@@ -26,6 +26,12 @@ Scenario «Комментарии к задаче»).
 
 Объект Comment — по таблице comments (sdd §4):
 {"id", "task_id", "author_id", "body", "created_at"}.
+
+r8 2.3 (FR-91, design §5): GET списка ДОПОЛНЕН полем author_name
+(display_name автора; fallback — login) — LEFT JOIN users по author_id,
+COALESCE на сервере. Только добавление поля в ответ списка (обратная
+совместимость); POST-контракт не меняется: ответ POST — Comment без
+author_name, author_id по-прежнему из сессии.
 """
 
 import sqlite3
@@ -98,6 +104,15 @@ def _row_to_comment(row: tuple) -> dict[str, Any]:
     }
 
 
+def _row_to_comment_with_author(row: tuple) -> dict[str, Any]:
+    """Comment + author_name (r8 2.3, FR-91): display_name автора, fallback —
+    login (COALESCE в SQL). Только для GET списка; POST отвечает без него
+    (контракт записи не меняется, design §5)."""
+    comment = _row_to_comment(row)
+    comment["author_name"] = row[5]
+    return comment
+
+
 @router.post("/{task_id}/comments", status_code=201)
 def add_comment(task_id: int, body: CommentCreate, request: Request) -> JSONResponse:
     """Добавить комментарий (sdd §3.2): 201 + Comment; 404 — нет задачи;
@@ -135,16 +150,26 @@ def add_comment(task_id: int, body: CommentCreate, request: Request) -> JSONResp
 @router.get("/{task_id}/comments")
 def list_comments(task_id: int) -> JSONResponse:
     """Список комментариев задачи: 200 + {"comments": [Comment]} в порядке
-    created_at ASC (tiebreak id ASC); 404 — нет задачи."""
+    created_at ASC (tiebreak id ASC); 404 — нет задачи.
+
+    r8 2.3 (FR-91): каждый Comment дополнен author_name (display_name
+    автора, fallback login; LEFT JOIN users — комментарий без автора
+    схеме противоречит, но join не сужает ответ). Прочие поля и порядок —
+    как прежде (обратная совместимость)."""
     conn = get_connection()
     try:
         if not _task_exists(conn, task_id):
             return JSONResponse(status_code=404, content=NOT_FOUND_BODY)
         rows = conn.execute(
-            "SELECT id, task_id, author_id, body, created_at "
-            "FROM comments WHERE task_id = ? ORDER BY created_at ASC, id ASC",
+            "SELECT c.id, c.task_id, c.author_id, c.body, c.created_at,"
+            " COALESCE(u.display_name, u.login)"
+            " FROM comments c"
+            " LEFT JOIN users u ON u.id = c.author_id"
+            " WHERE c.task_id = ? ORDER BY c.created_at ASC, c.id ASC",
             (task_id,),
         ).fetchall()
     finally:
         conn.close()
-    return JSONResponse(content={"comments": [_row_to_comment(r) for r in rows]})
+    return JSONResponse(
+        content={"comments": [_row_to_comment_with_author(r) for r in rows]}
+    )
