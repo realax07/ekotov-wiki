@@ -2,6 +2,12 @@
  * ОГР-18; дельта board «Просмотр карточки задачи — модальное окно
  * read-only», все 5 сценариев — первичный источник поведения).
  *
+ * r8 2.3 (FR-91): список комментариев модалки рендерится СВОЕЙ шапкой —
+ * «Автор (bold) · дата, время» (Intl ru-RU «дд.мм.гггг, чч:мм» из
+ * created_at) по утвержденному мокапу polish-ticket-modal.html; id и
+ * сырой timestamp больше не показываются. Форма (task-form.js, зона
+ * волны 2.1) продолжает показывать прежний формат до своей правки.
+ *
  * До Релиза 4 клик по карточке открывал окно деталей с полями
  * редактирования (селект «Столбец», «Удалить», форма комментария).
  * 4.1 разделяет его (design §6: «openTaskDetail переосмысляется»):
@@ -31,13 +37,112 @@
 import { el, showFormError, hideError } from "./dom.js";
 import { api } from "./api.js";
 import { boardState } from "./state.js";
-import {
-  openEditForm,
-  renderComments,
-  loadComments,
-} from "./task-form.js";
+import { openEditForm } from "./task-form.js";
 
 /* --- Read-only рендер (FR-47; сценарии 1, 4) --- */
+
+/* r8 2.3 (FR-91, design §5): человекочитаемые дата и время комментария —
+ * «дд.мм.гггг, чч:мм» (Intl ru-RU; формат утвержденного мокапа
+ * design/polish-ticket-modal.html: 05.10.2026, 14:32). Из ISO created_at
+ * (контракт GET списка комментариев). Без Intl (старые движки) —
+ * детерминированный ручной формат того же вида. Значение — только через
+ * textContent (XSS, ОГР-11). null/пустое — ряд не рисуется. */
+function formatCommentDateTime(iso) {
+  if (!iso) {
+    return null;
+  }
+  var date = new Date(iso);
+  if (isNaN(date.getTime())) {
+    return null;
+  }
+  try {
+    return new Intl.DateTimeFormat("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  } catch (e) {
+    var pad = function (n) {
+      return (n < 10 ? "0" : "") + n;
+    };
+    return (
+      pad(date.getDate()) +
+      "." +
+      pad(date.getMonth() + 1) +
+      "." +
+      date.getFullYear() +
+      ", " +
+      pad(date.getHours()) +
+      ":" +
+      pad(date.getMinutes())
+    );
+  }
+}
+
+/* Шапка комментария (r8 2.3, FR-91): «Автор (bold) · дата, время» —
+ * вместо прежних «id N · timestamp». Структура по мокапу
+ * polish-ticket-modal.html: .comment-head > .comment-author +
+ * .comment-sep «·» + time.comment-date (datetime — исходный ISO).
+ * Значения — createTextNode/textContent (XSS, ОГР-11). Без автора
+ * (старый кэш ответа без author_name) — шапка не рисуется частично:
+ * рендерится только дата (данные не выдумываются). */
+function buildCommentHead(comment) {
+  var head = el("div", "comment-head");
+  var authorName =
+    comment.author_name !== undefined &&
+    comment.author_name !== null &&
+    comment.author_name !== ""
+      ? String(comment.author_name)
+      : null;
+  var dateText = formatCommentDateTime(comment.created_at);
+  if (authorName) {
+    head.appendChild(el("span", "comment-author", authorName));
+  }
+  if (authorName && dateText) {
+    head.appendChild(el("span", "comment-sep", "·"));
+  }
+  if (dateText) {
+    var time = el("time", "comment-date", dateText);
+    time.setAttribute("datetime", String(comment.created_at));
+    head.appendChild(time);
+  }
+  return head.childNodes.length > 0 ? head : null;
+}
+
+/* Список комментариев view-модалки (r8 2.3): то же множество данных, что
+ * грузит loadComments (task-form.js), но шапка — своя, по мокапу
+ * (автор · дата/время вместо id · timestamp, FR-91). Вызывается вместо
+ * renderComments task-form.js, чей формат метки остался прежним
+ * (task-form.js — зона параллельной волны 2.1, не менялся). */
+function renderDetailComments(list, comments) {
+  list.textContent = "";
+  (comments || []).forEach(function (comment) {
+    var item = el("li", "task-comment");
+    var head = buildCommentHead(comment);
+    if (head) {
+      item.appendChild(head);
+    }
+    var body = el("p", "task-comment-body");
+    body.textContent = comment.body; // textContent — не innerHTML (XSS)
+    item.appendChild(body);
+    list.appendChild(item);
+  });
+}
+
+/* Загрузка комментариев view-модалки с собственным рендером (r8 2.3):
+ * тот же GET /api/tasks/{id}/comments, onError — как у loadComments. */
+function loadDetailComments(taskId, list, onError) {
+  api(
+    "/api/tasks/" + taskId + "/comments",
+    {},
+    onError,
+    function (body) {
+      renderDetailComments(list, body && body.comments);
+    }
+  );
+}
 
 function addDetailRow(dl, term, value) {
   if (value === null || value === undefined || value === "") {
@@ -114,8 +219,9 @@ export function openTaskDetail(taskId) {
   }
   boardState.currentTaskId = taskId;
   document.getElementById("task-detail-overlay").hidden = false;
-  renderComments(document.getElementById("task-comments-list"), []);
-  /* GET /api/tasks/{id} — полный Task (sdd §3.2), затем комментарии. */
+  renderDetailComments(document.getElementById("task-comments-list"), []);
+  /* GET /api/tasks/{id} — полный Task (sdd §3.2), затем комментарии
+   * (r8 2.3: собственный рендер шапки «автор · дата, время», FR-91). */
   api(
     "/api/tasks/" + taskId,
     {},
@@ -124,7 +230,7 @@ export function openTaskDetail(taskId) {
     },
     function (task) {
       renderTaskDetail(task);
-      loadComments(
+      loadDetailComments(
         taskId,
         document.getElementById("task-comments-list"),
         function (message) {

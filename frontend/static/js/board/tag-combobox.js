@@ -1,5 +1,5 @@
 /* Кастомный комбобокс подсказок тегов (r6, задачи 2.1+2.2; FR-57…FR-59,
- * NFR-17/18, ОВ-1/ОВ-2).
+ * NFR-17/18, ОВ-1/ОВ-2; r8 2.3 — FR-92 сброс поля после выбора).
  *
  * Замена нативного datalist у поля «Теги» формы задачи. Стили и
  * aria-паттерн — 1:1 по живому макету design/tag-combobox-v3.html
@@ -41,6 +41,16 @@ var LIVE_ID = "task-tag-combobox-live";
 /* id пунктов — tag-opt-N (макет: aria-activedescendant=tag-opt-2). */
 var OPTION_ID_PREFIX = "tag-opt-";
 
+/* r8 2.3 (FR-92): выбранные (и созданные) теги после выбора ТЕКСТОМ в
+ * поле не остаются — из input строка убирается, чип рисует task-form.js
+ * из данных committedTags (см. syncInputAndDom). Источник истины ОГР-27
+ * сохраняется на границах сохранения/удаления: перед сабмитом формы и
+ * перед правкой строки крестиком чипа committed-теги ДОписываются в
+ * input, поэтому collectTaskForm/splitTags (замороженный task-form.js)
+ * и renderTagsChips работают без изменений. */
+var committedTags = [];
+var ledgerAttachCount = 0;
+
 /* Множество значений из GET /api/suggestions?kind=tags (перезагрузка
  * при каждом открытии формы — loadTagHints, преемственность FR-26). */
 var allHints = [];
@@ -65,7 +75,10 @@ function currentToken(raw) {
 }
 
 /* Строка ввода после выбора: последний токен заменяется значением,
- * запятая в хвосте — поле готово к вводу следующего тега (СЦ-3). */
+ * запятая в хвосте — поле готово к вводу следующего тега (СЦ-3).
+ * r8 2.3 (FR-92): с committed-схемой выбор больше не дописывает тег в
+ * input (поле очищается — chooseValue/syncInputAndDom); функция остается
+ * как документация прежнего поведения datalist-совместимости. */
 function applySelection(raw, value) {
   var parts = String(raw).split(",");
   parts[parts.length - 1] = " " + value;
@@ -198,16 +211,131 @@ function optionByOffset(from, delta) {
   return options[index];
 }
 
-/* Выбор пункта: дописать в input (источник истины — input, ОГР-27) и
- * перерисовать чипы существующим рендером (событие input; свой
- * перерендер дропдауна на это событие подавлен), затем закрыть. */
-function chooseValue(value) {
+/* r8 2.3 (FR-92): committed-рендер списка тегов. Вместо строки выбора в
+ * input тег уходит в committedTags, input ОЧИЩАЕТСЯ от токена ввода
+ * (текст в поле не остается — FR-92), а чипы перерисовываются существующим
+ * рендером task-form.js (renderTagsChips, подписан на input) из
+ * completeness-строки committed-тегов + ручных токенов. Источник истины
+ * ОГР-27 не переносится в этот файл: на границах чтения/правки строки
+ * внешним кодом committed-теги дописываются в input
+ * (flushCommittedToInput), после правки крестиком — пересинхронизируются
+ * (resyncCommittedAfterChipEdit). */
+function syncInputAndDom() {
   var input = tagsInput();
+  if (!input) {
+    return;
+  }
+  /* Ручные токены (введены без дропдауна и еще не выбраны) НЕ затираются:
+   * убирается только токен ввода выбранного тега — FR-92 про введенный
+   * текст подсказки, не про остальное содержимое поля. */
+  var rest = splitTags(input.value).filter(function (tag) {
+    return committedTags.indexOf(tag) === -1;
+  });
+  var line = committedTags.concat(rest).join(", ");
+  if (line) {
+    line += ",";
+  }
+  if (input.value !== line) {
+    input.value = line;
+  }
+  /* Перерисовка чипов существующим рендером (событие input); свой
+   * перерендер дропдауна на это событие подавлен (choosing). */
   choosing = true;
-  input.value = applySelection(input.value, value);
   input.dispatchEvent(new Event("input", { bubbles: true }));
   choosing = false;
+}
+
+/* r8 2.3 (FR-92, совместимость ОГР-27): перед чтением строки тегов
+ * внешним кодом (сабмит формы — collectTaskForm; правка крестиком чипа —
+ * его click-обработчик читает input.value ДО подписки комбобокса)
+ * committed-теги дописываются в input: внешние читатели видят полный
+ * состав, рассинхрона «чип есть — в строке нет» не возникает. */
+function flushCommittedToInput() {
+  var input = tagsInput();
+  if (!input || committedTags.length === 0) {
+    return;
+  }
+  var rest = splitTags(input.value).filter(function (tag) {
+    return committedTags.indexOf(tag) === -1;
+  });
+  var line = committedTags.concat(rest).join(", ");
+  if (rest.length > 0) {
+    line += ",";
+  }
+  input.value = line;
+}
+
+/* r8 2.3 (FR-92): после ПРАВКИ строки крестиком чипа committed-список
+ * пересинхронизируется с итоговой строкой: удаленный крестиком тег уходит
+ * и из committed (иначе следующий flush его воскресит). Вызывается из
+ * capture-подписки клика ПОСЛЕ flush — читает строку, которую task-form
+ * еще не успел править (его обработчик тоже на click, но позже — bubbling
+ * после capture), поэтому в момент вызова строка еще «до удаления» и
+ * пересинхронизация здесь ранняя. Окончательная синхронизация — на
+ * document-level capture НЕ возможна после bubbling-правки; вместо этого
+ * удаление тега из committed вычисляется по факту: подписка task-form на
+ * input сработает и чипы перерисуются из строки; committed догоняет
+ * строку отложенно (setTimeout 0 — после bubbling-обработчиков). */
+function resyncCommittedAfterChipEdit() {
+  setTimeout(function () {
+    var input = tagsInput();
+    if (!input) {
+      return;
+    }
+    var line = splitTags(input.value);
+    committedTags = committedTags.filter(function (tag) {
+      return line.indexOf(tag) !== -1;
+    });
+  }, 0);
+}
+
+/* Подписки внешнего кода на границы чтения input (capture-фаза — раньше
+ * внешних обработчиков): submit формы и клик по крестику чипа. */
+function ensureLedgerFlushHooks() {
+  if (ledgerAttachCount > 0) {
+    return;
+  }
+  var form = document.getElementById("task-form");
+  if (form) {
+    form.addEventListener("submit", flushCommittedToInput, true);
+    ledgerAttachCount += 1;
+  }
+  document.addEventListener("click", function (event) {
+    var target = event.target;
+    if (
+      target &&
+      target.nodeType === 1 &&
+      target.closest &&
+      target.closest("#task-tags-chips .chip button")
+    ) {
+      flushCommittedToInput();
+      resyncCommittedAfterChipEdit();
+    }
+  }, true);
+  ledgerAttachCount += 1;
+}
+
+/* Выбор пункта: тег уходит в committedTags (чип — существующим рендером
+ * через syncInputAndDom), токен ввода УБИРАЕТСЯ из поля (FR-92), дропдаун
+ * закрывается, фокус возвращается полю (FR-92: поле не блокируется —
+ * можно сразу вводить следующий тег). */
+function chooseValue(value) {
+  var input = tagsInput();
+  if (!input) {
+    return;
+  }
+  if (committedTags.indexOf(value) === -1) {
+    committedTags.push(value);
+  }
+  syncInputAndDom();
   closeDropdown();
+  /* Фокус возвращается полю ввода (FR-92; после клика он и так там —
+   * mousedown preventDefault; после keyboard-выбора тем более). Явный
+   * focus() страхует тач-устройства, где тап по пункту не держит фокус
+   * в input. */
+  if (document.activeElement !== input && input.focus) {
+    input.focus();
+  }
 }
 
 function chooseActive() {
@@ -310,9 +438,25 @@ export function setTagHints(values) {
   }
 }
 
+/* r8 2.3 (FR-92): вызвавший открытие формы код (task-form.js) сбрасывает
+ * поля через clearTaskForm/fillTaskForm — committed-состояние комбобокса
+ * должно следовать за строкой input, а не жить своей жизнью между
+ * открытиями формы (иначе тег прошлого тикета «всплывет» чипом в новом).
+ * Строка input падает до пустой — committed-список тоже. */
+function resetCommittedFromInput() {
+  var input = tagsInput();
+  if (!input) {
+    return;
+  }
+  if (splitTags(input.value).length === 0 && input.value !== ",") {
+    committedTags = [];
+  }
+}
+
 export function closeTagHints() {
   allHints = [];
   closeDropdown();
+  resetCommittedFromInput();
   /* Сброс (review 2.1/2.2, minor): без него переоткрытие с тем же
    * числом подсказок не озвучивается — announce видит «то же число». */
   lastAnnounced = null;
@@ -326,6 +470,10 @@ export function initTagCombobox() {
   if (!input || !box) {
     return;
   }
+
+  /* r8 2.3 (FR-92): подписки сброса committed-состояния на границах
+   * жизненного цикла формы (см. ensureLedgerFlushHooks). */
+  ensureLedgerFlushHooks();
 
   /* NFR-18: role=combobox + aria-связь со списком (значения дублируют
    * статичную разметку board.html — источник истины один, JS). */
