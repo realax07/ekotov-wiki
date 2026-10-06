@@ -362,7 +362,9 @@ def test_tc_gal_117_like_highlight_comment_ui_xss(gallery_js_page, browser_insta
     page.fill("#comment-input", "QAGAL-коммент UI")
     page.click("#comment-send")
     expect(page.locator("#lb-comments-list")).to_contain_text("QAGAL-коммент UI")
-    expect(page.locator("#lb-comments-list")).to_contain_text("Владелец")
+    # автор = COALESCE(display_name, login); документированный seed (app.seed_users)
+    # не задает display_name — ожидаем логин 'owner', не литерал (BUG-009-круг урок)
+    expect(page.locator("#lb-comments-list .comment .comment-author").first).to_contain_text("owner")
 
     # Пустой комментарий → ошибка (кнопка disabled и/или 422-текст).
     page.fill("#comment-input", "   ")
