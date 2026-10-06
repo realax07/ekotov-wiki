@@ -1,6 +1,6 @@
 # Ревью 002 — пакет add-gallery-service: задачи 1.5 + 1.6 (один файл на две задачи)
 
-Reviewer-Delegation: deleg-015138fc411d4d16
+Reviewer-Delegation: deleg_b166c684
 
 - Дата: 2026-10-06 | Ветка: `add-gallery-service` (HEAD на старте ревью
   `659609f`) | Worktree: `/home/openclaw/ekotov-wiki-worktrees/dev-12-gallery`

@@ -125,3 +125,13 @@
 - [15:35 UTC] Заказчик → ПМ: «Может внедрим design task?» → решение 2026-10-05-design-task-flow1: действие design_task (ui_designer) в Флоу 1 — STAGE_TABLE + check_design_task, ядро проекта [pipeline] 11ae595; эталон ai-factory — следующим ходом; gated_map вписан; ui_designer 1.1 (deleg_9537fb41) — мокапы в design/**
 - [16:00 UTC] Заказчик: мокапы 1.1 утверждены (без карточки / иконка ок / маркер не нужен; decision 2026-10-05-netdata-mockup-approval, 4099f86); [x] 1.1
 - [16:05 UTC] Заказчик: «Давай графану добавим» → пакет 2 R7; решение 2026-10-05-r7-launch-gallery (отдельный файл — машина ищет decision_id == имя файла, урок); SA add-gallery-service через ворота (deleg_5e3db820, gate ab97ad54); ветка add-gallery-service
+
+## 2026-10-06 — add-gallery-service: ревью-волна 1.5/1.6 (ПМ)
+
+- [04:28] ПМ → flowctl: finish 1.6 (correlation 6fb2c1bd) — verdict returned; zone OK, pm_bounds PASS; сессия deleg-6fb2c1b закрыта админски (обе хранилища), зона освобождена.
+- [04:33] ПМ: Э-5 закрыта — VERDICT_APPROVE_RE + «одобрить» (parse_verdict молча не видел «ОДОБРИТЬ»); review-mapping: review-001-1.2 → 1.2/1.3/1.4; flow_check OK. Коммит 659609f.
+- [04:37] ПМ → flowctl: gate start code_review 1.5 (correlation 015138fc) — ALLOW, run running; диспатч независимого ревьюера deleg_b166c684 (gated_map вписан тем же ходом).
+- [05:09] ревьюер → ПМ: review-002-1.5 (272bc78) — approve, 0 blocker / 0 major / 5 minor / 2 nit; независимая верификация: юниты images 28/28, openspec 15/15, flow_check OK, /me id на стенде; 9 minor review-001: #2 закрыт, 8 не задеты; Э-6 подтвержден (ME_KEYS 2 failed — на QA).
+- [05:11] ПМ → flowctl: finish ревью (returned; flow_check PASS, pm_bounds PASS; OUT_OF_ZONE: review-mapping.json — правка ПМ внутри живой сессии, дефект порядка ПМ, признан). Мета Reviewer-Delegation исправлена на платформенный deleg_b166c684 (в Worktree был flowctl-id — не резолвится реестром на финальном PR). Сессия закрыта админски, зона освобождена.
+- [05:15] ПМ-приемка: [x] 1.5, [x] 1.6 (review-002 approve, mapping 1.5/1.6); flow_check OK; юниты images 28/28 перепроверены ПМ. 5 minor ревью — в бэклог (дубль refreshFiltersFromData, стрелки лайтбокса vs textarea, aria-current, опечатка, имя загрузившего в мете — О-1 на решение СА; combobox-упрощение — на решение СА).
+- Открыто: Э-6 (ME_KEYS-тесты — QA 2.1), Э-7 (MODIFIED-дельта auth — СА), 2 отступления от мокапов на решение СА. Следующая: 2.1 QA, затем развилка 2.2 (прод — явное участие Заказчика).
