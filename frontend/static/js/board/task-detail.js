@@ -281,7 +281,18 @@ function buildViewHead(task) {
     el("p", "task-view-kicker", "Задача · STAND-" + task.id)
   );
 
-  var title = document.getElementById("task-detail-title");
+  /* #task-detail-title — постоянный узел (ОГР-28). renderTaskDetail изымает
+   * его из DOM до очистки шапки и возвращает сюда после (аргумент preserved).
+   * Если узла нет вовсе (прямой вызов/сторонняя разметка) — создаем новый:
+   * self-healing, id единственный. */
+  var title =
+    arguments.length > 1 && arguments[1]
+      ? arguments[1]
+      : document.getElementById("task-detail-title");
+  if (!title) {
+    title = document.createElement("h2");
+    title.id = "task-detail-title";
+  }
   title.className = "task-view-title";
   title.textContent = task.title;
   head.appendChild(title);
@@ -386,11 +397,18 @@ function renderTaskDetail(task) {
     /* Шапка — первым блоком окна (после крестика). */
     modal.insertBefore(head, modal.firstChild);
   }
-  head.textContent = "";
   /* N-1 review-004-design: buildViewHead возвращает div.task-view-head —
    * вкладывать его сюда = двойной padding+border (контент в 64px вместо
-   * 32px по мокапу). Переносим детей, обертку выбрасываем. */
-  var built = buildViewHead(task);
+   * 32px по мокапу). Переносим детей, обертку выбрасываем. #task-detail-title
+   * (постоянный узел, ОГР-28) изымаем ДО очистки: head.textContent стер бы
+   * его (живет внутри head с прошлого рендера), а buildViewHead при
+   * getElementById→null падал — переоткрытие модалки было сломано. */
+  var titleNode = document.getElementById("task-detail-title");
+  if (titleNode) {
+    titleNode.parentNode.removeChild(titleNode);
+  }
+  head.textContent = "";
+  var built = buildViewHead(task, titleNode);
   while (built.firstChild) {
     head.appendChild(built.firstChild);
   }
