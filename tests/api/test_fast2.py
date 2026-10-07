@@ -259,3 +259,89 @@ def test_second_fast_with_invalid_priority_order_fixed(api, r2_fast_line):
         assert not [t for t in found if t["title"] == "QAT-фаст-вторая-невалид"]
     finally:
         api.delete(first["id"])
+
+
+# ==========================================================================
+# FR-89 (add-ui-polish-r8 2.7, design §2): is_fast в PATCH — полное
+# переключение fast line при редактировании (решение Заказчика п.7).
+# Инварианты fast-спеки не ослаблены: fast ⇒ high (422), ≤1 fast (409),
+# выключение разблокирует приоритет, не передано — не меняется (ОГР-5
+# для старых клиентов).
+
+
+@pytest.mark.api
+def test_patch_is_fast_on_enables_fast_and_forces_high(api, r2_fast_line, cleanup_task):
+    """FR-89: PATCH обычной задачи {is_fast: true, priority: "high"} → 200,
+    is_fast=true, priority="high"; задача на fast line доски."""
+    task = cleanup_task("QAT-fr89-включение", priority="low")
+    resp = api.patch(task["id"], is_fast=True, priority="high")
+    assert resp.status_code == 200, resp.text
+    got = resp.json()
+    assert got["is_fast"] is True and got["priority"] == "high", got
+    board = api.board().json()["columns"]
+    on_board = [t for col in board.values() for t in col if t["id"] == task["id"]]
+    assert on_board and on_board[0]["is_fast"] is True
+
+
+@pytest.mark.api
+def test_patch_is_fast_on_without_high_priority_422(api, r2_fast_line, cleanup_task):
+    """FR-89 (инвариант fast ⇒ high): PATCH {is_fast: true} обычной задачи
+    с priority="medium" (старое значение ≠ high, нового нет) → 422
+    FAST_REQUIRES_HIGH_422; is_fast не меняется."""
+    task = cleanup_task("QAT-fr89-неhigh", priority="medium")
+    resp = api.patch(task["id"], is_fast=True)
+    assert resp.status_code == 422
+    assert resp.json() == FAST_REQUIRES_HIGH_422
+    got = api.get_task(task["id"]).json()
+    assert got["is_fast"] is False and got["priority"] == "medium", got
+
+
+@pytest.mark.api
+def test_patch_is_fast_on_occupied_line_409(api, r2_fast_line, cleanup_task):
+    """FR-89 (инвариант ≤1): PATCH {is_fast: true, priority: "high"} при
+    активной другой fast → 409 {"error": "fast line occupied"}; задача
+    остается обычной."""
+    first = cleanup_task("QAT-fr89-заняла", is_fast=True)
+    second = cleanup_task("QAT-fr89-вторая", priority="low")
+    resp = api.patch(second["id"], is_fast=True, priority="high")
+    assert resp.status_code == 409, resp.text
+    assert resp.json() == FAST_LINE_OCCUPIED
+    got = api.get_task(second["id"]).json()
+    assert got["is_fast"] is False, got
+    # линия по-прежнему занимает первая
+    assert api.get_task(first["id"]).json()["is_fast"] is True
+
+
+@pytest.mark.api
+def test_patch_is_fast_off_unlocks_priority(api, r2_fast_line, cleanup_task):
+    """FR-89: выключение fast — PATCH {is_fast: false, priority: "medium"}
+    на fast-задаче → 200, is_fast=false, приоритет изменен (разблокирован)."""
+    task = cleanup_task("QAT-fr89-выключение", is_fast=True)
+    resp = api.patch(task["id"], is_fast=False, priority="medium")
+    assert resp.status_code == 200, resp.text
+    got = resp.json()
+    assert got["is_fast"] is False and got["priority"] == "medium", got
+
+
+@pytest.mark.api
+def test_patch_is_fast_absent_keeps_legacy_behavior(api, r2_fast_line, cleanup_task):
+    """FR-89 (обратная совместимость): PATCH без is_fast — прежнее поведение:
+    fast-задача не меняет флаг; на fast-задаче priority=medium по-прежнему
+    422 (старые клиенты не ослабляют инвариант)."""
+    fast = cleanup_task("QAT-fr89-legacy", is_fast=True)
+    resp = api.patch(fast["id"], title="QAT-fr89-legacy-2")
+    assert resp.status_code == 200 and resp.json()["is_fast"] is True, resp.text
+    resp_med = api.patch(fast["id"], priority="medium")
+    assert resp_med.status_code == 422
+    assert resp_med.json() == FAST_REQUIRES_HIGH_422
+
+
+@pytest.mark.api
+def test_patch_is_fast_true_on_existing_fast_idempotent(api, r2_fast_line, cleanup_task):
+    """FR-89: PATCH {is_fast: true} на УЖЕ fast-задаче — 200 (сама себя
+    линией не вытесняет: id != self), флаг и приоритет сохраняются."""
+    task = cleanup_task("QAT-fr89-идемпотент", is_fast=True)
+    resp = api.patch(task["id"], is_fast=True)
+    assert resp.status_code == 200, resp.text
+    got = resp.json()
+    assert got["is_fast"] is True and got["priority"] == "high", got

@@ -38,7 +38,11 @@
  *   input «Теги» (renderTagsChips; источник истины — input);
  * - выбранный приоритет: SVG-иконка в пилюле (renderPriorityPillIcon,
  *   priority-icons.js; цвет дает пилюля по :has(:checked));
- * - скрытие fast line в режиме редактирования — весь ряд .fast-row.
+ * - FR-89 (add-ui-polish-r8 2.7, design §2): ряд .fast-row ПОКАЗЫВАЕТСЯ
+ *   и в редактировании — с текущим состоянием is_fast задачи; включение
+ *   блокирует приоритет high (логика 4.3), выключение разблокирует;
+ *   PATCH несет is_fast всегда (полное переключение, решение Заказчика
+ *   п.7; серверная поддержка — tasks.py TaskUpdate.is_fast).
  *
  * 4.1 Релиза 4 (FR-47, Д-9; design §6 «текущее окно деталей …
  * разделяется на view-модалку и вызов task-form»): действия с задачей
@@ -414,14 +418,18 @@ function fillTaskForm(task) {
    * пока опций нет, value селекта молча не применятся. */
   document.getElementById("task-due-date").value = task.due_date || "";
   document.getElementById("task-tags").value = (task.tags || []).join(", ");
-  document.getElementById(IS_FAST_FIELD_ID).checked = false;
+  /* FR-89: в редактировании чекбокс — ТЕКУЩЕЕ состояние is_fast задачи
+   * (приходит в данных задачи); в создании fillTaskForm вызывается с
+   * {tags: []} — task.is_fast undefined → false, поведение прежнее. */
+  document.getElementById(IS_FAST_FIELD_ID).checked = !!task.is_fast;
   /* 5.1: исполнителя в select ставит loadAssignedOptions (по task.assigned_to_id
    * — сервер возвращает его в ответе задачи; до 5.1 ответ поля не имел —
    * select открывается на «Не назначено»). */
   document.getElementById("task-assigned").value = "";
-  /* Форма открывается без fast line → приоритет разблокирован (4.3:
-   * сброс состояния предыдущего открытия формы). */
-  setPriorityLock(false);
+  /* 4.3/FR-89: блокировка приоритета следует за чекбоксом fast line
+   * (в редактировании fast-задача открывается с заблокированным
+   * приоритетом high; сброс состояния предыдущего открытия — тоже здесь). */
+  setPriorityLock(!!task.is_fast);
   /* 4.1 (DEF-005): визуальные зоны — иконка приоритета и чипы тегов —
    * перерисовываются под заполненные значения (в т.ч. при очистке). */
   renderPriorityPillIcon();
@@ -681,9 +689,10 @@ export function openEditForm(task) {
   document.getElementById("task-form-heading").textContent =
     "Редактирование задачи";
   document.getElementById("task-form-submit").textContent = "Сохранить";
-  /* is_fast назначается только при создании (sdd §3.2, ОГР-5):
-   * скрывается весь ряд fast line (.fast-row). */
-  document.getElementById("task-is-fast").closest(".fast-row").hidden = true;
+  /* FR-89 (design §2): в режиме редактирования ряд fast line ПОКАЗЫВАЕТСЯ
+   * с текущим состоянием is_fast (fillTaskForm ниже); переключение — теми
+   * же правилами, что в создании (блокировка приоритета, 409 «занята»). */
+  document.getElementById("task-is-fast").closest(".fast-row").hidden = false;
   /* 4.1 Релиза 4: блок действий задачи — только в режиме редактирования. */
   document.getElementById("task-actions").hidden = false;
   document.getElementById("task-comments").hidden = false;
@@ -832,6 +841,15 @@ function collectTaskForm() {
        * отправляется вовсе, сервер сам ставит «высокий». */
       delete payload.priority;
     }
+  } else {
+    /* FR-89 (design §2): в редактировании is_fast уходит в PATCH всегда
+     * (полное переключение, решение Заказчика п.7). Включение шлет и
+     * priority (селект заблокирован на «высокий» — инвариант is_fast ⇒
+     * high, АЛЬТЕРНАТИВЫ блокировки клиент не придумывает); выключение —
+     * приоритет разблокирован и уходит как выбрано. Ошибка 409 «fast line
+     * занята» — общий механизм сообщений формы (handleSubmitError/api.js). */
+    payload.is_fast =
+      document.getElementById(IS_FAST_FIELD_ID).checked;
   }
   return payload;
 }

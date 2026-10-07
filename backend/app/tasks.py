@@ -195,8 +195,9 @@ class TaskCreate(BaseModel):
 
 class TaskUpdate(BaseModel):
     """Тело PATCH /api/tasks/{id}: все поля опциональны, применяется только
-    переданное (model_fields_set). status/is_fast/archived_at не входят
-    (см. докстринг модуля)."""
+    переданное (model_fields_set). status/archived_at не входят (см.
+    докстринг модуля); is_fast входит опционально — FR-89 (полное
+    переключение fast line при редактировании, design §2)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -206,6 +207,11 @@ class TaskUpdate(BaseModel):
     category: str | None = None
     due_date: date | None = None
     tags: list[str] | None = None
+    # FR-89 (add-ui-polish-r8 2.7, design §2): опциональное поле; не передано
+    # (None) — не меняется (старое поведение ОГР-5 для старых клиентов);
+    # true — включение fast (priority-lock 422 + 409 «fast line занята»);
+    # false — выключение (приоритет разблокируется).
+    is_fast: bool | None = None
     # Релиз 4 (ОВ-26): допускается; null = очистить исполнителя;
     # несуществующий пользователь → 422 (_assigned_to_id_422).
     assigned_to_id: int | None = None
@@ -331,13 +337,25 @@ def _set_tags(conn: sqlite3.Connection, task_id: int, names: list[str]) -> None:
         )
 
 
-def _fast_line_busy(conn: sqlite3.Connection) -> bool:
-    """Есть ли активная fast-задача (инвариант ≤1, FR-3/ОГР-5; design.md §4)."""
+def _fast_line_busy(
+    conn: sqlite3.Connection, exclude_task_id: int | None = None
+) -> bool:
+    """Есть ли активная fast-задача (инвариант ≤1, FR-3/ОГР-5; design.md §4).
+
+    exclude_task_id — исключить саму задачу (PATCH is_fast=true на уже
+    быстрой задаче: idempotent-включение линию не занимает; move в активный
+    статус использует собственный запрос с id != ?).
+    """
     placeholders = ", ".join("?" for _ in ACTIVE_STATUSES)
+    params: list = [*ACTIVE_STATUSES]
+    extra = ""
+    if exclude_task_id is not None:
+        extra = " AND id != ?"
+        params.append(exclude_task_id)
     row = conn.execute(
         f"SELECT COUNT(*) FROM tasks "
-        f"WHERE is_fast = 1 AND status IN ({placeholders})",
-        ACTIVE_STATUSES,
+        f"WHERE is_fast = 1 AND status IN ({placeholders}){extra}",
+        params,
     ).fetchone()
     return row[0] >= 1
 
@@ -547,13 +565,47 @@ def update_task(task_id: int, body: TaskUpdate) -> JSONResponse:
         if invalid is not None:
             return invalid
 
+        # FR-89 (design §2): переключение is_fast при редактировании.
+        # Не передано — не меняется (старое поведение ОГР-5); включение
+        # переиспользует инварианты создания: priority-lock 422
+        # (FR-27/ОГР-10) и 409 «fast line occupied» (≤1 fast в активных).
+        if "is_fast" in body.model_fields_set and body.is_fast:
+            turning_fast_on = not bool(row[6])
+            # Задача УЖЕ fast: priority в PATCH ограничен ниже (≠ high → 422);
+            # явный null при включении — тот же инвариант (BUG-002, CHK-130).
+            if "priority" in body.model_fields_set:
+                if body.priority is None:
+                    return JSONResponse(
+                        status_code=422, content=FAST_REQUIRES_HIGH_422
+                    )
+            elif (
+                turning_fast_on
+                and "priority" not in body.model_fields_set
+                and row[3] is not None
+                and row[3] != "high"
+            ):
+                # Обычная задача с приоритетом ≠ high включается в fast:
+                # новый приоритет не передан, старый ≠ high — отклоняем
+                # (инвариант is_fast ⇒ high; UI при включении шлет
+                # priority="high" заблокированным селектом).
+                return JSONResponse(status_code=422, content=FAST_REQUIRES_HIGH_422)
+
         # Priority-lock в PATCH (FR-27, ОГР-10 — инвариант is_fast ⇒ high):
-        # is_fast в PATCH не входит (fast назначается только при создании,
-        # ОГР-5), но PATCH может ИЗМЕНИТЬ приоритет существующей fast-задачи.
-        # Любое значение ≠ high — включая NULL («очистить признак») —
-        # отклоняется 422: NULL не равен high (дельта fastline считает
-        # отклоняемым «low», «medium» ИЛИ NULL). Обычные задачи не ограничены.
-        if "priority" in body.model_fields_set and bool(row[6]) and body.priority != "high":
+        # PATCH может ИЗМЕНИТЬ приоритет существующей fast-задачи. Любое
+        # значение ≠ high — включая NULL («очистить признак») — отклоняется
+        # 422: NULL не равен high (дельта fastline считает отклоняемым
+        # «low», «medium» ИЛИ NULL). Обычные задачи не ограничены.
+        # FR-89: выключение fast (is_fast=false) снимает ограничение —
+        # приоритет разблокируется; is_fast=false несовместимо с включением.
+        turning_fast_off = (
+            "is_fast" in body.model_fields_set and not body.is_fast
+        )
+        if (
+            "priority" in body.model_fields_set
+            and bool(row[6])
+            and not turning_fast_off
+            and body.priority != "high"
+        ):
             return JSONResponse(status_code=422, content=FAST_REQUIRES_HIGH_422)
 
         updates: dict[str, Any] = {}
@@ -566,8 +618,26 @@ def update_task(task_id: int, body: TaskUpdate) -> JSONResponse:
             )
         if "assigned_to_id" in body.model_fields_set:
             updates["assigned_to_id"] = body.assigned_to_id
+        # FR-89: значение флага — переданное is_fast (true/false);
+        # включение дополнительно форсирует priority='high' (инвариант
+        # is_fast ⇒ high; переданный приоритет к этому моменту проверен);
+        # выключение флага приоритет не трогает (разблокирован).
+        if "is_fast" in body.model_fields_set:
+            updates["is_fast"] = int(bool(body.is_fast))
+            if body.is_fast:
+                updates["priority"] = "high"
 
         try:
+            # FR-89: включение fast обычной задачи — проверка ≤1 (инвариант)
+            # и UPDATE в одной транзакции BEGIN IMMEDIATE (как в create_task:
+            # design.md §4 «Гонки»; SELECT в autocommit снапшот не держит).
+            if "is_fast" in body.model_fields_set and body.is_fast:
+                _begin_immediate(conn)
+                if _fast_line_busy(conn, exclude_task_id=task_id):
+                    conn.rollback()
+                    return JSONResponse(
+                        status_code=409, content=FAST_LINE_OCCUPIED_BODY
+                    )
             if updates:
                 sets = ", ".join(f"{name} = ?" for name in updates)
                 conn.execute(
