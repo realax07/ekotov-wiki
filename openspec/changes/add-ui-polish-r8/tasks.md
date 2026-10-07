@@ -12,7 +12,7 @@ FR → Requirement дельты. Правило: 1 задача = 1 сабаге
 
 ## ЭТАП 0. Конвейер
 
-- [x] 0.1 sa: create_change — пакет `add-ui-polish-r8` (proposal, requirements
+- [ ] 0.1 sa: create_change — пакет `add-ui-polish-r8` (proposal, requirements
   DRAFT, design, tasks, дельты specs по 4 capability; validate strict PASS,
   flow_check OK). Текущая задача. (Отчет — REPORT-0.1.md этого пакета)
 - [x] 0.2 [docs] [approve] Заказчик: утверждение requirements.md (снятие DRAFT) —
