@@ -82,7 +82,11 @@ body.app-shell {
   color: var(--color-text-primary);
   background: var(--color-bg-page);
   display: flex;
-  height: 100vh;
+  /* BUG-011 (регресс 9b1e4f1): height:100vh на body рвал документный скролл —
+     окно не прокручивалось вовсе (window.scrollTo не работал). Мокап
+     (design/gallery-grid.html) — body без фиксированной высоты, документный
+     скролл; прилипание сайдбара держится на .sidebar sticky (ниже). */
+  min-height: 100vh;
 }
 
 /* --- Сайдбар (V3: глубокий «чернильный», активный раздел — терракота) --- */
@@ -405,10 +409,9 @@ body.app-shell {
   flex: 1;
   padding: var(--space-3);
   min-width: 0;
-  /* Микрофикс (2026-10-06, парный к .sidebar): прокрутка контента внутри
-     экрана — длинные страницы (сетка галереи) не растягивают документ. */
-  height: 100vh;
-  overflow-y: auto;
+  /* BUG-011: height:100vh + overflow-y:auto на .content (9b1e4f1) убраны —
+     они глушили документный скролл. Длинный контент снова растягивает
+     документ; footer сайдбара держится в viewport только sticky .sidebar. */
 }
 
 /* 2.1 add-ui-polish-r8 (FR-93): ЕДИНЫЙ класс кнопки действия — токены V3,
