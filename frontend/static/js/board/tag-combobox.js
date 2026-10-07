@@ -78,7 +78,11 @@ function currentToken(raw) {
  * запятая в хвосте — поле готово к вводу следующего тега (СЦ-3).
  * r8 2.3 (FR-92): с committed-схемой выбор больше не дописывает тег в
  * input (поле очищается — chooseValue/syncInputAndDom); функция остается
- * как документация прежнего поведения datalist-совместимости. */
+ * как документация прежнего поведения datalist-совместимости.
+ * Deprecated (review add-ui-polish-r8 #49 minor): мертвый код — выбор
+ * через него больше не идет (chooseValue уводит тег в committedTags и
+ * очищает токен ввода — syncInputAndDom). Не удаляется (минимизация
+ * диффа волны); новых вызовов не добавлять. */
 function applySelection(raw, value) {
   var parts = String(raw).split(",");
   parts[parts.length - 1] = " " + value;
@@ -451,6 +455,22 @@ function resetCommittedFromInput() {
   if (splitTags(input.value).length === 0 && input.value !== ",") {
     committedTags = [];
   }
+}
+
+/* review add-ui-polish-r8 #49 (blocker): полный сброс committed-леджера.
+ * resetCommittedFromInput (условный, только через closeTagHints) не
+ * покрывает флоу «сохранил задачу A → открыл задачу B»: после сабмита
+ * input непуст (flushCommittedToInput) — условие сброса ложно, леджер
+ * переживает закрытие формы, а следующий fillTaskForm пишет input
+ * напрямую, без сброса. Экспортируется: вызывающий открытие/закрытие
+ * формы (task-form.js) вызывает это в fillTaskForm — владелец цикла
+ * жизни формы знает момент замены задачи лучше, чем эвристика по
+ * содержимому input. committedTags — приватное состояние модуля,
+ * наружу значение не отдается (единственный источник правды — сам
+ * леджер; проверяет его перерисовка чипов). */
+export function resetTagLedger() {
+  committedTags = [];
+  lastAnnounced = null;
 }
 
 export function closeTagHints() {
