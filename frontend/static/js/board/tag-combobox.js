@@ -232,24 +232,28 @@ function syncInputAndDom() {
   /* Ручные токены (введены без дропдауна и еще не выбраны) НЕ затираются:
    * убирается только токен ввода выбранного тега — FR-92 про введенный
    * текст подсказки, не про остальное содержимое поля. ИСКЛЮЧЕНИЕ
-   * (BUG-012): непустой токен, ЧАСТЬЮ которого является выбранное
-   * значение (selected.startsWith(token) — «QATkbдва» выбран при токене
-   * «QATkb»), потреблен выбором: выбор по Enter/клику делается ради
-   * этого токена, оставлять его в rest — двойной чип «выбранный тег +
-   * его же недобор» (не «два тега», а одна сущность). Токены, не
-   * связанные с выбором (префиксом не являются), остаются как были. */
+   * (BUG-012): потреблен выбором ТОЛЬКО currentToken — последний
+   * (редактируемый) токен строки — и только если он сам является
+   * подстрокой (case-insensitive) какого-либо committed-значения
+   * («QATkbдва» выбран при токене «QATkb»: выбор по Enter/клику делается
+   * ради этого токена, оставлять его в rest — двойной чип «выбранный тег
+   * + его же недобор» — не «два тега», а одна сущность). Остальные
+   * rest-теги сохраняются БЕЗУСЛОВНО (review-001 blocker-1): несвязанные
+   * ранние токены строки не теряются даже при совпадающем currentToken
+   * («QATдругой» переживает выбор «QATkbдва»); токен-префикс «QAT»,
+   * лежащий в середине rest, сохраняется — потребление возможно только
+   * для токена, который был редактируемым в момент выбора. */
+  var token = currentToken(input.value).toLowerCase();
   var rest = splitTags(input.value).filter(function (tag) {
     if (committedTags.indexOf(tag) !== -1) {
       return false;
     }
-    if (!currentToken(input.value)) {
+    if (!token || tag.toLowerCase() !== token) {
       return true;
     }
-    var token = currentToken(input.value).toLowerCase();
-    var consumed = committedTags.some(function (selected) {
+    return !committedTags.some(function (selected) {
       return selected.toLowerCase().indexOf(token) !== -1;
     });
-    return !consumed;
   });
   var line = committedTags.concat(rest).join(", ");
   if (line) {
