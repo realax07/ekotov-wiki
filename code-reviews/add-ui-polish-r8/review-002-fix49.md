@@ -1,6 +1,6 @@
 # Code review (ре-ревью) — фикс blocker #49, add-ui-polish-r8
 
-- **Reviewer-Delegation: deleg-9df1326622dc4bfd**
+- **Reviewer-Delegation: deleg_152f128d (gate deleg-9df1326622dc4bfd)**
 - **Gate correlation: 9df1326622dc4bfdb14111dc01cac30e**
 - Ревьюируемый фикс: коммит **6ed6cb6** (в main), дифф против родителя **effa1f8**
 - Ревьюер: независимый code_reviewer конвейера ai-factory (уровень review-001-waves)
