@@ -128,25 +128,30 @@
 }
 
 /* =====================================================================
-   СЕТКА ПРЕВЬЮ (мокап gallery-grid.html): адаптив 2 / 3 / 4 колонки
-   (<880 / ≥880 / ≥1280px). Превью — ЦЕЛИКОМ в ячейку 4:3
-   (object-fit: contain — уточнение Заказчика, не cover); фон ячейки —
-   бумажный токен. Бейдж формата в правом нижнем углу превью.
+   СЕТКА ПРЕВЬЮ — masonry (вариант В утвержденного мокапа
+   polish-gallery-grid-variants.html; Заказчик 2026-10-06, FR-98):
+   CSS columns + break-inside: avoid, плитки ЕСТЕСТВЕННОЙ высоты —
+   без кропа и полей (нижняя граница ряда «рваная» по мокапу).
+   Колонки 2 / 3 / 4 (мобайл / ≥880px / ≥1280px), отступы — 8px-сетка.
+   Бейдж формата — в правом нижнем углу превью.
    ===================================================================== */
 
 .gallery-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-2);
+  column-count: 2;
+  column-gap: var(--space-2);
 }
 
-@media (min-width: 880px)  { .gallery-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (min-width: 1280px) { .gallery-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 880px)  { .gallery-grid { column-count: 3; } }
+@media (min-width: 1280px) { .gallery-grid { column-count: 4; } }
 
-/* Карточка = ссылка (клик → full-screen, FR-83): вся зона кликабельна */
+/* Карточка = ссылка (клик → full-screen, FR-83): вся зона кликабельна.
+   display: inline-block / width: 100% — чтобы карточки не рвались между
+   колонками (break-inside: avoid) и заполняли колонку по ширине. */
 .g-card {
-  display: flex;
-  flex-direction: column;
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 var(--space-2);
+  break-inside: avoid;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-card);
@@ -171,23 +176,21 @@
 
 .g-card:active { transform: translateY(0); }
 
-/* Ячейка превью 4:3; изображение вписывается целиком (contain) */
+/* Превью — естественная высота (masonry, вариант В): без фикс 4:3,
+   изображение во всю ширину плитки, пропорции сохранены */
 .g-thumb {
   position: relative;
-  aspect-ratio: 4 / 3;
-  display: grid;
-  place-items: center;
-  padding: var(--space-1);
   background: var(--color-bg-subtle);
   border-bottom: 1px solid var(--color-border-default);
+  line-height: 0;
 }
 
 .g-thumb img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  border-radius: 4px;
-  box-shadow: var(--shadow-soft);
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 /* Бейдж формата файла (уточнение Заказчика 1.1): jpeg/png/webp/gif */

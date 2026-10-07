@@ -292,8 +292,8 @@ function buildCard(img, index) {
     title + (formatExt(img.mime) ? " (формат " + formatExt(img.mime) + ")" : "") +
     " — открыть просмотр");
 
-  /* Превью: ячейка 4:3, изображение ЦЕЛИКОМ (object-fit: contain —
-   * уточнение Заказчика 1.1) + бейдж формата. */
+  /* Превью: естественная высота (masonry, вариант В мокапа — FR-98) +
+   * бейдж формата. Высоту в JS не фиксируем. */
   var thumb = el("div", "g-thumb");
   var picture = document.createElement("img");
   picture.src = img.thumb_url || img.url;
