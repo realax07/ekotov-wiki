@@ -148,15 +148,19 @@ def test_priority_pill_color_changes_and_inline_icon(board_page):
 
 
 # --------------------------------------------------------------------------
-# TC-formv3-104 — «форма редактирования = V3; fast-row скрыт» (Must)
+# TC-formv3-104 — «форма редактирования = V3; .fast-row показан с текущим
+# is_fast» (Must) — UPDATE (TC-UIP-112, FR-89 add-ui-polish-r8 волна 2.7):
+# в редактировании .fast-row ВИДЕН и отражает is_fast задачи.
 # --------------------------------------------------------------------------
-def test_edit_form_matches_v3_and_hides_fast_row(
+def test_edit_form_matches_v3_and_shows_fast_row(
     board_page, web_base_url, web_owner_session, web_cleanup_created
 ):
-    """TC-formv3-104: у задачи-эталона (title/description/priority=high)
-    «Редактирование задачи»: поля содержат значения, стили полей
-    идентичны форме создания; .fast-row скрыт (hidden), в создании —
-    виден."""
+    """TC-formv3-104 / TC-UIP-112 (FR-89): у задачи-эталона
+    (title/description/priority=high) «Редактирование задачи»: поля
+    содержат значения, стили полей идентичны форме создания; .fast-row в
+    редактировании ВИДЕН и чекбокс отражает is_fast (regular → снят;
+    fast-задача → отмечен, приоритет high заблокирован — инвариант FR-88);
+    в создании ряд виден как прежде."""
     page = board_page
     created = web_owner_session.post(
         f"{web_base_url}/api/tasks",
@@ -198,9 +202,36 @@ def test_edit_form_matches_v3_and_hides_fast_row(
 
     fast_row = page.locator(".fast-row")
     assert fast_row.count() == 1
-    assert fast_row.get_attribute("hidden") is not None
+    # FR-89 (TC-UIP-112): в редактировании .fast-row ВИДЕН (не hidden) и
+    # чекбокс отражает is_fast задачи: у regular-эталона — снят.
+    assert fast_row.get_attribute("hidden") is None
+    is_fast_cb = page.locator("#task-is-fast")
+    assert is_fast_cb.is_visible()
+    assert not is_fast_cb.is_checked()
+    assert page.locator("#task-priority").input_value() == "high"
 
-    # Закрыть форму; форма создания: .fast-row видим.
+    # Fast-задача: чекбокс отмечен; приоритет high и заблокирован
+    # (инвариант is_fast ⇒ high — FR-88 в редактировании, волна 2.7).
+    fast_created = web_owner_session.post(
+        f"{web_base_url}/api/tasks",
+        json={"title": "QAT-form-edit-fast", "priority": "high", "is_fast": True},
+    )
+    assert fast_created.status_code == 201, fast_created.text
+    fast_id = fast_created.json()["id"]
+    web_cleanup_created(fast_id)
+    page.get_by_role("button", name="Отмена").click()
+    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    page.reload()
+    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    page.get_by_role("article").filter(has_text="QAT-form-edit-fast").click()
+    page.get_by_role("button", name="Редактировать").click()
+    expect(page.locator("#task-form-overlay")).to_be_visible()
+    assert page.locator(".fast-row").get_attribute("hidden") is None
+    assert page.locator("#task-is-fast").is_checked()
+    assert page.locator("#task-priority").input_value() == "high"
+    assert page.locator("#task-priority").is_disabled()
+
+    # Закрыть форму; форма создания: .fast-row видим как прежде.
     page.get_by_role("button", name="Отмена").click()
     expect(page.locator("#task-form-overlay")).to_be_hidden()
     _open_form(page)

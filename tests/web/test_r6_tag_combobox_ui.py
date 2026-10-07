@@ -162,7 +162,9 @@ def test_combobox_add_new_tag_item(
     expect(add_item).to_have_text("+ Добавить тег «QATсовершенноновый»")
 
     add_item.click()
-    assert tags.input_value() == " QATсовершенноновый,"
+    # FR-92 committed-леджер (TC-UIP-109, волна 2.3): выбранное остается
+    # в input до сабмита (строка леджера «тег,»), чип отрендерен.
+    assert "QATсовершенноновый" in tags.input_value()
     expect(page.locator("#task-tags-chips .chip")).to_have_count(1)
     expect(page.locator(LISTBOX)).to_be_hidden()
 
@@ -225,11 +227,15 @@ def test_combobox_keyboard_navigation(
     # Enter → выбор активного; форма НЕ закрывается.
     page.keyboard.press("Enter")
     value = tags.input_value()
-    assert value.startswith(" QATkb"), value
+    # FR-92 committed-леджер (TC-UIP-109): тег остается в input до сабмита.
+    assert "QATkb" in value, value
     expect(page.locator("#task-form-overlay")).to_be_visible()
     expect(page.locator(LISTBOX)).to_be_hidden()
     # Чип отрендерен существующим рендером (источник истины — input).
     expect(page.locator("#task-tags-chips .chip")).to_have_count(1)
+    expect(
+        page.locator("#task-tags-chips .chip", has_text="QATkbодин")
+    ).to_be_visible()
 
     # Tab → выбор активного (после нового ввода — «+ Добавить»); Tab
     # уводит фокус, но дропдаун к моменту ухода закрыт выбором.
@@ -237,6 +243,7 @@ def test_combobox_keyboard_navigation(
     add_item = page.locator(f"{LISTBOX} .option-add")
     expect(add_item).to_be_visible()
     page.keyboard.press("Tab")
+    # FR-92 committed-леджер (TC-UIP-109): леджер содержит выбранный тег.
     assert "QATkbнов" in tags.input_value()
     expect(page.locator(LISTBOX)).to_be_hidden()
     expect(page.locator("#task-tags")).not_to_be_focused()
