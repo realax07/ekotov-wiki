@@ -491,7 +491,10 @@
   border-radius: 0;
   font: inherit;
   font-family: var(--font-family-display);
-  font-size: 18px;
+  /* 20px = мокапное значение .lb-title (design/gallery-lightbox.html) —
+     поле заменяет заголовок имени; токена 20px нет, значение зафиксировано
+     как мокапное (диспозиция review-001-waves, minor волны 2.5). */
+  font-size: 20px;
   font-weight: 600;
   color: var(--color-text-primary);
   background: transparent;
