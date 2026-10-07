@@ -50,14 +50,14 @@ FR → Requirement дельты. Правило: 1 задача = 1 сабаге
   геометрия active/focus (текст не смещается). Регресс: доска, DnD, поиск.
   Границы: `frontend/static/css/**`, `frontend/static/js/board/{cards,task-form}.js`,
   `frontend/static/js/search.js`. (FR-87, FR-88, FR-93, FR-96; NFR-22)
-- [ ] 2.2 [M] Dev: волна модалка тикета (группа B; ПОСЛЕ утверждения мокапа 1.1)
+- [x] 2.2 [M] Dev: волна модалка тикета (группа B; ПОСЛЕ утверждения мокапа 1.1)
   — окно просмотра строго по утвержденному мокапу: разметка/стили на токенах
   V3; read-only семантика, «Редактировать», Esc/крестик — как прежде
   (FR-47/Д-9); DOM-id не переименовывать (ОГР-28); шапка комментария
   «автор · дата» по данным задачи 2.3. Регресс: просмотр/редактирование
   задачи, tooltip. Границы: `frontend/static/js/board/task-detail.js`,
   `frontend/static/css/board.css`. (FR-90 → board MODIFIED; design §1-B, §5)
-- [ ] 2.3 [P] [M] Dev: волна комментарии + таг-combobox (группы C, D; параллельно)
+- [x] 2.3 [P] [M] Dev: волна комментарии + таг-combobox (группы C, D; параллельно)
   — (а) п.3: `backend/app/comments.py` — GET списка с join users
   (`author_name` = display_name, fallback login; только добавление поля в
   ответ, POST-контракт не меняется); клиент — человекочитаемая дата/время из
@@ -69,7 +69,7 @@ FR → Requirement дельты. Правило: 1 задача = 1 сабаге
   `frontend/static/js/board/{tag-combobox,task-detail,task-form}.js` + юниты.
   (FR-91 → tasks MODIFIED «Признаки задачи»; FR-92 → tasks MODIFIED
   «Кастомный комбобокс…»; design §2, §5)
-- [ ] 2.4 [P] [S] Dev: волна сайдбар+favicon (группы F, G; параллельно) — (а) п.9:
+- [x] 2.4 [P] [S] Dev: волна сайдбар+favicon (группы F, G; параллельно) — (а) п.9:
   inline-SVG иконки разделов сайдбара (доска, поиск, wiki, настройки) в стиле
   иконок «Мониторинг»/«Галерея», окраска currentColor, base.html; (б) п.10:
   favicon data-URI inline-SVG (терракотовый акцент V3), URL с `?v=` — политика
@@ -77,7 +77,7 @@ FR → Requirement дельты. Правило: 1 задача = 1 сабаге
   «Мониторинг», tooltip), верстка не поехала. Границы:
   `frontend/templates/base.html`. (FR-94 → navigation MODIFIED «Навигация
   через сайдбар»; FR-95 → navigation ADDED «Favicon»)
-- [ ] 2.5 [P] [S] Dev: волна галерея-rename (группа I; параллельно) —
+- [x] 2.5 [P] [S] Dev: волна галерея-rename (группа I; параллельно) —
   `PUT /api/images/{id}/name` в сервисе images (тело `{"name"}`, 200/401/404/422,
   паритет существующим операциям; юниты happy/401/404/422 в
   `services/images/tests/`); UI лайтбокса: иконка «переименовать» у имени,
@@ -85,13 +85,13 @@ FR → Requirement дельты. Правило: 1 задача = 1 сабаге
   Границы: `services/images/**`, `frontend/static/js/gallery.js`,
   `frontend/static/css/gallery.css`. (FR-97 → gallery MODIFIED «Full-screen
   просмотр…»; design §4)
-- [ ] 2.6 [S] Dev: волна сетка галереи (группа J; ПОСЛЕ утверждения варианта
+- [x] 2.6 [S] Dev: волна сетка галереи (группа J; ПОСЛЕ утверждения варианта
   мокапа 1.1) — превью по выбранному Заказчиком варианту (cover/подложка/
   masonry), ячейки выровнены, сетка 2/3/4 колонки сохраняется; токены V3.
   Регресс: загрузка, фильтры, лайтбокс. Границы: `frontend/static/css/gallery.css`,
   `frontend/static/js/gallery.js`. (FR-98 → gallery ADDED «Сетка галереи…»;
   design §1-J)
-- [ ] 2.7 [S] Dev: fastline в редактировании (группа A п.7; после проверки API
+- [x] 2.7 [S] Dev: fastline в редактировании (группа A п.7; после проверки API
   на стенде в 2.1) — ряд fastline в форме редактирования с текущим состоянием
   is_fast; включение блокирует приоритет на high, выключение разблокирует;
   409 «fast line занята» обрабатывается; при отсутствии серверной поддержки
