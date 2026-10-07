@@ -2,7 +2,7 @@
 
 Роль: code_reviewer (независимый) | ревьюируемый объем: QA-отчет deleg-e037810cac394574 (/tmp/report-qa31.md), коммиты 5d16293, adf851a, ef37897, 225ebd1, 377b9ff (PR #61), файлы tests/web/test_p12_{ui_polish,nav_icons_favicon,gallery_rename_masonry}_r8.py, tests/api/test_comments_author_r8.py, services/images/tests/test_images_service.py (rename-блок), contracts/openapi.json. База: main d533b0b.
 
-- **Reviewer-Delegation: deleg-0965439d86f747fc**
+- **Reviewer-Delegation: deleg_960a5c65 (gate deleg-0965439d86f747fc)**
 - Gate correlation: 0965439d86f747fcaafd84088ca995b8
 
 Метод: сверка новых/обновленных тестов с approved-кейсами test-model/approved/add-ui-polish-r8/ (шаги/ожидания дословно); чтение ассертов на осмысленность (выборочно: TC-UIP-103/104/105/106/108, TC-P12G-004/005/006/007, rename-юниты, comments-юниты); регенерация контракта scripts/export_openapi.py + git diff (пустой дифф = sync); фактические прогоны в venv /home/openclaw/venvs/wiki: tests/api (rename+comments), services/images/tests (полностью), три новых web-файла. Прогон web шел на живом nginx-стенде :18443 (обнаружен поднятым; автостенд conftest для gallery-сьютов неприменим — средовое требование чеклиста соблюдено частично: search-сервис на стенде не отвечал).

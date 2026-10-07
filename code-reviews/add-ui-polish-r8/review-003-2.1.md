@@ -2,7 +2,7 @@
 
 Роль: code_reviewer (независимый, компенсирующее ревью — коммит лег в main без PR) | ревьюируемый дифф: ab538fb..adbaf9a (коммит adbaf9a, ветка feature/p12-21-fastline-buttons, содержится в main b50ef6e/42707b3)
 
-- **Reviewer-Delegation: deleg-dd0722831e4748c4**
+- **Reviewer-Delegation: deleg_11a3c99c (gate deleg-dd0722831e4748c4)**
 - Gate correlation: dd0722831e4748c4b50aec107147a06e
 
 Метод: git diff ab538fb..adbaf9a (7 файлов: app/board/gallery/search/settings.css, board/cards.js, search.js) с трассировкой на FR-87/88/93/96 (requirements.md §3, design §1 группы A/E/H, tasks.md 2.1), сверка CSS-диффа с утвержденным мокапом design/gallery-grid.html, grep хардкодов цветов и innerHTML в измененных областях, сверка aria/DOM-id с шаблонами, node --check всех измененных JS, реальный playwright-прогон на стенде (uvicorn+http.server, worktree adbaf9a): FR-87 DOM-инверсия (новаяbehavior-версия теста), FR-93 computed-стили «Найти», FR-96 textX-замер «Настройки» в default/active/focus на /board и /settings. Чужие незакоммиченные правки в рабочем дереве (stash r8fix, QA-волна 3.1) не тронуты и в ревью не входят. Известные диспозиции ревью-001 (committed-леджер, «Сбросить»-ссылка, translateY, мокапные 6px→space-05) в находки не включены.
