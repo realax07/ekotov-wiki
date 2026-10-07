@@ -1,7 +1,7 @@
 # BUG-012: таг-combobox Enter при открытом дропдауне дает 2 чипа (committed + ручной токен)
 
 - **ID:** BUG-012
-- **Статус:** ОТКРЫТ (2026-10-07, квалификация ПМ на релизном прогоне r8-polish)
+- **Статус:** НА РЕВЬЮ (2026-10-07 22:25: фикс-цикл 1 завершен — PR #79 (da32681), flow+e2e green; 10/10 r6 green на автостенде; двойная мутация подтверждена; pr_validate PASS (BUG-012). Ожидает независимого code_review. Эскалация: tests/api suggestions 8 red на HEAD — отдельная задача)
 - **Дата:** 2026-10-07
 - **Окружение:** main `b0282fa`; QA-стенд nginx :18443 (app :8080, worktree /tmp/qa-r8/wt); Chromium (Playwright); venv /home/openclaw/venvs/wiki.
 - **Severity:** minor→major (нарушение FR-92 committed-леджера при клавиатурном выборе; TC-r6-comb-005 красный стабильно)
