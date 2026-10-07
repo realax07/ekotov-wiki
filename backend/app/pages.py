@@ -34,8 +34,14 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # каждом релизе, меняющем статику. r7.0 — 1.5 add-gallery-service: app.css
 # (пункт «Галерея» в сайдбаре) + новые gallery.css/gallery.js. r7.1 — релизный
 # бамп выката 2.2 (BUG-008/009 фиксы gallery.js уже под r7.0; r7.1 гарантирует
-# свежую статику у браузеров, урок R7 3a27aac).
-templates.env.globals["static_v"] = "r7.1"
+# свежую статику у браузеров, урок R7 3a27aac). r8-polish — релизный бамп
+# выкатки 3.2 add-ui-polish-r8: волны A (fastline/кнопки/настройки), B (модалка
+# тикета), C+D (комментарии, таг-combobox), F+G (иконки сайдбара, favicon —
+# inline data-URI, кеш-маркер `<!--cache:v=1-->` внутри SVG), I (gallery
+# rename), J (masonry) — вся кешируемая статика доски/поиска/галереи/профиля
+# обновлена; favicon меняет URL через бамп маркера в base.html+login.html
+# (data:URI не принимает ?v= — проверено в Chromium, BUG-010/design §3).
+templates.env.globals["static_v"] = "r8-polish"
 
 
 @router.get("/login")
