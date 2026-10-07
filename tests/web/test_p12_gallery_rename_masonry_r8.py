@@ -11,10 +11,13 @@
   (disabled); сетевая ошибка (route-abort) → сообщение в лайтбоксе, окно
   открыто, имя нигде не изменилось; после снятия блокировки повторный
   submit проходит.
-- TC-P12G-007 (CHK-P12-25, FR-98, базовый контур): masonry-сетка на
-  разнопропорциональных фикстурах (квадрат/портрет/панорама) — колонки
-  по X disjoint, пересечений карточек нет, карточки атомарны
-  (break-inside), превью сохраняют пропорции.
+- TC-P12G-007 (CHK-P12-25, FR-98, полный матрикс кейса): masonry-сетка на
+  10 разнопропорциональных фикстурах (4×квадрат / 3×портрет / 3×панорама,
+  экстремумы 800×2400 = 1:3 и 2000×250 = 8:1) — колонки по X disjoint,
+  пересечений карточек нет, карточки атомарны (break-inside), превью
+  сохраняют пропорции, верх первого ряда всех колонок одинаков (ритм),
+  после re-render фильтром категории туда-обратно геометрия валидна
+  (закрытие minor-1 review-004-3.1).
 
 Прогон R4: nginx-стенд с images :8379 (EKOTOV_WIKI_BASE_URL=:18443 —
 автостенд галерею не обслуживает, пред-существующее средовое). Изоляция:
@@ -51,7 +54,7 @@ def _png_bytes(w=400, h=300, color=(120, 40, 200)):
     return buf.getvalue()
 
 
-def _upload_api(name: str, w=400, h=300, color=(120, 40, 200)):
+def _upload_api(name: str, w=400, h=300, color=(120, 40, 200), category=None):
     import requests
 
     s = requests.Session()
@@ -63,7 +66,10 @@ def _upload_api(name: str, w=400, h=300, color=(120, 40, 200)):
     for c in s.cookies:
         c.secure = False
     fields = [("file", (name, _png_bytes(w, h, color), "image/png"))]
-    r = s.post(f"{BASE_URL}/api/images", files=fields)
+    data = {}
+    if category is not None:
+        data["category"] = category  # Form: id | новое имя (design §3)
+    r = s.post(f"{BASE_URL}/api/images", files=fields, data=data)
     assert r.status_code == 201, r.text
     out = r.json()
     s.close()
@@ -306,45 +312,40 @@ def test_gallery_rename_error_paths_recoverable(gallery_page):
 
 
 # --------------------------------------------------------------------------
-# TC-P12G-007 — masonry: разнопропорциональные фикстуры, базовый контур
+# TC-P12G-007 — masonry: полный матрикс кейса (10 фикстур), re-render, ритм
 # --------------------------------------------------------------------------
-def test_gallery_masonry_geometry_mixed_proportions(gallery_page):
-    """TC-P12G-007 (CHK-P12-25, FR-98): квадрат/портрет/панорама в masonry —
-    карточки в колонках (X-кластеры disjoint, ≤4 колонок при ширине
-    вьюпорта), горизонтальные пересечения bbox = 0, карточка целиком
-    внутри одной колонки (break-inside: avoid), превью сохраняют
-    пропорции оригинала (допуск 2%)."""
-    # Фикстуры: квадрат 400×300, портрет 300×600, панорама 1200×300.
-    if not DB_PATH:
-        pytest.skip(
-            "нужен EKOTOV_WIKI_DB_PATH: teardown QAGAL-фикстур идет через БД "
-            "(DELETE /api/images нет); без env сьют копил бы хвосты на стенде"
-        )
-    own = [
-        _upload_api(MARKER + "sq.png", 400, 300),
-        _upload_api(MARKER + "pt.png", 300, 600),
-        _upload_api(MARKER + "pn.png", 1200, 300),
+FIX_CATEGORY = MARKER + "masonry-категория"
+
+
+def _matrix_fixtures():
+    """10 фикстур кейса TC-P12G-007: 4×квадрат / 3×портрет / 3×панорама,
+    включая экстремальные 800×2400 (1:3) и 2000×250 (8:1). Все — под
+    QAGAL-префиксом и в одной QAGAL-категории (для re-render шага 5)."""
+    specs = [
+        # 4 квадрата (кейс допускает 400×300 и 300×300)
+        (MARKER + "sq1.png", 400, 300),
+        (MARKER + "sq2.png", 300, 300),
+        (MARKER + "sq3.png", 400, 300),
+        (MARKER + "sq4.png", 300, 300),
+        # 3 портрета (кейс допускает 300×600 и 400×800), вкл. экстремум 1:3
+        (MARKER + "pt1.png", 300, 600),
+        (MARKER + "pt2.png", 400, 800),
+        (MARKER + "pt3.png", 800, 2400),   # экстремум 1:3
+        # 3 панорамы (кейс допускает 1200×300 и 1600×400), вкл. экстремум 8:1
+        (MARKER + "pn1.png", 1200, 300),
+        (MARKER + "pn2.png", 1600, 400),
+        (MARKER + "pn3.png", 2000, 250),   # экстремум 8:1
     ]
-    own_names = [img["original_name"] for img in own]
+    return [
+        _upload_api(name, w, h, category=FIX_CATEGORY)
+        for name, w, h in specs
+    ]
 
-    page = gallery_page
-    page.set_viewport_size({"width": 1400, "height": 900})  # ≥1280 → 4 колонки
-    page.goto(f"{BASE_URL}/gallery")
-    page.wait_for_load_state("networkidle")
-    # Устойчивость (review-004 minor-2): сетка может содержать ЧУЖИЕ
-    # QAGAL-хвосты, если teardown прошлого прогона не отработал (прогон
-    # без env) — фильтруем по СВОИМ свежезагруженным именам, а не по
-    # общему числу .g-card.
-    own_cards = page.locator(
-        ".g-card",
-        has=page.locator(
-            ".g-card-title",
-            has_text=re.compile("|".join(re.escape(n) for n in own_names)),
-        ),
-    )
-    expect(own_cards).to_have_count(3)
 
-    geo = page.evaluate(
+def _collect_grid_geometry(page) -> dict:
+    """Единый сбор геометрии сетки (шаги 2–4 кейса): ожидание загрузки всех
+    превью, bbox карточек, break-inside, ширина grid, аспекты img."""
+    return page.evaluate(
         """async () => {
           const cards = [...document.querySelectorAll('.g-card')];
           for (const c of cards) {
@@ -364,6 +365,12 @@ def test_gallery_masonry_geometry_mixed_proportions(gallery_page):
           return { rects, breakInside: cs.breakInside, gridW: document.getElementById('gallery-grid').clientWidth, imgs };
         }"""
     )
+
+
+def _assert_masonry_geometry(geo: dict):
+    """Шаги 2–4 кейса: атомарность, N колонок (X disjoint, ≤4), без
+    пересечений, верх первой строки колонок одинаков (ритм), превью
+    без кропа/искажения (2%)."""
     rects = geo["rects"]
 
     # Атомарность: break-inside: avoid (или эквивалент) задан.
@@ -388,7 +395,77 @@ def test_gallery_masonry_geometry_mixed_proportions(gallery_page):
                 overlap_y = min(a["y"] + a["h"], b["y"] + b["h"]) - max(a["y"], b["y"])
                 assert overlap_y <= 0.5, (i, j, a, b)
 
+    # Ритм верхнего ряда (шаг 2 кейса): карточки в ПЕРВОЙ строке всех
+    # колонок начинаются с одного Y (masonry column flow — верх выровнен).
+    tol = 2.0  # px, допуск субпиксельного рендера
+    tops = {}
+    for r in rects:
+        key = round(r["x"] / 10)  # кластеризация X по колонкам
+        if key not in tops or r["y"] < tops[key]:
+            tops[key] = r["y"]
+    assert len(tops) >= 1
+    top_values = list(tops.values())
+    assert max(top_values) - min(top_values) <= tol, tops
+
     # Пропорции превью сохранены (без кропа): rendered ≈ natural, 2%.
     for item in geo["imgs"]:
         assert item["natural"] > 0 and item["rendered"] > 0
         assert abs(item["rendered"] - item["natural"]) / item["natural"] <= 0.02, item
+
+
+def test_gallery_masonry_geometry_mixed_proportions(gallery_page):
+    """TC-P12G-007 (CHK-P12-25, FR-98) — полный матрикс кейса: 10
+    разнопропорциональных фикстур (4 квадрат / 3 портрет / 3 панорама,
+    экстремумы 800×2400 = 1:3 и 2000×250 = 8:1). Шаги 2–4: геометрия
+    колонок, наложения/дыры, пропорции. Шаг 2 (ритм): верх первой строки
+    всех колонок одинаков. Шаг 5: re-render фильтром категории
+    туда-обратно — геометрия валидна в ОБОИХ состояниях (ритм не
+    деградирует после перерисовки)."""
+    # Фикстуры: 10 изображений всех базовых пропорций кейса.
+    if not DB_PATH:
+        pytest.skip(
+            "нужен EKOTOV_WIKI_DB_PATH: teardown QAGAL-фикстур идет через БД "
+            "(DELETE /api/images нет); без env сьют копил бы хвосты на стенде"
+        )
+    own = _matrix_fixtures()
+    own_names = [img["original_name"] for img in own]
+
+    page = gallery_page
+    page.set_viewport_size({"width": 1400, "height": 900})  # ≥1280 → 4 колонки
+    page.goto(f"{BASE_URL}/gallery")
+    page.wait_for_load_state("networkidle")
+    # Устойчивость (review-004 minor-2): сетка может содержать ЧУЖИЕ
+    # QAGAL-хвосты, если teardown прошлого прогона не отработал (прогон
+    # без env) — фильтруем по СВОИМ свежезагруженным именам, а не по
+    # общему числу .g-card.
+    own_cards = page.locator(
+        ".g-card",
+        has=page.locator(
+            ".g-card-title",
+            has_text=re.compile("|".join(re.escape(n) for n in own_names)),
+        ),
+    )
+    expect(own_cards).to_have_count(10)
+
+    # Шаги 2–4: геометрия исходной сетки (10 карточек — все свои).
+    geo = _collect_grid_geometry(page)
+    assert len(geo["rects"]) == 10, len(geo["rects"])
+    _assert_masonry_geometry(geo)
+
+    # Шаг 5 (кейс): re-render фильтрами туда-обратно. Применяем фильтр
+    # по своей QAGAL-категории → только свои 10 карточек; сброс → сетка
+    # перестроена; геометрия валидна в обоих состояниях.
+    page.select_option("#filter-category", FIX_CATEGORY)
+    page.wait_for_load_state("networkidle")
+    expect(own_cards).to_have_count(10)
+    expect(page.locator(".g-card")).to_have_count(10)  # чужих нет после фильтра
+    geo_filtered = _collect_grid_geometry(page)
+    assert len(geo_filtered["rects"]) == 10
+    _assert_masonry_geometry(geo_filtered)
+
+    page.click("#filter-reset")
+    page.wait_for_load_state("networkidle")
+    expect(own_cards).to_have_count(10)  # сброс → все свои карточки вернулись
+    geo_back = _collect_grid_geometry(page)
+    assert len(geo_back["rects"]) >= 10
+    _assert_masonry_geometry(geo_back)
