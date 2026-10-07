@@ -24,9 +24,11 @@ def _card_task_id(card) -> int:
 
 
 def test_fast_task_create_and_highlight(page, web_base_url, board_page, web_cleanup_created):
-    """TC-UI-010: fast-задача создана с отметкой; карточка с бейджем fast,
-    столбец подсвечен (has-fast/task-card-fast), fast-карточка первая
-    в столбце."""
+    """TC-UI-010 / TC-UIP-101 / TC-UIP-113 (FR-87, add-ui-polish-r8):
+    fast-задача создана с отметкой; карточка с бейджем fast; подсветка
+    ТОЛЬКО плитки (task-card-fast), столбец НЕ красится (класс has-fast
+    ОТСУТСТВУЕТ — инверсия прежнего ассерта, правило .board-column.has-fast
+    убрано из board.css §5.2); fast-карточка первая в столбце."""
     # Предусловие: fast line свободна.
     expect(page.locator('article[data-fast="true"]')).to_have_count(0)
 
@@ -37,9 +39,9 @@ def test_fast_task_create_and_highlight(page, web_base_url, board_page, web_clea
     web_cleanup_created(_card_task_id(fast_card))
     expect(fast_card.get_by_text("fast", exact=True)).to_be_visible()
 
-    # Подсветка столбца и карточки — наблюдаемое DOM-состояние (п.5).
+    # Подсветка только плитки (FR-87, TC-UIP-101): столбец не красится.
     todo = board_page.locator('[data-status="todo"]')
-    assert "has-fast" in todo.get_attribute("class")
+    assert "has-fast" not in (todo.get_attribute("class") or "")
     assert "task-card-fast" in fast_card.get_attribute("class")
     SCREENSHOT_DIR.mkdir(exist_ok=True)
     page.screenshot(path=str(SCREENSHOT_DIR / "tc-ui-010-fastline.png"))

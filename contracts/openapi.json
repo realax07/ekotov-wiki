@@ -258,7 +258,7 @@
       },
       "TaskUpdate": {
         "additionalProperties": false,
-        "description": "Тело PATCH /api/tasks/{id}: все поля опциональны, применяется только\nпереданное (model_fields_set). status/is_fast/archived_at не входят\n(см. докстринг модуля).",
+        "description": "Тело PATCH /api/tasks/{id}: все поля опциональны, применяется только\nпереданное (model_fields_set). status/archived_at не входят (см.\nдокстринг модуля); is_fast входит опционально — FR-89 (полное\nпереключение fast line при редактировании, design §2).",
         "properties": {
           "assigned_to_id": {
             "anyOf": [
@@ -304,6 +304,17 @@
               }
             ],
             "title": "Due Date"
+          },
+          "is_fast": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Fast"
           },
           "priority": {
             "anyOf": [
@@ -454,7 +465,7 @@
     },
     "/api/auth/me": {
       "get": {
-        "description": "Текущий пользователь (sdd.md §3.1-бис + §3.1a-кватер, tasks.md 2.1\nРелиза 4 — расширение состава профилем; change\nadd-r4-user-profile-ticket-view, FR-33/36/43).\n\nСюда попадают только запросы, прошедшие middleware с действующей\nсессией (эндпоинт вне exempt-списка, NFR-7). JOIN sessions→users по\nтокену куки (З-1 ревью-001). Ответ расширен составом профиля:\n{\"user\", \"display_name\", \"role\", \"bio\", \"avatar_url\"}; при незаполненном\nпрофиле поля профиля — null, ключ \"user\" (логин) сохранен всегда —\nобратная совместимость с profile.js (sdd §3.1a-кватер).\nRead-only: никаких INSERT/UPDATE/DELETE.",
+        "description": "Текущий пользователь (sdd.md §3.1-бис + §3.1a-кватер, tasks.md 2.1\nРелиза 4 — расширение состава профилем; change\nadd-r4-user-profile-ticket-view, FR-33/36/43).\n\nСюда попадают только запросы, прошедшие middleware с действующей\nсессией (эндпоинт вне exempt-списка, NFR-7). JOIN sessions→users по\nтокену куки (З-1 ревью-001). Ответ расширен составом профиля:\n{\"user\", \"display_name\", \"role\", \"bio\", \"avatar_url\"}; при незаполненном\nпрофиле поля профиля — null, ключ \"user\" (логин) сохранен всегда —\nобратная совместимость с profile.js (sdd §3.1a-кватер). Задача 1.6\n(change add-gallery-service, Э-4 REPORT-1.5): добавлен ключ\n\"id\" (users.id) — прямая идентификация «своего» для фронта галереи;\nтолько добавление ключа, именованные ключи прежних потребителей\n(profile.js, settings) не менялись — обратная совместимость.\nRead-only: никаких INSERT/UPDATE/DELETE.",
         "operationId": "me_api_auth_me_get",
         "responses": {
           "200": {
@@ -923,7 +934,7 @@
     },
     "/api/tasks/{task_id}/comments": {
       "get": {
-        "description": "Список комментариев задачи: 200 + {\"comments\": [Comment]} в порядке\ncreated_at ASC (tiebreak id ASC); 404 — нет задачи.",
+        "description": "Список комментариев задачи: 200 + {\"comments\": [Comment]} в порядке\ncreated_at ASC (tiebreak id ASC); 404 — нет задачи.\n\nr8 2.3 (FR-91): каждый Comment дополнен author_name (display_name\nавтора, fallback login; LEFT JOIN users — комментарий без автора\nсхеме противоречит, но join не сужает ответ). Прочие поля и порядок —\nкак прежде (обратная совместимость).",
         "operationId": "list_comments_api_tasks__task_id__comments_get",
         "parameters": [
           {
@@ -1089,6 +1100,23 @@
           }
         },
         "summary": "Board Page"
+      }
+    },
+    "/gallery": {
+      "get": {
+        "description": "Страница «Галерея» (tasks.md 1.5 add-gallery-service; FR-83…FR-86,\nдельта navigation — Requirement «Раздел «Галерея» в сайдбаре для всех»):\nсетка превью из GET /api/images, фильтры категория/тег, форма загрузки,\nfull-screen просмотр — вся динамика из ES-модуля\nfrontend/static/js/gallery.js; вид — по утвержденным мокапам 1.1\n(design/gallery-grid.html, gallery-lightbox.html, gallery-upload.html).\nДоступ общий (ОВ-4): без role-логики; разделение прав MUST NOT\nвводиться (дельта gallery, «Доступ к галерее общий для всех»).\nБез сессии — редирект на /login middleware'ом (sdd.md §3.6,\nдельта gallery, Scenario «Негативный: без сессии страница\nнедоступна») — здесь не дублируется, как у остальных страниц.",
+        "operationId": "gallery_page_gallery_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Gallery Page"
       }
     },
     "/login": {

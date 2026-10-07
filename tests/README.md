@@ -414,7 +414,7 @@ python -m pytest tests/web -q
 | TC-formv3-101 | test_form_fields_v3_tokens_and_focus_ring | tests/web/test_r3_formv3_ui.py | |
 | TC-formv3-102 | test_selected_tags_rendered_as_chips | tests/web/test_r3_formv3_ui.py | |
 | TC-formv3-103 | test_priority_pill_color_changes_and_inline_icon | tests/web/test_r3_formv3_ui.py | |
-| TC-formv3-104 | test_edit_form_matches_v3_and_hides_fast_row | tests/web/test_r3_formv3_ui.py | |
+| TC-formv3-104 | test_edit_form_matches_v3_and_shows_fast_row | tests/web/test_r3_formv3_ui.py | UPDATE 3.1 (TC-UIP-112, FR-89): .fast-row в редактировании виден |
 | TC-formv3-105 | test_all_form_interactive_elements_styled | tests/web/test_r3_formv3_ui.py | |
 | TC-nav-101 | test_profile_badge_and_login_on_all_pages | tests/web/test_r3_profile_ui.py | CHK-151+CHK-156 |
 | TC-nav-102 | test_profile_shows_session_user_wife | tests/web/test_r3_profile_ui.py | |
