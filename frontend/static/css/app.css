@@ -109,7 +109,12 @@ body.app-shell {
 .sidebar-nav { display: flex; flex-direction: column; }
 
 .nav-item {
-  display: block;
+  /* N-3 review-004-design: flex+gap 8px — единый ритм иконка+текст по всем
+   * пунктам (эталон: Мониторинг/Галерея; было display:block — у Доски/Поиска/
+   * Wiki иконка вплотную к тексту). */
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
   padding: 10px 20px;
   color: var(--p-paper-050);
   text-decoration: none;

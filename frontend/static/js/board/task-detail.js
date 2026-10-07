@@ -387,7 +387,13 @@ function renderTaskDetail(task) {
     modal.insertBefore(head, modal.firstChild);
   }
   head.textContent = "";
-  head.appendChild(buildViewHead(task));
+  /* N-1 review-004-design: buildViewHead возвращает div.task-view-head —
+   * вкладывать его сюда = двойной padding+border (контент в 64px вместо
+   * 32px по мокапу). Переносим детей, обертку выбрасываем. */
+  var built = buildViewHead(task);
+  while (built.firstChild) {
+    head.appendChild(built.firstChild);
+  }
 
   var dl = document.getElementById("task-detail-attrs");
   var body = ensureViewBody(dl);
