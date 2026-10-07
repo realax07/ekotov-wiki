@@ -2,7 +2,7 @@
 
 - **Статус:** ПОЧИНЕНО (2026-10-07, ветка `fix/bug-010-favicon-login`, вариант (б) —
   дословная копия favicon-`<link>` из base.html в login.html; xfail с
-  `test_favicon_present_on_login` снят; коммит `097453e`).
+  `test_favicon_present_on_login` снят; фикс-коммит `2622979`).
 
 - **ID:** BUG-010
 - **Дата:** 2026-10-07
