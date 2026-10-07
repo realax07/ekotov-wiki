@@ -38,6 +38,15 @@ pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 LISTBOX = "#task-tag-combobox"
 
 
+def _rgb_to_hex(rgb: str) -> str:
+    """'rgb(238, 242, 246)' → '#eef2f6' (computed style → значение токена)."""
+    import re as _re
+
+    parts = _re.findall(r"\d+", rgb)
+    r, g, b = (int(x) for x in parts[:3])
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
 def _open_board_form(page):
     page.get_by_role("button", name="Создать задачу").click()
     expect(page.locator("#task-form-overlay")).to_be_visible()
@@ -91,9 +100,13 @@ def test_fast_row_v3_geometry_and_priority_lock(board_page):
     assert styles["border"] != "rgba(0, 0, 0, 0)", styles
     assert styles["marginBottom"] in ("8px", "16px"), styles  # 8px-сетка
     assert styles["cbW"] == "16px" and styles["cbH"] == "16px", styles
-    # Токен-значения непусты (стиль ряда строится на var(--…), не литералах).
+    # Токен-значения непусты (стиль ряда строится на var(--…), не литералах)
+    # и computed bg/border РАВНЫ значениям токенов (review-004 nit-2:
+    # литеральный hex, совпадающий с видимым цветом, больше не проходит).
     assert styles["bgToken"], "--p-blue-050 пуст"
     assert styles["borderToken"], "--p-blue-200 пуст"
+    assert _rgb_to_hex(styles["bg"]) == styles["bgToken"].lower(), styles
+    assert _rgb_to_hex(styles["border"]) == styles["borderToken"].lower(), styles
 
     # Behavior: отметка fast → priority=high, disabled; снятие → разблокирован.
     fast = page.get_by_label("fast line")

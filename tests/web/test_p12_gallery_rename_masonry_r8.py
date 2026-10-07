@@ -23,6 +23,7 @@ test_qa21_gallery_ui._cleanup).
 """
 
 import os
+import re
 import sqlite3
 
 import pytest
@@ -292,8 +293,8 @@ def test_gallery_rename_error_paths_recoverable(gallery_page):
     expect(page.locator("#lb-title")).to_contain_text(old_name)
     got = _api_get(a["id"])
     assert got["original_name"] == old_name
-    # Форма переиспользуема (не заморожена).
-    assert not page.locator("#lb-rename-confirm").is_disabled() or True
+    # Форма переиспользуема (не заморожена): ✓ снова доступна.
+    expect(page.locator("#lb-rename-confirm")).to_be_enabled()
 
     # Снятие блокировки → повторный submit тем же именем проходит.
     page.unroute("**/api/images/*/name")
@@ -314,15 +315,34 @@ def test_gallery_masonry_geometry_mixed_proportions(gallery_page):
     внутри одной колонки (break-inside: avoid), превью сохраняют
     пропорции оригинала (допуск 2%)."""
     # Фикстуры: квадрат 400×300, портрет 300×600, панорама 1200×300.
-    _upload_api(MARKER + "sq.png", 400, 300)
-    _upload_api(MARKER + "pt.png", 300, 600)
-    _upload_api(MARKER + "pn.png", 1200, 300)
+    if not DB_PATH:
+        pytest.skip(
+            "нужен EKOTOV_WIKI_DB_PATH: teardown QAGAL-фикстур идет через БД "
+            "(DELETE /api/images нет); без env сьют копил бы хвосты на стенде"
+        )
+    own = [
+        _upload_api(MARKER + "sq.png", 400, 300),
+        _upload_api(MARKER + "pt.png", 300, 600),
+        _upload_api(MARKER + "pn.png", 1200, 300),
+    ]
+    own_names = [img["original_name"] for img in own]
 
     page = gallery_page
     page.set_viewport_size({"width": 1400, "height": 900})  # ≥1280 → 4 колонки
     page.goto(f"{BASE_URL}/gallery")
     page.wait_for_load_state("networkidle")
-    expect(page.locator(".g-card")).to_have_count(3)
+    # Устойчивость (review-004 minor-2): сетка может содержать ЧУЖИЕ
+    # QAGAL-хвосты, если teardown прошлого прогона не отработал (прогон
+    # без env) — фильтруем по СВОИМ свежезагруженным именам, а не по
+    # общему числу .g-card.
+    own_cards = page.locator(
+        ".g-card",
+        has=page.locator(
+            ".g-card-title",
+            has_text=re.compile("|".join(re.escape(n) for n in own_names)),
+        ),
+    )
+    expect(own_cards).to_have_count(3)
 
     geo = page.evaluate(
         """async () => {
