@@ -1,17 +1,17 @@
 """add-ui-polish-r8 3.1 fix-цикл review-004 (major-1): TC-P12N-004.
 
 Трассировка TC (test-model/approved/add-ui-polish-r8/TC-P12N-004.md):
-сайдбар-viewport после микрофикса #50 (.sidebar height 100vh + sticky +
-overflow-y auto, .content height 100vh + внутренний скролл): на галерее
-с длинной сеткой footer сайдбара («Настройки»/«Выйти») остается в
-viewport при любой прокрутке контента, оба элемента кликабельны
-(elementFromPoint); прокрутка идет внутри .content, сайдбар не смещается
-(bbox footer'а до/после прокрутки идентичен, ≤1px).
+сайдбар-viewport (.sidebar height 100vh + sticky + overflow-y auto;
+внутренний скролл .content УБРАН — BUG-011: он глушил документный
+скролл, регресс 9b1e4f1): на галерее с длинной сеткой footer сайдбара
+(«Настройки»/«Выйти») остается в viewport при любой прокрутке, оба
+элемента кликабельны (elementFromPoint); прокрутка идет ДОКУМЕНТОМ
+(window.scrollY), сайдбар sticky не смещается (bbox footer'а до/после
+прокрутки идентичен, ≤1px).
 
-Отклонение от буквы шага 1 кейса (documentElement.scrollHeight >
-innerHeight) задокументировано в тесте: после #50 документ НЕ растягивается
-(иначе фикс не работает) — «длинный документ» проверяется прокручиваемостью
-.content (scrollHeight > clientHeight) при scroll документа = 0.
+Буква шага 1 кейса (documentElement.scrollHeight > innerHeight)
+действительна вновь: BUG-011-фикс вернул документный скролл (временное
+отклонение «документ не растягивается» эпохи #50 отменено).
 
 Фикстуры — QAGAL-префикс через API images (≥30 плиток — сетка длиннее
 viewport); teardown по префиксу — копия test_p12_gallery_rename_masonry_r8
@@ -161,11 +161,9 @@ def test_sidebar_footer_visible_on_long_gallery(gallery_page):
         page.goto(f"{BASE_URL}/gallery")
         page.wait_for_load_state("networkidle")
 
-        # Шаг 1, precondition-check: документ «длинный». После микрофикса
-        # #50 прокрутка идет ВНУТРИ .content (body/.content height 100vh,
-        # window.scrollY всегда 0) — буквальный documentElement.scrollHeight
-        # > innerHeight более недостижим ПО ОПРЕДЕЛЕНИЮ фикса; критерий
-        # «сетка длиннее viewport» проверяем прокручиваемостью .content.
+        # Шаг 1, precondition-check: документ «длинный» — сетка растянула
+        # ДОКУМЕНТ (BUG-011: документный скролл восстановлен, временное
+        # отклонение эпохи #50 «документ не растягивается» отменено).
         grid_count = page.locator(".g-card").count()
         assert grid_count >= TILES, (
             f"сетка короче фикстур: {grid_count} < {TILES} — "
@@ -177,13 +175,13 @@ def test_sidebar_footer_visible_on_long_gallery(gallery_page):
             " cScroll: document.querySelector('.content').scrollHeight,"
             " cClient: document.querySelector('.content').clientHeight })"
         )
-        assert geo0["scroll"] <= geo0["inner"] + 1, (
-            f"документ растянут выше viewport ({geo0}) — фикс #50 (высота "
-            "100vh + внутренний скролл) не применяется"
+        assert geo0["scroll"] > geo0["inner"], (
+            f"документ НЕ растянут выше viewport ({geo0}) — precondition "
+            "кейса (сетка должна растягивать документ)"
         )
-        assert geo0["cScroll"] > geo0["cClient"], (
-            f"контент не длиннее viewport ({geo0}) — precondition кейса "
-            "(сетка должна растягивать область контента)"
+        assert geo0["cScroll"] >= geo0["cClient"], (
+            f"область контента пуста ({geo0}) — precondition кейса "
+            "(сетка должна отдавать контент)"
         )
 
         # Шаг 2: bbox footer'а в исходном скролле — целиком в viewport;
@@ -215,8 +213,8 @@ def test_sidebar_footer_visible_on_long_gallery(gallery_page):
         assert hits["settings"], f"«Настройки» перекрыта: {hits}"
         assert hits["logout"], f"«Выйти» перекрыта: {hits}"
 
-        # Шаг 3: прокрутка сетки колесом внутри .content — сайдбар sticky,
-        # bbox footer'а до/после идентичен (≤1px).
+        # Шаг 3: прокрутка колесом над сеткой — ДОКУМЕНТНАЯ (BUG-011),
+        # сайдбар sticky — bbox footer'а до/после идентичен (≤1px).
         page.locator("#gallery-grid").hover()
         page.mouse.wheel(0, 1200)
         page.wait_for_timeout(200)
@@ -226,12 +224,13 @@ def test_sidebar_footer_visible_on_long_gallery(gallery_page):
             " winY: window.scrollY,"
             " contentTop: document.querySelector('.content').scrollTop })"
         )
-        assert geo1["winY"] == 0, (
-            f"прокрутка ушла в документ (window.scrollY={geo1['winY']}) — "
-            "сайдбар/контент не прижаты к viewport"
+        assert geo1["winY"] > 0, (
+            f"документ не проскроллился (window.scrollY={geo1['winY']}) — "
+            "документный скролл потерян (регресс BUG-011)"
         )
-        assert geo1["contentTop"] > 0, (
-            "контент не проскроллился внутри .content — фикс #50 не работает"
+        assert geo1["contentTop"] == 0, (
+            f".content скроллится внутри ({geo1['contentTop']}) — внутренний "
+            "скролл #50 вернулся, документный скролл заглушен"
         )
         box1 = footer.bounding_box()
         for key in ("x", "y", "width", "height"):
