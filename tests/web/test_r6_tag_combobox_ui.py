@@ -232,9 +232,13 @@ def test_combobox_keyboard_navigation(
     expect(page.locator("#task-form-overlay")).to_be_visible()
     expect(page.locator(LISTBOX)).to_be_hidden()
     # Чип отрендерен существующим рендером (источник истины — input).
+    # Активный пункт после ArrowDown+ArrowUp — «QATkbдва» (data-value);
+    # BUG-012: ручной токен «QATkb» потреблен выбором — чип ОДИН,
+    # выбранного тега (semantics: TC-UIP-109 «чип с текстом тега,
+    # выбранного активным пунктом»).
     expect(page.locator("#task-tags-chips .chip")).to_have_count(1)
     expect(
-        page.locator("#task-tags-chips .chip", has_text="QATkbодин")
+        page.locator("#task-tags-chips .chip", has_text="QATkbдва")
     ).to_be_visible()
 
     # Tab → выбор активного (после нового ввода — «+ Добавить»); Tab

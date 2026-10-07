@@ -231,9 +231,25 @@ function syncInputAndDom() {
   }
   /* Ручные токены (введены без дропдауна и еще не выбраны) НЕ затираются:
    * убирается только токен ввода выбранного тега — FR-92 про введенный
-   * текст подсказки, не про остальное содержимое поля. */
+   * текст подсказки, не про остальное содержимое поля. ИСКЛЮЧЕНИЕ
+   * (BUG-012): непустой токен, ЧАСТЬЮ которого является выбранное
+   * значение (selected.startsWith(token) — «QATkbдва» выбран при токене
+   * «QATkb»), потреблен выбором: выбор по Enter/клику делается ради
+   * этого токена, оставлять его в rest — двойной чип «выбранный тег +
+   * его же недобор» (не «два тега», а одна сущность). Токены, не
+   * связанные с выбором (префиксом не являются), остаются как были. */
   var rest = splitTags(input.value).filter(function (tag) {
-    return committedTags.indexOf(tag) === -1;
+    if (committedTags.indexOf(tag) !== -1) {
+      return false;
+    }
+    if (!currentToken(input.value)) {
+      return true;
+    }
+    var token = currentToken(input.value).toLowerCase();
+    var consumed = committedTags.some(function (selected) {
+      return selected.toLowerCase().indexOf(token) !== -1;
+    });
+    return !consumed;
   });
   var line = committedTags.concat(rest).join(", ");
   if (line) {
