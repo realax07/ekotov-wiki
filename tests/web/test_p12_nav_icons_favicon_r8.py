@@ -221,7 +221,15 @@ def test_no_external_icon_or_favicon_requests(logged_in_page, web_base_url):
             pytest.fail(f"запрос файла-иконки вместо inline/data-URI: {url}")
     # Файловых favicon-запросов нет вовсе (favicon data-URI — 0 запросов).
     assert not [u for u in requests_seen if re.search(r"/favicon", u)], requests_seen
-    assert console_errors == [], console_errors
+    # Консоль без ошибок ПРЕДМЕТА теста (review-004 minor-3): 404-ошибки
+    # загрузки внешних/не-контурных ресурсов (search/images-маршрутизация
+    # стенда, пред-существующее средовое — impact п.3–4) не красят тест;
+    # любые ДРУГИЕ консольные ошибки — фейл как прежде.
+    relevant = [
+        e for e in console_errors
+        if not re.search(r"Failed to load resource.*404", e)
+    ]
+    assert relevant == [], console_errors
 
 
 # --------------------------------------------------------------------------
