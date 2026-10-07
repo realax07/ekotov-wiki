@@ -232,9 +232,13 @@ def test_combobox_keyboard_navigation(
     expect(page.locator("#task-form-overlay")).to_be_visible()
     expect(page.locator(LISTBOX)).to_be_hidden()
     # Чип отрендерен существующим рендером (источник истины — input).
+    # Активный пункт после ArrowDown+ArrowUp — «QATkbдва» (data-value);
+    # BUG-012: ручной токен «QATkb» потреблен выбором — чип ОДИН,
+    # выбранного тега (semantics: TC-UIP-109 «чип с текстом тега,
+    # выбранного активным пунктом»).
     expect(page.locator("#task-tags-chips .chip")).to_have_count(1)
     expect(
-        page.locator("#task-tags-chips .chip", has_text="QATkbодин")
+        page.locator("#task-tags-chips .chip", has_text="QATkbдва")
     ).to_be_visible()
 
     # Tab → выбор активного (после нового ввода — «+ Добавить»); Tab
@@ -247,6 +251,71 @@ def test_combobox_keyboard_navigation(
     assert "QATkbнов" in tags.input_value()
     expect(page.locator(LISTBOX)).to_be_hidden()
     expect(page.locator("#task-tags")).not_to_be_focused()
+
+
+# regression: keep — BUG-012 фикс-цикл 2 (review-001 blocker-1):
+# мульти-токеновый rest. Потреблен выбором может быть ТОЛЬКО currentToken
+# (последний редактируемый токен строки) — и только если он является
+# подстрокой выбранного значения; остальные rest-теги сохраняются
+# безусловно. Мутационный пробел прежнего сьюта (TC-005): потеря
+# несвязанного раннего токена rest тестом не ловилась — здесь она
+# ассертится end-to-end (вплоть до сохраненных тегов задачи после
+# сабмита, как в негативной пробе review-001: «QATprobelost» → lost).
+def test_combobox_multitoken_rest_unrelated_token_survives(
+    logged_in_page, web_base_url, web_owner_session, web_cleanup_created
+):
+    """TC-r6-comb-011: ручной несвязанный токен в начале rest + Enter-выбор
+    по currentToken → выбранный чип есть, несвязанный токен СОХРАНЯЕТСЯ
+    чипом, дубля currentToken нет; после сабмита оба тега в задаче."""
+    _seed_tagged_task(
+        web_owner_session, web_base_url, "QAT-comb-мульти", ["QATmtokдва"]
+    )
+    page = logged_in_page
+    _open_form(page, web_base_url)
+
+    tags = page.get_by_label("Теги (через запятую)")
+    # Ручной несвязанный токен В НАЧАЛЕ rest + currentToken «QATmtok»,
+    # по которому открывается дропдаун (уникальное семейство — единственный
+    # пункт «QATmtokдва», активен по умолчанию; Enter выбирает его).
+    tags.fill("QATmtokчужой, QATmtok")
+    options = page.locator(f"{LISTBOX} .option")
+    expect(options).to_have_count(1)
+    assert options.nth(0).get_attribute("data-value") == "QATmtokдва"
+
+    page.keyboard.press("Enter")  # выбор «QATmtokдва» (активный)
+
+    # currentToken «QATmtok» потреблен выбором (подстрока «QATmtokдва») —
+    # дубля нет; несвязанный ранний токен «QATmtokчужой» СОХРАНЕН.
+    value = tags.input_value()
+    assert "QATmtokдва" in value, value
+    assert "QATmtokчужой" in value, value
+    assert "QATmtok," not in value and not value.rstrip(",").endswith(
+        "QATmtok"
+    ), value
+
+    chips = page.locator("#task-tags-chips .chip")
+    expect(chips).to_have_count(2)
+    expect(chips.filter(has_text="QATmtokдва")).to_have_count(1)
+    expect(chips.filter(has_text="QATmtokчужой")).to_have_count(1)
+
+    # End-to-end: оба тега сохраняются задачей (несвязанный токен не
+    # потерян безвозвратно — ключевая ассерт-зона blocker-1).
+    page.get_by_label("Название").fill("QAT-comb-мульти-сохранность")
+    page.get_by_role("button", name="Создать", exact=True).click()
+    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    resp = web_owner_session.get(
+        f"{web_base_url}/api/search", params={"archived": "false"}
+    )
+    matched = [
+        t
+        for t in resp.json()["results"]
+        if t["title"] == "QAT-comb-мульти-сохранность"
+    ]
+    assert len(matched) == 1, matched
+    saved = matched[0]["tags"]
+    assert "QATmtokдва" in saved, saved
+    assert "QATmtokчужой" in saved, saved
+    web_cleanup_created(matched[0]["id"])
 
 
 # regression: keep — r6 NFR-17/СЦ-8 + FR-61-граница: Escape закрывает

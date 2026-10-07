@@ -1,13 +1,21 @@
-"""Тестовый стенд web-сьюта: uvicorn (app) + python -m http.server (static).
+"""Тестовый стенд web-сьюта: uvicorn (app) + uvicorn (search) + python -m
+http.server (static).
 
 Продуктовая архитектура (sdd.md §1/§3.6, design §8): nginx раздает статику
-frontend/static/ и проксирует остальное на uvicorn; в app.static НЕ смонтирована
-(review 2.3, замечание 2 — «монтирование в app противоречило бы design»).
-Локальный стенд повторяет прод-топологию двумя процессами:
+frontend/static/ и проксирует остальное на uvicorn; search-семейство
+(/api/search*, /api/suggestions* — отрезка add-microservices-full, f0fe4ec)
+nginx маршрутизирует на search:8378 (services/frontend/nginx/ekotov-wiki.conf).
+в app.static НЕ смонтирована (review 2.3, замечание 2 — «монтирование в app
+противоречило бы design»).
+Локальный стенд повторяет прод-топологию тремя процессами:
 - uvicorn app.main:app на свободном порту (API + Jinja2-страницы);
-- http.server на соседнем свободном порту с docroot frontend/ (файлы /static/*).
-Playwright-маршрутизация: запросы {base}/static/* перебрасываются на
-static_url, остальные идут в app — единый origin для браузера, куки работают.
+- uvicorn services/search app.main:app на соседнем свободном порту
+  (BUG-012: без него /api/suggestions → 404, подсказок 0, дропдаун
+  комбобокса не открывается — масса фейлов r6/r8 web-семейства);
+- http.server на свободном порту с docroot frontend/static (файлы /static/*).
+Playwright-маршрутизация (роль nginx): запросы {base}/static/* перебрасываются
+на static_url, {base}/api/search* и {base}/api/suggestions* — на search_url,
+остальные идут в app — единый origin для браузера, куки работают.
 
 Временная пустая SQLite-БД + seed owner/wife (тестовые пароли кейсов, NFR-7).
 EKOTOV_WIKI_DB_PATH выставляется на сессию — DB-крюки TC-UI-017/018 работают
@@ -33,6 +41,7 @@ import requests
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "backend"
 FRONTEND_DIR = REPO_ROOT / "frontend"
+SEARCH_SERVICE_DIR = REPO_ROOT / "services" / "search"
 
 BASE_URL_ENV = "EKOTOV_WIKI_BASE_URL"
 DB_PATH_ENV = "EKOTOV_WIKI_DB_PATH"
@@ -130,7 +139,7 @@ def web_server(request):
     external_base_url = os.environ.get(BASE_URL_ENV)
     if external_base_url:
         _warn_dead_external(external_base_url.rstrip("/"))
-        yield {"base_url": external_base_url.rstrip("/"), "db_path": os.environ.get(DB_PATH_ENV), "static_url": None}
+        yield {"base_url": external_base_url.rstrip("/"), "db_path": os.environ.get(DB_PATH_ENV), "static_url": None, "search_url": None}
         return
 
     tmp = tempfile.TemporaryDirectory(prefix="ekotov-web-tests-")
@@ -161,6 +170,24 @@ def web_server(request):
         cwd=BACKEND_DIR, env=env,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
+    # search-сервис (add-microservices-full): /api/search*, /api/suggestions*
+    # в монолите отрезаны (f0fe4ec) — в проде их маршрутизирует nginx на
+    # search:8378. Автостенд повторяет топологию: uvicorn services/search
+    # на своей БД (та же tmp-БД, ro-профиль сервиса — EKOTOV_WIKI_DB_PATH).
+    # PYTHONPATH: пакет app сервиса конфликтует по имени с backend/app —
+    # процессы изолированы cwd'ом (как backend выше).
+    search_port = _free_port()
+    search_env = dict(env, EKOTOV_WIKI_DB_PATH=db_path)
+    search_env.pop("DB_PATH", None)  # сервис читает только EKOTOV_WIKI_DB_PATH
+    search_server = subprocess.Popen(
+        [
+            sys.executable, "-m", "uvicorn", "app.main:app",
+            "--host", "127.0.0.1", "--port", str(search_port),
+            "--log-level", "warning",
+        ],
+        cwd=SEARCH_SERVICE_DIR, env=search_env,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
     static_proc, static_port = _start_static_server()
     try:
         deadline = 60.0
@@ -177,6 +204,21 @@ def web_server(request):
         else:
             raise RuntimeError(f"Тест-стенд {base_url} не готов за {deadline}s: {last_error}")
 
+        # readiness search-сервиса (design: search читает БД независимо —
+        # упавший search = те же 404-фейлы, что до подъема; ловим сразу).
+        search_url = f"http://127.0.0.1:{search_port}"
+        started = time.monotonic()
+        while time.monotonic() - started < deadline:
+            try:
+                resp = requests.get(f"{search_url}/api/health", timeout=2)
+                if resp.status_code == 200 and resp.json() == {"status": "ok"}:
+                    break
+            except requests.RequestException as exc:
+                last_error = exc
+            time.sleep(0.3)
+        else:
+            raise RuntimeError(f"search-сервис {search_url} не готов за {deadline}s: {last_error}")
+
         # DB-крюки кейсов (TC-UI-017/018) — env на время сессии.
         os.environ[BASE_URL_ENV] = base_url
         os.environ[DB_PATH_ENV] = db_path
@@ -185,11 +227,13 @@ def web_server(request):
             "base_url": base_url,
             "db_path": db_path,
             "static_url": f"http://127.0.0.1:{static_port}",
+            "search_url": search_url,
         }
     finally:
         server.terminate()
+        search_server.terminate()
         static_proc.terminate()
-        for proc in (server, static_proc):
+        for proc in (server, search_server, static_proc):
             try:
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
@@ -217,9 +261,16 @@ def web_db_path(web_server) -> str:
 
 @pytest.fixture
 def page(page, web_server):
-    """Обертка playwright-page: статика /static/* — с http.server-стенда
-    (роль nginx, design §8), остальное — напрямую в app."""
+    """Обертка playwright-page: маршрутизация стенда — роль nginx.
+
+    /static/* → http.server (дизайн §8); /api/search* и /api/suggestions* →
+    search-сервис (add-microservices-full, отрезка f0fe4ec — nginx-локации
+    services/frontend/nginx/ekotov-wiki.conf); остальное → app. Единый
+    origin — куки сессии уходят и в search (его middleware валидирует
+    сессию по той же БД).
+    """
     static_url = web_server["static_url"]
+    search_url = web_server.get("search_url")
     if static_url:
         def _to_static(route):
             new_url = static_url + route.request.url.partition("/static")[2]
@@ -229,22 +280,49 @@ def page(page, web_server):
         # открытые тестом в том же контексте (page.context.new_page() —
         # вторые сессии wife/fresh в test_settings_profile_r4).
         page.context.route(f"{web_server['base_url']}/static/**", _to_static)
+    if search_url:
+        def _to_search(route):
+            suffix = route.request.url.partition("/api/")[2]
+            new_url = f"{search_url}/api/{suffix}"
+            route.fulfill(response=route.fetch(url=new_url))
+
+        # Пара «= точный + префикс» — паритет nginx-локаций: /api/search
+        # (поиск), /api/search/ (advanced и будущие), /api/suggestions
+        # (подсказки), /api/suggestions/ (users).
+        base = web_server["base_url"]
+        for path in ("/api/search", "/api/search/", "/api/suggestions", "/api/suggestions/"):
+            page.context.route(f"{base}{path}*", _to_search)
     yield page
 
 
 class LocalhostSession(requests.Session):
-    """requests.Session, отправляющая Secure-куки по http на localhost/127.0.0.1.
+    """requests-сессия, отправляющая Secure-куки по http на localhost/127.0.0.1.
 
     Продукт ставит куку session с флагом Secure (sdd §3.1) — requests по http
     ее НЕ отправляет, браузеры же (Playwright/Chrome) считают localhost
     trustworthy origin и отправляют (RFC 6265bis). Чтобы teardown-хелпер
     (DELETE /api/tasks/{id}) работал по http-стенду так же, как браузер,
     повторяем браузерное поведение — как в tests/api/conftest.py.
+
+    Опциональный URL-реврайт search-семейства (ставит web_owner_session):
+    атрибут _search_rewrite = (app_prefix, search_prefix) — запросы
+    /api/search* и /api/suggestions* уходят в search-сервис (паритет
+    nginx-роутинга; монолит их отрезал, f0fe4ec).
     """
 
     _LOCAL_HOSTS = ("localhost", "127.0.0.1", "::1")
+    _SEARCH_PREFIXES = ("/api/search", "/api/suggestions")
 
     def request(self, *args, **kwargs):
+        url = kwargs.get("url") or (args[1] if len(args) > 1 else None)
+        rewrite = getattr(self, "_search_rewrite", None)
+        if rewrite and url and any(p in url for p in self._SEARCH_PREFIXES):
+            app_prefix, search_prefix = rewrite
+            new_url = url.replace(app_prefix, search_prefix, 1)
+            if len(args) > 1:
+                args = args[:1] + (new_url,) + args[2:]
+            else:
+                kwargs["url"] = new_url
         response = super().request(*args, **kwargs)
         is_http_local = response.url.startswith("http://") and any(
             f"//{host}:" in response.url for host in self._LOCAL_HOSTS
@@ -265,13 +343,21 @@ def http():
 
 
 @pytest.fixture
-def web_owner_session(web_base_url, http):
-    """API-сессия owner для setup/teardown теста (не для ассертов кейса)."""
+def web_owner_session(web_base_url, web_server, http):
+    """API-сессия owner для setup/teardown теста (не для ассертов кейса).
+
+    Search-семейство (/api/search*, /api/suggestions*) на этом стенде
+    обслуживает search-сервис (отрезка f0fe4ec) — паритет nginx-роутинга:
+    подмена URL в LocalhostSession.request (как Secure-cookie коррекция).
+    """
     resp = http.post(
         f"{web_base_url}/api/auth/login",
         json={"login": OWNER_LOGIN, "password": OWNER_PASSWORD},
     )
     assert resp.status_code == 200, f"seed-вход owner не удался: {resp.status_code} {resp.text}"
+    search_url = web_server.get("search_url") if isinstance(web_server, dict) else None
+    if search_url:
+        http._search_rewrite = (f"{web_base_url}/api/", search_url + "/api/")
     return http
 
 
