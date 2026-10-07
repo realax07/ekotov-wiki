@@ -159,6 +159,7 @@ import {
   initTagCombobox,
   setTagHints,
   closeTagHints,
+  resetTagLedger,
 } from "./tag-combobox.js";
 
 function fillTagHints(values) {
@@ -395,6 +396,17 @@ import {
 initAutoTextareas();
 
 function fillTaskForm(task) {
+  /* review add-ui-polish-r8 #49 (blocker): сброс committed-леджера
+   * комбобокса ПОСТАВЛЯЕТСЯ СЮДА первым (обе ветки — и create через
+   * clearTaskForm, и edit) — это единственная точка, в которой модуль
+   * task-form знает «форму открыли на другом тикете». После сабмита
+   * предыдущей задачи input непуст (flushCommittedToInput на submit),
+   * поэтому условный resetCommittedFromInput внутри closeTagHints
+   * леджер НЕ сбрасывает — он переживал бы закрытие формы, не был бы
+   * виден чипом (следующий fillTaskForm пишет input без input-события)
+   * и дописал бы утекший тег в PATCH чужой задачи
+   * (flushCommittedToInput на submit). */
+  resetTagLedger();
   document.getElementById("task-title").value = task.title || "";
   document.getElementById("task-description").value = task.description || "";
   document.getElementById(PRIORITY_FIELD_ID).value = task.priority || "";
@@ -625,6 +637,12 @@ export function submitComment(event) {
 
 export function openCreateForm() {
   boardState.currentTaskId = null;
+  /* review add-ui-polish-r8 #49 (blocker): страховка на путь «форма
+   * открыта, сабмит не прошел (422/сеть) → открытие перезапущено»:
+   * closeTaskForm не вызывался, леджер жив. Основной сброс делает
+   * fillTaskForm (ниже, через clearTaskForm) — здесь дублируем
+   * безусловно, чтобы открытие формы не зависело от глубоких вызовов. */
+  resetTagLedger();
   document.getElementById("task-form-heading").textContent =
     "Создание задачи";
   document.getElementById("task-form-submit").textContent = "Создать";
@@ -655,6 +673,11 @@ export function openCreateForm() {
 
 export function openEditForm(task) {
   boardState.currentTaskId = task.id;
+  /* review add-ui-polish-r8 #49 (blocker): синхронно с fillTaskForm —
+   * и на случай будущих правок, когда fillTaskForm откажется (guard по
+   * отсутствующему DOM — ранний return уже после сброса). Транзакция
+   * «замена задачи в форме» начинается здесь, а не в helpers. */
+  resetTagLedger();
   document.getElementById("task-form-heading").textContent =
     "Редактирование задачи";
   document.getElementById("task-form-submit").textContent = "Сохранить";
@@ -764,6 +787,13 @@ export function closeTaskForm() {
    * (перехватывает клики по «Создать»). closeTaskForm — единая точка
    * закрытия: submit (task-form.js), «Отмена» и крестик (board-init.js). */
   closeTagHints();
+  /* review add-ui-polish-r8 #49 (blocker): безусловный сброс леджера на
+   * закрытии формы — вторая половина фикса межформенной утечки. После
+   * сабмита input непуст (flushCommittedToInput), условный сброс внутри
+   * closeTagHints не срабатывает; сюда попадают ВСЕ пути выхода из
+   * формы (сабмит, «Отмена», крестик, Escape) — леджер не может
+   * пережить ни один из них. */
+  resetTagLedger();
   document.getElementById("task-form-overlay").hidden = true;
   boardState.currentTaskId = null;
 }
