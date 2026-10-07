@@ -429,6 +429,113 @@
   overflow-wrap: anywhere;
 }
 
+/* --- Переименование файла (2.5 add-ui-polish-r8, FR-97): иконка у имени
+   + инлайн-поле (паттерн .category-rename-input settings.css: нижняя
+   линия 2px, токены V3 — без хардкода цветов). --- */
+.lb-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin-right: 40px; /* место под крестик — перенесено с .lb-title */
+}
+
+.lb-title-row .lb-title {
+  margin: 0 0 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.rename-btn {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-field);
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+}
+
+.rename-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.rename-btn:hover {
+  color: var(--color-accent-hover);
+  background: var(--color-accent-soft);
+}
+
+.rename-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.lb-rename-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0 40px 4px 0; /* место под крестик сохраняется и в редактировании */
+}
+
+.lb-rename-field[hidden] { display: none; }
+
+.rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 4px 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-accent);
+  border-radius: 0;
+  font: inherit;
+  font-family: var(--font-family-display);
+  /* 20px = мокапное значение .lb-title (design/gallery-lightbox.html) —
+     поле заменяет заголовок имени; токена 20px нет, значение зафиксировано
+     как мокапное (диспозиция review-001-waves, minor волны 2.5). */
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background: transparent;
+}
+
+.rename-input:focus-visible {
+  outline: none;
+  box-shadow: 0 1px 0 var(--color-accent);
+}
+
+.rename-confirm {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  color: var(--color-accent);
+  display: inline-flex;
+  align-items: center;
+}
+
+.rename-confirm svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.rename-confirm:hover { background: var(--color-accent-soft); }
+
+.rename-confirm:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rename-confirm:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: none;
+}
+
 .lb-meta {
   font-size: var(--font-size-label);
   color: var(--color-text-secondary);
