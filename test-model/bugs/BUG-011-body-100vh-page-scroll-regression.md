@@ -1,7 +1,9 @@
 # BUG-011: страница не скроллится — body.app-shell height:100vh (регресс 9b1e4f1)
 
 - **ID:** BUG-011
-- **Статус:** ОТКРЫТ (2026-10-07, квалификация ПМ на релизном прогоне r8-polish)
+- **Статус:** APPROVED (2026-10-07 22:28: code_review review-001 APPROVE, привязка
+  к SHA 6daf970; фиксаторы green, мутационная проверка выполнена — глушилка 9b1e4f1
+  это связка .content{height:100vh;overflow-y:auto}; PR #78 ожидает мержа ПМ)
 - **Дата:** 2026-10-07
 - **Окружение:** main `b0282fa`; QA-стенд nginx :18443 (app :8080, worktree /tmp/qa-r8/wt); Chromium (Playwright); venv /home/openclaw/venvs/wiki.
 - **Severity:** major (страница с контентом выше вьюпорта не скроллится колесом/скроллбаром — базовое поведение страницы; регресс внесен в цикле r8)
