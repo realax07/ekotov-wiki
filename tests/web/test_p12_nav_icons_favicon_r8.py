@@ -182,16 +182,10 @@ def test_favicon_data_uri_decodable_with_cache_marker(logged_in_page, web_base_u
     assert len(set(hrefs.values())) == 1, set(map(len, hrefs.values()))
 
 
-@pytest.mark.xfail(
-    reason="BUG-010 (кандидат): login.html — отдельная страница вне "
-    "base.html, favicon-ссылки не наследует; кейс TC-P12N-003 шаг 5 "
-    "ожидает presence на /login (base-механизм head)",
-    strict=False,
-)
 def test_favicon_present_on_login(logged_in_page, web_base_url):
     """TC-P12N-003 шаг 5: на /login favicon-ссылка присутствует тоже
-    (base-механизм head). Сейчас — xfail: login.html не наследует
-    base.html (кандидат BUG-010, эскалация в REPORT-3.1)."""
+    (base-механизм head). BUG-010 починен (BUG-010-favicon-login-not-in-base,
+    вариант (б): дословная копия favicon-`<link>` в login.html) — xfail снят."""
     page = logged_in_page
     page.goto(f"{web_base_url}/login")
     expect(page.locator('link[rel="icon"]')).to_have_count(1)

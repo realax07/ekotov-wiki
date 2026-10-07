@@ -1,5 +1,9 @@
 # BUG-010: /login без favicon — login.html не наследует base.html (FR-95)
 
+- **Статус:** ПОЧИНЕНО (2026-10-07, ветка `fix/bug-010-favicon-login`, вариант (б) —
+  дословная копия favicon-`<link>` из base.html в login.html; xfail с
+  `test_favicon_present_on_login` снят; фикс-коммит `2622979`).
+
 - **ID:** BUG-010
 - **Дата:** 2026-10-07
 - **Окружение:** репозиторий `/home/openclaw/ekotov-wiki`, ветка main `e26855c` (add-ui-polish-r8, волна 2.4 в main); QA-стенд nginx :18443 (app :8080); Chromium (Playwright); venv `/home/openclaw/venvs/wiki`.
