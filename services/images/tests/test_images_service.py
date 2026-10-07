@@ -579,6 +579,71 @@ def test_rename_validation_422(client, seeded_gallery):
     assert client.get(f"/api/images/{img}").json()["original_name"] == "и" * 255
 
 
+def test_rename_pe_parity_and_error_contract(client, client2, seeded_gallery):
+    """TC-P12G-002 (CHK-P12-21, ОВ-4): PE переименовывает изображение
+    owner'а БЕЗ 403/запрета (галерея общая, разделения прав нет); новое
+    имя видно обоим; тела 401/404 — в контракте сервиса
+    {"error": …} без утечки стектрейсов."""
+    img = seeded_gallery[0]
+    resp = client2.put(f"/api/images/{img}/name", json={"name": "QAGAL-переименовал-PE"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["name"] == "QAGAL-переименовал-PE"
+    # Новое имя видно обоим.
+    for c in (client, client2):
+        assert c.get(f"/api/images/{img}").json()["original_name"] == (
+            "QAGAL-переименовал-PE"
+        )
+    # Контракт ошибок (паритет 401/404 существующих операций images).
+    anon = TestClient(app)
+    r401 = anon.put(f"/api/images/{img}/name", json={"name": "x"})
+    assert r401.status_code == 401
+    assert set(r401.json().keys()) == {"error"}, r401.text
+    r404 = client.put("/api/images/999999/name", json={"name": "x"})
+    assert r404.status_code == 404
+    body = r404.json()
+    # Тело ошибки — человекочитаемый контракт сервиса, без стектрейса.
+    assert "traceback" not in str(body).lower() and len(str(body)) < 300, body
+
+
+def test_rename_files_list_and_idempotent(client, seeded_gallery, images_dir):
+    """TC-P12G-001 (CHK-P12-20): rename меняет ТОЛЬКО original_name —
+    физические файлы оригинала и превью в томе байт-в-байт те же (URL
+    /images/… не инвалидирован); новое имя в detail И в элементе списка;
+    повторный rename тем же именем — идемпотентен (200, без дублей)."""
+    img = seeded_gallery[0]
+    before = client.get(f"/api/images/{img}").json()
+    orig_bytes = open(os.path.join(images_dir, before["filename"]), "rb").read()
+    thumb_bytes = open(os.path.join(images_dir, before["thumb_name"]), "rb").read()
+
+    resp = client.put(f"/api/images/{img}/name", json={"name": "QAGAL-Дача лето"})
+    assert resp.status_code == 200
+    assert resp.json() == {"id": img, "name": "QAGAL-Дача лето"}
+
+    # Шаг 2: новое имя в detail И в элементе списка.
+    detail = client.get(f"/api/images/{img}").json()
+    assert detail["original_name"] == "QAGAL-Дача лето"
+    item = next(
+        i for i in client.get("/api/images").json()["images"] if i["id"] == img
+    )
+    assert item["original_name"] == "QAGAL-Дача лето"
+
+    # Шаг 3: метаданные, кроме имени, не тронуты.
+    for key in ("filename", "thumb_name", "url", "mime", "size", "created_at"):
+        assert detail[key] == before[key], key
+
+    # Шаг 4: байты файла и превью в томе не изменились (файлы не меняются).
+    assert open(os.path.join(images_dir, before["filename"]), "rb").read() == orig_bytes
+    assert open(os.path.join(images_dir, before["thumb_name"]), "rb").read() == thumb_bytes
+
+    # Шаг 5: идемпотентный повторный rename — 200, без побочных эффектов.
+    again = client.put(f"/api/images/{img}/name", json={"name": "QAGAL-Дача лето"})
+    assert again.status_code == 200
+    assert client.get(f"/api/images/{img}").json()["original_name"] == "QAGAL-Дача лето"
+    assert len(
+        [i for i in client.get("/api/images").json()["images"] if i["id"] == img]
+    ) == 1
+
+
 # --------------------------------------------------------------------------
 # Реакции (FR-81): один голос, смена, снятие, негатив 401
 # --------------------------------------------------------------------------
