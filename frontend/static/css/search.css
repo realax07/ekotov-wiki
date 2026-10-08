@@ -191,3 +191,66 @@
   font-size: 12px;
   color: var(--color-text-secondary);
 }
+
+/* --- add-responsive-mobile 3.1 (FR-103, design §6): поиск ≤480px —
+ * одна колонка, full-width, инпуты font-size ≥16px (NFR-24: iOS не
+ * включает авто-зум при фокусе), тач-таргеты ≥44px (NFR-23), без
+ * прокрутки страницы по X (NFR-26). Вид — по утвержденному мокапу
+ * design/mobile-p14/06-search-settings.html (06а). Desktop (>480px)
+ * не затронут (NFR-29). */
+@media (max-width: 480px) {
+  /* Одна колонка: сетка полей конструктора явно одноколоночная
+   * (auto-fit уже дает 1 колонку на 375px — фиксируем намерение). */
+  .search-fields {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Full-width: контейнеры режимов и карточки результатов — без
+   * desktop-ограничений ширины (мокап: контент на всю ширину сцены). */
+  .search-builder,
+  .search-advanced {
+    padding: 12px;
+  }
+
+  .search-results .task-card {
+    max-width: none;
+  }
+
+  /* NFR-24: font-size ≥16px на всех вводимых полях — и NFR-23:
+   * тач-таргет ≥44px (мокап 06а: инпут/селекты 44px). */
+  .search-builder input[type="text"],
+  .search-builder input[type="date"],
+  .search-builder select,
+  .search-advanced textarea {
+    font-size: 16px;
+    min-height: 44px;
+    padding: 8px 4px;
+  }
+
+  /* Многострочный фильтр advanced — вводимое поле ≥16px (NFR-24),
+   * минимальная высота по мокапу (3 строки). */
+  .search-advanced textarea {
+    min-height: 88px;
+  }
+
+  /* NFR-23: переключатель режимов — тач-таргеты ≥44px (мокап 06а:
+   * режим-кнопки-пилюли 44px). */
+  .search-mode-button {
+    min-height: 44px;
+    padding: 8px 16px;
+  }
+
+  /* NFR-23: кнопки «Найти» обеих форм (класс .btn-action из app.css)
+   * — тач-таргет ≥44px. */
+  #search-builder-submit,
+  #search-advanced-submit {
+    min-height: 44px;
+  }
+
+  /* NFR-26: без прокрутки страницы по X — длинные слова в фильтре/
+   * подсказках переносятся, ничто не выходит за ширину сцены. */
+  .search-advanced-hint {
+    overflow-wrap: anywhere;
+  }
+}

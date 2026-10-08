@@ -103,3 +103,52 @@
 .form-error { color: var(--status-error); }
 
 .form-success { color: var(--status-success); }
+
+/* --- add-responsive-mobile 3.1 (FR-104, design §6): настройки ≤480px —
+ * одна колонка, full-width, инпуты font-size ≥16px (NFR-24), тач-таргеты
+ * ≥44px (NFR-23), без прокрутки страницы по X (NFR-26). Вид — по
+ * утвержденному мокапу design/mobile-p14/06-search-settings.html (06б):
+ * поле + кнопка в столбик, full-width кнопка, действия строки категории
+ * ≥44px. Desktop (>480px) не затронут (NFR-29). */
+@media (max-width: 480px) {
+  /* Full-width: desktop-сетка 560px на 375px не помещается (мокап 06б:
+   * .settings-section max-width → none). */
+  .settings-section {
+    max-width: none;
+  }
+
+  /* Одна колонка: форма создания — поле над кнопкой (мокап 06б),
+   * кнопка во всю ширину. */
+  .category-create {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .category-create button {
+    width: 100%;
+  }
+
+  /* NFR-24 + NFR-23: инпуты (создание и инлайн-переименование) —
+   * font-size ≥16px, тач-таргет ≥44px. */
+  .category-create input,
+  .category-rename-input {
+    font-size: 16px;
+    min-height: 44px;
+    padding: 8px 4px;
+  }
+
+  /* NFR-23: кнопки действий строки категории (Создать/переименовать/
+   * удалить) — тач-таргет ≥44px (мокап 06б: действия строки 44×44). */
+  .category-create button,
+  .category-actions button {
+    min-height: 44px;
+    padding: 8px 16px;
+  }
+
+  /* Строка категории сохраняет центр-выравнивание действий ≥44px без
+   * горизонтальной переполненности. */
+  .category-item {
+    gap: 8px;
+  }
+}
