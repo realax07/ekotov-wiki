@@ -465,3 +465,150 @@ body.app-shell {
   border-radius: 4px;
   font-weight: bold;
 }
+
+/* ======================================================================
+   1.1 add-responsive-mobile (FR-99/FR-100; design §1–§2): брейкпоинт-каркас.
+   Магические числа 480/768 — вся брейкпоинт-система пакета (design §1):
+   ≤480px — телефон portrait (первичный мобильный макет), 481–768px —
+   утилитарная ветка (drawer уже активен), >768px — desktop без изменений.
+   Мокапы design/mobile-p14/01/02 — утверждены (decision
+   2026-10-08-p14-mockups-approve). Правило пакета: правки только внутри
+   @media-веток; desktop-вид (≥1024px) — без изменений (NFR-29).
+   ====================================================================== */
+
+/* Desktop (>768px): мобильные элементы разметки спрятаны (в desktop-виде их
+   нет). Правило стоит ДО @media-веток — мобильный display внутри media
+   перевешивает его на ≤768px (каскад: поздний + в media). */
+.mobile-header,
+.sidebar-backdrop,
+.burger {
+  display: none;
+}
+
+/* --- ≤768px: сцена на всю ширину, сайдбар → off-canvas drawer (FR-99) ---
+   DOM без дублирования: .sidebar остается единственным источником навигации,
+   CSS переводит его в фиксированную панель; переход по классу sidebar-open
+   на <body> (ставит/снимает app.js). Подложка .sidebar-backdrop display-ом
+   управляется тем же классом (design §2). Токены V3 дословно; ширина и
+   z-порядок (оверлей 300 / панель 310) — по утвержденному мокапу 02. */
+@media (max-width: 768px) {
+  /* Сцена — колонкой: шапка сверху на всю ширину, контент под ней
+     (сайдбар fixed — вне потока, flex-row десктопа на мобиле не нужен). */
+  body.app-shell {
+    flex-direction: column;
+  }
+
+  /* Шапка с бургером (мокап 01): ink-900, safe-area сверху (NFR-25). */
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    background: var(--p-ink-900);
+    color: var(--p-paper-050);
+    padding: calc(6px + env(safe-area-inset-top, 0px)) 8px 6px;
+    min-height: calc(52px + env(safe-area-inset-top, 0px));
+    position: sticky;
+    top: 0;
+    /* Без z-index: открытый drawer (z 310) накрывает шапку — как в
+       утвержденном мокапе 02; sticky и так держит шапку над контентом. */
+  }
+
+  /* Бургер: тач-таргет ≥44×44 — NFR-23; виден только в мобильной ветке. */
+  .burger {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-field);
+    color: var(--p-paper-050);
+    cursor: pointer;
+  }
+
+  /* Сцена на всю ширину: сайдбар выведен из потока — flex-margin'ов нет. */
+  .content {
+    padding: var(--space-2);
+    /* NFR-25: боковые/нижняя safe-area для контента. */
+    padding-left: calc(var(--space-2) + env(safe-area-inset-left, 0px));
+    padding-right: calc(var(--space-2) + env(safe-area-inset-right, 0px));
+    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Подложка-оверлей (мокап 02: rgba(ink-900, .45)); по умолчанию скрыта. */
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(61, 54, 48, 0.45);
+    border: none;
+    padding: 0;
+  }
+
+  /* Сайдбар → off-canvas панель drawer (мокап 02: width min(78vw, 300px)). */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 310;
+    width: min(78vw, 300px);
+    height: auto;
+    transform: translateX(-100%);
+    transition: transform var(--speed-modal) ease-out;
+    /* safe-area в самом drawer (NFR-25), как в мокапе 02. */
+    padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Открытый drawer — по классу на <body> (design §2). */
+  body.sidebar-open .sidebar {
+    transform: none;
+    box-shadow: var(--shadow-modal);
+  }
+
+  /* Подложка видима только при открытом drawer. */
+  body.sidebar-open .sidebar-backdrop { display: block; }
+
+  /* Пункты drawer: тач-таргет ≥44×44 — NFR-23 (в обеих мобильных ветках,
+     481–768px тоже — drawer активен на всем диапазоне ≤768px). */
+  .nav-item {
+    min-height: 44px;
+  }
+
+  .nav-item-monitoring {
+    min-height: 44px;
+  }
+
+  .logout-button {
+    min-height: 44px;
+  }
+
+  /* ОГР-17: без анимации при уменьшении движения. */
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar {
+      transition: none;
+    }
+  }
+}
+
+/* --- ≤480px: телефон portrait — хвосты первичного мобильного макета --- */
+@media (max-width: 480px) {
+  /* safe-area уже задана calc()-ом выше (NFR-25); здесь — подтверждение
+     тач-таргетов пунктов ≥44px (NFR-23) на минимальной ширине. */
+  .nav-item {
+    min-height: 44px;
+  }
+
+  .nav-item-monitoring {
+    min-height: 44px;
+  }
+
+  .logout-button {
+    min-height: 44px;
+  }
+}
