@@ -34,11 +34,33 @@
      app.js (класс sidebar-open на <body>); заголовок раздела в шапке —
      задача 1.2 (не в зоне 1.1). #}
   <header class="mobile-header">
+    {# 1.2 add-responsive-mobile (FR-100, design §2; мокап 01):
+       заголовок текущего раздела в шапке — серверный шаблон знает
+       раздел (active_page из backend/app/pages.py); маппинг дословно
+       повторяет пункты drawer. На /settings/profile (active_page
+       'settings-profile') — «Настройки» (раздел тот же). Неизвестное
+       значение → нейтральное имя приложения (не бывает на страницах
+       функционала — все задают active_page). Роль — presentation, НЕ
+       heading: страница уже имеет свой заголовок-уровень (page-title
+       и т.п.) — дубль в accessibility-дереве и strict-локаторах
+       get_by_role("heading") смежных web-тестов недопустим (мокап 01
+       рисует его как стилизованный титул, семантика — подпись шапки). #}
+    {% set section_titles = {
+      'board': 'Доска',
+      'search': 'Поиск',
+      'wiki': 'Wiki',
+      'gallery': 'Галерея',
+      'settings': 'Настройки',
+      'settings-profile': 'Настройки'
+    } %}
+    <p class="header-title" role="presentation">{{ section_titles.get(active_page, 'ekotov-wiki') }}</p>
     <button type="button" id="burger-button" class="burger" aria-label="Открыть меню разделов" aria-expanded="false" aria-controls="sidebar">
       <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
         <path d="M3 5h14M3 10h14M3 15h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
     </button>
+    {# 1.2: балансировка бургера (мокап 01) — заголовок по центру шапки. #}
+    <span class="header-spacer" aria-hidden="true"></span>
   </header>
   <aside class="sidebar" id="sidebar" aria-label="Разделы">
     <nav class="sidebar-nav">

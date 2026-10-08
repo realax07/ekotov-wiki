@@ -498,7 +498,8 @@ body.app-shell {
     flex-direction: column;
   }
 
-  /* Шапка с бургером (мокап 01): ink-900, safe-area сверху (NFR-25). */
+  /* Шапка с бургером и заголовком раздела (мокап 01, FR-100):
+     ink-900, safe-area сверху (NFR-25). */
   .mobile-header {
     display: flex;
     align-items: center;
@@ -510,8 +511,17 @@ body.app-shell {
     min-height: calc(52px + env(safe-area-inset-top, 0px));
     position: sticky;
     top: 0;
-    /* Без z-index: открытый drawer (z 310) накрывает шапку — как в
-       утвержденном мокапе 02; sticky и так держит шапку над контентом. */
+    /* 1.2 (minor-1 review-001-1.1): при открытом drawer (z 310) панель
+       физически накрывала бургер — pointer-тап по нему не работал.
+       Мокап 02 крестика внутри drawer не содержит (дозаполнение
+       утвержденного мокапа — по мокапу закрытие бургером), поэтому
+       при открытом drawer шапка поднимается НАД панелью: тап по
+       бургеру закрывает drawer. Обратная сторона: шапка без компенсации
+       накрыла бы верх панели (первый пункт) — открытому drawer'у
+       задается padding-top по высоте шапки (ниже). */
+  }
+  body.sidebar-open .mobile-header {
+    z-index: 320;
   }
 
   /* Бургер: тач-таргет ≥44×44 — NFR-23; виден только в мобильной ветке. */
@@ -527,6 +537,29 @@ body.app-shell {
     border-radius: var(--radius-field);
     color: var(--p-paper-050);
     cursor: pointer;
+  }
+
+  /* Заголовок раздела в шапке (1.2, FR-100; мокап 01 .header-title):
+     display-шрифт 17px, по центру (бургер и spacer балансируют),
+     длинные названия — в одну строку с многоточием. */
+  .header-title {
+    font-family: var(--font-family-display);
+    font-size: 17px;
+    font-weight: normal;
+    margin: 0;
+    flex: 1;
+    text-align: center;
+    line-height: 1.2;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Балансировка бургера (мокап 01) — заголовок по центру шапки. */
+  .header-spacer {
+    width: 44px;
+    flex-shrink: 0;
   }
 
   /* Сцена на всю ширину: сайдбар выведен из потока — flex-margin'ов нет. */
@@ -569,6 +602,12 @@ body.app-shell {
   body.sidebar-open .sidebar {
     transform: none;
     box-shadow: var(--shadow-modal);
+    /* 1.2 (z-фикс minor-1): шапка при открытом drawer поднимается НАД
+       панелью (z 320 > 310, тап по бургеру закрывает) — первый пункт
+       без компенсации остался бы под шапкой. Панель с safe-area-top
+       (52px шапки + env) в пост-заголовочной системе координат:
+       пункты стартуют сразу под шапкой. */
+    padding-top: calc(52px + env(safe-area-inset-top, 0px) + var(--space-2));
   }
 
   /* Подложка видима только при открытом drawer. */
