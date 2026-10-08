@@ -3,7 +3,7 @@
 - **Ревьюер:** независимый code_reviewer-сабагент (не автор диффа)
 - **Дата:** 2026-10-08 18:32 UTC
 - **Correlation:** aabba00781634f8d9ef820677dee885a
-- **Reviewer-Delegation:** не ставится (по инструкции оркестратора)
+- **Reviewer-Delegation:** deleg_1ff69b75
 
 ## Provenance
 
