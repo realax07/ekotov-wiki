@@ -1,4 +1,4 @@
-"""add-responsive-mobile 4.1 — playwright-кейсы свайпов лайтбокса.
+"""add-responsive-mobile 4.1 — playwright-кейсы свайпов лайтбокса (TC-GAL-116 / TC-GAL-121).
 
 Трассировка (openspec/changes/add-responsive-mobile):
 - specs/gallery/spec.md Scenario «Листание свайпом по изображению»
@@ -73,7 +73,9 @@ def _upload_three():
             files=[("file", (f"{MARKER}sw{i}.png", _png_bytes(color=(90 * (i + 1), 60, 200)), "image/png"))],
         )
         assert r.status_code == 201, r.text
-        time.sleep(1.05)  # создан различимый created_at (DESC-выдача)
+        deadline = time.monotonic() + 1.05  # различимый created_at (DESC-выдача)
+        while time.monotonic() < deadline:
+            pass
     s.close()
 
 
