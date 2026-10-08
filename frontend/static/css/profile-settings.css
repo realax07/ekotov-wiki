@@ -456,3 +456,44 @@
     animation: none !important;
   }
 }
+
+/* ================= Адаптив: ≤480px — донастройка FR-56 (P14 3.2) ================= */
+/* Волна 3, задача 3.2 add-responsive-mobile (design §6, FR-104): 768px-ветка
+ * (выше) сохраняется без регресса (NFR-29); здесь — только тач-гигиена
+ * минимального вьюпорта 375px: инпуты ≥16px (NFR-24 — iOS не зумит при
+ * фокусе), тач-таргеты ≥44×44 (NFR-23, мокап 06-search-settings: .field
+ * input 16px/min-height 44, .btn min-height 44). Ширина не меняется —
+ * X-скролл на 375px отсутствовал и до этой ветки (см. коммит-тело). */
+@media (max-width: 480px) {
+  /* NFR-24: 16px на поле ввода; высота строки та же — вертикальный ритм
+   * карточки не сдвигается (line-height 1.25 ≈ прежняя высота 28px). */
+  .profile-settings-page .field input[type="text"],
+  .profile-settings-page .field input[type="password"],
+  .profile-settings-page .field select,
+  .profile-settings-page .field textarea {
+    font-size: 16px;
+    line-height: 1.25;
+  }
+
+  /* NFR-23: кнопки-пилюли ≥44px (мокап 06: .btn min-height 44). Padding
+   * 12px по вертикали: 16px шрифт × 1.25 + 24px ≈ 44px. Горизонтальный
+   * padding прежний (12px из 768px-ветки) — «Выбрать файл…» не разъезжается. */
+  .profile-settings-page .btn {
+    min-height: 44px;
+    padding: 12px;
+  }
+
+  /* Кроп-виджет полнофункционален на таче (FR-104, Scenario «Кроп-виджет
+   * полнофункционален на таче»): кнопки ± и слайдер — тач-таргеты ≥44px
+   * (мокап 06: иконки/инпуты 44×44, NFR-23). 32px-кружок desktop не
+   * трогается — ветка только ≤480px. Слайдер: height 44 — вся дорожка
+   * ловит палец (иначе по мокапу инпут 44px). */
+  .profile-settings-page .zoom-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .profile-settings-page .zoom-slider {
+    height: 44px;
+  }
+}

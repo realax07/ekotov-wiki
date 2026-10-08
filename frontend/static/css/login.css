@@ -99,6 +99,21 @@ body {
   cursor: default;
 }
 
+/* Мобильный смоук P14 волны 3, задача 3.2 (design §6, NFR-23): на узких
+ * экранах кнопка «Войти» — тач-таргет ≥44px (инпуты уже 16px из базовой
+ * ветки — NFR-24 соблюден без media-правил). Выше 480px вид не меняется
+ * (NFR-29: desktop без изменений). */
+@media (max-width: 480px) {
+  .login-box button {
+    min-height: 44px;
+    padding: 0.75rem;
+  }
+
+  .login-box input {
+    min-height: 44px;
+  }
+}
+
 .login-error {
   margin: 0.75rem 0 0;
   color: var(--status-error);
