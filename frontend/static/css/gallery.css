@@ -1106,4 +1106,10 @@
   .lightbox { flex-direction: column; }
   .lb-panel { width: 100%; max-height: 55%; border-left: none; border-top: 1px solid var(--color-border-default); }
   .gallery-toolbar .filter select { width: 100%; }
+  /* Свайп листания по изображению (FR-105, 4.1): однопальцевый жест
+   * по картинке отдается JS-обработчикам (touch-action: none) — иначе
+   * браузер тратит его на скролл/overscroll и touchmove приходит
+   * после прерывания. Панель комментариев не тронута — скроллит себя
+   * (overflow-y: auto) как прежде. Desktop не затронут (ветка ≤480px). */
+  .lb-image { touch-action: none; }
 }
