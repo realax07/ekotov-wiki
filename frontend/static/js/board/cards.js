@@ -71,6 +71,14 @@ export function setCardClickHandler(handler) {
   onClickCard = handler;
 }
 
+/* Обработчик быстрого «Выполнено» ставит board-init.js (инъекция — как
+ * setCardClickHandler: разрыв цикла cards ↔ task-form). */
+let onQuickDone = null;
+
+export function setQuickDoneHandler(handler) {
+  onQuickDone = handler;
+}
+
 /* --- 5.1 (FR-45, ОВ-24): строка «assigned · creator» на карточке --- */
 
 /* Подпись пользователя: display_name или логин — на карточке доступны
@@ -164,6 +172,29 @@ export function renderCard(task) {
      * недоступен — карточка работает без всплывашки (строка
      * assigned · creator остается). */
     attachCardTooltip(usersLine, task);
+  }
+
+  /* 2.1 add-responsive-mobile (FR-101, design §3): быстрое «Выполнено» —
+   * главное тач-действие карточки. Строится при наличии обработчика
+   * (инъекция board-init.js, ниже) и вне столбца done (перевод «в
+   * Выполнено»; задача из done убирается через view/редактирование).
+   * Тач-таргет ≥44px дает CSS (board.css, ≤480px); на desktop кнопка
+   * не строится — перенос там через DnD/меню (NFR-29, тач-DnD anti-scope). */
+  if (onQuickDone && task.status !== "done") {
+    var quick = document.createElement("button");
+    quick.type = "button";
+    quick.className = "task-quick-done";
+    quick.setAttribute(
+      "aria-label",
+      "Переместить в «Выполнено»: " + task.title
+    );
+    quick.appendChild(document.createTextNode("Выполнено"));
+    quick.addEventListener("click", function (event) {
+      /* Клик по кнопке не должен открывать view-модалку карточки. */
+      event.stopPropagation();
+      onQuickDone(task.id);
+    });
+    card.appendChild(quick);
   }
 
   card.addEventListener("click", function () {

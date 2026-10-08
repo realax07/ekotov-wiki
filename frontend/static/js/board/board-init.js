@@ -18,9 +18,11 @@
 "use strict";
 
 import { COLUMNS } from "./state.js";
+import { showBoardError, hideError } from "./dom.js";
 import {
   refreshBoard,
   setCardClickHandler,
+  setQuickDoneHandler,
   initCardDragAndDrop,
 } from "./cards.js";
 import {
@@ -35,6 +37,7 @@ import {
   initTaskViewControls,
 } from "./task-detail.js";
 import { initMobileModalShell } from "./modal-shell.js";
+import { initBoardDots } from "./board-dots.js";
 
 /* --- Инициализация --- */
 
@@ -84,6 +87,36 @@ initTaskViewControls();
 /* Клик по карточке → view-модалка (read-only, FR-47; инъекция вместо
  * импорта — разрыв цикла cards ↔ task-detail, см. cards.js). */
 setCardClickHandler(openTaskDetail);
+
+/* 2.1 add-responsive-mobile (FR-101, design §3): быстрое «Выполнено» на
+ * карточке — тот же POST /api/tasks/{id}/move, что и DnD/селект (ОГР-14);
+ * отказ (409 иные) — ошибка в #board-error + перерисовка (Д-6-паттерн). */
+setQuickDoneHandler(function (taskId) {
+  fetch("/api/tasks/" + taskId + "/move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ status: "done" }),
+  }).then(function (response) {
+    if (!response.ok) {
+      response
+        .json()
+        .catch(function () { return {}; })
+        .then(function (body) {
+          showBoardError(body.error || "Не удалось переместить задачу");
+        });
+    } else {
+      hideError("board-error");
+    }
+    refreshBoard();
+  });
+});
+
+/* 2.1 add-responsive-mobile (FR-101, design §3): индикатор точек мобильной
+ * доски — активная точка синхронна scroll-позиции, тап — скролл к колонке
+ * (smooth; reduced-motion — без анимации, ОГР-17). Разметка — после #board,
+ * видима только в мобильной ветке ≤480px (см. board.css). */
+initBoardDots();
 
 /* 2.1/2.2 Релиза 3 (FR-31): drag-and-drop карточек между столбцами —
  * обработчики на контейнере #board (делегирование, см. cards.js). */

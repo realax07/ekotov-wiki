@@ -1,4 +1,4 @@
-"""add-responsive-mobile 2.2 — playwright-кейсы fullscreen-модалки тикета.
+"""add-responsive-mobile 2.2 — playwright-кейсы fullscreen-модалки тикета (TC-P14-221).
 
 Трассировка (openspec/changes/add-responsive-mobile):
 - specs/board/spec.md Scenario «Fullscreen-модалка на мобильном» (FR-102,

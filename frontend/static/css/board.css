@@ -1542,3 +1542,149 @@
     margin-top: var(--space-2);
   }
 }
+
+/* --- 2.1 add-responsive-mobile (FR-101, ОВ-3; design §3): доска ≤480px —
+ * горизонтальный свайп-контейнер колонок со scroll-snap + индикатор точек
+ * + быстрое «Выполнено» ≥44px. Мокап design/mobile-p14/03-board-swipe.html
+ * (утв. decision 2026-10-08-p14-mockups-approve): колонка 82vw, виден край
+ * следующей; точка-таб 44×44 (визуально 8px); «Выполнено» — оливковый
+ * контур во всю ширину карточки. Страница вне контейнера — без прокрутки
+ * по X (NFR-26; санкция ОВ-3 на уточнение FR-62). Desktop >480px не тронут:
+ * правила живут ТОЛЬКО в этом media-блоке (NFR-29). Деградация без
+ * поддержки scroll-snap — обычный горизонтальный скролл (design §3).
+ *
+ * Прежнее поведение 480px-ветки формы FR-62 (`.board { flex-wrap: wrap }`
+ * — «случайный стек колонок») заменяется осознанным жест-контейнером —
+ * санкция Заказчика ОВ-3 (2026-10-08) на уточнение FR-62: «без
+ * горизонтальной прокрутки» относится к странице, контейнер колонок
+ * скроллится намеренно. --- */
+
+/* Быстрое «Выполнено» на карточке — главное тач-действие (design §3;
+ * оливковый контур по мокапу 03, токены --status-success/--priority-low-soft).
+ * DOM кнопки строится cards.js на всех ширинах (инвариант рендера); видима
+ * ТОЛЬКО в мобильной ветке ≤480px (правило ниже), на desktop перенос через
+ * DnD/меню как прежде (NFR-29: desktop-доска без изменений). */
+.task-quick-done { display: none; }
+
+@media (max-width: 480px) {
+  /* Свайп-контейнер: страница вне него по X не скроллит (NFR-26) —
+   * overflow-x ограничен контейнером; прокрутка под шапкой скрыта
+   * (индикатор точек — видимый заменитель, как в мокапе). */
+  .board {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: var(--space-1);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    /* Край следующей колонки виден справа (мокап 03); safe-area снизу —
+     * последняя точка/контент не прилипают к home-bar (NFR-25). */
+    padding: 0 0 calc(var(--space-1) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .board::-webkit-scrollbar { display: none; }
+
+  /* Колонка: 82vw по мокапу (80–85vw — design §3, значение зафиксировано
+   * по мокапу 03; на 375px это 307px) + прилипание по левому краю. */
+  .board-column {
+    flex: 0 0 82vw;
+    scroll-snap-align: start;
+  }
+
+  /* Страница вне контейнера колонок — без прокрутки по X (NFR-26):
+   * сумма ширин колонок больше вьюпорта живет только внутри .board. */
+  .content,
+  main {
+    overflow-x: hidden;
+  }
+
+  /* Индикатор точек — JS строит разметку (board-dots.js) ПОСЛЕ контейнера;
+   * стили точек — мокап 03 (.board-dots): таб 44×44 (NFR-23), визуально
+   * точка 8px; активная — терракота accent, неактивная — приглушенный
+   * border-strong. aria-current=true ставит JS (синхронизация со
+   * scroll-позицией). При reduced-motion переходов нет (ОГР-17). */
+  .board-dots {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: var(--space-2) 0 0;
+  }
+
+  .board-dots button {
+    width: 44px; /* NFR-23: тач-таргет точки ≥44 (визуально 8px) */
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .board-dots button::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-border-strong);
+    opacity: 0.4;
+    transition: background var(--speed-fast, 150ms) ease,
+      opacity var(--speed-fast, 150ms) ease;
+  }
+
+  .board-dots button[aria-current="true"]::before {
+    background: var(--color-accent);
+    opacity: 1;
+  }
+
+  .board-dots button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: 50%;
+  }
+
+  /* Быстрое «Выполнено» на карточке — главное тач-действие (design §3):
+   * DOM кнопки строится cards.js на всех ширинах (инвариант рендера),
+   * ВИДИМА только в мобильной ветке ≤480px — на desktop перенос через
+   * DnD/меню как прежде (NFR-29: desktop-доска без изменений). */
+  .task-quick-done {
+    display: inline-flex;
+    width: 100%;
+    min-height: 44px;
+    margin-top: var(--space-1);
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font: inherit;
+    font-size: var(--font-size-label);
+    font-weight: 600;
+    background: var(--color-bg-surface);
+    color: var(--status-success);
+    border: 1px solid var(--status-success);
+    border-radius: var(--radius-field);
+    cursor: pointer;
+    transition: background var(--speed-fast, 150ms) ease;
+  }
+
+  .task-quick-done:hover { background: var(--priority-low-soft); }
+
+  .task-quick-done:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  /* ОГР-17: переходы/скролл-анимации отключаются — скролл мгновенный,
+   * точки меняются без анимации; функциональность сохраняется. */
+  @media (prefers-reduced-motion: reduce) {
+    .board {
+      scroll-behavior: auto;
+    }
+
+    .board-dots button::before,
+    .task-quick-done {
+      transition: none;
+    }
+  }
+}
