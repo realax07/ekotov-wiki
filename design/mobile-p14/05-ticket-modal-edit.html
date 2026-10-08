@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<!-- NFR-28: viewport без user-scalable/maximum-scale; NFR-25: viewport-fit=cover -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Мокап 0.1 — модалка тикета, редактирование (add-responsive-mobile, FR-102)</title>
+<!-- =====================================================================
+     Мокап задачи 0.1 [design] add-responsive-mobile (P14): Модалка тикета: «Редактировать»
+     Токены V3 «Бумага» — дословно из frontend/static/css/app.css (:root).
+     Без внешних библиотек/шрифтов/CDN (ОГР-8). Standalone, vanilla JS/CSS.
+     Базовый вьюпорт макета 375×812 (ОВ-6); телефон показан в рамке,
+     safe-area и тач-таргеты аннотированы (NFR-23/25).
+     Прод-структуру классов см. комментарии «ПРОД-СТРУКТУРА/ПРОД-МАППИНГ».
+     ===================================================================== -->
+<style>
+:root {
+  /* primitives (V3 «Бумага») — дословно из frontend/static/css/app.css :root */
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;   /* терракотовый акцент, AA на бумажном фоне */
+  --p-clay-700: #93391f;   /* hover акцента */
+  --p-clay-050: #f7e8e4;
+  --p-red-700: #9c3524;
+  --p-red-050: #f8ecea;
+  --p-olive-700: #5f6f34;
+  --p-amber-700: #8a5a1e;
+  --p-blue-700: #33608c;   /* fast line */
+  --p-blue-050: #eef2f6;
+  --p-blue-200: #c9d6e2;
+
+  /* semantic */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-text-on-accent: #fff;
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-bg-subtle: var(--p-paper-100);
+  --color-border-default: var(--p-paper-200);
+  --color-border-strong: var(--p-ink-600);
+  --color-accent: var(--p-clay-600);
+  --color-accent-hover: var(--p-clay-700);
+  --color-accent-soft: var(--p-clay-050);
+  --status-error: var(--p-red-700);
+  --status-error-bg: var(--p-red-050);
+  --status-success: var(--p-olive-700);
+  --priority-high: var(--p-red-700);
+  --priority-medium: var(--p-amber-700);
+  --priority-low: var(--p-olive-700);
+  --priority-high-soft: #f6ebe8;
+  --priority-medium-soft: #f4ecdf;
+  --priority-low-soft: #eff1e4;
+
+  /* spacing — 8px сетка */
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+
+  /* geometry */
+  --radius-field: 6px;
+  --radius-card: 10px;
+
+  /* elevation */
+  --shadow-modal: 0 16px 40px rgba(61, 54, 48, 0.18);
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+
+  /* typography */
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --speed-fast: 160ms;
+  --speed-modal: 220ms;
+
+  /* safe-area мокапа: в проде — env(safe-area-inset-*) (NFR-25);
+     значения фиксируют целевое устройство iPhone 11 (ОВ-6) */
+  --sat: 47px;
+  --sab: 34px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+}
+
+/* =====================================================================
+   ДЕМО-ОБВЯЗКА мокапа (не прод-верстка): рамка телефона 375×812.
+   Внутри .phone — макет раздела в ширине 375px (NFR-26, ОВ-6).
+   ===================================================================== */
+.demo-wrap { max-width: 1060px; margin: 0 auto; padding: 24px 16px 64px; }
+.demo-title { font-family: var(--font-family-display); font-size: 24px; margin: 0 0 4px; }
+.demo-sub { color: var(--color-text-secondary); font-size: var(--font-size-label); margin: 0 0 20px; max-width: 72ch; line-height: 1.5; }
+.demo-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
+.demo-nav a {
+  font-size: var(--font-size-label); font-weight: 600; text-decoration: none;
+  color: var(--color-accent); background: var(--color-accent-soft);
+  border: 1px solid var(--color-border-default); border-radius: 999px;
+  padding: 8px 14px; min-height: 36px; display: inline-flex; align-items: center;
+}
+.demo-nav a:hover { background: var(--color-accent); color: var(--color-text-on-accent); }
+.demo-nav a:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Рамка телефона: 375×812 — базовый вьюпорт макета (ОВ-6, iPhone 11);
+   страница МОКАПА ресайзится под окно (телефон фиксирован) */
+.phone {
+  width: 375px; height: 812px; flex-shrink: 0;
+  border: 10px solid var(--p-ink-900); border-radius: 36px;
+  background: var(--color-bg-page);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden; position: relative;
+  display: flex; flex-direction: column;
+}
+.phone-scroll { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.demo-stage { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+.phone-caption { font-size: var(--font-size-micro); color: var(--color-text-secondary); margin: 10px 2px 0; text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* Визуализация safe-area: полупрозрачные зоны inset (NFR-25) —
+   слева/спримера: notch-зона сверху 47px (iPhone 11), снизу 34px home-bar,
+   боковые 0 на portrait — показаны как тонкие штрихованные полосы. */
+.safe-viz { position: absolute; pointer-events: none; z-index: 400; }
+.safe-viz.top { top: 0; left: 0; right: 0; height: 47px;
+  background: repeating-linear-gradient(45deg, rgba(51,96,140,0.16) 0 6px, transparent 6px 12px); border-bottom: 1px dashed var(--p-blue-700); }
+.safe-viz.bottom { bottom: 0; left: 0; right: 0; height: 34px;
+  background: repeating-linear-gradient(45deg, rgba(51,96,140,0.16) 0 6px, transparent 6px 12px); border-top: 1px dashed var(--p-blue-700); }
+.safe-viz .safe-label {
+  position: absolute; right: 6px; font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
+  color: var(--p-blue-700); background: rgba(238,242,246,0.9); border-radius: 4px; padding: 1px 5px;
+}
+.safe-viz.top .safe-label { top: 4px; }
+.safe-viz.bottom .safe-label { bottom: 4px; }
+/* home-bar (индикатор iOS) — внутри safe-area снизу */
+.home-bar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  width: 134px; height: 5px; border-radius: 3px; background: var(--p-ink-600); opacity: 0.55; z-index: 401; pointer-events: none; }
+
+/* Аннотации-размеры (тач-таргеты ≥44 — NFR-23) */
+.anno { position: absolute; z-index: 380; pointer-events: none; }
+.anno-box { position: absolute; border: 2px dashed var(--p-blue-700); border-radius: 4px; }
+.anno-tag {
+  position: absolute; font-size: 10px; font-weight: 700; white-space: nowrap;
+  background: var(--p-blue-700); color: #fff; border-radius: 4px; padding: 1px 5px; line-height: 1.5;
+}
+
+
+/* =====================================================================
+   ПРОД-СТРУКТУРА (мокап): мобильный каркас ≤768px — design §2.
+   Шапка с бургером (тач-таргет ≥44 — NFR-23), заголовок раздела в шапке
+   (FR-100), контент на всю ширину (сцена без margin-left).
+   Safe-area: padding от env(safe-area-inset-*) — NFR-25
+   (в мокапе значения зафиксированы константами и показаны визуально).
+   Мета: <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+   (NFR-28: БЕЗ user-scalable / maximum-scale).
+   ===================================================================== */
+.mobile-header {
+  flex-shrink: 0; display: flex; align-items: center; gap: 4px;
+  background: var(--p-ink-900); color: var(--p-paper-050);
+  /* NFR-25: верхняя safe-area (notch) — env(safe-area-inset-top) */
+  padding: calc(6px + var(--sat, 47px)) 8px 6px;
+  min-height: calc(52px + var(--sat, 47px));
+}
+.burger {
+  width: 44px; height: 44px; flex-shrink: 0;   /* NFR-23: ≥44×44 */
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: none; border-radius: var(--radius-field);
+  color: var(--p-paper-050); cursor: pointer;
+}
+.burger:hover { background: rgba(255, 253, 249, 0.08); }
+.burger:focus-visible { outline: none; box-shadow: inset var(--focus-ring); }
+.header-title {
+  font-family: var(--font-family-display); font-size: 17px; font-weight: normal;
+  margin: 0; flex: 1; text-align: center; line-height: 1.2;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.header-spacer { width: 44px; flex-shrink: 0; }   /* балансировка бургера — титул по центру */
+
+.mobile-content {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  /* NFR-25: нижняя safe-area для контента */
+  padding-bottom: calc(var(--space-3) + var(--sab, 34px));
+}
+.mobile-footer {
+  flex-shrink: 0; background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-default);
+  padding: var(--space-1) var(--space-2) calc(var(--space-1) + var(--sab, 34px));
+  display: flex; gap: var(--space-1);
+}
+
+/* --- Drawer: переиспользует существующий DOM .sidebar (FR-99, design §2);
+   off-canvas панель поверх затемнения, закрытие — пункт/подложка/Esc/бургер --- */
+.sidebar-backdrop {
+  position: absolute; inset: 0; z-index: 300;
+  background: rgba(61, 54, 48, 0.45);
+}
+.sidebar.drawer {
+  position: absolute; top: 0; bottom: 0; left: 0; z-index: 310;
+  width: min(78vw, 300px);
+  transform: translateX(-100%);
+  transition: transform var(--speed-modal) ease-out;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: var(--space-2) 0;
+  padding-top: calc(var(--space-2) + var(--sat, 47px));
+  padding-bottom: calc(var(--space-2) + var(--sab, 34px));
+  height: auto;
+}
+.sidebar.drawer.open { transform: none; box-shadow: var(--shadow-modal); }
+@media (prefers-reduced-motion: reduce) { .sidebar.drawer { transition: none; } }
+.sidebar-nav { display: flex; flex-direction: column; }
+.nav-item {
+  display: flex; align-items: center; gap: var(--space-1);
+  /* NFR-23: тач-таргет ≥44×44 */
+  min-height: 44px;
+  padding: 10px 20px;
+  color: var(--p-paper-050); text-decoration: none; opacity: 0.85;
+  font-size: var(--font-size-body);
+}
+.nav-item:hover { background: rgba(255, 253, 249, 0.08); opacity: 1; }
+.nav-item.active { background: var(--color-accent); opacity: 1; font-weight: bold; }
+.nav-item:focus-visible { outline: none; box-shadow: inset var(--focus-ring); }
+.nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+.todo-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 6px;
+  font-size: var(--font-size-micro); font-weight: normal;
+  background: var(--p-amber-700); color: #fff; border-radius: 999px;
+}
+.sidebar-footer { padding: 0 20px; display: flex; flex-direction: column; gap: var(--space-1); }
+.sidebar-footer .nav-item { padding-left: 20px; padding-right: 20px; transform: none; }
+.logout-button {
+  width: 100%; min-height: 44px;   /* NFR-23 */
+  padding: 8px; background: transparent; color: var(--p-paper-050);
+  border: 1px solid var(--p-ink-600); border-radius: var(--radius-field);
+  cursor: pointer; font: inherit;
+}
+.logout-button:hover { background: rgba(255, 253, 249, 0.08); }
+.logout-button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.sidebar-profile {
+  display: flex; align-items: center; gap: var(--space-1);
+  min-height: 44px; padding: 4px 0; color: var(--p-paper-050);
+}
+.profile-avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--color-accent); color: var(--color-text-on-accent);
+  font-size: var(--font-size-label); font-weight: bold;
+}
+.profile-name { font-size: var(--font-size-label); line-height: 1.25; }
+.profile-role { font-size: var(--font-size-micro); color: var(--p-paper-100); opacity: 0.75; display: block; }
+
+/* drawer-open: подложка видима, контент под ней не скроллится (design §4) */
+.phone.drawer-open .sidebar-backdrop { display: block; }
+.phone:not(.drawer-open) .sidebar-backdrop { display: none; }
+
+/* --- Общие компоненты (токены V3) --- */
+.page-title { font-family: var(--font-family-display); font-size: 20px; margin: 0 0 var(--space-1); }
+.hint { color: var(--color-text-secondary); font-size: var(--font-size-label); margin: 0 0 var(--space-2); line-height: 1.45; }
+.card {
+  background: var(--color-bg-surface); border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card); padding: var(--space-2); margin-bottom: var(--space-2);
+}
+.field { margin-bottom: var(--space-2); }
+.field label { display: block; font-size: var(--font-size-label); color: var(--color-text-secondary); margin-bottom: 4px; }
+.field input, .field textarea, .field select {
+  width: 100%; font: inherit;
+  /* NFR-24: font-size ≥16px — iOS не включает авто-зум при фокусе */
+  font-size: 16px;
+  min-height: 44px;   /* NFR-23: тач-таргет */
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-field);
+  background: var(--color-bg-surface); color: var(--color-text-primary);
+}
+.field input:hover, .field textarea:hover { border-color: var(--color-border-strong); }
+.field input:focus-visible, .field textarea:focus-visible, .field select:focus-visible {
+  outline: none; border-color: var(--color-accent); box-shadow: var(--focus-ring);
+}
+.btn {
+  font: inherit; font-weight: 600; cursor: pointer;
+  min-height: 44px;   /* NFR-23 */
+  padding: 10px var(--space-2); border-radius: var(--radius-field); border: none;
+  transition: background var(--speed-fast);
+}
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn-primary { background: var(--color-accent); color: var(--color-text-on-accent); }
+.btn-primary:hover, .btn-primary:active { background: var(--color-accent-hover); }
+.btn-secondary {
+  background: var(--color-bg-surface); color: var(--color-accent);
+  border: 1px solid var(--color-border-strong);
+}
+.btn-secondary:hover { background: var(--color-bg-subtle); }
+.btn-block { width: 100%; }
+
+
+/* =====================================================================
+   ПРОД-СТРУКТУРА: модалка тикета ≤480px — fullscreen (FR-102, ОВ-4,
+   design §4; паттерн Д-9). position:fixed; inset:0; шапка с названием
+   и крестиком, тело скроллится, футер с действиями. Одна модалка,
+   два состояния: просмотр ↔ «Редактировать» (в проде — замена содержимого).
+   Крестик ≥44px (NFR-23); инпуты 16px (NFR-24); safe-area в футере (NFR-25).
+   ===================================================================== */
+.ticket-modal {
+  position: absolute; inset: 0; z-index: 350;
+  background: var(--color-bg-surface);
+  display: flex; flex-direction: column;
+  animation: modal-in var(--speed-modal) ease-out;
+}
+@keyframes modal-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ticket-modal { animation: none; } }
+.tm-head {
+  flex-shrink: 0; display: flex; align-items: center; gap: 4px;
+  border-bottom: 1px solid var(--color-border-default);
+  padding: calc(6px + 47px) 8px 6px;   /* safe-area top (NFR-25) */
+  min-height: calc(52px + 47px);
+}
+.tm-close {
+  width: 44px; height: 44px; flex-shrink: 0;   /* NFR-23 */
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: none; border-radius: var(--radius-field);
+  color: var(--color-text-secondary); cursor: pointer;
+}
+.tm-close:hover { background: var(--color-bg-subtle); color: var(--color-text-primary); }
+.tm-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.tm-title {
+  font-family: var(--font-family-display); font-size: 16px; font-weight: normal;
+  margin: 0; flex: 1; min-width: 0; line-height: 1.25;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.tm-state {
+  flex-shrink: 0; font-size: var(--font-size-micro); font-weight: 600;
+  color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em;
+}
+.tm-body {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: var(--space-2);
+  /* подложка без double-скролла (design §4): скроллится только тело */
+}
+.tm-kicker { font-size: var(--font-size-micro); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 4px; }
+.tm-name { font-family: var(--font-family-display); font-size: 20px; line-height: 1.3; margin: 0 0 var(--space-1); }
+.badge-row { display: flex; gap: var(--space-1); flex-wrap: wrap; margin-bottom: var(--space-2); }
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-size-micro); font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+.badge-priority-high { background: var(--priority-high-soft); color: var(--priority-high); }
+.badge-status { background: var(--priority-low-soft); color: var(--status-success); }
+.badge-fast { background: var(--p-blue-050); color: var(--p-blue-700); }
+.section-label {
+  font-size: var(--font-size-micro); color: var(--color-text-secondary);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin: var(--space-2) 0 var(--space-1);
+}
+.tm-desc { margin: 0; line-height: 1.55; }
+.attr { background: var(--color-bg-subtle); border-radius: var(--radius-field); padding: var(--space-1) var(--space-2); margin-bottom: var(--space-1); }
+.attr dt { font-size: var(--font-size-micro); color: var(--color-text-secondary); margin: 0 0 2px; }
+.attr dd { margin: 0; font-weight: 600; font-size: var(--font-size-label); }
+.tag-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.tag-chip {
+  display: inline-flex; font-size: var(--font-size-micro); font-weight: 600;
+  padding: 3px 10px; border-radius: 999px;
+  background: var(--color-bg-subtle); border: 1px solid var(--color-border-default);
+}
+.tm-foot {
+  flex-shrink: 0; display: flex; gap: var(--space-1);
+  border-top: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  padding: var(--space-2); padding-bottom: calc(var(--space-2) + 34px);   /* safe-area bottom (NFR-25) */
+}
+.tm-foot .btn { flex: 1; }
+
+</style>
+</head>
+<body>
+<main class="demo-wrap">
+  <h1 class="demo-title">Модалка тикета: «Редактировать»</h1>
+  <p class="demo-sub">То же fullscreen-оболочка (ОВ-4): «Редактировать» заменяет содержимое на существующую форму (одна колонка, full-width — ветка FR-62). Инпуты/textarea/select 16px (NFR-24, iOS не зумит), поля и кнопки ≥44px (NFR-23). Возврат — обратно в просмотр; при фокусе инпута поле прокручивается в видимость (design §4).</p>
+  <nav class="demo-nav" aria-label="Мокапы P14">
+    <a href="01-frame-drawer-closed.html">01 · Каркас (drawer закрыт)</a>
+    <a href="02-frame-drawer-open.html">02 · Каркас (drawer открыт)</a>
+    <a href="03-board-swipe.html">03 · Доска, свайп-колонки</a>
+    <a href="04-ticket-modal-view.html">04 · Модалка тикета — просмотр</a>
+    <a href="05-ticket-modal-edit.html">05 · Модалка тикета — редактирование</a>
+    <a href="06-search-settings.html">06 · Поиск и настройки</a>
+    <a href="07-lightbox.html">07 · Лайтбокс, свайпы</a>
+  </nav>
+  <div class="demo-stage">
+    <figure class="phone-shot" style="margin:0;">
+    <div class="phone">
+      <div class="safe-viz top" aria-hidden="true"><span class="safe-label">safe-area top</span></div>
+      <div class="safe-viz bottom" aria-hidden="true"><span class="safe-label">safe-area bottom</span></div>
+      <div class="home-bar" aria-hidden="true"></div>
+
+      <!-- ТА ЖЕ ticket-modal оболочка: содержимое заменено формой (ОВ-4, design §4).
+           Инпуты font-size 16px (NFR-24); поля ≥44px (NFR-23); форма — одна колонка
+           full-width (действующая ветка FR-62, сохраняется) -->
+      <div class="ticket-modal" role="dialog" aria-modal="true" aria-label="Редактирование задачи STAND-42">
+        <header class="tm-head">
+          <button class="tm-close" type="button" aria-label="Отмена редактирования (возврат к просмотру)">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+          <h1 class="tm-title">Заменить TLS-сертификат на стенде</h1>
+          <span class="tm-state" style="color:var(--color-accent);">Редакт.</span>
+        </header>
+
+        <div class="tm-body">
+          <form onsubmit="return false;">
+            <div class="field">
+              <label for="f-title">Название</label>
+              <input id="f-title" type="text" value="Заменить TLS-сертификат на стенде">
+            </div>
+            <div class="field">
+              <label for="f-desc">Описание</label>
+              <textarea id="f-desc" rows="4">Текущий сертификат стенда истекает 15.10. Перевыпустить через internal CA, положить в secrets, перезапустить nginx.</textarea>
+            </div>
+            <div class="field">
+              <label for="f-cat">Категория</label>
+              <select id="f-cat"><option selected>Инфраструктура</option><option>Документация</option><option>Прочее</option></select>
+            </div>
+            <div class="field">
+              <label for="f-due">Срок</label>
+              <input id="f-due" type="date" value="2026-10-13">
+            </div>
+            <div class="field">
+              <label for="f-prio">Приоритет</label>
+              <select id="f-prio"><option selected>Высокий</option><option>Средний</option><option>Низкий</option></select>
+            </div>
+            <div class="field" style="display:flex;align-items:center;gap:8px;">
+              <input id="f-fast" type="checkbox" checked style="width:22px;height:22px;min-height:0;flex-shrink:0;accent-color:var(--p-blue-700);">
+              <label for="f-fast" style="margin:0;color:var(--color-text-primary);font-size:var(--font-size-body);">Fast line (приоритет фиксируется на high)</label>
+            </div>
+          </form>
+        </div>
+
+        <footer class="tm-foot">
+          <button class="btn btn-secondary" type="button">Отмена</button>
+          <button class="btn btn-primary" type="button">Сохранить</button>
+        </footer>
+      </div>
+<div class="anno" aria-hidden="true" style="left:8px;top:470px;"><div class="anno-box" style="left:0;top:0;width:327px;height:60px;"></div><div class="anno-tag" style="left:0px;top:-20px;">инпут 16px, высота ≥44 (NFR-24/23)</div></div>
+    </div>
+    <figcaption class="phone-caption">05 · Та же оболочка, состояние «Редактировать» — форма одной колонкой (FR-62)</figcaption>
+    </figure>
+
+  </div>
+</main>
+<script>
+/* Демо-логика мокапа: toggle drawer (если на экране есть бургер) —
+   в проде то же делает app.js (класс sidebar-open на body, design §2). */
+(function () {
+  var phone = document.querySelector('.phone');
+  var burger = document.querySelector('.burger');
+  var backdrop = document.querySelector('.sidebar-backdrop');
+  if (!burger) return;
+  burger.addEventListener('click', function () { phone.classList.toggle('drawer-open'); });
+  if (backdrop) backdrop.addEventListener('click', function () { phone.classList.remove('drawer-open'); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') phone.classList.remove('drawer-open');
+  });
+})();
+</script>
+</body>
+</html>
