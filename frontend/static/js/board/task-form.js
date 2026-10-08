@@ -59,6 +59,13 @@ import { api } from "./api.js";
 import { el, showFormError, hideError } from "./dom.js";
 import { boardState } from "./state.js";
 import { refreshBoard } from "./cards.js";
+/* review-001-2.2 (major-2): пере-рендер восстановленного просмотра через
+ * openTaskDetail (task-detail.js) — он уже делает GET /api/tasks/{id} +
+ * renderTaskDetail + возвращает currentTaskId. Статический цикл
+ * task-form → task-detail безопасен: task-detail.js статически НЕ
+ * импортирует task-form.js (только динамически по клику), к моменту
+ * загрузки формы он уже вычислен; на /search форма не грузится вовсе. */
+import { openTaskDetail } from "./task-detail.js";
 import { createPriorityIcon, PRIORITY_LABELS } from "./priority-icons.js";
 
 /* --- Форма создания/редактирования (FR-5, FR-7, FR-9) --- */
@@ -787,7 +794,52 @@ document.addEventListener("keydown", function (event) {
     return;
   }
   closeTaskForm();
+  /* 2.2 (ОВ-4): closeTaskForm вернул просмотр (флаг viewReturn) — Escape-
+   * обработчик view-модалки (task-detail.js, подписан позже на том же
+   * document) получил бы !view.hidden && form.hidden и закрыл бы только
+   * что восстановленное окно тем же событием. Это закрытие — уже работа
+   * обработчика формы; клавиатурный путь view (Escape там) не страдает:
+   * при открытом view форма скрыта и этот обработчик не срабатывает. */
+  event.stopImmediatePropagation();
 });
+
+/* --- 2.2 add-responsive-mobile (ОВ-4): возврат в просмотр после формы ---
+ * «Редактировать» из view-модалки заменяет содержимое формой ТОЙ ЖЕ
+ * оболочки; закрытие формы (Escape/«Отмена»/крестик/сабмит) при этом
+ * возвращает в просмотр той же задачи — а не на доску (сценарий spec
+ * board «Fullscreen-модалка на мобильном»; desktop — прежнее поведение:
+ * форма закрывалась НАВСЕГДА, доска).
+ * Флаг ставит task-detail.js при открытии формы из view (setViewReturn),
+ * снимает closeTaskForm после возврата. На пути создания формы
+ * (openCreateForm, кнопка «Создать задачу») флага нет — поведение прежнее.
+ * Сабмит/удаление/перенос тоже идут через closeTaskForm: возврат в
+ * просмотр после сохранения — тот же путь ОВ-4 (просмотр покажет
+ * обновленные данные — renderTaskDetail перечитывает задачу). */
+
+var viewReturnPending = false;
+
+export function setViewReturnPending(value) {
+  /* review-001-2.2 (major-3, NFR-29): флаг имеет смысл только на
+   * мобильном (≤480px), где форма заменяет просмотр. На desktop флаг
+   * без media-условия уводил Escape/«Отмена» формы в просмотр вместо
+   * доски — desktop-семантика «форма закрывается НАВСЕГДА» ломалась. */
+  if (value && window.matchMedia("(max-width: 480px)").matches) {
+    viewReturnPending = true;
+  } else if (!value) {
+    viewReturnPending = false;
+  }
+}
+
+function restoreDetailViewIfPending() {
+  if (!viewReturnPending) {
+    return;
+  }
+  viewReturnPending = false;
+  var view = document.getElementById("task-detail-overlay");
+  if (view && view.hidden && boardState.currentTaskId !== null) {
+    view.hidden = false;
+  }
+}
 
 export function closeTaskForm() {
   /* Review 2.1/2.2 (major): закрыть дропдаун комбобокса ВМЕСТЕ с
@@ -804,7 +856,28 @@ export function closeTaskForm() {
    * пережить ни один из них. */
   resetTagLedger();
   document.getElementById("task-form-overlay").hidden = true;
+  /* 2.2 (ОВ-4): форма была открыта из view-модалки — вернуть просмотр.
+   * review-001-2.2 (major-2): id задачи ДО восстановления, а не после —
+   * прежний порядок (restore → обнуление currentTaskId) оставлял
+   * восстановленное окно «мертвым»: повторное «Редактировать» из него
+   * выходило по guard'у currentTaskId === null. Заодно чинит stale
+   * view после сабмита (minor-4): успешная перечитка ниже пере-рендерит
+   * просмотр свежими данными; при сбое сети окно остается открыто с
+   * прежним содержимым и видимой ошибкой — данные не теряются. */
+  var returnTaskId =
+    viewReturnPending && isValidTaskId(boardState.currentTaskId)
+      ? boardState.currentTaskId
+      : null;
+  restoreDetailViewIfPending();
   boardState.currentTaskId = null;
+  if (returnTaskId !== null) {
+    /* review-001-2.2 (major-2, проверен ревьюером): перечитать задачу
+     * GET и пере-рендерить просмотр через hook openTaskDetail. После
+     * сабмита показываются сохраненные данные (stale view, minor-4),
+     * после «Отмены» — без изменений; currentTaskId восстановлен —
+     * повторное «Редактировать» из просмотра живо. */
+    openTaskDetail(returnTaskId);
+  }
 }
 
 function collectTaskForm() {

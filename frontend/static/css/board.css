@@ -1430,3 +1430,115 @@
   .board-column { min-width: 0; width: 100%; }
   .content, main { overflow-x: hidden; }
 }
+
+/* --- 2.2 add-responsive-mobile (FR-102, ОВ-4; design §4): модалка тикета
+ * fullscreen на ≤480px — ОБЩАЯ оболочка просмотра (read-only, Д-9) и
+ * редактирования. Оба оверлея (view + form) разворачиваются в fullscreen-
+ * панель: fixed inset 0, шапка с названием и крестиком, тело скроллит
+ * только оно (double-скролл подложки снят overflow:hidden), футер с
+ * действиями — по мокапам design/mobile-p14/04-ticket-modal-view.html и
+ * 05-ticket-modal-edit.html. Desktop (>480px) не тронут: правила живут
+ * ТОЛЬКО в этом media-блоке (NFR-29).
+ *
+ * Крестик ≥44px (NFR-23), инпуты/textarea/select ≥16px (NFR-24 — без
+ * авто-зума iOS), кнопки ≥44px (NFR-23); safe-area в шапке/футере
+ * (NFR-25). Действующая 480px-ветка формы FR-62 (одна колонка,
+ * full-width, wrap действий) — медиа-блоком выше, сохранена дословно. --- */
+@media (max-width: 480px) {
+  /* Fullscreen-подложка: без паддинга и внутреннего скролла — скроллит
+   * только тело окна (design §4: подложка overflow:hidden при открытой
+   * модалке). align-items: stretch — панель во всю высоту подложки. */
+  #task-detail-overlay.modal-overlay,
+  #task-form-overlay.modal-overlay {
+    padding: 0;
+    overflow: hidden;
+    align-items: stretch;
+  }
+
+  /* Сама панель: на всю высоту подложки, колонкой; внутренние скроллы
+   * выключены (скролл тела), радиус/рамка/тень не видны в fullscreen. */
+  #task-detail-overlay .modal,
+  #task-form-overlay .modal {
+    max-width: none;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: none; /* fullscreen-панель появляется без «прыжка» (ОГР-17) */
+  }
+
+  /* Тело окна — единственный скроллящийся регион (просмотр: .task-view-
+   * body + комментарии; редактирование: сама форма + блок комментариев
+   * режима редактирования — соседи внутри листа). */
+  #task-detail-overlay .task-view-body,
+  #task-detail-overlay .task-view-comments,
+  #task-form-overlay #task-form,
+  #task-form-overlay #task-comments {
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  /* Шапки/футеры обеих оболочек прижаты (flex-shrink:0): крестик всегда
+   * доступен без прокрутки. Крестик обеих модалок — ≥44px (NFR-23;
+   * desktop 40×40 не тронут — правило только в этой ветке). */
+  #task-detail-overlay .task-view-head,
+  #task-detail-overlay .task-view-actions,
+  #task-form-overlay .task-form h2,
+  #task-form-overlay .task-actions,
+  #task-form-overlay .task-comments h3 {
+    flex-shrink: 0;
+  }
+
+  #task-detail-overlay .modal-close,
+  #task-form-overlay .modal-close {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+
+  /* Safe-area (NFR-25): шапка просмотра и футеры обеих оболочек. */
+  #task-detail-overlay .task-view-head { padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0px)); }
+  #task-detail-overlay .task-view-actions,
+  #task-form-overlay .task-actions {
+    padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Комментарии view-модалки — самостоятельная секция, сворачиваемая
+   * в скролл-регион вместе с телом (см. выше); общий скролл окна. */
+  #task-detail-overlay .task-view-comments {
+    flex: 1 1 auto;
+    padding-top: 0;
+  }
+
+  /* NFR-24: поля обеих оболочек ≥16px — iOS не включает авто-зум при
+   * фокусе (десктопные 13–14px токенны; переопределение только здесь). */
+  #task-form-overlay .task-form input[type="text"],
+  #task-form-overlay .task-form input[type="date"],
+  #task-form-overlay .task-form select,
+  #task-form-overlay .task-form textarea,
+  #task-form-overlay .task-comments textarea {
+    font-size: 16px;
+    min-height: 44px; /* NFR-23: тач-таргет поля */
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+  }
+
+  /* NFR-23: кнопки обеих оболочек ≥44px (пилюли desktop высотой ~38px). */
+  #task-form-overlay .task-actions button,
+  #task-form-overlay .comment-form button[type="submit"],
+  #task-form-overlay .task-comments button[type="submit"],
+  #task-detail-overlay .task-view-actions button {
+    min-height: 44px;
+  }
+
+  /* Комментарий-форма режима редактирования: тач-таргет кнопки и зазор. */
+  #task-form-overlay .comment-form button[type="submit"] {
+    width: 100%;
+    margin-top: var(--space-2);
+  }
+}

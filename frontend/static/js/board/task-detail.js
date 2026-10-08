@@ -638,6 +638,10 @@ export function initTaskViewControls() {
            * клику; сбой загрузки — сообщение об ошибке, view не рвется. */
           loadEditFormModule().then(
             function (taskForm) {
+              /* 2.2 (ОВ-4): флаг возврата ставит ТОЛЬКО успешная загрузка
+               * модуля формы (module-scope переменная в task-form.js;
+               * до загрузки ставить некому). */
+              taskForm.setViewReturnPending(true);
               taskForm.openEditForm(task);
             },
             function () {

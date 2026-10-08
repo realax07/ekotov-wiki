@@ -34,8 +34,16 @@ import {
   openTaskDetail,
   initTaskViewControls,
 } from "./task-detail.js";
+import { initMobileModalShell } from "./modal-shell.js";
 
 /* --- Инициализация --- */
+
+/* 2.2 add-responsive-mobile (FR-102, design §4): мобильная fullscreen-
+ * оболочка модалок — блокировка скролла страницы под модалкой с точным
+ * возвратом позиции при закрытии + scrollIntoView активного поля
+ * (клавиатура iOS). До подписок модалок: MutationObserver на overlay
+ * ловит открытие любым путем (openCreateForm/openTaskDetail). */
+initMobileModalShell();
 
 document
   .getElementById("create-task-button")
