@@ -23,6 +23,7 @@ mobile-first»). Все развилки закрыты рекомендация
     "phase": 1
   },
   "action": "start_flow1",
+  "commit": "3ba596d",
   "source": "Заказчик, Telegram DM 2026-10-08: «С 1 по 5 да; 6 — iphone 11 у жены, у меня z fold 7» — старт P14 по БА-проработке"
 }
 ```
