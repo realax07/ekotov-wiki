@@ -85,7 +85,21 @@ function initFocusScrollIntoView() {
       return;
     }
     var field = event.target;
-    if (typeof field.scrollIntoView === "function") {
+    if (typeof field.scrollIntoView !== "function") {
+      return;
+    }
+    /* review-001-2.2 (major-1): скроллить ТОЛЬКО когда поле реально вне
+     * вьюпорта. Безусловный scrollIntoView({block:"center"}) на focusin
+     * гасил комбобокс-дропдаун (#task-tags) в пути edit-from-view:
+     * открытие дропдауна репозиционирует/рефокусирует input, срабатывал
+     * focusin, принудительный центр-скролл перекрывал список клавиатурной
+     * частью модалки. Проверка rect: видимое поле не трогаем (вариант с
+     * setTimeout(0) не помогает — порядок событий тот же). */
+    var rect = field.getBoundingClientRect();
+    var viewportHeight =
+      window.innerHeight || document.documentElement.clientHeight;
+    var fullyVisible = rect.top >= 0 && rect.bottom <= viewportHeight;
+    if (!fullyVisible) {
       field.scrollIntoView({ block: "center" });
     }
   });
