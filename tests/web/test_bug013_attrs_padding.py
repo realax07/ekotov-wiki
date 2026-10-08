@@ -15,6 +15,15 @@ Computed-styles ассерты (мокап):
   край сетки совпадает с контентом .task-view-body (паддинг тела, ±1px);
 - .task-view .attr padding = var(--space-1) var(--space-2) = 8px 16px.
 
+BUG-015 (повторная приемка r8-polish-2): старый dl#task-detail-attrs
+(скрытый носитель данных контракта TC-UI-009/ОГР-28) НЕ отображается
+в окне рядом с attr-grid — паттерн sr-only в board.css:
+- .task-view-attrs: position:absolute; width/height 1px; clip rect(0 0 0 0)
+  (computed по паттерну; НЕ display:none — текст attrs читается e2e);
+- attr-grid при этом ВИДИМ (единственный видимый носитель признаков).
+Мутационная проверка (снять sr-only → ассерты красные) — в отчете
+фикс-цикла BUG-015.
+
 Среда: автостенд tests/web (conftest), маркер web.
 """
 
@@ -66,6 +75,37 @@ def test_view_attrs_padding_matches_mockup(
     expect(page.locator(OVERLAY)).to_be_visible()
     # Рендер тела асинхронен (GET /api/tasks/{id}) — ждем сетку признаков.
     expect(page.locator(f"{OVERLAY} .attr-grid")).to_be_visible()
+
+    # BUG-015: старый dl#task-detail-attrs — скрытый носитель данных
+    # (контракт TC-UI-009/ОГР-28), sr-only-паттерн board.css: 1px-box,
+    # clip rect(0 0 0 0); видимые признаки окна — ТОЛЬКО attr-grid.
+    bug015 = page.evaluate(
+        """() => {
+          const modal = document.querySelector(
+            "#task-detail-overlay .modal");
+          const dl = modal.querySelector("#task-detail-attrs");
+          const grid = modal.querySelector(".attr-grid");
+          const cs = getComputedStyle(dl);
+          const round = (n) => Math.round(n * 10) / 10;
+          const r = dl.getBoundingClientRect();
+          return {
+            position: cs.position,
+            width: round(r.width),
+            height: round(r.height),
+            clip: cs.clip,
+            display: cs.display,
+            visibility: cs.visibility,
+            dlText: dl.textContent.length,
+            gridVisible: !!(grid.offsetWidth || grid.offsetHeight),
+          };
+        }"""
+    )
+    assert bug015["display"] != "none", bug015  # текст attrs читаем (TC-UI-009)
+    assert bug015["position"] == "absolute", bug015
+    assert bug015["width"] <= 1 and bug015["height"] <= 1, bug015
+    assert bug015["clip"] == "rect(0px, 0px, 0px, 0px)", bug015
+    assert bug015["dlText"] > 0, bug015  # носитель не пуст (ОГР-28)
+    assert bug015["gridVisible"], bug015  # attr-grid единственный видимый
 
     styles = page.evaluate(
         """() => {
