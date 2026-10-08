@@ -41,7 +41,7 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # rename), J (masonry) — вся кешируемая статика доски/поиска/галереи/профиля
 # обновлена; favicon меняет URL через бамп маркера в base.html+login.html
 # (data:URI не принимает ?v= — проверено в Chromium, BUG-010/design §3).
-templates.env.globals["static_v"] = "r8-polish-2"
+templates.env.globals["static_v"] = "r8-polish-3"
 
 
 @router.get("/login")
