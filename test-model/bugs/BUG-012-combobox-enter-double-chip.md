@@ -1,7 +1,7 @@
 # BUG-012: таг-combobox Enter при открытом дропдауне дает 2 чипа (committed + ручной токен)
 
 - **ID:** BUG-012
-- **Статус:** НА РЕВЬЮ (2026-10-07 22:25: фикс-цикл 1 завершен — PR #79 (da32681), flow+e2e green; 10/10 r6 green на автостенде; двойная мутация подтверждена; pr_validate PASS (BUG-012). Ожидает независимого code_review. Эскалация: tests/api suggestions 8 red на HEAD — отдельная задача)
+- **Статус:** APPROVED (закрыт). 2026-10-07 23:58: review-002 APPROVE (SHA 1beb036); PR #79 влит 23b7ab5 (2026-10-07 23:32: review-001 RETURN, blocker-1 — consumed-фильтр вычислен от последнего токена и применяется ко ВСЕМ rest: несвязанные ручные токены теряются end-to-end; сьют потерю не ловит. Рецепт: per-tag фильтр `!committedTags.some(s => s.toLowerCase().indexOf(tag.toLowerCase()) !== -1)`, убрать currentToken-проверку; мульти-токеновый e2e-тест; семантику токена-префикса решить ПМ. После доработки — review-002 (provenance SHA da32681 станет STALE)
 - **Дата:** 2026-10-07
 - **Окружение:** main `b0282fa`; QA-стенд nginx :18443 (app :8080, worktree /tmp/qa-r8/wt); Chromium (Playwright); venv /home/openclaw/venvs/wiki.
 - **Severity:** minor→major (нарушение FR-92 committed-леджера при клавиатурном выборе; TC-r6-comb-005 красный стабильно)
