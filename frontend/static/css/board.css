@@ -870,7 +870,26 @@
   font-weight: 400;
 }
 
-.task-view-attrs { margin: 10px 0; }
+/* BUG-015 (r8-polish-2 повторная приемка): dl#task-detail-attrs — скрытый
+ * носитель данных контракта TC-UI-009/ОГР-28 (renderTaskDetail заполняет
+ * его рядами addDetailRow), видимые признаки окна — только attr-grid в
+ * .task-view-body. Паттерн sr-only (как .visually-hidden, board.css):
+ * содержимое остается в DOM и доступно скринридерам/гет-текстам
+ * (TC-UI-009 читает текст attrs — контракт не сломан), но 1px-box
+ * не отображается в окне. НЕ display:none/hidden-атрибут: они уронили бы
+ * visible-ассерты утвержденного e2e. Класс общий board.html/search.html
+ * (унификация BUG-014) — фикс один, в board.css (грузит base.html). */
+.task-view-attrs {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 .task-view-attrs dt {
   font-size: var(--font-size-micro);
