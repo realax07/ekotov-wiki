@@ -4,6 +4,7 @@
 - **Дата:** 2026-10-08 16:00 UTC
 - **Correlation:** c40c585bdead403587ec019a6174b2b6
 - **Делегация дева:** deleg_6640109e (отчет /home/openclaw/.hermes/state/reports/p14-11-dev.md)
+- **Reviewer-Delegation:** deleg_063f4658
 
 ## Provenance
 
