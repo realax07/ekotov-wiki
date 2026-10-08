@@ -1,0 +1,16 @@
+{
+  "author_delegation": "deleg-adf86dfccd3048cb",
+  "change": "BUG-011",
+  "diff_base": null,
+  "diff_digest": "eec12199dc8ec6a2",
+  "project": "wiki",
+  "review_path": "/home/openclaw/ekotov-wiki/code-reviews/BUG-011/review-001.md",
+  "reviewed_commit_sha": "6daf970",
+  "reviewer_delegation": "deleg-993e713de937413b",
+  "schema_version": "review-provenance/1",
+  "task_ids": [
+    "1"
+  ],
+  "timestamp": "2026-10-08T00:01:27+00:00",
+  "verdict": "approve"
+}
