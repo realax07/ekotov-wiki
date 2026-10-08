@@ -787,7 +787,44 @@ document.addEventListener("keydown", function (event) {
     return;
   }
   closeTaskForm();
+  /* 2.2 (ОВ-4): closeTaskForm вернул просмотр (флаг viewReturn) — Escape-
+   * обработчик view-модалки (task-detail.js, подписан позже на том же
+   * document) получил бы !view.hidden && form.hidden и закрыл бы только
+   * что восстановленное окно тем же событием. Это закрытие — уже работа
+   * обработчика формы; клавиатурный путь view (Escape там) не страдает:
+   * при открытом view форма скрыта и этот обработчик не срабатывает. */
+  event.stopImmediatePropagation();
 });
+
+/* --- 2.2 add-responsive-mobile (ОВ-4): возврат в просмотр после формы ---
+ * «Редактировать» из view-модалки заменяет содержимое формой ТОЙ ЖЕ
+ * оболочки; закрытие формы (Escape/«Отмена»/крестик/сабмит) при этом
+ * возвращает в просмотр той же задачи — а не на доску (сценарий spec
+ * board «Fullscreen-модалка на мобильном»; desktop — прежнее поведение:
+ * форма закрывалась НАВСЕГДА, доска).
+ * Флаг ставит task-detail.js при открытии формы из view (setViewReturn),
+ * снимает closeTaskForm после возврата. На пути создания формы
+ * (openCreateForm, кнопка «Создать задачу») флага нет — поведение прежнее.
+ * Сабмит/удаление/перенос тоже идут через closeTaskForm: возврат в
+ * просмотр после сохранения — тот же путь ОВ-4 (просмотр покажет
+ * обновленные данные — renderTaskDetail перечитывает задачу). */
+
+var viewReturnPending = false;
+
+export function setViewReturnPending(value) {
+  viewReturnPending = !!value;
+}
+
+function restoreDetailViewIfPending() {
+  if (!viewReturnPending) {
+    return;
+  }
+  viewReturnPending = false;
+  var view = document.getElementById("task-detail-overlay");
+  if (view && view.hidden && boardState.currentTaskId !== null) {
+    view.hidden = false;
+  }
+}
 
 export function closeTaskForm() {
   /* Review 2.1/2.2 (major): закрыть дропдаун комбобокса ВМЕСТЕ с
@@ -804,6 +841,8 @@ export function closeTaskForm() {
    * пережить ни один из них. */
   resetTagLedger();
   document.getElementById("task-form-overlay").hidden = true;
+  /* 2.2 (ОВ-4): форма была открыта из view-модалки — вернуть просмотр. */
+  restoreDetailViewIfPending();
   boardState.currentTaskId = null;
 }
 

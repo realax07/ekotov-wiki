@@ -650,4 +650,12 @@ body.app-shell {
   .logout-button {
     min-height: 44px;
   }
+
+  /* 2.2 add-responsive-mobile (design §4): открытая модалка тикета —
+     подложка-страница без скролла (double-скролл модалка+страница снят);
+     класс ставит/снимает board/modal-shell.js, позицию скролла он же
+     восстанавливает при закрытии (возврат на доску в прежнюю позицию). */
+  body.modal-shell-open {
+    overflow: hidden;
+  }
 }
