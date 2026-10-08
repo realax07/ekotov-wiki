@@ -666,6 +666,62 @@ function navigateLightbox(delta) {
   loadLightboxImage(next);
 }
 
+/* --- Свайпы лайтбокса (FR-105, 4.1; design §5) ---
+ * Touch-обработчики ТОЛЬКО на элементе изображения (elems.image):
+ * панель комментариев скроллит сама себя, жест ее не перехватывает.
+ * Алгоритм на touchend (design §5): сдвиг ≥50px и |dx| > |dy| — листание
+ * (dx < 0 — следующее, dx > 0 — предыдущее, циклично — паритет стрелок);
+ * иначе (короче порога / вертикальный жест) — тап, поведение не меняем.
+ * Зум-жестов нет (anti-scope): touchmove только preventDefault'ится,
+ * чтобы вертикальный жест по картинке не тянул страницу (page scroll
+ * в лайтбоксе и так закрыт body overflow hidden), нативный pinch не
+ * отключается (NFR-28). */
+var SWIPE_THRESHOLD_PX = 50;
+
+function bindLightboxSwipe() {
+  var elems = lightboxElements();
+  var startX = 0;
+  var startY = 0;
+  var tracked = false;
+
+  elems.image.addEventListener("touchstart", function (event) {
+    if (event.touches.length !== 1) {
+      tracked = false; // pinch (2+ пальца) — не наш жест (зум не реализуем)
+      return;
+    }
+    var touch = event.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    tracked = true;
+  }, { passive: true });
+
+  elems.image.addEventListener("touchmove", function (event) {
+    /* Однопальцевый жест по изображению не должен скроллить страницу;
+     * multi-touch (pinch браузера) не трогаем (NFR-28). */
+    if (tracked && event.touches.length === 1) {
+      event.preventDefault();
+    }
+  }, { passive: false });
+
+  elems.image.addEventListener("touchend", function (event) {
+    if (!tracked) {
+      return;
+    }
+    tracked = false;
+    var touch = event.changedTouches[0];
+    if (!touch) {
+      return;
+    }
+    var dx = touch.clientX - startX;
+    var dy = touch.clientY - startY;
+    if (Math.abs(dx) >= SWIPE_THRESHOLD_PX && Math.abs(dx) > Math.abs(dy)) {
+      navigateLightbox(dx < 0 ? 1 : -1); // влево — следующее, вправо — предыдущее
+    }
+    /* Иначе — тап: существующее поведение (действий на тап по картинке
+     * нет) — ничего не делаем. */
+  });
+}
+
 /* --- Переименование файла (FR-97): иконка у имени + инлайн-поле ---
  * DOM создается один раз (bindLightbox) и переключается hidden'ом;
  * рендер только textContent/value (XSS-дисциплина ОГР-11). */
@@ -1212,6 +1268,7 @@ function bindLightbox() {
   document.getElementById("lb-comment-form").addEventListener("submit", submitComment);
 
   bindRename();
+  bindLightboxSwipe(); // свайпы по изображению (FR-105) — паритет стрелок
 
   /* Клавиатура (FR-83): стрелки — листание, Esc — закрытие.
    * Слушаем на document: фокус может быть в панели. */
