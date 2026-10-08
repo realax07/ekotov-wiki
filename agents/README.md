@@ -126,7 +126,7 @@
 | Поле | Значение |
 |---|---|
 | Режим | auto-edit; зона `architecture/**` проекта + `test-model/reviews/<change>/review-NNN-architecture.md`; push НЕТ |
-| Запуск | Ревью change-пакетов СА (до передачи в разработку); ведение карты + ADR |
+| Запуск | Ревью change-пакетов СА (до передачи в разработку); ведение карты + ADR. **Триггер обязательности (решение 2026-10-08-arch-review-policy):** change затрагивает `services/**`, контрактные границы `backend/**`, `deploy/**`, или MODIFIED/REMOVED-дельты контрактообразующих спек → arch-review ОБЯЗАТЕЛЕН до dev. UI-only и прочие вне триггера — явный skip-решением ПМ (decision-файл), не молча. |
 | Скиллы | `architecture-diagram`, `codebase-inspection` |
 
 ### 12. DevOps-инженер — [devops_agent.md](devops_agent.md)
