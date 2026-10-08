@@ -125,14 +125,26 @@
 
 {# Карточка задачи из результатов (BUG-001; FR-10 / CHK-E-17).
    4.1 Релиза 4 (FR-47): как и на доске, просмотр — read-only модалка
-   без полей ввода (edit/move/удаление — функции доски; форма
-   комментария из поиска убрана — просмотр не изменяет данные,
-   сценарий дельты board «Окно просмотра отлично от форм…»). Значения
-   заполняются из search.js через textContent — разметка не содержит
-   пользовательских данных (XSS). Класс .task-view — единое оформление
-   view-модалки с доской (board.css). #}
+   без полей ввода. BUG-014 (r8-polish приемка п.2; сюда же закрыт
+   BUG-013 как дубль): разметка окна — ДОСЛОВНО та же, что на доске
+   (board.html #task-detail-overlay): .task-view + modal-close-крестик
+   (#task-view-close), #task-detail-title, бейдж «Архивная», dl#task-
+   detail-attrs, комментарии, футер с «Редактировать»/«Закрыть». Блоки
+   мокапа polish-ticket-modal.html (шапка .task-view-head, тело
+   .task-view-body с .attr-grid, люди, чипы тегов) строит
+   board/task-detail.js (рендер TaskDetail) — контракт DOM-id тот же,
+   ОГР-28. «Редактировать» из поиска НЕ поддержан (форма задачи и
+   рефреш столбцов живут на доске): кнопка скрыта инлайн-скриптом ниже
+   и guard'ом search.js при открытии окна. Значения заполняются из JS
+   через textContent — разметка не содержит пользовательских данных
+   (XSS). #}
 <div id="task-detail-overlay" class="modal-overlay" hidden>
-  <div class="modal task-view">
+  <div class="modal task-view" role="dialog" aria-labelledby="task-detail-title">
+    <button type="button" id="task-view-close" class="modal-close" aria-label="Закрыть просмотр задачи">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <path d="M3 3l10 10M13 3L3 13"/>
+      </svg>
+    </button>
     <h2 id="task-detail-title"></h2>
     {# 6.2 (FR-4): бейдж архивной задачи — показывается при
        archived_at IS NOT NULL (тогглится в JS, renderTaskDetail).
@@ -145,9 +157,23 @@
       <ul id="task-comments-list" class="task-comments-list"></ul>
     </section>
     <div class="task-view-actions">
+      <button type="button" id="task-edit-button" class="btn btn-primary" hidden>Редактировать</button>
       <button type="button" id="task-detail-close">Закрыть</button>
     </div>
   </div>
 </div>
-<script src="/static/js/search.js?v={{ static_v }}"></script>
+{# BUG-014: рендер карточки — единый с доской ES-модуль
+   board/task-detail.js (openTaskDetail/closeTaskDetail/initTaskViewControls).
+   search.js подключен type=module (ОГР-8: свои модули допустимы; внешних
+   файлов/библиотек нет). Инлайн-гвард: на странице поиска нет формы задачи
+   (task-form-overlay из board.html) — кнопка «Редактировать» остается
+   скрытой (guard search.js следит при каждом открытии окна; здесь —
+   до первого открытия). #}
+<script type="module">
+  var editButton = document.getElementById("task-edit-button");
+  if (editButton) {
+    editButton.hidden = true;
+  }
+</script>
+<script type="module" src="/static/js/search.js?v={{ static_v }}"></script>
 {% endblock %}

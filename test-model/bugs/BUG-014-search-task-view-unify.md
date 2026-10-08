@@ -1,7 +1,7 @@
 # BUG-014: просмотр карточки из advanced-поиска — старый рендер, не унифицирован с окном задачи
 
 - **ID:** BUG-014
-- **Статус:** ОТКРЫТ (2026-10-08, приемка Заказчика r8-polish, п.2)
+- **Статус:** FIX РЕАЛИЗОВАН (2026-10-08, Флоу 2 фикс-цикл, ветка fix/bug-014-search-task-view): search.html получил дословно досочную разметку окна (board.html #task-detail-overlay: modal-close-крестик #task-view-close, role=dialog, футер «Редактировать»/«Закрыть»), search.js переписан на ES-модуль и вызывает экспортируемый openTaskDetail/closeTaskDetail из board/task-detail.js (type=module, ОГР-8); старый локальный рендер (renderTaskDetail dl-список) удален. BUG-013 закрыт как дубль (жалоба п.1 — тот же старый рендер из поиска). Технота: статический импорт task-form.js из task-detail.js на /search падал (top-level биндинги на поля формы доски) — связь разорвана динамическим импортом (паттерн card-tooltip.js), на доске — предпрогрев в initTaskViewControls. «Редактировать» из поиска скрыт (форма задачи живет на доске). Смоук: tests/web/test_bug014_search_task_view.py (разметка+computed styles = мокапу; мутационная проверка: откат унификации → 2 failed, возврат → 2 passed).
 - **Дата:** 2026-10-08
 - **Окружение:** прод r8-polish (main 7e00a1b); advanced-поиск (search.html/search.js).
 - **Severity:** major (несоответствие приемке: «Просмотр карточки из advanced поиска остался старым. Нужно одинаковый сделать»)
