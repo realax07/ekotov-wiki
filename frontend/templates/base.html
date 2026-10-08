@@ -7,7 +7,10 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {# 1.1 add-responsive-mobile (NFR-28): viewport БЕЗ user-scalable/maximum-scale
+     (нативный pinch не запрещается); NFR-25: viewport-fit=cover — env(safe-area-*)
+     в @media-ветках app.css имеют смысл только с ним. #}
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}ekotov-wiki{% endblock %}</title>
   {# 2.4 add-ui-polish-r8 (FR-95; design/polish-favicon.svg, design.md §3):
      favicon — inline SVG data-URI (ОГР-8: без внешних файлов). Мотив —
@@ -24,7 +27,20 @@
   <link rel="stylesheet" href="/static/css/board.css?v={{ static_v }}">
 </head>
 <body class="app-shell{% block body_class %}{% endblock %}">
-  <aside class="sidebar" aria-label="Разделы">
+  {# 1.1 add-responsive-mobile (FR-99, design §2; мокапы design/mobile-p14/
+     01-frame-drawer-closed.html, 02-frame-drawer-open.html — утверждены
+     2026-10-08-p14-mockups-approve): мобильная шапка с бургером. Видима
+     ТОЛЬКО ≤768px (CSS app.css); тач-таргет 44×44 — NFR-23. Toggle drawer —
+     app.js (класс sidebar-open на <body>); заголовок раздела в шапке —
+     задача 1.2 (не в зоне 1.1). #}
+  <header class="mobile-header">
+    <button type="button" id="burger-button" class="burger" aria-label="Открыть меню разделов" aria-expanded="false" aria-controls="sidebar">
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M3 5h14M3 10h14M3 15h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </header>
+  <aside class="sidebar" id="sidebar" aria-label="Разделы">
     <nav class="sidebar-nav">
       {# 2.4 add-ui-polish-r8 (FR-94): каждый раздел сайдбара получает inline-SVG
          иконку в едином стиле эталона «Мониторинг» (мокап 1.1а,
@@ -100,6 +116,11 @@
       <div id="sidebar-profile" class="sidebar-profile"></div>
     </div>
   </aside>
+  {# 1.1 add-responsive-mobile (FR-99, design §2; мокап 02): подложка-оверлей
+     drawer'а — затемнение, display управляется тем же классом sidebar-open
+     на <body> (app.css); клик — закрытие (app.js). role="presentation" —
+     как в утвержденном мокапе. #}
+  <div class="sidebar-backdrop" role="presentation"></div>
   <main class="content">
     {% block content %}{% endblock %}
   </main>
