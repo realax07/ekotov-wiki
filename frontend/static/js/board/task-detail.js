@@ -58,7 +58,29 @@ import { el, showFormError, hideError } from "./dom.js";
 import { api } from "./api.js";
 import { boardState } from "./state.js";
 import { createPriorityIcon, PRIORITY_LABELS } from "./priority-icons.js";
-import { openEditForm } from "./task-form.js";
+
+/* BUG-014: view-модалка подключается и на странице поиска (search.js
+ * импортирует openTaskDetail/closeTaskDetail — единый рендер окна).
+ * Статический импорт task-form.js здесь НЕВМОСТИМ: у task-form.js
+ * top-level биндинги на поля формы доски (#task-category и др., которых
+ * на /search нет) — TypeError при загрузке модуля убил бы весь граф
+ * search.js. openEditForm нужен ТОЛЬКО кнопке «Редактировать» (доска):
+ * динамический импорт — существующий паттерн репо (card-tooltip.js,
+ * profile.js); предпрогрев в initTaskViewControls (доска) сохраняет
+ * прежнюю готовность формы к первому клику. */
+var editFormModulePromise = null;
+
+function loadEditFormModule() {
+  if (!editFormModulePromise) {
+    editFormModulePromise = import("./task-form.js").catch(function (error) {
+      /* Сбой загрузки (сеть) — не кэшируем: повторный клик повторит
+       * попытку (та же семантика, что у динамических импортов). */
+      editFormModulePromise = null;
+      throw error;
+    });
+  }
+  return editFormModulePromise;
+}
 
 /* --- Read-only рендер (FR-47; сценарии 1, 4) --- */
 
@@ -585,6 +607,14 @@ export function closeTaskDetail() {
 
 export function initTaskViewControls() {
   initFocusTrap();
+  /* Предпрогрев формы редактирования (динамический импорт, см. шапку):
+   * на доске модуль task-form.js грузится сразу при инициализации —
+   * к первому клику «Редактировать» форма готова, как при прежнем
+   * статическом импорте. На /search initTaskViewControls не вызывается,
+   * предпрогрева нет — task-form.js там не загружается вовсе. */
+  loadEditFormModule().catch(function () {
+    /* Тихо: попытка повторится при клике (loadEditFormModule). */
+  });
   /* Д-9 (сценарий 3): «Редактировать» → существующая форма
    * редактирования этой задачи. Свежая копия задачи
    * (GET /api/tasks/{id}) — как до 4.1. */
@@ -603,7 +633,21 @@ export function initTaskViewControls() {
         function (message) {
           showFormError("task-detail-error", message);
         },
-        openEditForm
+        function (task) {
+          /* Динамический импорт (см. шапку): форма доски грузится по
+           * клику; сбой загрузки — сообщение об ошибке, view не рвется. */
+          loadEditFormModule().then(
+            function (taskForm) {
+              taskForm.openEditForm(task);
+            },
+            function () {
+              showFormError(
+                "task-detail-error",
+                "Не удалось загрузить форму редактирования. Проверьте соединение и попробуйте еще раз."
+              );
+            }
+          );
+        }
       );
     });
   document
