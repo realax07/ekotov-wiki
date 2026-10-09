@@ -60,6 +60,11 @@ PROTECTED_PATHS = tuple(
     if p not in [x.strip() for x in __import__("os").environ.get("PM_PROTECTED_EXCLUDE", "contracts/").split(",") if x.strip()]
 )
 # Промпты ролей: менять можно, но каждый такой диф — событие конвейера.
+# J11 (2026-10-09): code-reviews/ — зона ревьюеров. ПМ-сессии (и любая сессия
+# без маркера) НЕ коммитят сюда вообще: review-файл пишет только ревьюер из своей
+# делегации (Review-Delegation сверяется pr_validate'ом). ПМ вливает review-файлы
+# PR'ом от ветки роли, не прямым коммитом ПМ-сессии.
+CODE_REVIEWS_DIR = "code-reviews/"
 ROLE_PROMPT_PREFIX = "agents/"
 
 PIPELINE_MARKERS = ("[pipeline]", "[флоу 4]", "[flow 4]", "[конвейер]")
@@ -91,6 +96,16 @@ def check_commit(repo: Path, commit: str) -> list[str]:
 
     subject = sh(repo, "show", "-s", "--format=%s", commit).strip()
     has_marker = any(m in subject for m in PIPELINE_MARKERS)
+    # J11: code-reviews/ — зона ревьюеров. Прямой коммит ПМ-сессии сюда —
+    # нарушение атрибуции: вердикт пишет ревьюер из своей делегации, не ПМ.
+    # Влитие review-файла ревьюера — PR'ом веткой роли, не прямым коммитом.
+    cr_touched = [f for f in files if f.startswith(CODE_REVIEWS_DIR)]
+    if cr_touched:
+        problems.append(
+            f"{commit}: прямой коммит ПМ-сессии в {', '.join(cr_touched)[:80]} "
+            f"(code-reviews/) — вердикт пишет ревьюер из делегации (J11); "
+            f"влитие review-файла — PR'ом веткой роли"
+        )
     protected_touched = [
         f for f in files
         if f.startswith(PROTECTED_PATHS) or f == "AGENTS.md"
