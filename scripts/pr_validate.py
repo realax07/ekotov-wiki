@@ -145,21 +145,49 @@ def check_change(repo: Path, change_id: str, marker: str = "") -> list[str]:
                 )
                 continue
             _rd = _m.group(1).replace("-", "_")
-            _exists = _ok = False
+            _exists = _ok = _role_bad = False
             try:
                 _c = _sq.connect(f"file:{_db}?mode=ro", uri=True)
                 _row = _c.execute("SELECT state FROM async_delegations WHERE delegation_id=?", (_rd,)).fetchone()
+                # J11: атрибуция роли — делегация обязана принадлежать роли code_reviewer
+                # (источник: active_sessions.json, реестр roles по delegation_id)
+                _role = None
+                try:
+                    import json as _json
+                    _fstate = _json.loads((Path.home() / ".hermes" / "state" / "active_sessions.json").read_text(encoding="utf-8"))
+
+                    def _walk_role(o):
+                        if isinstance(o, dict):
+                            if str(o.get("delegation_id", "")).replace("-", "_") == _rd:
+                                return o.get("role")
+                            for v in o.values():
+                                r = _walk_role(v)
+                                if r:
+                                    return r
+                        elif isinstance(o, list):
+                            for v in o:
+                                r = _walk_role(v)
+                                if r:
+                                    return r
+                        return None
+
+                    _role = _walk_role(_fstate)
+                except Exception:
+                    _role = None
                 _c.close()
                 _exists = _row is not None
-                _ok = _exists and _row[0] in ("completed",) and _rd not in _dev_delegs
+                _role_bad = _exists and _role is not None and _role != "code_reviewer"
+                _ok = _exists and _row[0] in ("completed",) and _rd not in _dev_delegs and not _role_bad
             except _sq.Error:
                 _exists = _ok = True
             if not _ok:
+                _why = ("не найдена в реестре делегаций" if not _exists else
+                        "совпадает с dev-делегацией задачи (SELF_REVIEW)" if _rd in _dev_delegs else
+                        f"роль делегации '{_role}' не code_reviewer (J11: атрибуция роли)" if _role_bad else
+                        "не завершена (state != completed)")
                 missing.append(
                     f"code-reviews/{change_id}/{_rf.name}: Reviewer-Delegation '{_rd}' "
-                    + ("не найдена в реестре делегаций" if not _exists else
-                       "совпадает с dev-делегацией задачи (SELF_REVIEW)") +
-                    " — ревью не засчитано"
+                    + _why + " — ревью не засчитано"
                 )
 
     # Тесты: хотя бы один TC-ID change в tests/ (контракт 6, трассировка)
