@@ -19,3 +19,5 @@ prepare: PASS/DENY/UNKNOWN | reserve: PASS/ZONE_CONFLICT | zone-check+gates: PAS
 ```
 
 Со статусами PASS/DENY/UNKNOWN/SKIPPED и кодами причин при отказе. Скрывать или смягчать статусы запрещено — это исполняемое правило (детерминированный Flow Control, enforcing), не договоренность.
+
+## negative probe
