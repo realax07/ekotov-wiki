@@ -101,6 +101,16 @@ jobs:
 
       - name: Start compose test stand
         run: |
+          # J37-инфра: netdata из Docker Hub упирается в анонимный pull rate limit
+          # раннеров (netdata/netdata:stable, IP-пул GitHub). Для e2e netdata —
+          # заглушка: frontend-образ (nginx) слушает 19999 (healthcheck-маршрут
+          # compose = 200 на «/» у nginx → 404, но healthcheck только для
+          # depends_on-гейта, UI-тесты проверяют ЛИНК /netdata/, не дашборд).
+          # Реальный netdata остаётся дефолтом compose.yaml (прод/ручные прогоны).
+          docker tag ekotov-wiki/frontend:p14-responsive-2 netdata-stub:local 2>/dev/null || \
+            docker build -t netdata-stub:local -f services/frontend/Dockerfile .
+          export NETDATA_IMAGE=netdata-stub:local
+          export NETDATA_IMAGE=netdata-stub:local
           docker compose -f deploy/compose.test.yaml -p wiki-test up -d --build
         shell: bash
 
