@@ -1,7 +1,10 @@
 # Code Review: add-responsive-mobile — задача 1.2 [S], ПОВТОРНОЕ ревью после RETURN (fix major-1)
 
 - **Ревьюер:** независимый code_reviewer-сабагент (не автор диффа)
-- **Reviewer-Delegation:** deleg_0ac187a9
+- **Reviewer-Delegation:** deleg_0ac187a9 (повторное ревью после RETURN; прогон 1
+  — deleg_3646c6f7 + deleg_ecf87f4f, оба прерваны ротацией сессии gateway
+  (state=error платформы, delivery dropped), результаты извлечены и
+  задокументированы; завершающее ревью — deleg_0ac187a9, state=completed)
 - **Дата:** 2026-10-08 18:10 UTC
 - **Correlation:** 076eb97c46474be6a5618f36acb22089
 - **Ревьюемый коммит:** 987a896259bb512023c22d6d379ac19e135ca4a1 (ветка feature/p14-1.2-active-section, PR #110, НЕ мержен)
