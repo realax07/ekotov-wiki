@@ -511,6 +511,12 @@ body.app-shell {
     min-height: calc(52px + env(safe-area-inset-top, 0px));
     position: sticky;
     top: 0;
+    /* BUG-017 (Заказчик, приемка 5.2): при скролле галереи карточки
+       (.g-card:hover/:active — transform = stacking context) рисовались
+       ПОВЕРХ sticky-шапки (z-index auto). Базовый z 10 — выше контента,
+       ниже drawer-стека (300/310/320); lightbox (z 10, позже в DOM)
+       остается выше шапки — fullscreen-просмотр накрывает ее. */
+    z-index: 10;
     /* 1.2 (minor-1 review-001-1.1): при открытом drawer (z 310) панель
        физически накрывала бургер — pointer-тап по нему не работал.
        Мокап 02 крестика внутри drawer не содержит (дозаполнение
