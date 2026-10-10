@@ -49,35 +49,32 @@ def test_sidebar_on_all_pages(base_url, owner_session):
 
 
 @pytest.mark.must
-def test_wiki_stub_with_todo_badge(base_url, owner_session):
-    """TC-nav-004 (API-часть): раздел Wiki — заглушка с todo: страница /wiki —
-    HTTP 200, текст-заглушка с упоминанием todo, wiki-статей нет. Пометка todo
-    в сайдбаре — в разметке всех страниц. UI-часть — tests/web."""
+def test_wiki_page_scaffold_no_todo_stub(base_url, owner_session):
+    """TC-nav-004 (API-часть), дельта navigation P15 (add-wiki): раздел Wiki —
+    полноценный, заглушка снята: страница /wiki — HTTP 200, каркас содержит
+    контейнеры wiki-layout/wiki-tree/wiki-content, текста заглушки
+    «Раздел-заглушка» НЕТ (todo-badge сайдбара — base.html, вне зоны пакета,
+    снимается волной 3/6.x). UI-часть — tests/web."""
     resp = owner_session.get(f"{base_url}/wiki")
     assert resp.status_code == 200
-    assert "todo" in resp.text  # пометка todo/текст-заглушка
-    assert "Раздел-заглушка" in resp.text
-    # сайдбар: раздел Wiki с пометкой todo
-    assert "todo-badge" in resp.text
-    # содержимого wiki-статей нет
-    assert 'class="wiki-article"' not in resp.text
+    # каркас: контейнеры волны 3 (tasks.md «Неразделимые зоны»)
+    assert 'class="wiki-layout"' in resp.text
+    assert 'class="wiki-tree"' in resp.text
+    assert 'class="wiki-content"' in resp.text
+    # обратный ассерт: прежняя заглушка снята (Won't FR-13 — дельта navigation).
+    # todo-badge сайдбара (base.html) вне зоны пакета — снимается волной 3/6.x
+    # (review-001: «base.html не тронут, бейдж todo — волна 3/6.x»), здесь НЕ проверяется.
+    assert "Раздел-заглушка" not in resp.text
 
 
 @pytest.mark.must
-def test_wiki_gives_no_wiki_functions(base_url, owner_session):
-    """TC-nav-005 (API-часть): Wiki не дает wiki-функций: API-пути wiki
-    отсутствуют — GET/POST /api/wiki не 2xx (ожидание кейса: отсутствие
-    wiki-функций проверяется отсутствием 2xx-успеха; фактические коды
-    зафиксировать — контракт wiki API в спеке не определен), не 5xx.
-    UI-часть (отсутствие элементов) — tests/web."""
-    resp_get = owner_session.get(f"{base_url}/api/wiki")
-    resp_post = owner_session.post(
-        f"{base_url}/api/wiki", json={"title": "QAT-Тест-wiki"}
+def test_wiki_api_exists(base_url, owner_session):
+    """TC-nav-005 (API-часть), дельта navigation P15 (add-wiki): wiki-функции
+    существуют — capability wiki (FR-108…FR-116): GET /api/wiki/pages под
+    сессией — 2xx (список страниц для дерева), не 404 и не 5xx. UI-часть
+    (создание/редактирование/поиск из раздела) — tests/web."""
+    resp = owner_session.get(f"{base_url}/api/wiki/pages")
+    assert resp.status_code == 200, (
+        f"GET /api/wiki/pages → {resp.status_code}: wiki-API должен существовать "
+        "(дельта navigation: Won't «функции отсутствуют» снят)"
     )
-    for resp in (resp_get, resp_post):
-        assert resp.status_code // 100 != 2, (
-            f"wiki-функция не должна существовать: {resp.request.method} → {resp.status_code}"
-        )
-        assert resp.status_code < 500, (
-            f"зафиксировано: {resp.request.method} /api/wiki → {resp.status_code}"
-        )

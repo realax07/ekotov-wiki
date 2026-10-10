@@ -1,0 +1,1584 @@
+/* =====================================================================
+   Wiki — дерево и поиск (tasks.md 3.1 add-wiki; FR-107, FR-114;
+   design §6–§7) — СТРОГО по утвержденному мокапу design/wiki-tree.html.
+   Зона шва 3.1: селекторы дерева (.tree-*, .wiki-tree как поверхность),
+   тулбара поиска (.wiki-toolbar, .wiki-search, .filter-count), выдачи
+   (.wiki-results, .result-*) и пустого состояния (.wiki-empty).
+   Секции статьи/редактора/истории — швы 3.2/3.3/3.4 (дополняют своими
+   селекторами, общие правила не перекраиваются — tasks.md «Неразделимые
+   зоны»).
+
+   Токены — ТОЛЬКО var(--…) из app.css :root (V3 «Бумага»), без хардкода
+   цветов (NFR-33). Кеш-бастинг — ?v={{ static_v }} в wiki.html.
+   Подсветка <mark> — решение дизайнера (review мокапов): фон amber-700,
+   текст on-accent, инверсная.
+   ===================================================================== */
+
+/* --- Раскладка (каркас 2.3): двухколоночная сетка — дерево слева
+   (280px), контент справа; ≤480px — одна колонка. --- */
+.wiki-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: var(--space-2); /* 16px, 8px-сетка */
+  align-items: start;
+}
+
+/* Контентная колонка не растягивается шире мокапа (design/wiki-page.html,
+   wiki-editor.html, wiki-history.html: .content { max-width: 980px };
+   DV-9 review-001). */
+.wiki-content {
+  max-width: 980px;
+}
+
+@media (max-width: 480px) {
+  .wiki-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* дерево на телефоне — над контентом, компактный блок */
+  aside.wiki-tree {
+    order: -1;
+  }
+}
+
+/* --- Дерево страниц (мокап: ul.wiki-tree > li.tree-node) ---
+   aside.wiki-tree из каркаса — позиция в grid; поверхность карточки
+   переносится на внутренний ul.wiki-tree по мокапу. */
+aside.wiki-tree {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+ul.wiki-tree {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1) 0;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.tree-node {
+  list-style: none;
+}
+
+.tree-children {
+  list-style: none;
+  margin: 0;
+  padding-left: var(--space-4); /* 32px — шаг вложенности по мокапу */
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 6px 10px;
+  border-radius: var(--radius-field);
+}
+
+.tree-row:hover {
+  background: var(--color-bg-subtle);
+}
+
+.tree-row:focus-within {
+  box-shadow: var(--focus-ring);
+}
+
+.tree-toggle {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-field);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.tree-toggle:hover {
+  background: var(--color-bg-subtle);
+  color: var(--color-accent-hover);
+}
+
+.tree-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.tree-toggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--speed-fast) ease;
+}
+
+.tree-toggle[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+
+/* лист: место шеврона держит прозрачный спейсер той же ширины */
+.tree-spacer {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+}
+
+.tree-link {
+  color: var(--color-text-primary);
+  text-decoration: none;
+  line-height: 1.5;
+}
+
+.tree-link:hover {
+  color: var(--color-accent-hover);
+}
+
+.tree-link:focus-visible {
+  outline: none;
+  border-radius: var(--space-05);
+  box-shadow: var(--focus-ring);
+}
+
+.tree-meta {
+  margin-left: auto;
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* --- Тулбар раздела: поиск + создание (паттерн gallery-toolbar) --- */
+.wiki-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: 14px;
+  margin-bottom: var(--space-2);
+  box-shadow: var(--shadow-soft);
+}
+
+.wiki-toolbar .filter label {
+  display: block;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+
+.wiki-search {
+  display: block;
+  width: 320px;
+  max-width: 100%;
+  margin-top: var(--space-05);
+  padding: 6px 10px;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border-default);
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+}
+
+.wiki-search:hover {
+  border-bottom-color: var(--color-border-strong);
+}
+
+.wiki-search:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+}
+
+.filter-count {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  margin-left: var(--space-1);
+}
+
+.wiki-create {
+  margin-left: auto;
+  font: inherit;
+  cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.wiki-create:hover {
+  background: var(--color-accent-hover);
+}
+
+.wiki-create:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.wiki-create:active {
+  transform: translateY(1px);
+}
+
+.wiki-create .btn-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* --- Выдача поиска (мокап: ul.wiki-results, <mark> инверсно) --- */
+ul.wiki-results {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1) 0;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.result-item {
+  display: block;
+  padding: var(--space-1) var(--space-2);
+  color: inherit;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+}
+
+.result-item + .result-item {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.result-item:hover {
+  background: var(--color-bg-subtle);
+  border-left-color: var(--color-accent);
+}
+
+.result-item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-field);
+}
+
+.result-title {
+  font-family: var(--font-family-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.result-path {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.result-snippet {
+  font-size: var(--font-size-label);
+  color: var(--color-text-primary);
+  margin-top: var(--space-05);
+  line-height: 1.5;
+}
+
+/* Инверсная подсветка: фон amber-700 + белый текст — решение дизайнера
+   (review мокапов 1.1а, зафиксировано). Токены без хардкода (NFR-33). */
+.result-snippet mark {
+  background: var(--p-amber-700);
+  color: var(--color-text-on-accent);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+.wiki-no-results {
+  margin: 0;
+  padding: var(--space-2);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+/* --- Пустое состояние (мокап: dashed-плашка, паттерн gallery-empty) --- */
+.wiki-empty {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-subtle);
+}
+
+.wiki-empty h2 {
+  font-family: var(--font-family-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-1);
+}
+
+.wiki-empty p {
+  margin: 0 0 var(--space-2);
+}
+
+.wiki-empty .wiki-create {
+  margin-left: auto; /* в центре плашки кнопка без auto-отступа тулбара */
+}
+
+.wiki-empty .wiki-create:first-of-type {
+  margin-left: 0;
+}
+
+.wiki-error {
+  color: var(--status-error);
+  padding: var(--space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-toggle svg {
+    transition: none;
+  }
+}
+
+/* =====================================================================
+   История версий (tasks.md 3.4 add-wiki; FR-112, FR-113) — СТРОГО по
+   утвержденному мокапу design/wiki-history.html. Зона шва 3.4: селекторы
+   .history-*, .versions/.version-*, .pill-current, .readonly-banner,
+   .confirm-* — общие правила выше не перекраиваются (tasks.md
+   «Неразделимые зоны»). Классы .btn/.btn-primary/.btn-secondary — как в
+   мокапе (контурные/первичная — токены V3).
+   ===================================================================== */
+
+#wiki-history h1 {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 26px;
+  margin: 0 0 var(--space-05);
+}
+
+.history-subtitle {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-2);
+}
+
+/* --- Двухколонный layout: список слева, просмотр справа; ≤880px —
+   складывается (мокап, media 880) --- */
+.history-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+}
+
+/* --- Список версий (мокап: ul.versions > li.version-item) --- */
+.versions {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-1) 0;
+  list-style: none;
+  margin: 0;
+}
+
+.version-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+}
+
+.version-item + .version-item {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.version-item.selected {
+  background: var(--color-bg-subtle);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.version-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.version-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.version-num {
+  font-weight: 600;
+}
+
+/* Пилюля «текущая» (olive) — только у последней версии, кнопки отката
+   у нее нет (мокап). */
+.pill-current {
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: var(--font-size-micro);
+  font-weight: 600;
+  background: var(--status-success);
+  color: var(--color-text-on-accent);
+}
+
+.version-meta {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+/* --- Кнопки (мокап: .btn / .btn-secondary / .btn-primary).
+   Диалог подтверждения appended к body (вне #wiki-history) — его кнопки
+   покрываются отдельным селектором .confirm .btn-*. --- */
+#wiki-history .btn,
+.confirm .btn {
+  font: inherit;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  padding: var(--space-05) var(--space-1);
+  border-radius: var(--radius-field);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+  white-space: nowrap;
+}
+
+#wiki-history .btn:focus-visible,
+.confirm .btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+#wiki-history .btn-secondary,
+.confirm .btn-secondary {
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+#wiki-history .btn-secondary:hover,
+.confirm .btn-secondary:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-accent-hover);
+}
+
+#wiki-history .btn-primary,
+.confirm .btn-primary {
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+}
+
+#wiki-history .btn-primary:hover,
+.confirm .btn-primary:hover {
+  background: var(--color-accent-hover);
+}
+
+.version-view-link {
+  color: var(--color-text-secondary);
+}
+
+.version-view-link:hover {
+  color: var(--color-accent-hover);
+}
+
+/* --- Просмотр версии: read-only плашка + контент как есть --- */
+.version-view {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.readonly-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border-default);
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+
+.readonly-banner .ro-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--p-amber-700);
+}
+
+.version-body {
+  padding: var(--space-3);
+  overflow-wrap: break-word;
+}
+
+.version-body h1,
+.version-body h2 {
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  margin: 0 0 var(--space-1);
+}
+
+.version-body h1 {
+  font-size: 21px;
+}
+
+.version-body h2 {
+  font-size: 19px;
+}
+
+.version-body h3 {
+  font-family: var(--font-family-display);
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 var(--space-1);
+}
+
+.version-body p {
+  line-height: 1.65;
+  margin: 0 0 var(--space-2);
+}
+
+.version-body ul,
+.version-body ol {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-3);
+  line-height: 1.65;
+}
+
+.version-body blockquote {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-left: 3px solid var(--color-accent);
+  color: var(--color-text-secondary);
+}
+
+.version-body pre {
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  padding: var(--space-1);
+  overflow-x: auto;
+}
+
+.version-body a {
+  color: var(--color-accent-hover);
+}
+
+.version-body img {
+  max-width: 100%;
+}
+
+.version-body table {
+  border-collapse: collapse;
+  margin-bottom: var(--space-2);
+}
+
+.version-body th,
+.version-body td {
+  border: 1px solid var(--color-border-default);
+  padding: var(--space-05) var(--space-1);
+}
+
+/* --- Диалог подтверждения отката (мокап: .confirm-backdrop > .confirm) ---
+   Формулировка мокапа: «Откат будет записан как новая версия — история
+   не переписывается». */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--p-ink-900) 45%, transparent);
+}
+
+.confirm {
+  width: min(460px, calc(100vw - var(--space-4)));
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-3);
+}
+
+.confirm h2 {
+  font-family: var(--font-family-display);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 var(--space-1);
+}
+
+.confirm p {
+  margin: 0 0 var(--space-2);
+  line-height: 1.6;
+}
+
+.confirm .confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+/* --- Результат отката: success-баннер (мокап .success-banner) + ошибка --- */
+.success-banner {
+  max-width: 640px;
+  margin-bottom: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: var(--priority-low-soft);
+  border: 1px solid var(--status-success);
+  border-radius: var(--radius-field);
+  color: var(--status-success);
+  font-size: var(--font-size-label);
+}
+
+.error-banner {
+  max-width: 640px;
+  margin-bottom: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error);
+  border-radius: var(--radius-field);
+  color: var(--status-error);
+  font-size: var(--font-size-label);
+}
+
+.history-loading {
+  color: var(--color-text-secondary);
+  padding: var(--space-2);
+}
+
+.history-empty {
+  margin: 0;
+  padding: var(--space-2);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+/* Breadcrumb истории (мокап wiki-history; DV-10 review-001) — стили
+   .breadcrumb/.crumb-sep/[aria-current] общие с wiki-breadcrumb (ниже);
+   nav без класса .wiki-breadcrumb — собственный отступ снизу. */
+#wiki-history nav {
+  margin-bottom: var(--space-2);
+}
+
+/* Узкий экран: колонки складываются (мокап, media 880) */
+@media (max-width: 880px) {
+  .history-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Режим истории: каркас .wiki-layout остается grid «дерево/контент»,
+   но дерево в /wiki/{id}/history отсутствует — секция истории занимает
+   всю ширину (иначе она попадает в 280px-колонку дерева). */
+.wiki-layout:has(#wiki-history) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* =====================================================================
+   Страница статьи (tasks.md 3.2 add-wiki; FR-108, FR-109, FR-116) —
+   СТРОГО по утвержденному мокапу design/wiki-page.html. Зона шва 3.2:
+   .wiki-breadcrumb/.breadcrumb, .article-*, .btn/.btn-danger(-solid),
+   .error-banner (409 удаления), .wiki-notfound. Классы .confirm-* —
+   общие с 3.4 (выше, не перекраиваются). Токены — только var(--…) из
+   app.css :root (NFR-33).
+   ===================================================================== */
+
+/* --- Breadcrumb (FR-109): цепочка предков из ответа API; текущая
+   страница — без ссылки (aria-current). Разделитель — «/». Стили общие
+   для статьи (.wiki-breadcrumb) и истории (#wiki-history nav, DV-10) —
+   селекторы сгруппированы. --- */
+nav.wiki-breadcrumb {
+  margin-bottom: var(--space-2);
+}
+
+.wiki-breadcrumb .breadcrumb,
+#wiki-history .breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-05);
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wiki-breadcrumb .breadcrumb a,
+#wiki-history .breadcrumb a {
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.wiki-breadcrumb .breadcrumb a:hover,
+#wiki-history .breadcrumb a:hover {
+  color: var(--color-accent-hover);
+}
+
+.wiki-breadcrumb .breadcrumb a:focus-visible,
+#wiki-history .breadcrumb a:focus-visible {
+  outline: none;
+  border-radius: var(--space-05);
+  box-shadow: var(--focus-ring);
+}
+
+.wiki-breadcrumb .crumb-sep,
+#wiki-history .crumb-sep {
+  color: var(--color-border-default);
+  user-select: none;
+}
+
+.wiki-breadcrumb [aria-current='page'],
+#wiki-history [aria-current='page'] {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+/* --- Шапка статьи: display-заголовок + мета + действия --- */
+.article-head {
+  margin-bottom: var(--space-3);
+}
+
+.article-head h1 {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 30px;
+  margin: 0 0 var(--space-1);
+  overflow-wrap: break-word;
+}
+
+.article-meta {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.article-actions {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+/* --- Кнопки действий (мокап: .btn .btn-primary/.btn-secondary/.btn-danger) --- */
+.article-actions .btn {
+  font: inherit;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-field);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+  white-space: nowrap;
+}
+
+.article-actions .btn .btn-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.article-actions .btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.article-actions .btn-primary {
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+}
+
+.article-actions .btn-primary:hover {
+  background: var(--color-accent-hover);
+}
+
+.article-actions .btn-secondary {
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+.article-actions .btn-secondary:hover {
+  border-color: var(--color-border-strong);
+}
+
+/* danger-стиль кнопки удаления (мокап .btn-danger) */
+.article-actions .btn-danger {
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  color: var(--status-error);
+}
+
+.article-actions .btn-danger:hover {
+  background: var(--status-error-bg);
+  border-color: var(--status-error);
+}
+
+.article-actions .btn-danger .btn-icon {
+  color: var(--status-error);
+}
+
+/* solid-кнопка подтверждения в диалоге (мокап .btn-danger-solid) */
+.btn-danger-solid {
+  font: inherit;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-field);
+  border: 1px solid transparent;
+  background: var(--status-error);
+  color: var(--color-text-on-accent);
+}
+
+.btn-danger-solid:hover {
+  background: var(--priority-high);
+}
+
+.btn-danger-solid:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* --- Карточка статьи --- */
+.article {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-3);
+}
+
+/* --- Отрендеренный контент (.article-body): H1–H3, списки, цитата,
+   код-блок, таблица, изображение — все из whitelist sanitizer (design §4) --- */
+.article-body {
+  overflow-wrap: break-word;
+}
+
+.article-body h2 {
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  font-size: 21px;
+  margin: var(--space-3) 0 var(--space-1);
+}
+
+.article-body h2:first-child {
+  margin-top: 0;
+}
+
+.article-body h3 {
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  font-size: 17px;
+  margin: var(--space-2) 0 var(--space-1);
+}
+
+.article-body p {
+  line-height: 1.65;
+  margin: 0 0 var(--space-2);
+}
+
+.article-body ul,
+.article-body ol {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-3);
+  line-height: 1.65;
+}
+
+.article-body li + li {
+  margin-top: var(--space-05);
+}
+
+.article-body blockquote {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-accent-soft);
+  border-radius: 0 var(--radius-field) var(--radius-field) 0;
+  color: var(--color-text-primary);
+}
+
+.article-body blockquote p {
+  margin: 0;
+}
+
+.article-body pre {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2);
+  background: var(--p-ink-900);
+  color: var(--p-paper-050);
+  border-radius: var(--radius-field);
+  overflow-x: auto;
+  line-height: 1.6;
+}
+
+.article-body code {
+  font-family: ui-monospace, 'Cascadia Mono', 'Courier New', monospace;
+  font-size: 12px;
+  background: var(--color-bg-subtle);
+  padding: 1px 5px;
+  border-radius: var(--space-05);
+}
+
+.article-body pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.article-body a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.article-body a:hover {
+  color: var(--color-accent-hover);
+}
+
+.article-body a:focus-visible {
+  outline: none;
+  border-radius: var(--space-05);
+  box-shadow: var(--focus-ring);
+}
+
+.article-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-label);
+}
+
+.article-body th,
+.article-body td {
+  border: 1px solid var(--color-border-default);
+  padding: var(--space-05) var(--space-1);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.5;
+}
+
+.article-body th {
+  background: var(--color-bg-subtle);
+  font-weight: 600;
+}
+
+.article-body tbody tr:nth-child(even) td {
+  background: var(--color-bg-page);
+}
+
+.article-body figure {
+  margin: 0 0 var(--space-2);
+}
+
+.article-body figure img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  background: var(--color-bg-subtle);
+}
+
+.article-body figcaption {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-05);
+}
+
+/* --- Баннер ошибки удаления 409 (мокап .error-banner, role=alert):
+   появляется НАД статьей, страница остается на месте --- */
+#wiki-article > .error-banner {
+  max-width: 640px;
+  margin-bottom: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error);
+  border-radius: var(--radius-field);
+  color: var(--status-error);
+  font-size: var(--font-size-label);
+}
+
+/* Редактор активен (editor.js ставит .editor-active на .wiki-content):
+ * статья под редактором не нужна — мокап wiki-editor.html показывает
+ * только meta-card + редактор (F-5 review-004). */
+.wiki-content.editor-active #wiki-article {
+  display: none;
+}
+
+/* --- «Страница не найдена» (404 API / нечисловой id): в контентной
+   области, паттерн .wiki-empty 3.1 --- */
+.wiki-notfound {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-subtle);
+}
+
+.wiki-notfound h2 {
+  font-family: var(--font-family-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-1);
+}
+
+.wiki-notfound p {
+  margin: 0 0 var(--space-2);
+}
+
+.wiki-notfound-link {
+  color: var(--color-text-secondary);
+}
+
+.wiki-notfound-link:hover {
+  color: var(--color-accent-hover);
+}
+
+/* =====================================================================
+   РЕДАКТОР (tasks.md 3.3 add-wiki; FR-110/FR-111) — СТРОГО по мокапу
+   design/wiki-editor.html. Зона шва 3.3: селекторы .meta-*, .editor-*,
+   .toolbar, .tb-*, .dialog (редакторский), .img-pick-*. Общие правила
+   швов 3.1/3.2/3.4 не перекраиваются (tasks.md «Неразделимые зоны»).
+   Токены — ТОЛЬКО var(--…) из app.css :root (NFR-33).
+   ===================================================================== */
+
+#wiki-editor[hidden] {
+  display: none;
+}
+
+/* --- Панель метаданных: заголовок + родитель --- */
+.meta-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-2);
+  margin-bottom: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.meta-field label {
+  display: block;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-05);
+}
+
+.meta-title {
+  width: 100%;
+  padding: var(--space-1) 10px;
+  font: inherit;
+  font-family: var(--font-family-display);
+  font-size: 20px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+}
+
+.meta-title:hover {
+  border-color: var(--color-border-strong);
+}
+
+.meta-title:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+}
+
+.meta-row {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.meta-row .meta-field {
+  flex: 1;
+  min-width: 240px;
+}
+
+.meta-select {
+  width: 100%;
+  padding: var(--space-1) var(--space-1) var(--space-1) 10px;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  cursor: pointer;
+}
+
+.meta-select:hover {
+  border-color: var(--color-border-strong);
+}
+
+.meta-select:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+}
+
+/* --- Карточка редактора: тулбар + contenteditable + сохранение/отмена --- */
+.editor-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+/* --- Тулбар: кнопки 28×28, hover/focus-visible, aria-pressed (мокап) --- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-05);
+  padding: var(--space-05) var(--space-1);
+  background: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.tb-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tb-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border-default);
+  margin: 0 var(--space-1);
+}
+
+.tb-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-field);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font: inherit;
+}
+
+.tb-btn .tb-icon {
+  display: inline-flex;
+}
+
+.tb-btn svg {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+.tb-btn:hover {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-default);
+  color: var(--color-accent-hover);
+}
+
+.tb-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.tb-btn:active {
+  transform: translateY(1px);
+}
+
+.tb-btn[aria-pressed='true'] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent-hover);
+}
+
+.tb-heading {
+  width: auto;
+  padding: 0 var(--space-1);
+  font-family: var(--font-family-display);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Кнопка «Изображение» — с текстовым лейблом (ключевое действие, мокап) */
+.tb-media {
+  width: auto;
+  padding: 0 var(--space-1);
+  gap: var(--space-05);
+  font-size: var(--font-size-label);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tb-btn:active {
+    transform: none;
+  }
+}
+
+/* --- Рабочая область contenteditable --- */
+.editor-area {
+  min-height: 420px;
+  padding: var(--space-3);
+  outline: none;
+  line-height: 1.65;
+}
+
+.editor-area:focus-visible {
+  box-shadow: inset var(--focus-ring);
+}
+
+.editor-area h1 {
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  font-size: 24px;
+  margin: var(--space-3) 0 var(--space-1);
+}
+
+.editor-area h2 {
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  font-size: 21px;
+  margin: var(--space-3) 0 var(--space-1);
+}
+
+.editor-area h3 {
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  font-size: 17px;
+  margin: var(--space-2) 0 var(--space-1);
+}
+
+.editor-area h1:first-child,
+.editor-area h2:first-child,
+.editor-area h3:first-child {
+  margin-top: 0;
+}
+
+.editor-area p {
+  margin: 0 0 var(--space-2);
+}
+
+.editor-area ul,
+.editor-area ol {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-3);
+}
+
+.editor-area blockquote {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-accent-soft);
+  border-radius: 0 var(--radius-field) var(--radius-field) 0;
+}
+
+.editor-area pre {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2);
+  background: var(--p-ink-900);
+  color: var(--p-paper-050);
+  border-radius: var(--radius-field);
+  overflow-x: auto;
+}
+
+.editor-area code {
+  font-family: ui-monospace, 'Cascadia Mono', 'Courier New', monospace;
+  font-size: 12px;
+  background: var(--color-bg-subtle);
+  padding: 1px 5px;
+  border-radius: var(--space-05);
+}
+
+.editor-area pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.editor-area table {
+  border-collapse: collapse;
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-label);
+}
+
+.editor-area th,
+.editor-area td {
+  border: 1px solid var(--color-border-default);
+  padding: var(--space-05) var(--space-1);
+  text-align: left;
+}
+
+.editor-area th {
+  background: var(--color-bg-subtle);
+  font-weight: 600;
+}
+
+.editor-area img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  background: var(--color-bg-subtle);
+}
+
+.editor-area a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* --- Нижняя панель редактора: статус + сохранение/отмена --- */
+.editor-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  padding: var(--space-1) var(--space-2);
+  border-top: 1px solid var(--color-border-default);
+  background: var(--color-bg-subtle);
+}
+
+.editor-status {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  margin-right: auto;
+}
+
+/* Кнопки футера редактора (.btn/.btn-secondary/.btn-primary по мокапу;
+   у истории свои — скоуп #wiki-history, здесь не задеты) */
+#wiki-editor .btn {
+  font: inherit;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-field);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+  white-space: nowrap;
+}
+
+#wiki-editor .btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+#wiki-editor .btn-primary {
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+}
+
+#wiki-editor .btn-primary:hover {
+  background: var(--color-accent-hover);
+}
+
+#wiki-editor .btn-secondary {
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+#wiki-editor .btn-secondary:hover {
+  border-color: var(--color-border-strong);
+}
+
+/* --- Диалоги редактора (ссылка, изображение) — по мокапу .dialog ---
+   Собственный класс бэкдропа: не зависит от .confirm-backdrop шва 3.4. */
+.editor-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--p-ink-900) 45%, transparent);
+}
+
+.dialog.editor-link-dialog,
+.dialog.editor-img-dialog {
+  width: min(520px, calc(100vw - var(--space-4)));
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-3);
+}
+
+.editor-link-dialog h3,
+.editor-img-dialog h3 {
+  font-family: var(--font-family-display);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+}
+
+.editor-link-dialog .dialog-actions,
+.editor-img-dialog .dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.editor-link-dialog .meta-title {
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+}
+
+.radio-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+  font-size: var(--font-size-label);
+  margin-bottom: var(--space-1);
+}
+
+.radio-row label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-05);
+}
+
+/* --- Диалог изображения: грид галереи + загрузка с диска --- */
+.img-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-1);
+  max-height: 260px;
+  overflow-y: auto;
+  padding: var(--space-05) 0;
+}
+
+.img-pick-grid[hidden] {
+  display: none;
+}
+
+.img-pick-loading {
+  grid-column: 1 / -1;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-label);
+  padding: var(--space-1);
+}
+
+.img-pick-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+  padding: var(--space-05);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.img-pick-item img {
+  width: 100%;
+  height: 64px;
+  object-fit: cover;
+  border-radius: var(--space-05);
+  background: var(--color-bg-subtle);
+}
+
+.img-pick-name {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.img-pick-item:hover {
+  border-color: var(--color-border-strong);
+}
+
+.img-pick-item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.img-pick-item.selected,
+.img-pick-item[aria-selected='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.img-disk-pane {
+  margin-top: var(--space-1);
+}
+
+.img-disk-pane[hidden] {
+  display: none;
+}
+
+.img-disk-hint {
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-1);
+}
+
+.img-file-input {
+  font: inherit;
+  font-size: var(--font-size-label);
+}
+
+/* --- Ошибка (пустой заголовок / 422) — по мокапу .error-banner --- */
+#wiki-editor .error-banner {
+  max-width: 640px;
+  margin-bottom: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error);
+  border-radius: var(--radius-field);
+  color: var(--status-error);
+  font-size: var(--font-size-label);
+}
+
+#wiki-editor h1 {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 26px;
+  margin: 0 0 var(--space-2);
+}
+
+/* Тач-таргеты ≥44px на мобильной ветке (NFR-23, мокап: «в проде добирается
+   паддингом в media») */
+@media (max-width: 480px) {
+  .tb-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* BUG-017 (REPORT-4.3): футерные кнопки редактора («Сохранить» 111×33,
+     «Отмена» 86×33) были ниже минимума — .tb-btn media-ветку их не покрывает */
+  #wiki-editor .btn {
+    min-height: 44px;
+  }
+}

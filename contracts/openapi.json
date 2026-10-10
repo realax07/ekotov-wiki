@@ -91,6 +91,67 @@
         "title": "LoginRequest",
         "type": "object"
       },
+      "PageCreate": {
+        "additionalProperties": false,
+        "description": "Тело POST /api/wiki/pages (design.md §3).",
+        "properties": {
+          "content": {
+            "default": "",
+            "title": "Content",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "PageCreate",
+        "type": "object"
+      },
+      "PageUpdate": {
+        "additionalProperties": false,
+        "description": "Тело PUT /api/wiki/pages/{id}: частичное сохранение {title?, content?}.",
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "PageUpdate",
+        "type": "object"
+      },
       "PasswordChange": {
         "properties": {
           "current_password": {
@@ -1085,6 +1146,348 @@
         "summary": "Users"
       }
     },
+    "/api/wiki/pages": {
+      "get": {
+        "description": "Плоский список страниц для дерева (design.md §3, §6): без контента.",
+        "operationId": "list_pages_api_wiki_pages_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Pages"
+      },
+      "post": {
+        "description": "Создание страницы (design.md §3): 201 {id}; 422 — пустой title /\nнесуществующий parent_id; content санитизируется до записи (§4).",
+        "operationId": "create_page_api_wiki_pages_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Page"
+      }
+    },
+    "/api/wiki/pages/{page_id}": {
+      "delete": {
+        "description": "Удаление листа (FR-116, ОВ-2): 409 при наличии дочерних; иначе\nудаление — версии уходят по FK ON DELETE CASCADE (design.md §1).",
+        "operationId": "delete_page_api_wiki_pages__page_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "title": "Page Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Page"
+      },
+      "get": {
+        "description": "Страница + breadcrumb от корня (сервер) + can_delete (design.md §3).",
+        "operationId": "get_page_api_wiki_pages__page_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "title": "Page Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Page"
+      },
+      "put": {
+        "description": "Сохранение правки (design.md §3, FR-112): version INSERT на каждое\nсохранение + updated_at; 404 — нет страницы; 422 — пустой title.",
+        "operationId": "update_page_api_wiki_pages__page_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "title": "Page Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Page"
+      }
+    },
+    "/api/wiki/pages/{page_id}/revert/{version_id}": {
+      "post": {
+        "description": "Откат версии (FR-113, design.md §3): контент версии становится\nтекущим + НОВАЯ версия (автор — исполнитель отката); история не\nпереписывается; 404 — нет страницы/версии.",
+        "operationId": "revert_page_api_wiki_pages__page_id__revert__version_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "title": "Page Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revert Page"
+      }
+    },
+    "/api/wiki/pages/{page_id}/versions": {
+      "get": {
+        "description": "Список версий страницы от новых к старым — без контента (design.md\n§3, §9); 404 — нет страницы.",
+        "operationId": "list_versions_api_wiki_pages__page_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "title": "Page Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Versions"
+      }
+    },
+    "/api/wiki/pages/{page_id}/versions/{version_id}": {
+      "get": {
+        "description": "Контент конкретной версии (read-only, design.md §3); 404 — нет\nстраницы или версия чужой страницы.",
+        "operationId": "get_version_api_wiki_pages__page_id__versions__version_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "title": "Page Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Version"
+      }
+    },
+    "/api/wiki/search": {
+      "get": {
+        "description": "LIKE-поиск (design.md §3, §6): %q% по title и content, экранирование\n%_\\ с ESCAPE '\\'; сниппет (окно ±60, оффсет+длина совпадения), path;\nORDER BY updated_at DESC, LIMIT 20; 422 — пустой q.",
+        "operationId": "search_pages_api_wiki_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Pages"
+      }
+    },
     "/board": {
       "get": {
         "description": "Доска — заглушка каркаса (FR-13; задачи 4.x — реальное содержимое).",
@@ -1189,7 +1592,7 @@
     },
     "/wiki": {
       "get": {
-        "description": "Wiki — заглушка без функций с пометкой todo (FR-13, дельта navigation).",
+        "description": "Раздел «Wiki» — каркас: дерево страниц + контентная область\n(tasks.md 2.3 add-wiki; FR-107, дельта navigation — бейдж «todo»\nснимается волной 3 / задача 6.x релизного хвоста).\n\nСписок страниц, поиск, действия — клиентом из ES-модуля\nfrontend/static/js/wiki/* (GET /api/wiki/…, волна 3); роут отдает\nтолько каркас (шаблон wiki.html). Без сессии — редирект на /login\nmiddleware'ом (app/middleware.py, sdd.md §3.6, дельта navigation\nScenario «Неавторизованный доступ к Wiki») — здесь не дублируется,\nкак у остальных страниц. Стили — frontend/static/css/wiki.css,\nподключение в шаблоне (паттерн gallery.html).",
         "operationId": "wiki_page_wiki_get",
         "responses": {
           "200": {
@@ -1202,6 +1605,82 @@
           }
         },
         "summary": "Wiki Page"
+      }
+    },
+    "/wiki/{page_id}": {
+      "get": {
+        "description": "Страница статьи Wiki /wiki/{page_id} (tasks.md 2.3 add-wiki;\nFR-108, design §7): тот же каркас, что /wiki, page_id прокидывается\nв шаблон (data-page-id контейнера) — client wiki.js загрузит статью\nиз GET /api/wiki/pages/{id}. Несуществующий (и нечисловой) id\nкаркас НЕ ломает: API вернет 404, клиент покажет «страница не\nнайдена» (задача 3.2). Без сессии — редирект на /login\nmiddleware'ом (см. wiki_page).",
+        "operationId": "wiki_article_page_wiki__page_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "title": "Page Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wiki Article Page"
+      }
+    },
+    "/wiki/{page_id}/history": {
+      "get": {
+        "description": "История версий страницы Wiki /wiki/{page_id}/history (tasks.md 3.4\nadd-wiki; FR-112, FR-113, design §6–§7): каркас раздела — тот же\nшаблон wiki.html (история-контейнеры рендерит history.js\nGET /api/wiki/pages/{id}/versions; layout двухколонный по мокапу\ndesign/wiki-history.html, ≤880px складывается). page_id — строка,\nкак у /wiki/{page_id}: нечисловой id каркас НЕ ломает — API вернет\n404, клиент покажет «страница не найдена». Без сессии — редирект\nна /login middleware'ом (см. wiki_page).",
+        "operationId": "wiki_history_page_wiki__page_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "title": "Page Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wiki History Page"
       }
     }
   }
