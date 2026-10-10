@@ -150,7 +150,7 @@
 
 ---
 
-## 6. Вердикт: approve
+## Вердикт: approve
 
 - **Reviewer-Delegation:** deleg_37c4f8d4 (независимое ревью, batch 2-задач; прогон 1)
 
