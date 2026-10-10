@@ -450,6 +450,51 @@ def test_search_snippet_plain_text_no_tags(client):
     assert "смета" in snippet.lower()
 
 
+def test_search_does_not_index_page_versions(client, db_path):
+    """TC-wiki-403 шаг 4 (ОВ-3): LIKE-поиск по wiki НЕ находит совпадений в
+    версиях страниц — индексируются только текущие title/content; текст,
+    оставшийся только в page_versions, поиском не достаётся."""
+    token = "уникальный-токен-версии-QA42G1"
+    page = _create(
+        client, "Статья с историей", content=f"<p>{token}</p>"
+    )
+    # v2 замещает контент: токен остаётся только в версии v1.
+    client.put(
+        f"/api/wiki/pages/{page['id']}", json={"content": "<p>новый текст</p>"}
+    )
+
+    # Негатив: поиск по токену из старой версии — пусто.
+    results = client.get(
+        "/api/wiki/search", params={"q": token}
+    ).json()["results"]
+    assert results == []
+
+    # Данные в versions есть (через API: контент v1 содержит токен),
+    # то есть пустая выдача — именно потому, что поиск их не индексирует.
+    versions = client.get(f"/api/wiki/pages/{page['id']}/versions").json()[
+        "versions"
+    ]
+    assert len(versions) == 2
+    v1 = versions[-1]["id"]  # список от новых к старым → последний = v1
+    v1_body = client.get(
+        f"/api/wiki/pages/{page['id']}/versions/{v1}"
+    ).json()
+    assert token in v1_body["content"]
+    # И контроль на уровне БД: токен лежит в page_versions, а не в pages.
+    conn = sqlite3.connect(db_path)
+    try:
+        assert conn.execute(
+            "SELECT COUNT(*) FROM page_versions WHERE content LIKE ?",
+            (f"%{token}%",),
+        ).fetchone()[0] == 1
+        assert conn.execute(
+            "SELECT COUNT(*) FROM pages WHERE content LIKE ?",
+            (f"%{token}%",),
+        ).fetchone()[0] == 0
+    finally:
+        conn.close()
+
+
 # --------------------------------------------------------------------------
 # DELETE: 409 с дочерними, удаление листа, CASCADE версий
 # --------------------------------------------------------------------------
