@@ -1644,6 +1644,44 @@
         },
         "summary": "Wiki Article Page"
       }
+    },
+    "/wiki/{page_id}/history": {
+      "get": {
+        "description": "История версий страницы Wiki /wiki/{page_id}/history (tasks.md 3.4\nadd-wiki; FR-112, FR-113, design §6–§7): каркас раздела — тот же\nшаблон wiki.html (история-контейнеры рендерит history.js\nGET /api/wiki/pages/{id}/versions; layout двухколонный по мокапу\ndesign/wiki-history.html, ≤880px складывается). page_id — строка,\nкак у /wiki/{page_id}: нечисловой id каркас НЕ ломает — API вернет\n404, клиент покажет «страница не найдена». Без сессии — редирект\nна /login middleware'ом (см. wiki_page).",
+        "operationId": "wiki_history_page_wiki__page_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "page_id",
+            "required": true,
+            "schema": {
+              "title": "Page Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wiki History Page"
+      }
     }
   }
 }
