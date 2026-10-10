@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап 1.1а — страница /wiki: дерево страниц, поиск, пустое состояние (add-wiki)</title>
+<style>
+/* =====================================================================
+   Мокап задачи 1.1а [design] add-wiki: страница /wiki.
+   Токены V3 «Бумага» — дословно из frontend/static/css/app.css (:root,
+   primitives → semantic). Без внешних библиотек/шрифтов/CDN (ОГР-8).
+   Каркас сайдбара — 1:1 из base.html + app.css (эталон
+   design/gallery-grid.html). Дельта — пункт «Wiki» становится активным,
+   бейдж «todo» снимается (раздел живой).
+   Контент (FR-107, FR-114):
+     1) дерево корневых страниц с поддеревьями (раскрыт/свернут —
+        кликабельная шеврон-кнопка);
+     2) поиск по разделу + выдача (заголовок, путь в иерархии,
+        фрагмент с подсветкой <mark>);
+     3) пустое состояние с кнопкой «Создать первую страницу» (демо-зона).
+   ===================================================================== */
+:root {
+  /* primitives (V3 «Бумага») */
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;
+  --p-clay-700: #93391f;
+  --p-clay-050: #f7e8e4;
+  --p-olive-700: #5f6f34;
+  --p-amber-700: #8a5a1e;
+
+  /* semantic */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-text-on-accent: #fff;
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-bg-subtle: var(--p-paper-100);
+  --color-border-default: var(--p-paper-200);
+  --color-border-strong: var(--p-ink-600);
+  --color-accent: var(--p-clay-600);
+  --color-accent-hover: var(--p-clay-700);
+  --color-accent-soft: var(--p-clay-050);
+
+  /* spacing — 8px сетка */
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+
+  /* geometry */
+  --radius-field: 6px;
+  --radius-card: 10px;
+
+  /* elevation */
+  --shadow-modal: 0 16px 40px rgba(61, 54, 48, 0.18);
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+
+  /* typography */
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --speed-fast: 160ms;
+}
+
+* { box-sizing: border-box; }
+
+body.app-shell {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  display: flex;
+  min-height: 100vh;
+}
+
+/* =====================================================================
+   САЙДБАР — каркас 1:1 из app.css / base.html
+   ===================================================================== */
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--p-ink-900);
+  color: var(--p-paper-050);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+}
+.sidebar-nav { display: flex; flex-direction: column; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 10px 20px;
+  color: var(--p-paper-050);
+  text-decoration: none;
+  opacity: 0.85;
+}
+.nav-item:hover { background: rgba(255, 253, 249, 0.08); opacity: 1; }
+.nav-item.active { background: var(--color-accent); opacity: 1; font-weight: bold; }
+.nav-item:focus-visible { outline: none; box-shadow: inset var(--focus-ring); }
+.sidebar-footer { padding: 0 20px; }
+.logout-button {
+  width: 100%; padding: var(--space-1);
+  background: transparent; color: var(--p-paper-050);
+  border: 1px solid var(--p-ink-600); border-radius: var(--radius-field);
+  cursor: pointer; font: inherit;
+}
+.logout-button:hover { background: rgba(255, 253, 249, 0.08); }
+.logout-button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.sidebar-profile {
+  display: flex; align-items: center; gap: var(--space-1);
+  margin-top: var(--space-1); padding-top: var(--space-1);
+  border-top: 1px solid var(--p-ink-600);
+  color: var(--p-paper-050); cursor: pointer;
+}
+.profile-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 50%; background: var(--color-accent);
+  color: var(--color-text-on-accent); font-weight: bold;
+}
+.profile-name { font-size: var(--font-size-label); overflow-wrap: anywhere; }
+
+/* =====================================================================
+   КОНТЕНТ — .content 1:1 из app.css (flex:1, padding 24px, h1 Georgia)
+   ===================================================================== */
+.content { flex: 1; padding: var(--space-3); min-width: 0; }
+.content h1 {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 26px;
+  margin: 0 0 var(--space-2);
+}
+
+/* --- Тулбар раздела: поиск + кнопка создания (паттерн gallery-toolbar) --- */
+.wiki-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: 14px;
+  margin-bottom: var(--space-2);
+  box-shadow: var(--shadow-soft);
+}
+.wiki-toolbar .filter label {
+  display: block;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+.wiki-search {
+  display: block;
+  width: 320px;
+  max-width: 100%;
+  margin-top: var(--space-05);
+  padding: 6px 10px;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border-default);
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+}
+.wiki-search:hover { border-bottom-color: var(--color-border-strong); }
+.wiki-search:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+}
+.filter-count { font-size: var(--font-size-micro); color: var(--color-text-secondary); margin-left: var(--space-1); }
+.wiki-create {
+  margin-left: auto;
+  font: inherit;
+  cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  white-space: nowrap;
+}
+.wiki-create:hover { background: var(--color-accent-hover); }
+.wiki-create:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.wiki-create:active { transform: translateY(1px); }
+.wiki-create .btn-icon { width: 16px; height: 16px; }
+
+/* =====================================================================
+   ДЕРЕВО СТРАНИЦ (FR-107): корневые страницы с поддеревьями.
+   Шеврон — настоящая <button> (кликабелен сам, не только строка);
+   aria-expanded несет состояние раскрыт/свернут для скринридера.
+   ===================================================================== */
+.wiki-tree {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-1) 0;
+}
+.tree-node { list-style: none; }
+.tree-children { list-style: none; margin: 0; padding-left: var(--space-4); }
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 6px 10px;
+  border-radius: var(--radius-field);
+}
+.tree-row:hover { background: var(--color-bg-subtle); }
+.tree-row:focus-within { box-shadow: var(--focus-ring); }
+.tree-toggle {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-field);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.tree-toggle:hover { background: var(--color-bg-subtle); color: var(--color-accent-hover); }
+.tree-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.tree-toggle svg { width: 14px; height: 14px; transition: transform var(--speed-fast) ease; }
+.tree-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+/* leaf-строка: место шеврона держит прозрачный спейсер той же ширины */
+.tree-spacer { flex-shrink: 0; width: 22px; height: 22px; }
+.tree-link {
+  color: var(--color-text-primary);
+  text-decoration: none;
+  line-height: 1.5;
+}
+.tree-link:hover { color: var(--color-accent-hover); }
+.tree-link:focus-visible { outline: none; border-radius: var(--space-05); box-shadow: var(--focus-ring); }
+.tree-meta { margin-left: auto; font-size: var(--font-size-micro); color: var(--color-text-secondary); white-space: nowrap; }
+
+/* =====================================================================
+   ВЫДАЧА ПОИСКА (FR-114): заголовок + путь в иерархии + фрагмент с <mark>.
+   <mark> — токенная подсветка (контраст: ink-900 на amber-soft ≥ AA).
+   ===================================================================== */
+.wiki-results {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-1) 0;
+}
+.result-item {
+  display: block;
+  padding: var(--space-1) var(--space-2);
+  color: inherit;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+}
+.result-item + .result-item { border-top: 1px solid var(--color-border-default); }
+.result-item:hover { background: var(--color-bg-subtle); border-left-color: var(--color-accent); }
+.result-item:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-field); }
+.result-title {
+  font-family: var(--font-family-display);
+  font-size: 15px;
+  font-weight: 600;
+}
+.result-path { font-size: var(--font-size-micro); color: var(--color-text-secondary); margin-top: 2px; }
+.result-snippet { font-size: var(--font-size-label); color: var(--color-text-primary); margin-top: var(--space-05); line-height: 1.5; }
+.result-snippet mark {
+  background: var(--p-amber-700);
+  color: #fff;
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+/* =====================================================================
+   ПУСТОЕ СОСТОЯНИЕ (демо-зона): тихий state + кнопка «Создать первую
+   страницу» — паттерн dashed-плашки gallery-empty.
+   ===================================================================== */
+.wiki-empty {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-subtle);
+}
+.wiki-empty h2 {
+  font-family: var(--font-family-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-1);
+}
+.wiki-empty p { margin: 0 0 var(--space-2); }
+
+/* =====================================================================
+   ДЕМО-ЗОНА (не продукт): состояния узла дерева и поиска.
+   ===================================================================== */
+.demo-strip { margin-top: var(--space-4); }
+.demo-strip h2 {
+  font-family: var(--font-family-display);
+  font-size: 18px; font-weight: 600; margin: 0 0 var(--space-1);
+}
+.demo-note {
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  max-width: 860px;
+  margin: var(--space-1) 0 var(--space-2);
+}
+.demo-note code {
+  font-size: var(--font-size-micro);
+  background: var(--color-accent-soft);
+  padding: 1px 6px; border-radius: var(--radius-field);
+}
+.demo-force-hover { background: var(--color-bg-subtle); }
+.demo-force-focus { box-shadow: var(--focus-ring); }
+kbd {
+  font-family: inherit; font-size: var(--font-size-micro);
+  border: 1px solid var(--color-border-default);
+  border-bottom-width: 2px; border-radius: var(--radius-field);
+  padding: 0 5px; background: var(--color-bg-surface);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tree-toggle svg { transition: none; }
+}
+</style>
+</head>
+<body class="app-shell">
+
+<!-- ===== САЙДБАР: каркас 1:1 base.html; активен «Wiki», бейдж todo снят ===== -->
+<aside class="sidebar" aria-label="Разделы">
+  <nav class="sidebar-nav">
+    <a href="#" class="nav-item">Доска</a>
+    <a href="#" class="nav-item">Поиск</a>
+    <a href="/wiki" class="nav-item active" aria-current="page">Wiki</a>
+    <a href="#" class="nav-item">
+      <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="9" cy="9.5" r="1.6" fill="currentColor"/>
+        <path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Галерея
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="#" class="nav-item nav-item-settings">Настройки</a>
+    <button type="button" class="logout-button">Выйти</button>
+    <div class="sidebar-profile">
+      <span class="profile-badge" aria-hidden="true">Е</span>
+      <span class="profile-name">ekotov</span>
+    </div>
+  </div>
+</aside>
+
+<main class="content">
+  <h1>Wiki</h1>
+
+  <!-- ===== ТУЛБАР: поиск по разделу + создание страницы ===== -->
+  <div class="wiki-toolbar">
+    <div class="filter">
+      <label for="wiki-search">Поиск по разделу</label>
+      <input type="search" id="wiki-search" class="wiki-search" placeholder="Например: смета или ремонт">
+    </div>
+    <span class="filter-count" aria-live="polite">Найдено: 3</span>
+    <button type="button" class="wiki-create">
+      <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      Создать страницу
+    </button>
+  </div>
+
+  <!-- ===== ВЫДАЧА ПОИСКА (результат ввода «смета»): заголовок, путь, фрагмент с <mark> ===== -->
+  <ul class="wiki-results" aria-label="Результаты поиска по разделу Wiki">
+    <li>
+      <a href="#" class="result-item">
+        <div class="result-title">Смета на материалы</div>
+        <div class="result-path">Ремонт кухни → Документы</div>
+        <div class="result-snippet">…итоговая <mark>смета</mark> на материалы: крепеж, уголки, грунтовка. Сумма по чекам — 18 400 ₽, перепроверить перед закупкой…</div>
+      </a>
+    </li>
+    <li>
+      <a href="#" class="result-item">
+        <div class="result-title">Чек: крепеж и уголки</div>
+        <div class="result-path">Ремонт кухни → Документы → Чеки</div>
+        <div class="result-snippet">…приложение к пункту «крепеж» в общей <mark>смете</mark>: саморезы 3 пачки, уголки 24 шт, дюбели 60 г…</div>
+      </a>
+    </li>
+    <li>
+      <a href="#" class="result-item">
+        <div class="result-title">Санузел: плитка</div>
+        <div class="result-path">Ремонт кухни → Черновые работы</div>
+        <div class="result-snippet">…расход плитки пересчитан после замера: в <mark>смету</mark> добавлен запас 10 % на подрезку у откосов…</div>
+      </a>
+    </li>
+  </ul>
+
+  <!-- ===== ДЕРЕВО СТРАНИЦ: корни с поддеревьями; раскрыт/свернут — шеврон-кнопка ===== -->
+  <ul class="wiki-tree" aria-label="Дерево страниц Wiki">
+    <li class="tree-node">
+      <div class="tree-row">
+        <button type="button" class="tree-toggle" aria-expanded="true" aria-label="Свернуть раздел «Ремонт кухни»">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <a href="#" class="tree-link">Ремонт кухни</a>
+        <span class="tree-meta">6 страниц · обновлено 2 окт</span>
+      </div>
+      <ul class="tree-children">
+        <li class="tree-node">
+          <div class="tree-row">
+            <button type="button" class="tree-toggle" aria-expanded="true" aria-label="Свернуть раздел «Документы»">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <a href="#" class="tree-link">Документы</a>
+            <span class="tree-meta">3 страницы</span>
+          </div>
+          <ul class="tree-children">
+            <li class="tree-node">
+              <div class="tree-row">
+                <span class="tree-spacer" aria-hidden="true"></span>
+                <a href="#" class="tree-link">Смета на материалы</a>
+                <span class="tree-meta">2 окт</span>
+              </div>
+            </li>
+            <li class="tree-node">
+              <div class="tree-row">
+                <span class="tree-spacer" aria-hidden="true"></span>
+                <a href="#" class="tree-link">Чек: крепеж и уголки</a>
+                <span class="tree-meta">21 сен</span>
+              </div>
+            </li>
+            <li class="tree-node">
+              <div class="tree-row">
+                <span class="tree-spacer" aria-hidden="true"></span>
+                <a href="#" class="tree-link">Договор с бригадой</a>
+                <span class="tree-meta">14 сен</span>
+              </div>
+            </li>
+          </ul>
+        </li>
+        <li class="tree-node">
+          <div class="tree-row">
+            <button type="button" class="tree-toggle" aria-expanded="false" aria-label="Развернуть раздел «Черновые работы»">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <a href="#" class="tree-link">Черновые работы</a>
+            <span class="tree-meta">3 страницы</span>
+          </div>
+          <!-- поддерево свернутого узла скрыто (display:none ставит JS в dev) -->
+          <ul class="tree-children" hidden>
+            <li class="tree-node">
+              <div class="tree-row">
+                <span class="tree-spacer" aria-hidden="true"></span>
+                <a href="#" class="tree-link">Демонтаж старой мебели</a>
+                <span class="tree-meta">10 сен</span>
+              </div>
+            </li>
+            <li class="tree-node">
+              <div class="tree-row">
+                <span class="tree-spacer" aria-hidden="true"></span>
+                <a href="#" class="tree-link">Стяжка пола</a>
+                <span class="tree-meta">12 сен</span>
+              </div>
+            </li>
+            <li class="tree-node">
+              <div class="tree-row">
+                <span class="tree-spacer" aria-hidden="true"></span>
+                <a href="#" class="tree-link">Санузел: плитка</a>
+                <span class="tree-meta">28 сен</span>
+              </div>
+            </li>
+          </ul>
+        </li>
+        <li class="tree-node">
+          <div class="tree-row">
+            <span class="tree-spacer" aria-hidden="true"></span>
+            <a href="#" class="tree-link">План расстановки мебели</a>
+            <span class="tree-meta">8 сен</span>
+          </div>
+        </li>
+      </ul>
+    </li>
+    <li class="tree-node">
+      <div class="tree-row">
+        <button type="button" class="tree-toggle" aria-expanded="false" aria-label="Развернуть раздел «Участок»">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <a href="#" class="tree-link">Участок</a>
+        <span class="tree-meta">4 страницы · обновлено 25 сен</span>
+      </div>
+      <ul class="tree-children" hidden>
+        <li class="tree-node">
+          <div class="tree-row">
+            <span class="tree-spacer" aria-hidden="true"></span>
+            <a href="#" class="tree-link">План участка</a>
+            <span class="tree-meta">5 сен</span>
+          </div>
+        </li>
+        <li class="tree-node">
+          <div class="tree-row">
+            <span class="tree-spacer" aria-hidden="true"></span>
+            <a href="#" class="tree-link">Теплица: схема и посадки</a>
+            <span class="tree-meta">25 сен</span>
+          </div>
+        </li>
+      </ul>
+    </li>
+    <li class="tree-node">
+      <div class="tree-row">
+        <span class="tree-spacer" aria-hidden="true"></span>
+        <a href="#" class="tree-link">Рецепты</a>
+        <span class="tree-meta">2 страницы</span>
+      </div>
+    </li>
+  </ul>
+
+  <!-- =====================================================================
+       ДЕМО-ЗОНА (не продукт): пустое состояние (когда страниц еще нет) и
+       состояния узла дерева — hover / focus.
+       ===================================================================== -->
+  <div class="demo-strip">
+    <h2>Пустое состояние (1.1а) — демо, не часть страницы</h2>
+    <p class="demo-note">
+      Показывается, когда <code>GET /api/wiki/pages</code> вернул пустой список:
+      тихая dashed-плашка + первичная кнопка «Создать первую страницу» (ведет
+      в редактор, мокап wiki-editor.html).
+    </p>
+    <div class="wiki-empty">
+      <h2>В Wiki пока нет страниц</h2>
+      <p>Создайте первую страницу — она станет корнем дерева раздела.</p>
+      <button type="button" class="wiki-create">
+        <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Создать первую страницу
+      </button>
+    </div>
+
+    <h2>Состояния узла дерева — демо</h2>
+    <p class="demo-note">
+      Строка узла — <code>hover</code> (подложка paper-100); фокус на шевроне —
+      <code>focus-visible</code> focus-ring; шеврон поворачивается на 90° при
+      <code>aria-expanded="true"</code>; у листа вместо шеврона — спейсер
+      (выравнивание сохраняется). Клавиатура: <kbd>Tab</kbd> — шевроны и ссылки,
+      <kbd>Enter</kbd> — открыть страницу / развернуть узел.
+    </p>
+    <ul class="wiki-tree" aria-hidden="true">
+      <li class="tree-node">
+        <div class="tree-row demo-force-hover">
+          <span class="tree-spacer" aria-hidden="true"></span>
+          <a href="#" class="tree-link" tabindex="-1">hover: строка с подложкой paper-100</a>
+        </div>
+      </li>
+      <li class="tree-node">
+        <div class="tree-row demo-force-focus">
+          <button type="button" class="tree-toggle" aria-expanded="true" tabindex="-1" aria-label="Демо: развернутый узел в фокусе">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <a href="#" class="tree-link" tabindex="-1">focus-visible: focus-ring на шевроне</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <p class="demo-note" style="margin-top: var(--space-3);">
+    Примечания для dev (3.1): дерево из <code>GET /api/wiki/pages</code> —
+    плоский список → вложенность по <code>parent_id</code> за один запрос;
+    поиск — <code>GET /api/wiki/search?q=</code>, подсветка <code>&lt;mark&gt;</code>
+    по оффсету из ответа (HTML сниппет в клиент не вставляется — санитизация
+    сервером); пустое состояние — при пустом списке страниц; 401 при протухшей
+    сессии — редирект на <code>/login</code>.
+  </p>
+</main>
+
+</body>
+</html>

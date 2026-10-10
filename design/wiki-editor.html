@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап 1.1в — WYSIWYG-редактор: тулбар, заголовок, родитель, сохранение (add-wiki)</title>
+<style>
+/* =====================================================================
+   Мокап задачи 1.1в [design] add-wiki: contenteditable-редактор.
+   Токены V3 «Бумага» — дословно из frontend/static/css/app.css (:root).
+   Без внешних библиотек/шрифтов/CDN (ОГР-8): редактор в dev — vanilla
+   contenteditable (FR-110).
+   Контент: тулбар (H1–H3, B/I/U, ul/ol, цитата, код-блок, ссылка,
+   таблица, изображение, undo/redo) с hover/focus-visible; поле заголовка;
+   выбор родителя («без родителя»/страница); сохранение/отмена.
+   ===================================================================== */
+:root {
+  /* primitives (V3 «Бумага») */
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;
+  --p-clay-700: #93391f;
+  --p-clay-050: #f7e8e4;
+  --p-red-700: #9c3524;
+  --p-red-050: #f8ecea;
+  --p-olive-700: #5f6f34;
+
+  /* semantic */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-text-on-accent: #fff;
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-bg-subtle: var(--p-paper-100);
+  --color-border-default: var(--p-paper-200);
+  --color-border-strong: var(--p-ink-600);
+  --color-accent: var(--p-clay-600);
+  --color-accent-hover: var(--p-clay-700);
+  --color-accent-soft: var(--p-clay-050);
+  --status-error: var(--p-red-700);
+  --status-error-bg: var(--p-red-050);
+
+  /* spacing — 8px сетка */
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+
+  /* geometry */
+  --radius-field: 6px;
+  --radius-card: 10px;
+
+  /* elevation */
+  --shadow-modal: 0 16px 40px rgba(61, 54, 48, 0.18);
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+
+  /* typography */
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --speed-fast: 160ms;
+}
+
+* { box-sizing: border-box; }
+
+body.app-shell {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  display: flex;
+  min-height: 100vh;
+}
+
+/* =====================================================================
+   САЙДБАР — каркас 1:1 из app.css / base.html
+   ===================================================================== */
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--p-ink-900);
+  color: var(--p-paper-050);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+}
+.sidebar-nav { display: flex; flex-direction: column; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 10px 20px;
+  color: var(--p-paper-050);
+  text-decoration: none;
+  opacity: 0.85;
+}
+.nav-item:hover { background: rgba(255, 253, 249, 0.08); opacity: 1; }
+.nav-item.active { background: var(--color-accent); opacity: 1; font-weight: bold; }
+.nav-item:focus-visible { outline: none; box-shadow: inset var(--focus-ring); }
+.sidebar-footer { padding: 0 20px; }
+.logout-button {
+  width: 100%; padding: var(--space-1);
+  background: transparent; color: var(--p-paper-050);
+  border: 1px solid var(--p-ink-600); border-radius: var(--radius-field);
+  cursor: pointer; font: inherit;
+}
+.logout-button:hover { background: rgba(255, 253, 249, 0.08); }
+.logout-button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.sidebar-profile {
+  display: flex; align-items: center; gap: var(--space-1);
+  margin-top: var(--space-1); padding-top: var(--space-1);
+  border-top: 1px solid var(--p-ink-600);
+  color: var(--p-paper-050); cursor: pointer;
+}
+.profile-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 50%; background: var(--color-accent);
+  color: var(--color-text-on-accent); font-weight: bold;
+}
+.profile-name { font-size: var(--font-size-label); overflow-wrap: anywhere; }
+
+/* =====================================================================
+   КОНТЕНТ — .content 1:1 из app.css
+   ===================================================================== */
+.content { flex: 1; padding: var(--space-3); min-width: 0; max-width: 980px; }
+.content h1 {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 26px;
+  margin: 0 0 var(--space-2);
+}
+
+/* --- Панель метаданных: заголовок + родитель --- */
+.meta-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-2);
+  margin-bottom: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.meta-field label {
+  display: block;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-05);
+}
+.meta-title {
+  width: 100%;
+  padding: var(--space-1) 10px;
+  font: inherit;
+  font-family: var(--font-family-display);
+  font-size: 20px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+}
+.meta-title:hover { border-color: var(--color-border-strong); }
+.meta-title:focus-visible { outline: none; border-color: var(--color-accent); box-shadow: var(--focus-ring); }
+.meta-row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.meta-row .meta-field { flex: 1; min-width: 240px; }
+.meta-select {
+  width: 100%;
+  padding: var(--space-1) var(--space-1) var(--space-1) 10px;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  cursor: pointer;
+}
+.meta-select:hover { border-color: var(--color-border-strong); }
+.meta-select:focus-visible { outline: none; border-color: var(--color-accent); box-shadow: var(--focus-ring); }
+
+/* =====================================================================
+   ТУЛБАР: кнопки 28×28 (иконки inline-SVG), состояния hover/focus-visible;
+   активное форматирование (caret внутри B/I/U/списка) — pressed-стиль.
+   Группы разделены вертикальными разделителями. Тач-таргет ≥44px
+   на мобильной ветке (NFR-23) — в проде добирается паддингом в media.
+   ===================================================================== */
+.editor-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-05);
+  padding: var(--space-05) var(--space-1);
+  background: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.tb-group { display: flex; align-items: center; gap: 2px; }
+.tb-sep { width: 1px; height: 20px; background: var(--color-border-default); margin: 0 var(--space-1); }
+.tb-btn {
+  width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-field);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font: inherit;
+}
+.tb-btn svg { width: 16px; height: 16px; pointer-events: none; }
+.tb-btn:hover { background: var(--color-bg-surface); border-color: var(--color-border-default); color: var(--color-accent-hover); }
+.tb-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.tb-btn:active { transform: translateY(1px); }
+.tb-btn[aria-pressed="true"] { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent-hover); }
+.tb-heading {
+  width: auto;
+  padding: 0 var(--space-1);
+  font-family: var(--font-family-display);
+  font-size: 13px;
+  font-weight: 600;
+}
+/* Кнопка «Изображение» — с текстовым лейблом (ключевое действие) */
+.tb-media { width: auto; padding: 0 var(--space-1); gap: var(--space-05); font-size: var(--font-size-label); }
+
+/* --- Рабочая область contenteditable --- */
+.editor-area {
+  min-height: 420px;
+  padding: var(--space-3);
+  outline: none;
+  line-height: 1.65;
+}
+.editor-area:focus-visible { box-shadow: inset var(--focus-ring); }
+.editor-area h2 { font-family: var(--font-family-display); font-weight: 600; font-size: 21px; margin: var(--space-3) 0 var(--space-1); }
+.editor-area h2:first-child { margin-top: 0; }
+.editor-area h3 { font-family: var(--font-family-display); font-weight: 600; font-size: 17px; margin: var(--space-2) 0 var(--space-1); }
+.editor-area p { margin: 0 0 var(--space-2); }
+.editor-area ul, .editor-area ol { margin: 0 0 var(--space-2); padding-left: var(--space-3); }
+.editor-area blockquote {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-accent-soft);
+  border-radius: 0 var(--radius-field) var(--radius-field) 0;
+}
+.editor-area pre {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2);
+  background: var(--p-ink-900);
+  color: var(--p-paper-050);
+  border-radius: var(--radius-field);
+  overflow-x: auto;
+}
+.editor-area pre code { font-family: ui-monospace, 'Cascadia Mono', 'Courier New', monospace; font-size: 12px; }
+.editor-area code {
+  font-family: ui-monospace, 'Cascadia Mono', 'Courier New', monospace;
+  font-size: 12px;
+  background: var(--color-bg-subtle);
+  padding: 1px 5px;
+  border-radius: var(--space-05);
+}
+.editor-area pre code { background: transparent; padding: 0; }
+.editor-area table { border-collapse: collapse; margin: 0 0 var(--space-2); font-size: var(--font-size-label); }
+.editor-area th, .editor-area td { border: 1px solid var(--color-border-default); padding: var(--space-05) var(--space-1); text-align: left; }
+.editor-area th { background: var(--color-bg-subtle); font-weight: 600; }
+.editor-area figure { margin: 0 0 var(--space-2); }
+.editor-area img { max-width: 100%; height: auto; border: 1px solid var(--color-border-default); border-radius: var(--radius-field); background: var(--color-bg-subtle); }
+.editor-area figcaption { font-size: var(--font-size-micro); color: var(--color-text-secondary); }
+.editor-area a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+/* Курсор-каретка внутри bold-фрагмента — визуально показан выделением */
+.editor-area .demo-caret { background: var(--color-accent-soft); outline: 1px dashed var(--color-accent); }
+
+/* --- Нижняя панель: статус + сохранение/отмена --- */
+.editor-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  padding: var(--space-1) var(--space-2);
+  border-top: 1px solid var(--color-border-default);
+  background: var(--color-bg-subtle);
+}
+.editor-status { font-size: var(--font-size-micro); color: var(--color-text-secondary); margin-right: auto; }
+.btn {
+  font: inherit; font-size: var(--font-size-label);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-field);
+  display: inline-flex; align-items: center; gap: var(--space-05);
+  white-space: nowrap;
+}
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn-primary {
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+}
+.btn-primary:hover { background: var(--color-accent-hover); }
+.btn-secondary {
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+.btn-secondary:hover { border-color: var(--color-border-strong); }
+
+/* --- Демо-зона: тулбар-состояния и диалог изображения --- */
+.demo-strip { margin-top: var(--space-4); }
+.demo-strip h2 {
+  font-family: var(--font-family-display);
+  font-size: 18px; font-weight: 600; margin: 0 0 var(--space-1);
+}
+.demo-note {
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  max-width: 860px;
+  margin: var(--space-1) 0 var(--space-2);
+}
+.demo-note code {
+  font-size: var(--font-size-micro);
+  background: var(--color-accent-soft);
+  padding: 1px 6px; border-radius: var(--radius-field);
+}
+.demo-row { display: flex; gap: var(--space-05); flex-wrap: wrap; align-items: center; }
+.error-banner {
+  max-width: 640px;
+  margin-top: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error);
+  border-radius: var(--radius-field);
+  color: var(--status-error);
+  font-size: var(--font-size-label);
+}
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(61, 54, 48, 0.45);
+}
+.dialog {
+  width: min(460px, calc(100vw - var(--space-4)));
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-3);
+}
+.dialog h3 {
+  font-family: var(--font-family-display);
+  font-size: 18px; font-weight: 600;
+  margin: 0 0 var(--space-2);
+}
+.dialog .dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-1); margin-top: var(--space-2); }
+.radio-row { display: flex; flex-direction: column; gap: var(--space-05); font-size: var(--font-size-label); }
+.radio-row label { display: flex; align-items: center; gap: var(--space-05); }
+kbd {
+  font-family: inherit; font-size: var(--font-size-micro);
+  border: 1px solid var(--color-border-default);
+  border-bottom-width: 2px; border-radius: var(--radius-field);
+  padding: 0 5px; background: var(--color-bg-surface);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tb-btn:active { transform: none; }
+}
+</style>
+</head>
+<body class="app-shell">
+
+<!-- ===== САЙДБАР: каркас 1:1 base.html ===== -->
+<aside class="sidebar" aria-label="Разделы">
+  <nav class="sidebar-nav">
+    <a href="#" class="nav-item">Доска</a>
+    <a href="#" class="nav-item">Поиск</a>
+    <a href="/wiki" class="nav-item active" aria-current="page">Wiki</a>
+    <a href="#" class="nav-item">
+      <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="9" cy="9.5" r="1.6" fill="currentColor"/>
+        <path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Галерея
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="#" class="nav-item nav-item-settings">Настройки</a>
+    <button type="button" class="logout-button">Выйти</button>
+    <div class="sidebar-profile">
+      <span class="profile-badge" aria-hidden="true">Е</span>
+      <span class="profile-name">ekotov</span>
+    </div>
+  </div>
+</aside>
+
+<main class="content">
+  <h1>Редактирование: Чек: крепеж и уголки</h1>
+
+  <!-- ===== МЕТАДАННЫЕ: заголовок (непустой — 422 иначе) + родитель ===== -->
+  <div class="meta-card">
+    <div class="meta-field">
+      <label for="page-title">Заголовок</label>
+      <input type="text" id="page-title" class="meta-title" value="Чек: крепеж и уголки">
+    </div>
+    <div class="meta-row">
+      <div class="meta-field">
+        <label for="page-parent">Родительская страница</label>
+        <select id="page-parent" class="meta-select">
+          <option value="">Без родителя (корень раздела)</option>
+          <option>Ремонт кухни</option>
+          <option selected>Ремонт кухни → Документы</option>
+          <option>Ремонт кухни → Документы → Чеки</option>
+          <option>Участок</option>
+          <option>Рецепты</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== РЕДАКТОР: тулбар + contenteditable + сохранение/отмена ===== -->
+  <div class="editor-card">
+    <!-- Тулбар: H1–H3 | B/I/U | ul/ol | цитата, код | ссылка, таблица, изображение | undo/redo -->
+    <div class="toolbar" role="toolbar" aria-label="Форматирование">
+      <div class="tb-group">
+        <button type="button" class="tb-btn tb-heading" title="Заголовок 1" aria-label="Заголовок 1">H1</button>
+        <button type="button" class="tb-btn tb-heading" title="Заголовок 2" aria-label="Заголовок 2">H2</button>
+        <button type="button" class="tb-btn tb-heading" title="Заголовок 3" aria-label="Заголовок 3">H3</button>
+      </div>
+      <span class="tb-sep" aria-hidden="true"></span>
+      <div class="tb-group">
+        <button type="button" class="tb-btn" title="Полужирный" aria-label="Полужирный" aria-pressed="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zm0 7h7a3.5 3.5 0 0 1 0 7H7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        </button>
+        <button type="button" class="tb-btn" title="Курсив" aria-label="Курсив">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5h8M6 19h8M14 5l-4 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button type="button" class="tb-btn" title="Подчеркнутый" aria-label="Подчеркнутый">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v7a5 5 0 0 0 10 0V4M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <span class="tb-sep" aria-hidden="true"></span>
+      <div class="tb-group">
+        <button type="button" class="tb-btn" title="Маркированный список" aria-label="Маркированный список">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4.5" cy="6" r="1.4" fill="currentColor"/><circle cx="4.5" cy="12" r="1.4" fill="currentColor"/><circle cx="4.5" cy="18" r="1.4" fill="currentColor"/></svg>
+        </button>
+        <button type="button" class="tb-btn" title="Нумерованный список" aria-label="Нумерованный список">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><text x="3" y="8" font-size="7" fill="currentColor">1</text><text x="3" y="14" font-size="7" fill="currentColor">2</text><text x="3" y="20" font-size="7" fill="currentColor">3</text></svg>
+        </button>
+      </div>
+      <span class="tb-sep" aria-hidden="true"></span>
+      <div class="tb-group">
+        <button type="button" class="tb-btn" title="Цитата" aria-label="Цитата">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h4M5 12h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 6v12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+        </button>
+        <button type="button" class="tb-btn" title="Код-блок" aria-label="Код-блок">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 10l-2.5 2L9 14M15 10l2.5 2L15 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <span class="tb-sep" aria-hidden="true"></span>
+      <div class="tb-group">
+        <button type="button" class="tb-btn" title="Ссылка" aria-label="Ссылка">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 6 .5l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5M14 10a4 4 0 0 0-6-.5l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button type="button" class="tb-btn" title="Таблица" aria-label="Таблица">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M9 10v9M15 10v9" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button type="button" class="tb-btn tb-media" title="Изображение" aria-label="Изображение">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="9.5" r="1.6" fill="currentColor"/><path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Изображение
+        </button>
+      </div>
+      <span class="tb-sep" aria-hidden="true"></span>
+      <div class="tb-group">
+        <button type="button" class="tb-btn" title="Отменить (Ctrl+Z)" aria-label="Отменить">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5L3 10l5 5M3 10h11a6 6 0 0 1 0 12h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button type="button" class="tb-btn" title="Повторить (Ctrl+Shift+Z)" aria-label="Повторить">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5l5 5-5 5M21 10H10a6 6 0 0 0 0 12h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- contenteditable: образец контента; caret внутри bold — подсвечен -->
+    <div class="editor-area" contenteditable="true" aria-label="Текст страницы">
+      <h2>Что куплено</h2>
+      <p>Чек от 21 сентября на <b>крепеж<span class="demo-caret">⎸</span></b> для каркаса фальш-стены.
+      Позиции сверены со сметой; расхождений нет.</p>
+      <ul>
+        <li>Саморез по дереву 3,5×35 — 3 пачки</li>
+        <li>Уголок монтажный 40×40 — 24 шт</li>
+      </ul>
+      <blockquote><p>Перепроверить количество уголков перед второй партией.</p></blockquote>
+      <pre><code>total = sum(item.price * item.qty for item in check.items)</code></pre>
+    </div>
+
+    <!-- Нижняя панель: статус + сохранение/отмена -->
+    <div class="editor-footer">
+      <span class="editor-status">HTML уходит как есть — санитизация на сервере (FR-110)</span>
+      <button type="button" class="btn btn-secondary">Отмена</button>
+      <button type="button" class="btn btn-primary">
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Сохранить
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       ДЕМО-ЗОНА (не продукт): состояния тулбара, диалог изображения,
+       ошибка пустого заголовка.
+       ===================================================================== -->
+  <div class="demo-strip">
+    <h2>Состояния тулбара — демо</h2>
+    <p class="demo-note">
+      <code>hover</code> — подложка surface + рамка; <code>focus-visible</code> —
+      focus-ring; <code>aria-pressed="true"</code> — активное форматирование под
+      кареткой (мягкая терракотовая заливка + рамка акцента — различимо без цвета).
+      Клавиатура: <kbd>Tab</kbd> по кнопкам, <kbd>Ctrl+Z</kbd>/<kbd>Ctrl+Shift+Z</kbd> — undo/redo.
+    </p>
+    <div class="demo-row">
+      <button type="button" class="tb-btn" tabindex="-1" aria-hidden="true" style="background: var(--color-bg-surface); border-color: var(--color-border-default); color: var(--color-accent-hover);">B</button>
+      <button type="button" class="tb-btn" tabindex="-1" aria-hidden="true" style="box-shadow: var(--focus-ring);">I</button>
+      <button type="button" class="tb-btn" tabindex="-1" aria-hidden="true" aria-pressed="true">U</button>
+    </div>
+
+    <h2>Вставка изображения — диалог «из галереи / с диска» — демо</h2>
+    <p class="demo-note">
+      Кнопка «Изображение» открывает диалог с выбором источника: существующее
+      изображение из <code>GET /api/images</code> или загрузка с диска через
+      <code>POST /api/images</code> (multipart; ошибки 422 лимитов NFR-21 —
+      в баннере диалога). Вставка — <code>&lt;img src="/images/{id}" alt&gt;</code> (FR-111).
+    </p>
+    <div class="confirm-backdrop" role="presentation">
+      <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="img-dialog-title">
+        <h3 id="img-dialog-title">Вставить изображение</h3>
+        <div class="radio-row">
+          <label><input type="radio" name="img-src" checked> Из галереи (выбрать загруженное)</label>
+          <label><input type="radio" name="img-src"> Загрузить с диска</label>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn btn-secondary">Отмена</button>
+          <button type="button" class="btn btn-primary">Вставить</button>
+        </div>
+      </div>
+    </div>
+
+    <h2>Пустой заголовок — ошибка без сохранения — демо</h2>
+    <div class="error-banner" role="alert">
+      Заголовок не может быть пустым — заполните поле «Заголовок» и повторите сохранение.
+    </div>
+  </div>
+
+  <p class="demo-note" style="margin-top: var(--space-3);">
+    Примечания для dev (3.3): vanilla <code>contenteditable</code>, нативный
+    undo/redo + кнопки; <code>document.execCommand</code> — база, добор
+    командами Selection API; сохранение — <code>PUT</code> (существующая) /
+    <code>POST</code> (новая) <code>/api/wiki/pages</code>; редактирование
+    заголовка тоже пишет версию; WYSIWYG-требование: отрендеренный вид статьи
+    (мокап wiki-page.html) = сохраненный вид редактора.
+  </p>
+</main>
+
+</body>
+</html>
