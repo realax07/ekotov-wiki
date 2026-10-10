@@ -35,6 +35,7 @@
 """
 
 import sqlite3
+from html.parser import HTMLParser
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -57,6 +58,25 @@ MAX_DEPTH = 100
 SNIPPET_WINDOW = 60
 
 SEARCH_LIMIT = 20
+
+
+def _strip_tags(html: str) -> str:
+    """HTML → plain-текст для сниппета поиска (review-001 DV-1): теги
+    срезаются до вычисления окна/оффсета. Санитизация контента — отдельно,
+    на записи (sanitize_html); здесь только срез разметки для выдачи."""
+
+
+    class _TagDropper(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__(convert_charrefs=True)
+            self.parts: list[str] = []
+
+        def handle_data(self, data: str) -> None:
+            self.parts.append(data)
+
+    dropper = _TagDropper()
+    dropper.feed(html or "")
+    return " ".join(" ".join(dropper.parts).split())
 
 
 def _utcnow() -> str:
@@ -402,13 +422,16 @@ def search_pages(q: str, request: Request) -> JSONResponse:
         needle = q.lower()
         results = []
         for row in rows:
-            content = row[2]
-            # Первое вхождение в контенте (регистронезависимое, как LIKE);
-            # совпадение только в title — сниппет с начала контента.
-            pos = content.lower().find(needle)
+            # Сниппет по PLAIN-ТЕКСТУ (мокап: «…итоговая смета на материалы…»
+            # без тегов, DV-1 review-001): HTML-теги срезаются до вычисления
+            # окна и оффсета — клиент вставляет сниппет как текст, «<p>» и
+            # прочая разметка в выдачу не попадают, match_offset/match_length
+            # всегда в координатах plain-текста (подсветка не «разрезает» тег).
+            plain = _strip_tags(row[2])
+            pos = plain.lower().find(needle)
             snippet_start = max(0, (0 if pos < 0 else pos) - SNIPPET_WINDOW)
             match_offset = max(0, pos)
-            snippet = content[snippet_start : match_offset + len(q) + SNIPPET_WINDOW]
+            snippet = plain[snippet_start : match_offset + len(q) + SNIPPET_WINDOW]
             results.append(
                 {
                     "id": row[0],

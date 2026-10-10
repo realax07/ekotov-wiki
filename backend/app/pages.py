@@ -84,6 +84,23 @@ def wiki_page(request: Request):
     )
 
 
+@router.get("/wiki/{page_id}/history")
+def wiki_history_page(request: Request, page_id: str):
+    """История версий страницы Wiki /wiki/{page_id}/history (tasks.md 3.4
+    add-wiki; FR-112, FR-113, design §6–§7): каркас раздела — тот же
+    шаблон wiki.html (история-контейнеры рендерит history.js
+    GET /api/wiki/pages/{id}/versions; layout двухколонный по мокапу
+    design/wiki-history.html, ≤880px складывается). page_id — строка,
+    как у /wiki/{page_id}: нечисловой id каркас НЕ ломает — API вернет
+    404, клиент покажет «страница не найдена». Без сессии — редирект
+    на /login middleware'ом (см. wiki_page)."""
+    return templates.TemplateResponse(
+        request=request,
+        name="wiki.html",
+        context={"active_page": "wiki", "page_id": page_id, "history_mode": True},
+    )
+
+
 @router.get("/wiki/{page_id}")
 def wiki_article_page(request: Request, page_id: str):
     """Страница статьи Wiki /wiki/{page_id} (tasks.md 2.3 add-wiki;

@@ -3,6 +3,9 @@
    Полная верстка — волнами 3.x СТРОГО по утвержденным мокапам 1.1
    (design/wiki-tree.html, wiki-page.html; волна 3 дополняет этот каркас,
    имена контейнеров зафиксированы здесь — tasks.md «Неразделимые зоны»).
+   Режим истории: history_mode (роут /wiki/{page_id}/history, задача 3.4) —
+   вместо дерева контейнер #wiki-history (заполняет history.js по мокапу
+   design/wiki-history.html), модуль tree.js/search.js не подключается.
    Динамика: список страниц/дерево, поиск, статья, действия — клиентом из
    из ES-модулей frontend/static/js/wiki/{tree,editor,history,search,page}.js
    (GET /api/wiki/…, волна 3); здесь —
@@ -20,18 +23,68 @@
 {% block content %}
 <link rel="stylesheet" href="/static/css/wiki.css?v={{ static_v }}">
 <div class="wiki-layout"{% if page_id is defined and page_id %} data-page-id="{{ page_id }}"{% endif %}>
+{% if history_mode is defined and history_mode %}
+  {# --- История версий (мокап wiki-history: layout «список слева / просмотр
+     справа», ≤880px складывается; задача 3.4) --- #}
+  <section class="wiki-content" aria-label="История версий страницы Wiki">
+    {# h1/subtitle, ul.versions + просмотр .version-view, диалог подтверждения
+       отката и success-баннер рендерит frontend/static/js/wiki/history.js из
+       GET /api/wiki/pages/{id}/versions, GET …/versions/{vid},
+       POST …/revert/{vid}. Контейнер пуст без JS. #}
+    <div id="wiki-history"></div>
+  </section>
+</div>
+<script type="module" src="/static/js/wiki/history.js?v={{ static_v }}"></script>
+{% else %}
   {# --- Дерево страниц (мокап wiki-tree: ul.wiki-tree > li.tree-node) --- #}
+  {# --- Заголовок раздела (мокап wiki-tree: h1 над тулбаром; DV-2) --- #}
+  <h1>Wiki</h1>
   <aside class="wiki-tree" aria-label="Дерево страниц Wiki">
     {# заполняет frontend/static/js/wiki/tree.js из GET /api/wiki/pages (3.1) #}
   </aside>
 
   {# --- Контентная область (мокап wiki-page) --- #}
   <section class="wiki-content" aria-label="Содержимое страницы Wiki">
+    {# --- Тулбар раздела: поиск + создание (мокап wiki-tree: .wiki-toolbar) --- #}
+    <div class="wiki-toolbar">
+      <div class="filter">
+        <label for="wiki-search">Поиск по разделу</label>
+        <input type="search" id="wiki-search" class="wiki-search" placeholder="Например: смета или ремонт">
+      </div>
+      <span class="filter-count" aria-live="polite"></span>
+      <button type="button" class="wiki-create">
+        <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Создать страницу
+      </button>
+    </div>
+    {# --- Выдача поиска (мокап: ul.wiki-results); заполняет search.js (3.1) --- #}
+    <div id="wiki-search-results" aria-live="polite"></div>
     {# --- Breadcrumb: корень → … → статья; текущая — без ссылки (3.2) --- #}
     <nav class="wiki-breadcrumb" aria-label="Иерархия страниц">
       {# заполняет frontend/static/js/wiki/page.js из GET /api/wiki/pages/{id} (3.2) #}
     </nav>
-    {# тело статьи / пустое состояние / «страница не найдена» — волна 3 #}
+    {# --- РЕДАКТОР (задача 3.3, мокап design/wiki-editor.html): контейнер
+       пуст и hidden; editor.js показывает его при ?edit=1 (правка
+       /wiki/{id}) или ?create=1 (создание /wiki[?parent={id}]) и рисует
+       в нем meta-card (заголовок + родитель), тулбар, contenteditable и
+       сохранение/отмена. Без параметров — обычный просмотр, редактор
+       не активен. Диалоги (ссылка, изображение) editor.js добавляет
+       в body. #}
+    <div id="wiki-editor" hidden></div>
+    {# --- Статья (мокап wiki-page: .article-head + article.article) — 3.2:
+       шапку, действия и тело заполняет page.js из GET /api/wiki/pages/{id};
+       здесь же — «страница не найдена» (404) и баннер 409 удаления.
+       Контент просанитизирован сервером (design §4). --- #}
+    <div id="wiki-article"></div>
   </section>
 </div>
+{% if page_id is defined and page_id %}
+<script type="module" src="/static/js/wiki/page.js?v={{ static_v }}"></script>
+{% endif %}
+<script type="module" src="/static/js/wiki/tree.js?v={{ static_v }}"></script>
+<script type="module" src="/static/js/wiki/search.js?v={{ static_v }}"></script>
+<script type="module" src="/static/js/wiki/editor.js?v={{ static_v }}"></script>
+{% endif %}
 {% endblock %}

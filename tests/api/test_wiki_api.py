@@ -424,6 +424,32 @@ def test_search_limit_20(client):
     assert len(results) == 20
 
 
+def test_search_snippet_plain_text_no_tags(client):
+    """Сниппет — чистый текст без HTML-тегов (мокап выдачи, DV-1
+    review-001): теги срезаются на сервере ДО вычисления окна/оффсета —
+    «<p>» в выдаче не виден, match_offset/match_length в координатах
+    plain-текста (клиент режет <mark> по ним, подсветка не «разрезает» тег)."""
+    _create(
+        client,
+        "Смета ремонта",
+        content="<p>итоговая <b>смета</b> на материалы: крепеж и уголки</p>",
+    )
+    results = client.get("/api/wiki/search", params={"q": "смета"}).json()["results"]
+    assert len(results) == 1
+    snippet = results[0]["snippet"]
+    # Негатив: сниппет не содержит '<' — ни открывающих, ни закрывающих тегов.
+    assert "<" not in snippet, snippet
+    assert ">" not in snippet, snippet
+    # Оффсет/длина указывают на «смета» в plain-координатах сниппета.
+    marked = snippet.lower()[
+        results[0]["match_offset"] : results[0]["match_offset"]
+        + results[0]["match_length"]
+    ].lower()
+    assert marked == "смета", marked
+    # Совпадение внутри <b> найдено и показано как текст без разметки.
+    assert "смета" in snippet.lower()
+
+
 # --------------------------------------------------------------------------
 # DELETE: 409 с дочерними, удаление листа, CASCADE версий
 # --------------------------------------------------------------------------
