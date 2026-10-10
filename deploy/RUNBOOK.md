@@ -213,10 +213,11 @@ sudo -E APP_IMAGE=ekotov-wiki/app:<hotfix-tag> \
 
 **Галерея (r7.1-gallery+):** файлы изображений живут в отдельном томе
 `ekotov-wiki-par_images-data` (оригинал + превью `.jpg`, имена генерирует
-сервис — в БД только метаданные). Бэкап трассы деплоя пока покрывает БД +
-avatars; images-data включается в релизный контур (tar) — доработка deploy.sh
-(J38). Ручной снапшот тома: `docker run --rm -v ekotov-wiki-par_images-data:/data
--v /var/backups/ekotov-wiki:/backup alpine tar czf /backup/images-pre-<метка>-$(date +%F).tar.gz -C /data .`.
+сервис — в БД только метаданные). С J38 (2026-10-10) том images-data включен в релизный
+контур: deploy.sh 2/8 пишет images-pre-<метка>-<stamp>.tar.gz рядом с БД/аватарами
+(tar из images-контейнера). Вне деплоя — ручной снапшот: `docker run --rm
+-v ekotov-wiki-par_images-data:/data -v /var/backups/ekotov-wiki:/backup alpine
+tar czf /backup/images-pre-<метка>-$(date +%F).tar.gz -C /data .`.
 Владелец тома — uid 10001 (как выше); свежесозданный docker-том от root = 500
 на upload, фикс chown (§2.1).
 
