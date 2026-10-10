@@ -336,9 +336,28 @@ kbd {
 <!-- ===== САЙДБАР: каркас 1:1 base.html ===== -->
 <aside class="sidebar" aria-label="Разделы">
   <nav class="sidebar-nav">
-    <a href="#" class="nav-item">Доска</a>
-    <a href="#" class="nav-item">Поиск</a>
-    <a href="/wiki" class="nav-item active" aria-current="page">Wiki</a>
+    <a href="/board" class="nav-item">
+      <svg class="nav-icon" style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M3 9h18" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M9 9v12" fill="none" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      Доска
+    </a>
+    <a href="/search" class="nav-item">
+      <svg class="nav-icon" style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M15.5 15.5l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      Поиск
+    </a>
+    <a href="/wiki" class="nav-item active" aria-current="page">
+      <svg class="nav-icon" style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 19.5V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      Wiki
+    </a>
     <a href="#" class="nav-item">
       <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
         <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -349,7 +368,13 @@ kbd {
     </a>
   </nav>
   <div class="sidebar-footer">
-    <a href="#" class="nav-item nav-item-settings">Настройки</a>
+    <a href="/settings" class="nav-item nav-item-settings">
+      <svg class="nav-icon" style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="3.25" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 2.8v2.6M12 18.6v2.6M21.2 12h-2.6M5.4 12H2.8M18.5 5.5l-1.85 1.85M7.35 16.65L5.5 18.5M18.5 18.5l-1.85-1.85M7.35 7.35L5.5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      Настройки
+    </a>
     <button type="button" class="logout-button">Выйти</button>
     <div class="sidebar-profile">
       <span class="profile-badge" aria-hidden="true">Е</span>
