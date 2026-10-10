@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап 1.1б — страница /wiki/{id}: статья, breadcrumb, действия, удаление (add-wiki)</title>
+<style>
+/* =====================================================================
+   Мокап задачи 1.1б [design] add-wiki: страница статьи /wiki/{id}.
+   Токены V3 «Бумага» — дословно из frontend/static/css/app.css (:root).
+   Без внешних библиотек/шрифтов/CDN (ОГР-8).
+   Контент (FR-108, FR-109, FR-116):
+     1) breadcrumb (корень → … → статья), текущая страница без ссылки;
+     2) отрендеренный контент: H1–H3, списки, цитата, код-блок, таблица,
+        изображение (все теги — whitelist sanitizer, design §4);
+     3) действия «Редактировать»/«История»/«Удалить»; удаление — только
+        лист (can_delete), диалог подтверждения (демо-зона).
+   ===================================================================== */
+:root {
+  /* primitives (V3 «Бумага») */
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;
+  --p-clay-700: #93391f;
+  --p-clay-050: #f7e8e4;
+  --p-red-700: #9c3524;
+  --p-red-050: #f8ecea;
+  --p-olive-700: #5f6f34;
+  --p-amber-700: #8a5a1e;
+
+  /* semantic */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-text-on-accent: #fff;
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-bg-subtle: var(--p-paper-100);
+  --color-border-default: var(--p-paper-200);
+  --color-border-strong: var(--p-ink-600);
+  --color-accent: var(--p-clay-600);
+  --color-accent-hover: var(--p-clay-700);
+  --color-accent-soft: var(--p-clay-050);
+  --status-error: var(--p-red-700);
+  --status-error-bg: var(--p-red-050);
+
+  /* spacing — 8px сетка */
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+
+  /* geometry */
+  --radius-field: 6px;
+  --radius-card: 10px;
+
+  /* elevation */
+  --shadow-modal: 0 16px 40px rgba(61, 54, 48, 0.18);
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+
+  /* typography */
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --speed-fast: 160ms;
+}
+
+* { box-sizing: border-box; }
+
+body.app-shell {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  display: flex;
+  min-height: 100vh;
+}
+
+/* =====================================================================
+   САЙДБАР — каркас 1:1 из app.css / base.html
+   ===================================================================== */
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--p-ink-900);
+  color: var(--p-paper-050);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+}
+.sidebar-nav { display: flex; flex-direction: column; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 10px 20px;
+  color: var(--p-paper-050);
+  text-decoration: none;
+  opacity: 0.85;
+}
+.nav-item:hover { background: rgba(255, 253, 249, 0.08); opacity: 1; }
+.nav-item.active { background: var(--color-accent); opacity: 1; font-weight: bold; }
+.nav-item:focus-visible { outline: none; box-shadow: inset var(--focus-ring); }
+.sidebar-footer { padding: 0 20px; }
+.logout-button {
+  width: 100%; padding: var(--space-1);
+  background: transparent; color: var(--p-paper-050);
+  border: 1px solid var(--p-ink-600); border-radius: var(--radius-field);
+  cursor: pointer; font: inherit;
+}
+.logout-button:hover { background: rgba(255, 253, 249, 0.08); }
+.logout-button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.sidebar-profile {
+  display: flex; align-items: center; gap: var(--space-1);
+  margin-top: var(--space-1); padding-top: var(--space-1);
+  border-top: 1px solid var(--p-ink-600);
+  color: var(--p-paper-050); cursor: pointer;
+}
+.profile-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 50%; background: var(--color-accent);
+  color: var(--color-text-on-accent); font-weight: bold;
+}
+.profile-name { font-size: var(--font-size-label); overflow-wrap: anywhere; }
+
+/* =====================================================================
+   КОНТЕНТ — .content 1:1 из app.css (flex:1, padding 24px)
+   ===================================================================== */
+.content { flex: 1; padding: var(--space-3); min-width: 0; max-width: 980px; }
+
+/* --- Breadcrumb (FR-109): цепочка предков из ответа API; текущая
+       страница — без ссылки (aria-current). Разделитель — «/». --- */
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-05);
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+.breadcrumb a { color: var(--color-text-secondary); text-decoration: underline; text-underline-offset: 3px; }
+.breadcrumb a:hover { color: var(--color-accent-hover); }
+.breadcrumb a:focus-visible { outline: none; border-radius: var(--space-05); box-shadow: var(--focus-ring); }
+.breadcrumb .crumb-sep { color: var(--p-paper-200); user-select: none; }
+.breadcrumb [aria-current="page"] { color: var(--color-text-primary); font-weight: 600; }
+
+/* --- Шапка статьи: display-заголовок + мета + действия --- */
+.article-head { margin-bottom: var(--space-3); }
+.article-head h1 {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 30px;
+  margin: 0 0 var(--space-1);
+}
+.article-meta { font-size: var(--font-size-micro); color: var(--color-text-secondary); margin-bottom: var(--space-2); }
+.article-actions { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.btn {
+  font: inherit; font-size: var(--font-size-label);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-field);
+  display: inline-flex; align-items: center; gap: var(--space-05);
+  white-space: nowrap;
+}
+.btn .btn-icon { width: 14px; height: 14px; flex-shrink: 0; }
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn-primary {
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+}
+.btn-primary:hover { background: var(--color-accent-hover); }
+.btn-secondary {
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+.btn-secondary:hover { border-color: var(--color-border-strong); }
+.btn-danger {
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  color: var(--status-error);
+}
+.btn-danger:hover { background: var(--status-error-bg); border-color: var(--status-error); }
+.btn-danger .btn-icon { color: var(--status-error); }
+
+/* --- Карточка статьи --- */
+.article {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-3);
+}
+
+/* =====================================================================
+   ОТРЕНДЕРЕННЫЙ КОНТЕНТ (.article-body): H1–H3, списки, цитата,
+   код-блок, таблица, изображение — все из whitelist sanitizer (design §4).
+   ===================================================================== */
+.article-body h2 {
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  font-size: 21px;
+  margin: var(--space-3) 0 var(--space-1);
+}
+.article-body h2:first-child { margin-top: 0; }
+.article-body h3 {
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  font-size: 17px;
+  margin: var(--space-2) 0 var(--space-1);
+}
+.article-body p { line-height: 1.65; margin: 0 0 var(--space-2); }
+.article-body ul, .article-body ol { margin: 0 0 var(--space-2); padding-left: var(--space-3); line-height: 1.65; }
+.article-body li + li { margin-top: var(--space-05); }
+.article-body blockquote {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-accent-soft);
+  border-radius: 0 var(--radius-field) var(--radius-field) 0;
+  color: var(--color-text-primary);
+}
+.article-body blockquote p { margin: 0; }
+.article-body pre {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2);
+  background: var(--p-ink-900);
+  color: var(--p-paper-050);
+  border-radius: var(--radius-field);
+  overflow-x: auto;
+  line-height: 1.6;
+}
+.article-body pre code { font-family: ui-monospace, 'Cascadia Mono', 'Courier New', monospace; font-size: 12px; }
+.article-body code {
+  font-family: ui-monospace, 'Cascadia Mono', 'Courier New', monospace;
+  font-size: 12px;
+  background: var(--color-bg-subtle);
+  padding: 1px 5px;
+  border-radius: var(--space-05);
+}
+.article-body pre code { background: transparent; padding: 0; }
+.article-body a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+.article-body a:hover { color: var(--color-accent-hover); }
+.article-body a:focus-visible { outline: none; border-radius: var(--space-05); box-shadow: var(--focus-ring); }
+.article-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-label);
+}
+.article-body th, .article-body td {
+  border: 1px solid var(--color-border-default);
+  padding: var(--space-05) var(--space-1);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.5;
+}
+.article-body th { background: var(--color-bg-subtle); font-weight: 600; }
+.article-body tbody tr:nth-child(even) td { background: var(--color-bg-page); }
+.article-body figure {
+  margin: 0 0 var(--space-2);
+}
+.article-body figure img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  background: var(--color-bg-subtle);
+}
+.article-body figcaption { font-size: var(--font-size-micro); color: var(--color-text-secondary); margin-top: var(--space-05); }
+
+/* --- Диалог подтверждения удаления (FR-116): только лист; <dialog>-
+       паттерн — демо показано открытым. --- */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(61, 54, 48, 0.45);
+}
+.confirm {
+  width: min(440px, calc(100vw - var(--space-4)));
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-3);
+}
+.confirm h2 {
+  font-family: var(--font-family-display);
+  font-size: 18px; font-weight: 600;
+  margin: 0 0 var(--space-1);
+}
+.confirm p { margin: 0 0 var(--space-2); line-height: 1.6; }
+.confirm .confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-1); }
+.btn-danger-solid {
+  border: 1px solid transparent;
+  background: var(--status-error);
+  color: #fff;
+}
+.btn-danger-solid:hover { background: #7f2b1d; }
+
+/* --- Демо-зона состояний кнопок и 409-ошибки удаления --- */
+.demo-strip { margin-top: var(--space-4); }
+.demo-strip h2 {
+  font-family: var(--font-family-display);
+  font-size: 18px; font-weight: 600; margin: 0 0 var(--space-1);
+}
+.demo-note {
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  max-width: 860px;
+  margin: var(--space-1) 0 var(--space-2);
+}
+.demo-note code {
+  font-size: var(--font-size-micro);
+  background: var(--color-accent-soft);
+  padding: 1px 6px; border-radius: var(--radius-field);
+}
+.demo-row { display: flex; gap: var(--space-1); flex-wrap: wrap; align-items: center; }
+.error-banner {
+  max-width: 640px;
+  margin-top: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error);
+  border-radius: var(--radius-field);
+  color: var(--status-error);
+  font-size: var(--font-size-label);
+}
+kbd {
+  font-family: inherit; font-size: var(--font-size-micro);
+  border: 1px solid var(--color-border-default);
+  border-bottom-width: 2px; border-radius: var(--radius-field);
+  padding: 0 5px; background: var(--color-bg-surface);
+}
+</style>
+</head>
+<body class="app-shell">
+
+<!-- ===== САЙДБАР: каркас 1:1 base.html ===== -->
+<aside class="sidebar" aria-label="Разделы">
+  <nav class="sidebar-nav">
+    <a href="#" class="nav-item">Доска</a>
+    <a href="#" class="nav-item">Поиск</a>
+    <a href="/wiki" class="nav-item active" aria-current="page">Wiki</a>
+    <a href="#" class="nav-item">
+      <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="9" cy="9.5" r="1.6" fill="currentColor"/>
+        <path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Галерея
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="#" class="nav-item nav-item-settings">Настройки</a>
+    <button type="button" class="logout-button">Выйти</button>
+    <div class="sidebar-profile">
+      <span class="profile-badge" aria-hidden="true">Е</span>
+      <span class="profile-name">ekotov</span>
+    </div>
+  </div>
+</aside>
+
+<main class="content">
+  <!-- ===== BREADCRUMB: корень → … → статья; текущая — без ссылки ===== -->
+  <nav aria-label="Иерархия страниц">
+    <ol class="breadcrumb">
+      <li><a href="#">Ремонт кухни</a></li>
+      <li class="crumb-sep" aria-hidden="true">/</li>
+      <li><a href="#">Документы</a></li>
+      <li class="crumb-sep" aria-hidden="true">/</li>
+      <li><a href="#">Чеки</a></li>
+      <li class="crumb-sep" aria-hidden="true">/</li>
+      <li aria-current="page">Чек: крепеж и уголки</li>
+    </ol>
+  </nav>
+
+  <!-- ===== ШАПКА СТАТЬИ: заголовок, мета, действия ===== -->
+  <div class="article-head">
+    <h1>Чек: крепеж и уголки</h1>
+    <div class="article-meta">Обновлено 2 окт 2026, 14:32 · автор последней правки — ekotov · 5 версий</div>
+    <div class="article-actions">
+      <button type="button" class="btn btn-primary">
+        <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16v4zM14 6l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Редактировать
+      </button>
+      <button type="button" class="btn btn-secondary">
+        <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        История
+      </button>
+      <button type="button" class="btn btn-danger">
+        <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Удалить
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== ОТРЕНДЕРЕННЫЙ КОНТЕНТ ===== -->
+  <article class="article">
+    <div class="article-body">
+      <h2>Что куплено</h2>
+      <p>Чек от 21 сентября на крепеж для каркаса фальш-стены. Позиции сверены
+      со <a href="#">сметой на материалы</a>; расхождений нет, кроме запаса
+      дюбелей — взяли на 20 шт больше, остаток вернулся в кладовку.</p>
+
+      <ul>
+        <li>Саморез по дереву 3,5×35 — 3 пачки (по 200 шт)</li>
+        <li>Уголок монтажный 40×40 — 24 шт</li>
+        <li>Дюбель-гвоздь 6×40 — 80 шт (запас 20)</li>
+        <li>Грунтовка глубокого проникновения — 5 л</li>
+      </ul>
+
+      <blockquote>
+        <p>Перепроверить количество уголков перед второй партией: на схеме
+        расстановки два узла пришлось усилить, счёт может вырасти ещё на 6 шт.</p>
+      </blockquote>
+
+      <h3>Итог по сумме</h3>
+      <table>
+        <thead>
+          <tr><th>Позиция</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Саморез 3,5×35</td><td>600 шт</td><td>2,10 ₽</td><td>1 260 ₽</td></tr>
+          <tr><td>Уголок 40×40</td><td>24 шт</td><td>14,00 ₽</td><td>336 ₽</td></tr>
+          <tr><td>Дюбель-гвоздь 6×40</td><td>80 шт</td><td>1,35 ₽</td><td>108 ₽</td></tr>
+          <tr><td>Грунтовка, 5 л</td><td>1 канистра</td><td>890 ₽</td><td>890 ₽</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Схема каркаса</h2>
+      <figure>
+        <!-- в проде: <img src="/images/{id}" alt> из images-сервиса (FR-111) -->
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='320' viewBox='0 0 640 320'%3E%3Crect width='640' height='320' fill='%23f3ede4'/%3E%3Crect x='40' y='40' width='560' height='200' fill='none' stroke='%23a8432c' stroke-width='3'/%3E%3Cline x1='40' y1='140' x2='600' y2='140' stroke='%236b6158' stroke-width='2' stroke-dasharray='8 6'/%3E%3Cline x1='220' y1='40' x2='220' y2='240' stroke='%236b6158' stroke-width='2' stroke-dasharray='8 6'/%3E%3Cline x1='420' y1='40' x2='420' y2='240' stroke='%236b6158' stroke-width='2' stroke-dasharray='8 6'/%3E%3Ccircle cx='220' cy='140' r='6' fill='%23a8432c'/%3E%3Ccircle cx='420' cy='140' r='6' fill='%23a8432c'/%3E%3Ctext x='240' y='132' font-family='sans-serif' font-size='14' fill='%233d3630'%3Eузел усилен%3C/text%3E%3C/svg%3E" alt="Схема каркаса фальш-стены с отмеченными узлами" width="640" height="320">
+        <figcaption>Каркас фальш-стены, шаг стоек 600 мм; узлы усиления — терракотовым.</figcaption>
+      </figure>
+
+      <h2>Пересчет в таблицу</h2>
+      <p>Скрипт сверки чеков со сметой (черновик, перенесём в статью «Смета на материалы»):</p>
+      <pre><code>for check in checks:
+    total = sum(item.price * item.qty for item in check.items)
+    if abs(total - check.total) &gt; 0.01:
+        print(f"РАСХОЖДЕНИЕ: {check.id}: {total} != {check.total}")</code></pre>
+    </div>
+  </article>
+
+  <!-- =====================================================================
+       ДЕМО-ЗОНА (не продукт): диалог подтверждения удаления (страница —
+       лист, can_delete=true) и ошибка 409 (у страницы появились дочерние).
+       ===================================================================== -->
+  <div class="demo-strip">
+    <h2>Удаление — демо, не часть страницы</h2>
+    <p class="demo-note">
+      Кнопка «Удалить» видна только при <code>can_delete=true</code> (лист).
+      Клик открывает диалог подтверждения (показан открытым, <code>&lt;dialog&gt;</code>
+      в dev); подтверждение — <code>DELETE /api/wiki/pages/{id}</code>, отмена —
+      закрытие диалога. <kbd>Esc</kbd> — отмена, фокс в диалоге — на кнопке «Отмена».
+    </p>
+    <div class="confirm-backdrop" role="presentation">
+      <div class="confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <h2 id="confirm-title">Удалить страницу?</h2>
+        <p>«Чек: крепеж и уголки» будет удалена безвозвратно. История версий
+        страницы удаляется вместе с ней.</p>
+        <div class="confirm-actions">
+          <button type="button" class="btn btn-secondary">Отмена</button>
+          <button type="button" class="btn btn-danger-solid">Удалить</button>
+        </div>
+      </div>
+    </div>
+
+    <h2>Ошибка 409 (появились дочерние) — демо</h2>
+    <p class="demo-note">
+      Если у страницы с момента рендера появились дочерние, сервер отвечает
+      <code>409</code>: баннер ошибки, страница остается на месте, удаление
+      не выполняется.
+    </p>
+    <div class="error-banner" role="alert">
+      Страницу удалить нельзя: у неё есть дочерние страницы. Сначала перенесите или удалите их.
+    </div>
+  </div>
+
+  <p class="demo-note" style="margin-top: var(--space-3);">
+    Примечания для dev (3.2): breadcrumb строится из цепочки предков в ответе
+    <code>GET /api/wiki/pages/{id}</code> — все элементы кликабельны, кроме
+    текущей страницы; контент просанитизирован сервером; изображения —
+    <code>&lt;img src="/images/{id}" alt&gt;</code> (FR-111); «История» —
+    мокап wiki-history.html, «Редактировать» — wiki-editor.html.
+  </p>
+</main>
+
+</body>
+</html>
