@@ -195,7 +195,7 @@ fi
 if [ "${DRY_RUN}" = "1" ]; then
   echo "   [DRY-RUN] ${COMPOSE} exec -T app sh -c 'cat > /tmp/backup.py' < ${SRC_DIR}/services/backup/backup.py"
   echo "   [DRY-RUN] ${COMPOSE} exec -T -e BACKUP_DIR=/tmp/.deploy-bk -e EKOTOV_WIKI_DB_PATH=${DB_PATH_IN_CONTAINER} -e EKOTOV_WIKI_AVATARS_DIR=${AVATARS_DIR_IN_CONTAINER} app python -c 'import sys; sys.path.insert(0,\"/tmp\"); from backup import run_backup; run_backup()'"
-  echo "   [DRY-RUN] ${COMPOSE} exec -T app tar -cf - -C /tmp/.deploy-bk . | tar -xf - -C ${RELEASE_STAGING}   # вынос из контейнера в staging"
+  echo "   [DRY-RUN] ${COMPOSE} exec -T app tar -cf - -C /tmp/.deploy-bk . | tar -x --strip-components=1 --touch --no-same-owner --no-same-permissions -f - -C ${RELEASE_STAGING}   # вынос из контейнера в staging (метаданные './' недоступны юзеру хоста — фикс p15-tar-fix)"
   echo "   [DRY-RUN] ${COMPOSE} exec -T app rm -rf /tmp/.deploy-bk /tmp/backup.py"
   echo "   [DRY-RUN] mv ${RELEASE_STAGING}/wiki-daily-*.db → ${DB_BACKUP}; ${RELEASE_STAGING}/avatars-daily-*.tar → ${AVATARS_BACKUP}  # релизные имена (staging: суточная история sidecar в ${BACKUP_DIR} не тронута); sidecar-retention их не трогает"
   echo "   [DRY-RUN] ${COMPOSE} exec -T images tar -czf - -C /data images | cat > ${IMAGES_BACKUP}  # J38: том галереи (оригинал+превью) в релизный контур"
@@ -215,7 +215,21 @@ else
   # Комментарий ДОЛЖЕН стоять ВНЕ backslash-продолжения: bash обрывает команду
   # на комментарии внутри продолжения (ловится только живым прогоном, не bash -n
   # и не DRY_RUN — регресс review-002-1.4, blocker 1.4-f).
-  ${COMPOSE} exec -T app tar -cf - -C /tmp/.deploy-bk . | tar -xf - -C "${RELEASE_STAGING}" \
+  # Вынос из контейнера (фикс p15-tar-fix): распаковка идет на ХОСТЕ от
+  # пользователя хоста (не root, не 10001-владелец staging) — GNU tar при
+  # дефолтных флагах восстанавливает метаданные корневого члена './'
+  # (chown/chmod/utime на СУЩЕСТВУЮЩИЙ каталог staging) и падает
+  # «Operation not permitted» (прецедент: 2 живых прогона p15-wiki-1).
+  # --strip-components=1 срезает корневой член './' целиком (файлы ложатся
+  # прямо в staging), --touch/--no-same-owner/--no-same-permissions снимают
+  # остальные попытки метаданных. Проверено репликой tar-пайпа против
+  # боевого staging: без флагов exit 2 (utime+chmod на '.'), с флагами
+  # exit 0 дважды (в т.ч. повторный прогон по существующим файлам).
+  # ЗАМЕЧАНИЕ: даже с флагами staging обязан существовать и быть доступным
+  # на запись пользователю хоста (mkdir -p выше от его имени; mode 0700
+  # от 10001 сделал бы его недоступным — см. эскалацию в PR).
+  ${COMPOSE} exec -T app tar -cf - -C /tmp/.deploy-bk . | \
+    tar -x --strip-components=1 --touch --no-same-owner --no-same-permissions -f - -C "${RELEASE_STAGING}" \
     || fail "Бэкап не вынесен из контейнера (tar-поток в ${RELEASE_STAGING})"
   ${COMPOSE} exec -T app rm -rf /tmp/.deploy-bk /tmp/backup.py \
     || ok "cleanup временных файлов контейнера не удался (не критично)"
