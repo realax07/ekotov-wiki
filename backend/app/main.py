@@ -17,6 +17,7 @@ from app.profile import router as profile_router
 from app.tasks import install_error_handlers
 from app.tasks import router as tasks_router
 from app.users import router as users_router
+from app.wiki import router as wiki_router
 
 app = FastAPI(
     title="ekotov-wiki",
@@ -37,6 +38,7 @@ app.include_router(tasks_router)
 app.include_router(categories_router)
 app.include_router(comments_router)
 app.include_router(board_router)
+app.include_router(wiki_router)
 app.include_router(users_router)
 install_error_handlers(app)
 register_auth_middleware(app)

@@ -68,9 +68,35 @@ def search_page(request: Request):
 
 @router.get("/wiki")
 def wiki_page(request: Request):
-    """Wiki — заглушка без функций с пометкой todo (FR-13, дельта navigation)."""
+    """Раздел «Wiki» — каркас: дерево страниц + контентная область
+    (tasks.md 2.3 add-wiki; FR-107, дельта navigation — бейдж «todo»
+    снимается волной 3 / задача 6.x релизного хвоста).
+
+    Список страниц, поиск, действия — клиентом из ES-модуля
+    frontend/static/js/wiki/* (GET /api/wiki/…, волна 3); роут отдает
+    только каркас (шаблон wiki.html). Без сессии — редирект на /login
+    middleware'ом (app/middleware.py, sdd.md §3.6, дельта navigation
+    Scenario «Неавторизованный доступ к Wiki») — здесь не дублируется,
+    как у остальных страниц. Стили — frontend/static/css/wiki.css,
+    подключение в шаблоне (паттерн gallery.html)."""
     return templates.TemplateResponse(
         request=request, name="wiki.html", context={"active_page": "wiki"}
+    )
+
+
+@router.get("/wiki/{page_id}")
+def wiki_article_page(request: Request, page_id: str):
+    """Страница статьи Wiki /wiki/{page_id} (tasks.md 2.3 add-wiki;
+    FR-108, design §7): тот же каркас, что /wiki, page_id прокидывается
+    в шаблон (data-page-id контейнера) — client wiki.js загрузит статью
+    из GET /api/wiki/pages/{id}. Несуществующий (и нечисловой) id
+    каркас НЕ ломает: API вернет 404, клиент покажет «страница не
+    найдена» (задача 3.2). Без сессии — редирект на /login
+    middleware'ом (см. wiki_page)."""
+    return templates.TemplateResponse(
+        request=request,
+        name="wiki.html",
+        context={"active_page": "wiki", "page_id": page_id},
     )
 
 

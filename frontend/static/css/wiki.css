@@ -1,0 +1,55 @@
+/* =====================================================================
+   Wiki — каркасный CSS (tasks.md 2.3 add-wiki; FR-107, design §6–§7).
+   МИНИМУМ: раскладка и контейнеры. Финальный вид (мокапы 1.1а/1.1б
+   design/wiki-tree.html, wiki-page.html, утверждены 2026-10-10) —
+   волны 3.x (задачи 3.1–3.4), этот файл — их общая зона (tasks.md
+   «Неразделимые зоны»): дополнять селекторами своих блоков, общие
+   правила не перекраивать.
+
+   Токены — ТОЛЬКО var(--…) из app.css :root (V3 «Бумага»), без хардкода
+   цветов (NFR-33). Кеш-бастинг — ?v={{ static_v }} в wiki.html (бамп
+   вместе с static_v при релизе, DEF-003).
+   ===================================================================== */
+
+/* --- Двухколоночная раскладка: дерево слева, контент справа ---
+   Фиксация имен из мокапов: .wiki-layout, .wiki-tree, .wiki-content,
+   .wiki-breadcrumb (см. wiki.html). */
+.wiki-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: var(--space-2); /* 16px, 8px-сетка */
+  align-items: start;
+}
+
+.wiki-tree {
+  /* поверхность под дерево — семантический токен, не хардкод */
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-1);
+}
+
+.wiki-content {
+  min-width: 0; /* длинные строки/таблицы статьи не ломают grid-колонку */
+}
+
+.wiki-breadcrumb ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-05); /* 4px */
+}
+
+/* --- ≤480px: одна колонка (паттерн responsive p14, app.css @media 480) --- */
+@media (max-width: 480px) {
+  .wiki-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* дерево на телефоне — над контентом, компактный блок */
+  .wiki-tree {
+    order: -1;
+  }
+}

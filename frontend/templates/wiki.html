@@ -1,7 +1,35 @@
+{# Раздел «Wiki» — каркас (tasks.md 2.3 add-wiki; FR-107/FR-108, design §6–§7).
+   Роуты: GET /wiki и GET /wiki/{page_id} (backend/app/pages.py, задача 2.3).
+   Полная верстка — волнами 3.x СТРОГО по утвержденным мокапам 1.1
+   (design/wiki-tree.html, wiki-page.html; волна 3 дополняет этот каркас,
+   имена контейнеров зафиксированы здесь — tasks.md «Неразделимые зоны»).
+   Динамика: список страниц/дерево, поиск, статья, действия — клиентом из
+   ES-модулей frontend/static/js/wiki/* (GET /api/wiki/…, волна 3); здесь —
+   только контейнеры и подключение статики (wiki.css подключается по паттерну
+   gallery.html — внутри content-блока). Данные пользователя в разметку НЕ
+   входят — рендер createElement+textContent (XSS, паттерн board/search).
+   Пустое состояние (мокап wiki-tree: «Создать первую страницу») рисует
+   tree.js при пустом ответе API — контейнер wiki-tree пуст. Несуществующий
+   /wiki/{id}: API вернет 404, клиент покажет «страница не найдена» —
+   контейнер wiki-content пуст. #}
 {% extends "base.html" %}
 {% block title %}Wiki{% endblock %}
 {% block content %}
-<h1>Wiki</h1>
-<p class="todo-note">todo</p>
-<p>Раздел-заглушка: wiki-функции (создание/редактирование страниц, поиск по статьям) в этом релизе отсутствуют (FR-13, Won't).</p>
+<link rel="stylesheet" href="/static/css/wiki.css?v={{ static_v }}">
+<div class="wiki-layout"{% if page_id is defined and page_id %} data-page-id="{{ page_id }}"{% endif %}>
+  {# --- Дерево страниц (мокап wiki-tree: ul.wiki-tree > li.tree-node) --- #}
+  <aside class="wiki-tree" aria-label="Дерево страниц Wiki">
+    {# заполняет frontend/static/js/wiki/tree.js из GET /api/wiki/pages (3.1) #}
+  </aside>
+
+  {# --- Контентная область (мокап wiki-page) --- #}
+  <section class="wiki-content" aria-label="Содержимое страницы Wiki">
+    {# --- Breadcrumb: корень → … → статья; текущая — без ссылки (3.2) --- #}
+    <nav class="wiki-breadcrumb" aria-label="Иерархия страниц">
+      {# заполняет frontend/static/js/wiki/page.js из GET /api/wiki/pages/{id} (3.2) #}
+    </nav>
+    {# тело статьи / пустое состояние / «страница не найдена» — wiki.js (3.1/3.2) #}
+  </section>
+</div>
+<script type="module" src="/static/js/wiki.js?v={{ static_v }}"></script>
 {% endblock %}
