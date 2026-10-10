@@ -1575,4 +1575,10 @@ nav.wiki-breadcrumb {
     width: 44px;
     height: 44px;
   }
+
+  /* BUG-017 (REPORT-4.3): футерные кнопки редактора («Сохранить» 111×33,
+     «Отмена» 86×33) были ниже минимума — .tb-btn media-ветку их не покрывает */
+  #wiki-editor .btn {
+    min-height: 44px;
+  }
 }
