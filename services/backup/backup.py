@@ -14,9 +14,12 @@ avatars-daily-*; релизные wiki-pre-*/avatars-pre-* деплоя sidecar 
   sidecar-цикл:      python -m backup                       (CMD образа)
   из deploy.sh 1.4:  python -c "from backup import run_backup; run_backup()"
 
-Read-only SQLite: том смонтирован ro, БД живет в WAL-режиме. Открываем
-file:<path>?mode=ro — sqlite >= 3.22 умеет read-only WAL (heap-memory
-wal-index, когда -shm недоступен на записи); в python:3.12-slim sqlite >= 3.40.
+Read-only SQLite: том смонтирован ro, БД живет в WAL-режиме. mode=ro на
+проде p15 падает (нельзя создать -wal/-shm рядом — том без создания файлов),
+тогда backup_database ретраит с mode=ro&immutable=1 (только main-файл БД;
+риск отставания на WAL-хвост задокументирован в коде). На томах, где -shm
+создается, mode=ro работает как раньше (sqlite >= 3.22, heap-memory
+wal-index; в python:3.12-slim sqlite >= 3.40).
 """
 
 import os
@@ -49,25 +52,69 @@ def _stamp() -> str:
 def backup_database(db_path: str, dest_path: str) -> str:
     """Консистентная копия SQLite: sqlite3 .backup (WAL-safe, как deploy.sh).
 
-    Источник открывается mode=ro (том ro). Назначение не должно существовать
+    Источник: сначала mode=ro; на проде p15 том не позволяет создать -wal/-shm
+    рядом с БД — тогда ro-открытие/чтение падает и срабатывает retry с
+    immutable=1 (см. комментарий ниже). Назначение не должно существовать
     (sqlite3.connect создает пустой файл — при ошибке чтения источника
     удаляем, чтобы не оставлять «пустой бэкап»).
     """
     if os.path.exists(dest_path):
         raise FileExistsError(f"Файл бэкапа уже существует: {dest_path}")
-    src = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    try:
-        dst = sqlite3.connect(dest_path)
+
+    def _attempt(immutable: bool) -> None:
+        uri = f"file:{db_path}?mode=ro" + ("&immutable=1" if immutable else "")
+        src = sqlite3.connect(uri, uri=True)
         try:
-            src.backup(dst)
+            dst = sqlite3.connect(dest_path)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
         finally:
-            dst.close()
+            src.close()
+
+    # Read-only SQLite на проде (p15): wiki-data смонтирован так, что sqlite
+    # не может создать -wal/-shm РЯДОМ с БД (touch в /data → Read-only file
+    # system). mode=ro при этом падает (на живом контейнере проверено:
+    # "unable to open database file" на connect; локально воспроизводится и
+    # вариант "attempt to write a readonly database" уже на .backup —
+    # ловим ОБА). Рабочий вариант — immutable=1: sqlite читает ТОЛЬКО
+    # main-файл БД, ничего не создавая рядом.
+    # Стратегия: сначала честный mode=ro (на деве/старых томах — видит WAL);
+    # при одной из этих OperationalError — retry с immutable=1 и WARNING.
+    # Риск (задокументирован): immutable НЕ читает WAL — записи, не попавшие
+    # в main-файл (checkpoint), в бэкап не войдут.
+    #   Релизный бэкап (deploy.sh): миграция выполняется ДО старта backup —
+    #   на этот путь фикс не влияет. Живой sidecar-цикл (24ч): между тиками
+    #   app пишет в WAL — суточный бэкап может отставать на незалитый
+    #   WAL-хвост. Фундаментальное решение — дать backup rw-доступ к /data
+    #   (убрать ':ro' с wiki-data маунта в deploy/compose.yaml) — за
+    #   Заказчиком.
+    try:
+        try:
+            _attempt(immutable=False)
+        except sqlite3.OperationalError as exc:
+            msg = str(exc)
+            if (
+                "unable to open database file" not in msg
+                and "attempt to write a readonly database" not in msg
+            ):
+                raise
+            print(
+                f"[backup] WARNING: mode=ro не открыл {db_path} ({exc!r}) — "
+                "retry с immutable=1: SQLite прочитает ТОЛЬКО main-файл БД, "
+                "НЕ читая WAL; суточный бэкап может не включить последние "
+                "записи из WAL (фундаментальное решение — rw-маунт /data для "
+                "backup, см. deploy/compose.yaml)",
+                flush=True,
+            )
+            if os.path.exists(dest_path):
+                os.remove(dest_path)
+            _attempt(immutable=True)
     except Exception:
         if os.path.exists(dest_path):
             os.remove(dest_path)
         raise
-    finally:
-        src.close()
     if not os.path.getsize(dest_path):
         os.remove(dest_path)
         raise RuntimeError(f"Бэкап БД пуст: {dest_path}")
