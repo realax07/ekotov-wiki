@@ -234,20 +234,39 @@ else
   ${COMPOSE} exec -T app rm -rf /tmp/.deploy-bk /tmp/backup.py \
     || ok "cleanup временных файлов контейнера не удался (не критично)"
   # Релизные имена поверх служебных daily-* модуля (run_backup имена не
-  # параметризует — переименовываем на хосте; sidecar-retention считает
+  # параметризует — переименовываем; sidecar-retention считает
   # wiki-pre-*/avatars-pre-* чужими и никогда не удаляет). Вынос шел в
   # STAGING (1.4-a, review-001): mv только свежевынесенных файлов, суточная
   # история sidecar в ${BACKUP_DIR} НЕ затрагивается.
-  moved=0
-  for f in "${RELEASE_STAGING}"/wiki-daily-*.db; do
-    [ -e "${f}" ] && mv -f "${f}" "${DB_BACKUP}" && moved=$((moved + 1))
-  done
-  [ "${moved}" -eq 1 ] || fail "В ${RELEASE_STAGING} не найден свежевынесенный бэкап БД (wiki-daily-*.db: ${moved} шт.) — вынос из контейнера не сработал."
-  moved=0
-  for f in "${RELEASE_STAGING}"/avatars-daily-*.tar; do
-    [ -e "${f}" ] && mv -f "${f}" "${AVATARS_BACKUP}" && moved=$((moved + 1))
-  done
-  [ "${moved}" -eq 1 ] || fail "В ${RELEASE_STAGING} не найден свежевынесенный tar аватаров (avatars-daily-*.tar: ${moved} шт.) — вынос из контейнера не сработал."
+  # mv через docker root-хелпер (фикс p15-mv-fix, 3-й прогон
+  # p15-wiki-1): staging принадлежит 10001 (mode 0777 — писать юзеру хоста
+  # можно), НО BACKUP_DIR принадлежит 10001 без w для others — хостовый mv
+  # из staging в BACKUP_DIR падает «Permission denied» уже на ПЕРЕИМЕНОВАНИИ
+  # в BACKUP_DIR (mv не создает файл в назначении, а линкует+unlink-ает,
+  # что требует w на ОБА каталога). docker доступен юзеру хоста (группа
+  # docker; docker info проверен в предусловиях) — контейнер с --user 0,
+  # смонтированными staging и BACKUP_DIR, делает mv от root внутри
+  # mount-namespace (прецедент-реплика: хостовый mv exit 1 Permission
+  # denied, docker-хелпер переносит файл, staging пуст). Владелец файла
+  # при mv сохраняется (не chown) — mv не меняет метаданные исходника.
+  # Список файлов читаем заранее хостом (glob не пробрасывается в sh -c
+  # без квотинга) — наборы wiki-daily-*.db / avatars-daily-*.tar,
+  # свежевынесенные tar-фиксом, глобом совпадают ровно по одному файлу.
+  db_srcs=()
+  for f in "${RELEASE_STAGING}"/wiki-daily-*.db; do [ -e "${f}" ] && db_srcs+=("${f}"); done
+  [ "${#db_srcs[@]}" -eq 1 ] || fail "В ${RELEASE_STAGING} не найден свежевынесенный бэкап БД (wiki-daily-*.db: ${#db_srcs[@]} шт.) — вынос из контейнера не сработал."
+  img_srcs=()
+  for f in "${RELEASE_STAGING}"/avatars-daily-*.tar; do [ -e "${f}" ] && img_srcs+=("${f}"); done
+  [ "${#img_srcs[@]}" -eq 1 ] || fail "В ${RELEASE_STAGING} не найден свежевынесенный tar аватаров (avatars-daily-*.tar: ${#img_srcs[@]} шт.) — вынос из контейнера не сработал."
+  run docker run --rm -i --user 0 \
+    -v "${RELEASE_STAGING}:/stg" -v "${BACKUP_DIR}:/bkp" \
+    alpine sh -s -- "${db_srcs[0]##*/}" "${img_srcs[0]##*/}" \
+    "${DB_BACKUP##*/}" "${AVATARS_BACKUP##*/}" <<'MVSCRIPT' \
+    || fail "mv релизных имен через docker-хелпер не удался (staging → ${BACKUP_DIR})"
+set -e
+mv "/stg/$1" "/bkp/$3"
+mv "/stg/$2" "/bkp/$4"
+MVSCRIPT
   rmdir "${RELEASE_STAGING}" 2>/dev/null || ok "staging ${RELEASE_STAGING} не пуст после mv (остатки не мешают — retention их не трогает)"
   [ -s "${DB_BACKUP}" ] || fail "Файл бэкапа БД пуст или отсутствует: ${DB_BACKUP}"
   ok "Бэкап БД: $(du -h "${DB_BACKUP}" | cut -f1) — ${DB_BACKUP} (история sidecar в ${BACKUP_DIR} не тронута)"
