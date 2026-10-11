@@ -252,9 +252,10 @@ def test_nav_order_addresses_states_unchanged(logged_in_page, web_base_url):
         first_child = items.nth(i).evaluate("a => a.children[0].tagName")
         assert first_child == "svg", (i, first_child)
 
-    # Бейдж todo Wiki сохранен.
+    # Бейдж todo Wiki СНЯТ (решение Заказчика 2026-10-11, 4.5 add-wiki —
+    # раздел в проде). Проверяем обратное: бейджа больше нет.
     wiki = page.locator(".sidebar-nav a.nav-item-wiki")
-    expect(wiki.locator(".todo-badge")).to_have_text("todo")
+    expect(wiki.locator(".todo-badge")).to_have_count(0)
 
     # Active-класс на каждой странице — у соответствующего пункта
     # (скоуп .sidebar: «Настройки» — пункт footer'а).
