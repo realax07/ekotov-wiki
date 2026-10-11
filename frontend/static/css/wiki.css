@@ -361,10 +361,10 @@ ul.wiki-results {
 }
 
 .wiki-empty .wiki-create {
-  margin-left: auto; /* в центре плашки кнопка без auto-отступа тулбара */
-}
-
-.wiki-empty .wiki-create:first-of-type {
+  /* плашка text-align:center: inline-flex кнопка центрируется текстовым
+     выравниванием. margin-left:auto (наследие тулбара) прижал кнопку к
+     правому краю 280px-дерева и выносил за край (возврат живой приемки
+     p15-wiki-3: «кнопка уехала из виджета») — auto-отступ убран. */
   margin-left: 0;
 }
 
