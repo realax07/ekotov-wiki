@@ -156,6 +156,13 @@ ul.wiki-tree {
   color: var(--color-text-primary);
   text-decoration: none;
   line-height: 1.5;
+  /* длинный заголовок в узкой колонке дерева (280px): режется ellipsis,
+     а не выезжает за плитку (возврат живой приемки p15-wiki-3/4);
+     min-width:0 нужен, иначе flex-элемент не сжимается ниже контента */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tree-link:hover {
@@ -167,6 +174,7 @@ ul.wiki-tree {
   border-radius: var(--space-05);
   box-shadow: var(--focus-ring);
 }
+
 
 /* tree-meta («N страниц · обновлено …») снят — возврат живой приемки
    p15-wiki-5: meta вытеснял название за пределы плитки; узел дерева —
