@@ -285,7 +285,13 @@ def test_wiki_toolbar_create_button_opens_editor(
 def test_wiki_layout_desktop_280_and_mobile_one_column(
     logged_in_page, web_base_url, wiki_pages_created
 ):
-    """TC-wiki-007 (NFR-33): grid 280px + контент на десктопе; ≤480px — одна колонка."""
+    """TC-wiki-007 (NFR-33): grid 280px + контент до 1200px на десктопе;
+    ≤480px — одна колонка (дерево в потоке сверху, order:-1).
+
+    Значения — решение Заказчика decisions/2026-10-11-wiki-layout-tree-left.md:
+    дерево слева 280px, .wiki-content max-1200px, поиск min(320px, 100%)
+    (отклонение от мокапов 980px зафиксировано решением).
+    """
     wiki_pages_created("Раздел раскладки", "тело")
     page = logged_in_page
     tree = _open_wiki(page, web_base_url)
@@ -296,6 +302,24 @@ def test_wiki_layout_desktop_280_and_mobile_one_column(
     )
     first_col = columns.split()[0]
     assert first_col == "280px", f"колонка дерева: {columns}"
+
+    # контентная колонка расширена до 1200px (решение Заказчика, дерево слева)
+    content_max = page.locator(".wiki-content").evaluate(
+        "node => getComputedStyle(node).maxWidth"
+    )
+    assert content_max == "1200px", f"max-width контента: {content_max}"
+
+    # инпут поиска — гибкий: min(320px, 100%), не выезжает за плитку тулбара
+    search_width = page.locator(".wiki-search").evaluate(
+        "node => getComputedStyle(node).width"
+    )
+    assert search_width == "320px", f"ширина поиска на 1280px: {search_width}"
+    toolbar_box = page.locator(".wiki-toolbar").bounding_box()
+    search_box = page.locator(".wiki-search").bounding_box()
+    assert search_box["x"] >= toolbar_box["x"], "поиск левее плитки тулбара"
+    assert search_box["x"] + search_box["width"] <= toolbar_box["x"] + toolbar_box["width"], (
+        "инпут поиска выезжает за плитку тулбара"
+    )
 
     page.set_viewport_size({"width": 480, "height": 800})
     columns = page.locator(".wiki-layout").evaluate(

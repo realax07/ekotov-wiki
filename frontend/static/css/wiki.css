@@ -23,11 +23,33 @@
   align-items: start;
 }
 
-/* Контентная колонка не растягивается шире мокапа (design/wiki-page.html,
-   wiki-editor.html, wiki-history.html: .content { max-width: 980px };
-   DV-9 review-001). */
+/* Явное размещение колонок (только десктоп): h1 раздела в .wiki-layout
+   занимал первую grid-ячейку, авто-placement уводил дерево во вторую
+   колонку (1fr), а .wiki-content — в 280px-колонку дерева: контент был
+   сжат «как под мобилу», инпут поиска выезжал за плитку (возврат с живой
+   приемки 4.5; решение decisions/2026-10-11-wiki-layout-tree-left).
+   ≤480px — поток одной колонкой (media ниже), история — одна колонка
+   (:has-правило шва 3.4) — явное размещение туда не применяется. */
+@media (min-width: 481px) {
+  .wiki-layout > aside.wiki-tree {
+    grid-column: 1;
+  }
+
+  .wiki-layout > .wiki-content {
+    grid-column: 2;
+  }
+
+  .wiki-layout:has(#wiki-history) .wiki-content {
+    grid-column: 1;
+  }
+}
+
+/* Контентная колонка — до 1200px: решение Заказчика
+   (decisions/2026-10-11-wiki-layout-tree-left.md) — дерево слева 280px,
+   сжатие контента компенсировано расширением до 1200px (отклонение от
+   мокапов 980px зафиксировано решением). */
 .wiki-content {
-  max-width: 980px;
+  max-width: 1200px;
 }
 
 @media (max-width: 480px) {
@@ -171,10 +193,21 @@ ul.wiki-tree {
   color: var(--color-text-secondary);
 }
 
+/* Обертка инпута — гибкий слот до 320px: тянется (grow) и сжимается
+   (shrink) в узкой колонке, кнопка «Создать страницу» переносится
+   flex-wrap'ом тулбара. Прямые width/min()-проценты на .wiki-search в
+   flex-контексте резолвятся циклично (196px/250px вместо 320px) — ширина
+   задана здесь, инпут занимает 100% слота.
+   Решение Заказчика 2026-10-11-wiki-layout-tree-left: поиск min(320px, 100%). */
+.wiki-toolbar .filter {
+  flex: 1 1 320px;
+  min-width: 0;
+  max-width: 320px;
+}
+
 .wiki-search {
   display: block;
-  width: 320px;
-  max-width: 100%;
+  width: 100%;
   margin-top: var(--space-05);
   padding: 6px 10px;
   font: inherit;
