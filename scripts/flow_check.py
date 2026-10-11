@@ -14,6 +14,13 @@ from pathlib import Path
 
 CHANGE_ID = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)+$")  # kebab-case, >= 2 слов
 TC_REF = re.compile(r"TC-[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*-\d{3}")
+# --- J41: план релиза активного change-пакета (решения Заказчика 2026-10-11) ---
+# План обязан объявлять воркфлоу строкой «Флоу: N», N от 1 до 5
+# (допускаются обрамление '**'/'_' и заголовочный '#'; текст после объявления
+#  — обоснование выбора — разрешен).
+RELEASE_PLAN_FLOW_RE = re.compile(
+    r"^\s*(?:#{1,6}\s*)?(?:[-*]\s+)?[*_]{0,2}\s*Флоу\s*:\s*[1-5](?![\d.])", re.M
+)
 
 # --- J10: обязательный code-review закрытых dev-задач ---
 # Формат review-файла: agents/code_reviewer_agent.md —
@@ -304,6 +311,30 @@ def check(repo: Path) -> int:
                 errors += errs(
                     f"openspec/changes/{d.name}/: нет дельт specs/*/spec.md (контракт 2)"
                 )
+            # --- J41: план релиза активного change-пакета (аудит на мердже) ---
+            # Легальные пути PLAN-файла: PLAN-<change-id>.md в корне репо ЛИБО
+            # PLAN.md внутри каталога пакета. Пишет ПМ до диспатча СА; СА
+            # детализирует в tasks.md, план не переписывает.
+            plan_root = repo / f"PLAN-{d.name}.md"
+            plan_pkg = d / "PLAN.md"
+            if plan_root.is_file():
+                plan_text = plan_root.read_text(encoding="utf-8", errors="replace")
+            elif plan_pkg.is_file():
+                plan_text = plan_pkg.read_text(encoding="utf-8", errors="replace")
+            else:
+                plan_text = None
+            if plan_text is None:
+                errors += errs(
+                    f"активный change {d.name} БЕЗ-ПЛАНА без плана релиза (J41): "
+                    f"нет ни PLAN-{d.name}.md в корне репо, ни PLAN.md в "
+                    f"openspec/changes/{d.name}/ — пишет ПМ до запуска СА"
+                )
+            elif not RELEASE_PLAN_FLOW_RE.search(plan_text):
+                errors += errs(
+                    f"план релиза не объявляет воркфлоу (J41): {plan_root.name if plan_root.is_file() else plan_pkg.relative_to(repo)} "
+                    f"— нужна строка «Флоу: N», N от 1 до 5"
+                )
+
             # --- J10: обязательный code-review закрытых dev-задач ---
             tasks_file = d / "tasks.md"
             if tasks_file.is_file():
