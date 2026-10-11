@@ -277,8 +277,19 @@ MVSCRIPT
   # перед накаткой не сохранялись. tar из images-контейнера (uid 10001, файлы читает).
   IMAGES_CID="$(${COMPOSE} ps -q images 2>/dev/null || true)"
   if [ -n "${IMAGES_CID}" ]; then
-    ${COMPOSE} exec -T images tar -czf - -C /data images | cat > "${IMAGES_BACKUP}" \
-      || fail "Бэкап images-data не создан (tar из images-контейнера упал) — деплой прерван."
+    # tar-поток в docker root-хелпер (фикс p15-tar-fix, 4-й прогон
+    # p15-wiki-1): BACKUP_DIR принадлежит 10001 без w для others —
+    # хостовое перенаправление «| cat > ${IMAGES_BACKUP}» падает
+    # «Permission denied» на ОТКРЫТИИ файла хостовым shell (openclaw).
+    # Тот же класс, что mv-фикс 3/8: пишет docker root внутри
+    # mount-namespace (—user 0, BACKUP_DIR смонтирован в /bkp).
+    # Имя файла передаем аргументом (glob/переменные не пробрасываются
+    # в sh -c без квотинга); stdin хелпера — tar-поток из images
+    # (реплика проверена: валидный tar.gz ~17 МБ / 24 файла).
+    ${COMPOSE} exec -T images tar -czf - -C /data images \
+      | docker run --rm -i --user 0 -v "${BACKUP_DIR}:/bkp" alpine \
+          sh -c 'cat > "/bkp/$1"' sh "${IMAGES_BACKUP##*/}" \
+      || fail "Бэкап images-data не создан (tar из images-контейнера или запись через docker-хелпер упали) — деплой прерван."
     [ -s "${IMAGES_BACKUP}" ] || fail "Файл бэкапа галереи пуст: ${IMAGES_BACKUP}"
     ok "Бэкап галереи: $(du -h "${IMAGES_BACKUP}" | cut -f1) — ${IMAGES_BACKUP}"
   else
