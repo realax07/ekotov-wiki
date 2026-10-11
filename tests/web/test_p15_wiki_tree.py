@@ -13,14 +13,18 @@ TC-ID (реестр тест→кейс, 1 кейс = 1 тест):
 Кейсы этапа C (QA) не утверждены (test-model/approved/add-wiki нет); ID
 заведены по формату TC-wiki-NNN, привязка будет уточнена в QA-цикле 6.1.
 
-Проверяется (мокап design/wiki-tree.html — эталон):
+Проверяется (мокап design/wiki-tree.html — эталон; возврат живой приемки
+2026-10-11 — состояние дерева в cookie, дефолт СВЕРНУТО):
   1) дерево с вложенностью 3+ уровней строится из GET /api/wiki/pages
-     (плоский список → вложенность по parent_id) и сворачивается
-     (шеврон aria-expanded + hidden на поддереве);
+     (плоский список → вложенность по parent_id), ПО УМОЛЧАНИЮ ВСЕ СВЕРНУТО,
+     раскрытие/сворачивание пишется в cookie wiki_tree_expanded и
+     восстанавливается после перезагрузки страницы;
   2) поиск: по заголовку и по тексту с <mark> (инверсная подсветка
      amber-700); пустой результат — «ничего не найдено»;
   3) пустое состояние — кнопка «Создать первую страницу»;
-  4) раскладка 280px/контент, на 480px — одна колонка.
+  4) раскладка 280px/контент, на 480px — одна колонка;
+  5) тулбарная «Создать страницу» на статье /wiki/{id} ведет в редактор
+     с предвыбранным родителем (?create=1&parent={id}).
 
 Страницы для кейсов создаются API (POST /api/wiki/pages) от owner-сессии
 и удаляются в teardown (DELETE) — чистота стенда, как web_cleanup_created.
@@ -121,6 +125,33 @@ def test_wiki_tree_three_levels_build_and_collapse(
     root_node = tree.locator("li.tree-node").filter(has_text="Корневой раздел").first
     child_node = root_node.locator("li.tree-node").filter(has_text="Дочерний раздел").first
     grandchild_link = child_node.locator("a.tree-link", has_text="Внук: смета")
+
+    # ПО УМОЛЧАНИЮ ВСЕ СВЕРНУТО (возврат живой приемки 2026-10-11):
+    # шеврон корня — aria-expanded=false, поддеревья скрыты
+    root_toggle = root_node.locator("> .tree-row .tree-toggle")
+    child_toggle = child_node.locator("> .tree-row .tree-toggle")
+    expect(root_toggle).to_have_attribute("aria-expanded", "false")
+    expect(root_toggle).to_have_attribute(
+        "aria-label", "Развернуть раздел «Корневой раздел»"
+    )
+    expect(child_toggle).to_have_attribute("aria-expanded", "false")
+    expect(root_node.locator("> ul.tree-children")).to_be_hidden()
+    expect(grandchild_link).not_to_be_visible()
+
+    # развернуть корень: поддерево видно, вложенное — все еще свернуто
+    root_toggle.click()
+    expect(root_toggle).to_have_attribute("aria-expanded", "true")
+    expect(root_toggle).to_have_attribute(
+        "aria-label", "Свернуть раздел «Корневой раздел»"
+    )
+    root_children = root_node.locator("> ul.tree-children")
+    expect(root_children).to_be_visible()
+    expect(child_node.locator("a.tree-link", has_text="Дочерний раздел")).to_be_visible()
+    expect(grandchild_link).not_to_be_visible()  # внук — внутри свернутого ребенка
+
+    # развернуть ребенка: внук виден
+    child_toggle.click()
+    expect(child_toggle).to_have_attribute("aria-expanded", "true")
     expect(grandchild_link).to_be_visible()
 
     # ссылки на /wiki/{id}
@@ -137,23 +168,74 @@ def test_wiki_tree_three_levels_build_and_collapse(
     # полное название — в title-подсказке ссылки (ellipsis-обрезка)
     expect(grandchild_link).to_have_attribute("title", "Внук: смета")
 
-    # свернуть корень: aria-expanded=false, поддерево скрыто
-    root_toggle = root_node.locator("> .tree-row .tree-toggle")
-    expect(root_toggle).to_have_attribute("aria-expanded", "true")
+    # toggle-пара пишется в cookie: оба раскрытых id — в wiki_tree_expanded
+    cookies = {c["name"]: c["value"] for c in page.context.cookies()}
+    assert "wiki_tree_expanded" in cookies, cookies
+    assert str(root_id) in cookies["wiki_tree_expanded"], cookies["wiki_tree_expanded"]
+    assert str(child_id) in cookies["wiki_tree_expanded"], cookies["wiki_tree_expanded"]
+
+    # свернуть корень: aria-expanded=false, id уходит из cookie
     root_toggle.click()
     expect(root_toggle).to_have_attribute("aria-expanded", "false")
-    root_children = root_node.locator("> ul.tree-children")
     expect(root_children).to_be_hidden()
-
-    # развернуть обратно
-    root_toggle.click()
-    expect(root_toggle).to_have_attribute("aria-expanded", "true")
-    expect(root_children).to_be_visible()
+    cookies = {c["name"]: c["value"] for c in page.context.cookies()}
+    assert str(root_id) not in cookies["wiki_tree_expanded"], cookies["wiki_tree_expanded"]
 
     # лист (внук): спейсер вместо шеврона
     grandchild_row = child_node.locator("li.tree-node").filter(has_text="Внук: смета").first
     expect(grandchild_row.locator(".tree-spacer")).to_have_count(1)
     expect(grandchild_row.locator(".tree-toggle")).to_have_count(0)
+
+
+def test_wiki_tree_cookie_state_survives_reload(
+    logged_in_page, web_base_url, wiki_pages_created
+):
+    """Возврат живой приемки 2026-10-11: раскрытие пишется в cookie
+    wiki_tree_expanded и ПРИМЕНЯЕТСЯ после перезагрузки страницы (переход
+    на статью и назад состояние не теряет); id вне cookie — свернуто."""
+    root_id = wiki_pages_created("Корень cookie-памяти", "тело")
+    child_id = wiki_pages_created("Ребенок cookie-памяти", "тело", parent_id=root_id)
+    other_id = wiki_pages_created("Другой корень cookie", "тело")
+    wiki_pages_created("Лист под другим корнем", "тело", parent_id=other_id)
+
+    page = logged_in_page
+    tree = _open_wiki(page, web_base_url)
+
+    root_node = tree.locator("li.tree-node").filter(has_text="Корень cookie-памяти").first
+    other_node = tree.locator("li.tree-node").filter(has_text="Другой корень cookie").first
+    root_toggle = root_node.locator("> .tree-row .tree-toggle")
+    other_toggle = other_node.locator("> .tree-row .tree-toggle")
+
+    # дефолт: свернуто
+    expect(root_toggle).to_have_attribute("aria-expanded", "false")
+    expect(other_toggle).to_have_attribute("aria-expanded", "false")
+
+    # раскрыть корень №1 (и его ребенка для глубины) и ПЕРЕЗагрузить страницу
+    root_toggle.click()
+    expect(root_node.locator("> ul.tree-children")).to_be_visible()
+    page.reload()
+    tree = _open_wiki(page, web_base_url)
+
+    root_node = tree.locator("li.tree-node").filter(has_text="Корень cookie-памяти").first
+    other_node = tree.locator("li.tree-node").filter(has_text="Другой корень cookie").first
+    root_toggle = root_node.locator("> .tree-row .tree-toggle")
+    other_toggle = other_node.locator("> .tree-row .tree-toggle")
+
+    # состояние из cookie применено: раскрытый id развернут, прочий — нет
+    expect(root_toggle).to_have_attribute("aria-expanded", "true")
+    expect(root_node.locator("> ul.tree-children")).to_be_visible()
+    expect(root_node.locator("a.tree-link", has_text="Ребенок cookie-памяти")).to_be_visible()
+    expect(other_toggle).to_have_attribute("aria-expanded", "false")
+    expect(other_node.locator("> ul.tree-children")).to_be_hidden()
+
+    # содержимое cookie: JSON-массив c id раскрытого корня, без прочих
+    # (значение cookie percent-encoded — JS пишет encodeURIComponent)
+    import json as _json
+    from urllib.parse import unquote as _unquote
+    cookies = {c["name"]: c["value"] for c in page.context.cookies()}
+    expanded = _json.loads(_unquote(cookies["wiki_tree_expanded"]))
+    expanded_ids = [int(x) for x in expanded]
+    assert root_id in expanded_ids and other_id not in expanded_ids and child_id not in expanded_ids
 
 
 # ---------------------------------------------------------------------
@@ -333,4 +415,46 @@ def test_wiki_layout_desktop_280_and_mobile_one_column(
     # гонка 'Route.fulfill: Fetch response has been disposed' (см. F-4
     # review-004: известная pw-гонка disposeAPIResponse с невыполненным
     # fulfill; тот же обход, что в save-кейсах test_p15_wiki_editor.py)
+    page.wait_for_load_state("networkidle")
+
+
+# ---------------------------------------------------------------------
+# 5. Тулбарная «Создать страницу» на статье — родитель предвыбран
+# ---------------------------------------------------------------------
+
+
+def test_wiki_toolbar_create_on_article_presets_parent(
+    logged_in_page, web_base_url, wiki_pages_created
+):
+    """Возврат живой приемки 2026-10-11: «Создать страницу» на статье
+    /wiki/{id} → редактор ?create=1&parent={id} с ПРЕДВЫБРАННЫМ родителем =
+    текущая страница (select #page-parent value == id)."""
+    root_id = wiki_pages_created("Статья для создания дочерней", "тело")
+    page = logged_in_page
+
+    page.goto(f"{web_base_url}/wiki/{root_id}")
+    expect(page.locator(".wiki-layout")).to_be_visible()
+    page.locator(".wiki-toolbar .wiki-create").click()
+
+    expect(page).to_have_url(re.compile(rf"/wiki\?create=1&parent={root_id}$"))
+    expect(page.locator(".editor-area")).to_be_visible()
+    # родитель предвыбран = текущая статья
+    expect(page.locator("#page-parent")).to_have_value(str(root_id))
+    page.wait_for_load_state("networkidle")
+
+
+def test_wiki_toolbar_create_on_list_has_no_parent(
+    logged_in_page, web_base_url, wiki_pages_created
+):
+    """На списке /wiki (без id) кнопка ведет ?create=1 без parent —
+    родитель «Без родителя» (пустое value)."""
+    wiki_pages_created("Фон для списка", "тело")
+    page = logged_in_page
+    _open_wiki(page, web_base_url)
+
+    page.locator(".wiki-toolbar .wiki-create").click()
+
+    expect(page).to_have_url(re.compile(r"/wiki\?create=1$"))
+    expect(page.locator(".editor-area")).to_be_visible()
+    expect(page.locator("#page-parent")).to_have_value("")
     page.wait_for_load_state("networkidle")

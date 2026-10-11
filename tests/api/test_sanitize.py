@@ -187,6 +187,34 @@ def test_disallowed_attribute_on_allowed_tag():
     assert sanitize_html('<p colspan="2">x</p>') == "<p>x</p>"
 
 
+def test_img_width_integer_kept_and_non_integer_stripped():
+    """TC-san-017 (возврат живой приемки 2026-10-11): img width — только целое.
+    Целое сохраняется; дробное/мусор/пустое — атрибут снят, src/alt целы."""
+    assert sanitize_html('<img src="/images/1" alt="с" width="480">') == (
+        '<img src="/images/1" alt="с" width="480">'
+    )
+    out = sanitize_html('<img src="/images/1" alt="с" width="480.5">')
+    assert "width" not in out
+    assert 'src="/images/1"' in out and 'alt="с"' in out
+    out = sanitize_html('<img src="/images/1" alt="с" width="abc">')
+    assert "width" not in out and 'src="/images/1"' in out
+    out = sanitize_html('<img src="/images/1" alt="с" width="">')
+    assert "width" not in out and 'src="/images/1"' in out
+
+
+def test_img_width_negative_and_injection_stripped():
+    """TC-san-018 (возврат живой приемки 2026-10-11): отрицательное и
+    инъекция через width снимаются целиком (атрибута нет)."""
+    out = sanitize_html('<img src="/images/1" alt="с" width="-240">')
+    assert "width" not in out and 'src="/images/1"' in out
+    # onerror снимается, валидный width при этом сохраняется
+    out = sanitize_html('<img src="/images/1" alt="с" width="10" onerror="x()">')
+    assert "onerror" not in out and 'width="10"' in out
+    # width не из whitelist других тегов — снимается
+    out = sanitize_html('<p width="480">текст</p>')
+    assert "width" not in out and "<p>текст</p>" == out
+
+
 def test_empty_and_none_like_input():
     """TC-san-016: пустая строка — пустой выход."""
     assert sanitize_html("") == ""

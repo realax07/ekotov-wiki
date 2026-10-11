@@ -20,9 +20,13 @@
  *   галерея: GET /api/images (грид-выбор превью);
  *   диск:    file input → POST /api/images (multipart; 422 лимитов NFR-21 —
  *            в баннере диалога);
- *   вставка: <img src="/images/{...}" alt> (относительный URL из ответа
- *            images-API — data.url, /images/{filename}; design.md §5
+ *   вставка: <img src="/images/{...}" alt [width]> (относительный URL из
+ *            ответа images-API — data.url, /images/{filename}; design.md §5
  *            «/images/{id}» — плейсхолдер этой относительной ссылки).
+ *   Масштаб (возврат живой приемки 2026-10-11, как в Confluence): выбор
+ *   «Оригинал / Среднее (480 px) / Маленькое (240 px) / Свой размер (px)»;
+ *   свой размер — только целые 16..4096, невалид — отказ вставки; клик по
+ *   уже вставленному img открывает тот же выбор и меняет width на месте.
  *
  * Ссылка: модальный ввод (по мокапу); схема проверяется ДО вставки —
  * только http:, https: и относительные «/...» (javascript:/data: — отказ,
@@ -55,6 +59,15 @@
     imgSelectedUrl: null,
     imgSelectedAlt: '',
     imgSelectedName: '',
+    /* масштаб изображения (возврат живой приемки 2026-10-11, как в
+       Confluence): refs пикеров {radios, customWrap, customInput} —
+       отдельный для диалога вставки и модалки уже вставленного img */
+    imgScale: null,
+    /* модалка масштаба УЖЕ вставленного img (усиление в духе Confluence) */
+    imgScaleEditorDialog: null,
+    imgScaleEditorError: null,
+    imgScaleTarget: null,
+    imgScaleEditor: null,
     /* диалог ссылки */
     linkDialog: null,
     linkInput: null,
@@ -259,6 +272,112 @@
     var row = '<tr><td><br></td><td><br></td><td><br></td></tr>';
     var html = '<table>' + th + '<tbody>' + row + row + '</tbody></table><p><br></p>';
     document.execCommand('insertHTML', false, html);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Масштаб изображения (возврат живой приемки 2026-10-11, как в        */
+  /* Confluence): пресеты — решение PM в рамках возврата.                */
+  /* ------------------------------------------------------------------ */
+
+  /* Пресеты масштаба: оригинал — без width, среднее — 480px,
+     маленькое — 240px. Значения фиксированы решением PM (возврат). */
+  var IMG_SCALE_PRESET_WIDTH = { original: null, medium: 480, small: 240 };
+  var IMG_SCALE_MIN_PX = 16;
+  var IMG_SCALE_MAX_PX = 4096;
+
+  /* Свой размер: только целые 16..4096 px — невалид (дробное, меньше 16,
+     больше 4096, мусор) — отказ ВСТАВКИ, как у схем ссылок: ничего не
+     вставляется, показывается ошибка. */
+  function parseCustomScaleWidth(raw) {
+    var value = String(raw || '').trim();
+    if (!/^\d+$/.test(value)) return null;
+    var parsed = parseInt(value, 10);
+    if (parsed < IMG_SCALE_MIN_PX || parsed > IMG_SCALE_MAX_PX) return null;
+    return parsed;
+  }
+
+  function selectedScaleWidth(picker) {
+    var target = picker || state.imgScale;
+    var checked = target.radios.filter(function (radio) {
+      return radio.checked;
+    })[0];
+    var scale = checked ? checked.value : 'original';
+    if (scale !== 'custom') return IMG_SCALE_PRESET_WIDTH[scale];
+    return parseCustomScaleWidth(target.customInput.value);
+  }
+
+  function buildScalePicker(dialog, idSuffix) {
+    var ids = {
+      original: 'img-scale-original' + idSuffix,
+      medium: 'img-scale-medium' + idSuffix,
+      small: 'img-scale-small' + idSuffix,
+      custom: 'img-scale-custom' + idSuffix,
+      customValue: 'img-scale-custom-value' + idSuffix
+    };
+    var field = el('div', 'meta-field img-scale-field');
+    var label = el('label', null, 'Масштаб');
+    label.htmlFor = ids.original;
+    field.appendChild(label);
+
+    var radios = el('div', 'radio-row img-scale-row');
+    var options = [
+      { value: 'original', text: ' Оригинал', id: 'img-scale-original' },
+      { value: 'medium', text: ' Среднее (480 px)', id: 'img-scale-medium' },
+      { value: 'small', text: ' Маленькое (240 px)', id: 'img-scale-small' },
+      { value: 'custom', text: ' Свой размер (px)', id: 'img-scale-custom' }
+    ];
+    var radioInputs = [];
+    var customWrap;
+    var customInput;
+    function switchInput() {
+      var checked = radioInputs.filter(function (radio) {
+        return radio.checked;
+      })[0];
+      var isCustom = !!checked && checked.value === 'custom';
+      customWrap.hidden = !isCustom;
+      if (isCustom) customInput.focus();
+    }
+    radioInputs = options.map(function (option) {
+      var radioLabel = el('label');
+      var radio = el('input');
+      radio.type = 'radio';
+      radio.name = 'img-scale';
+      radio.id = ids[option.value];
+      radio.value = option.value;
+      radio.checked = option.value === 'original';
+      radio.addEventListener('change', switchInput);
+      radioLabel.appendChild(radio);
+      radioLabel.appendChild(document.createTextNode(option.text));
+      radios.appendChild(radioLabel);
+      return radio;
+    });
+    field.appendChild(radios);
+
+    customWrap = el('div', 'img-scale-custom-wrap');
+    customWrap.hidden = true;
+    customInput = el('input', 'meta-title img-scale-custom-input');
+    customInput.type = 'number';
+    customInput.id = ids.customValue;
+    customInput.min = String(IMG_SCALE_MIN_PX);
+    customInput.max = String(IMG_SCALE_MAX_PX);
+    customInput.step = '1';
+    customInput.placeholder = IMG_SCALE_MIN_PX + '–' + IMG_SCALE_MAX_PX;
+    customInput.setAttribute('aria-label', 'Свой размер в пикселях');
+    customWrap.appendChild(customInput);
+    field.appendChild(customWrap);
+
+    dialog.appendChild(field);
+    /* refs локальны диалогу (вставка и модалка img имеют ПО ОДНОМУ
+       пикеру — общее state не переиспользуется) */
+    return { radios: radioInputs, customWrap: customWrap, customInput: customInput };
+  }
+
+  function resetScalePicker(picker) {
+    picker.radios.forEach(function (radio) {
+      radio.checked = radio.value === 'original';
+    });
+    picker.customInput.value = '';
+    picker.customWrap.hidden = true;
   }
 
   function buildToolbar() {
@@ -653,6 +772,10 @@
     dialog.appendChild(diskPane);
     state.imgFileInput = fileInput;
 
+    /* масштаб: Оригинал / Среднее / Маленькое / Свой размер (px) —
+       возврат живой приемки 2026-10-11 */
+    state.imgScale = buildScalePicker(dialog, '');
+
     var actions = el('div', 'dialog-actions');
     var cancel = el('button', 'btn btn-secondary', 'Отмена');
     cancel.type = 'button';
@@ -687,6 +810,7 @@
     state.imgSelectedUrl = null;
     state.imgSelectedAlt = '';
     state.imgSelectedName = '';
+    resetScalePicker(state.imgScale);
     state.imgRadioGallery.checked = true;
     state.imgRadioDisk.checked = false;
     switchImageSource();
@@ -697,6 +821,121 @@
   function closeImageDialog() {
     state.imgDialog.hidden = true;
     state.area.focus();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Масштаб уже вставленного изображения (усиление в духе Confluence,   */
+  /* возврат живой приемки 2026-10-11): клик по img в редакторе →        */
+  /* модальный выбор масштаба → width меняется НА МЕСТЕ (src/alt не      */
+  /* трогаются). Валидация та же: целые 16..4096, невалид — width        */
+  /* не меняется, показывается ошибка.                                   */
+  /* ------------------------------------------------------------------ */
+
+  function buildImgScaleEditorDialog() {
+    var backdrop = el('div', 'editor-dialog-backdrop');
+    backdrop.hidden = true;
+
+    var dialog = el('div', 'dialog editor-img-scale-dialog');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'wiki-img-scale-dialog-title');
+
+    var title = el('h3', null, 'Масштаб изображения');
+    title.id = 'wiki-img-scale-dialog-title';
+    dialog.appendChild(title);
+
+    state.imgScaleEditor = buildScalePicker(dialog, '-edit');
+
+    var error = el('p', 'error-banner');
+    error.setAttribute('role', 'alert');
+    error.hidden = true;
+    dialog.appendChild(error);
+    state.imgScaleEditorError = error;
+
+    var actions = el('div', 'dialog-actions');
+    var cancel = el('button', 'btn btn-secondary', 'Отмена');
+    cancel.type = 'button';
+    cancel.addEventListener('click', closeImgScaleEditor);
+    var apply = el('button', 'btn btn-primary', 'Применить');
+    apply.type = 'button';
+    apply.addEventListener('click', applyImgScale);
+    actions.appendChild(cancel);
+    actions.appendChild(apply);
+    dialog.appendChild(actions);
+
+    backdrop.appendChild(dialog);
+    backdrop.addEventListener('mousedown', function (event) {
+      if (event.target === backdrop) closeImgScaleEditor();
+    });
+    document.body.appendChild(backdrop);
+    state.imgScaleEditorDialog = backdrop;
+  }
+
+  function openImgScaleEditor(img) {
+    state.imgScaleTarget = img;
+    resetScalePicker(state.imgScaleEditor);
+    var width = parseInt(img.getAttribute('width') || '', 10);
+    if (Number.isFinite(width)) {
+      var preset = Object.keys(IMG_SCALE_PRESET_WIDTH).filter(function (key) {
+        return IMG_SCALE_PRESET_WIDTH[key] === width;
+      })[0];
+      if (preset) {
+        state.imgScaleEditor.radios.forEach(function (radio) {
+          radio.checked = radio.value === preset;
+        });
+      } else {
+        state.imgScaleEditor.radios.forEach(function (radio) {
+          radio.checked = radio.value === 'custom';
+        });
+        state.imgScaleEditor.customInput.value = String(width);
+        state.imgScaleEditor.customWrap.hidden = false;
+      }
+    }
+    if (state.imgScaleEditorError) state.imgScaleEditorError.hidden = true;
+    state.imgScaleEditorDialog.hidden = false;
+  }
+
+  function closeImgScaleEditor() {
+    state.imgScaleEditorDialog.hidden = true;
+    state.imgScaleTarget = null;
+    state.area.focus();
+  }
+
+  function applyImgScale() {
+    var img = state.imgScaleTarget;
+    if (!img) {
+      closeImgScaleEditor();
+      return;
+    }
+    var width = selectedScaleWidth(state.imgScaleEditor);
+    if (
+      state.imgScaleEditor.radios[state.imgScaleEditor.radios.length - 1].checked &&
+      width === null
+    ) {
+      state.imgScaleEditorError.textContent =
+        'Укажите целый размер в пикселях: ' + IMG_SCALE_MIN_PX + '–' +
+        IMG_SCALE_MAX_PX + '.';
+      state.imgScaleEditorError.hidden = false;
+      return;
+    }
+    if (width) {
+      img.setAttribute('width', String(width));
+    } else {
+      img.removeAttribute('width'); // «Оригинал» — без width
+    }
+    closeImgScaleEditor();
+  }
+
+  function bindAreaImageScale(area) {
+    /* Клик по img внутри contenteditable не двигает каретку мимо —
+       открываем выбор масштаба вместо «мёртвого» клика (Confluence). */
+    area.addEventListener('click', function (event) {
+      var target = event.target;
+      if (target && target.nodeName === 'IMG' && area.contains(target)) {
+        event.preventDefault();
+        openImgScaleEditor(target);
+      }
+    });
   }
 
   function loadGallery() {
@@ -762,9 +1001,11 @@
       .replace(/>/g, '&gt;');
   }
 
-  function insertImageMarkup(url, alt) {
+  function insertImageMarkup(url, alt, width) {
+    var widthAttr = width ? ' width="' + parseInt(width, 10) + '"' : '';
     var html =
-      '<img src="' + attrEscape(url) + '" alt="' + attrEscape(alt || '') + '">';
+      '<img src="' + attrEscape(url) + '" alt="' + attrEscape(alt || '') + '"' +
+      widthAttr + '>';
     focusAreaAndRun(function () {
       document.execCommand('insertHTML', false, html + '<p><br></p>');
     });
@@ -772,8 +1013,19 @@
 
   function insertSelectedImage() {
     if (!state.imgRadioDisk.checked && state.imgSelectedUrl) {
+      var width = selectedScaleWidth();
+      var radios = state.imgScale.radios;
+      if (radios[radios.length - 1].checked && width === null) {
+        /* «Свой размер» с невалидным числом — отказ вставки (как у схем
+           ссылок): ничего не вставляем, ошибка в диалоге */
+        state.imgError.textContent =
+          'Укажите целый размер в пикселях: ' + IMG_SCALE_MIN_PX + '–' +
+          IMG_SCALE_MAX_PX + '.';
+        state.imgError.hidden = false;
+        return;
+      }
       closeImageDialog();
-      insertImageMarkup(state.imgSelectedUrl, state.imgSelectedAlt);
+      insertImageMarkup(state.imgSelectedUrl, state.imgSelectedAlt, width);
       return;
     }
     if (state.imgRadioGallery.checked && !state.imgSelectedUrl) {
@@ -810,7 +1062,8 @@
           closeImageDialog();
           insertImageMarkup(
             body.url || ('/images/' + body.filename),
-            body.original_name || file.name
+            body.original_name || file.name,
+            selectedScaleWidth()
           );
         });
       })
@@ -997,6 +1250,8 @@
     container.appendChild(buildEditorCard());
     buildLinkDialog();
     buildImageDialog();
+    buildImgScaleEditorDialog();
+    bindAreaImageScale(state.area);
     markActiveContent();
 
     document.addEventListener('selectionchange', updateToolbarStates);
