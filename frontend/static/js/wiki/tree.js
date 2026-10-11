@@ -2,7 +2,8 @@
  * Рендер СТРОГО по утвержденному мокапу design/wiki-tree.html:
  *   ul.wiki-tree > li.tree-node > div.tree-row
  *     [button.tree-toggle aria-expanded] | [span.tree-spacer (лист)]
- *     a.tree-link → /wiki/{id}, span.tree-meta
+ *     a.tree-link → /wiki/{id} (title = полное название — подсказка
+ *     при обрезке ellipsis; meta-счетчик снят — возврат приемки)
  *   вложенные ul.tree-children (скрытие — атрибут hidden).
  *
  * Плоский список GET /api/wiki/pages → вложенность по parent_id за ОДИН
@@ -41,36 +42,9 @@ export function buildTree(pages) {
   return byParent;
 }
 
-function formatDate(iso) {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-}
-
-function descendantCount(byParent, pageId) {
-  let total = 0;
-  const queue = [...(byParent.get(pageId) ?? [])];
-  while (queue.length > 0) {
-    const node = queue.shift();
-    total += 1;
-    queue.push(...(byParent.get(node.id) ?? []));
-  }
-  return total;
-}
-
-/* Счетчик meta по мокапу: «N страниц · обновлено {дата}» (узел с детьми,
-   DV-3 review-001) либо дата (лист). */
-function metaText(byParent, page) {
-  const direct = (byParent.get(page.id) ?? []).length;
-  if (direct > 0) {
-    const total = descendantCount(byParent, page.id);
-    const label = total === 1 ? 'страница' : total < 5 ? 'страницы' : 'страниц';
-    const updated = formatDate(page.updated_at);
-    return updated ? `${total} ${label} · обновлено ${updated}` : `${total} ${label}`;
-  }
-  return formatDate(page.updated_at);
-}
+/* meta-счетчик («N страниц · обновлено …») снят — возврат живой приемки
+   p15-wiki-5: в узкой колонке он вытеснял название за пределы плитки.
+   formatDate/descendantCount/metaText удалены за ненадобностью. */
 
 function makeToggle(page, childrenUl) {
   const toggle = el('button', 'tree-toggle');
@@ -100,18 +74,11 @@ function renderNode(page, byParent) {
     const childrenUl = el('ul', 'tree-children');
     for (const child of children) childrenUl.appendChild(renderNode(child, byParent));
     row.appendChild(makeToggle(page, childrenUl));
-    setChildren(row, [
-      makeLink(page),
-      el('span', 'tree-meta', metaText(byParent, page)),
-    ]);
+    setChildren(row, [makeLink(page)]);
     li.appendChild(row);
     li.appendChild(childrenUl);
   } else {
-    setChildren(row, [
-      el('span', 'tree-spacer'),
-      makeLink(page),
-      el('span', 'tree-meta', metaText(byParent, page)),
-    ]);
+    setChildren(row, [el('span', 'tree-spacer'), makeLink(page)]);
     li.appendChild(row);
   }
   return li;
@@ -120,6 +87,9 @@ function renderNode(page, byParent) {
 function makeLink(page) {
   const link = el('a', 'tree-link', page.title);
   link.href = `/wiki/${page.id}`;
+  // Полное название в подсказке (возврат живой приемки): длинные заголовки
+  // режутся ellipsis в узкой колонке — title показывает целиком.
+  link.title = page.title;
   return link;
 }
 

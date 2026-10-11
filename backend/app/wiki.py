@@ -96,6 +96,12 @@ def _session_user_id(conn: sqlite3.Connection, request: Request) -> int | None:
     return row[0] if row is not None else None
 
 
+def _nocase(value: str) -> str:
+    """Регистронезависимое приведение для поиска (casefold покрывает кириллицу,
+    которую встроенная lower() sqlite не опускает; возврат живой приемки)."""
+    return value.casefold()
+
+
 def _escape_like(value: str) -> str:
     """Экранирование спецсимволов LIKE (% _ \\) для паттерна с ESCAPE '\\'
     (design.md §6)."""
@@ -412,10 +418,19 @@ def search_pages(q: str, request: Request) -> JSONResponse:
         )
     conn = get_connection()
     try:
+        # Регистронезависимость (возврат живой приемки p15-wiki-5): LIKE в
+        # sqlite чувствителен к регистру, а встроенная lower() опускает
+        # ТОЛЬКО ASCII — кириллица («Тестирование» vs «тестирование»)
+        # осталась бы чувствительной. Регистры приводит Python-функция
+        # wiki_nocase (str.casefold, создается ниже через create_function),
+        # сравнение — lower(col) LIKE lower(?): обе стороны проходят через
+        # один и тот же casefold, LIKE-спецсимволы экранированы как прежде.
+        conn.create_function("wiki_nocase", 1, _nocase, deterministic=True)
         pattern = f"%{_escape_like(q)}%"
         rows = conn.execute(
             "SELECT id, title, content, updated_at FROM pages"
-            " WHERE title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\'"
+            " WHERE wiki_nocase(title) LIKE wiki_nocase(?) ESCAPE '\\'"
+            " OR wiki_nocase(content) LIKE wiki_nocase(?) ESCAPE '\\'"
             " ORDER BY updated_at DESC, id DESC LIMIT ?",
             (pattern, pattern, SEARCH_LIMIT),
         ).fetchall()

@@ -406,14 +406,30 @@ def test_search_escapes_like_wildcards(client):
     # «100%» не должно находить «Скидка 100 процентов» (после «100» нет %).
     r = client.get("/api/wiki/search", params={"q": "100%"}).json()["results"]
     assert r == []
-    # «отчет_» с подчеркиванием матчит только литеральное подчеркивание
-    # (SQLite LIKE регистронезависим только для ASCII — сравнение в точном
-    # регистре, как и предписывает design.md §6 без оговорок о нижнем регистре).
-    r = client.get("/api/wiki/search", params={"q": "Отчет_"}).json()["results"]
+    # «отчет_» с подчеркиванием матчит только литеральное подчеркивание;
+    # поиск регистронезависим (возврат живой приемки p15-wiki-5: casefold
+    # через wiki_nocase, кириллица включительно) — «отчет_» находит
+    # «Отчет_2026» в другом регистре.
+    r = client.get("/api/wiki/search", params={"q": "отчет_"}).json()["results"]
     assert [x["title"] for x in r] == ["Отчет_2026"]
     # чистое вхождение работает.
     r = client.get("/api/wiki/search", params={"q": "2026"}).json()["results"]
     assert {x["title"] for x in r} == {"Отчет_2026", "Планы на 2026 год"}
+
+
+def test_search_case_insensitive_cyrillic(client):
+    """Возврат живой приемки p15-wiki-5: поиск не зависит от регистра,
+    включая кириллицу (встроенная lower() sqlite опускает только ASCII)."""
+    _create(client, "Тестирование", content="<p>Протокол испытаний</p>")
+    for q in ("тестирование", "ТЕСТИРОВАНИЕ", "Тестирование"):
+        r = client.get("/api/wiki/search", params={"q": q}).json()["results"]
+        assert [x["title"] for x in r] == ["Тестирование"], q
+    # регистронезависимость в content тоже
+    r = client.get("/api/wiki/search", params={"q": "ПРОТОКОЛ"}).json()["results"]
+    assert [x["title"] for x in r] == ["Тестирование"]
+    # сниппет: match_offset по plain-тексту в исходном регистре
+    body = client.get("/api/wiki/search", params={"q": "испытаний"}).json()["results"][0]
+    assert body["match_length"] == len("испытаний")
 
 
 def test_search_limit_20(client):

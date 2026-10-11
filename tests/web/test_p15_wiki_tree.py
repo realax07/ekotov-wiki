@@ -129,11 +129,13 @@ def test_wiki_tree_three_levels_build_and_collapse(
     )
     expect(grandchild_link).to_have_attribute("href", f"/wiki/{grandchild_id}")
 
-    # счетчик meta у корня: «N страниц · обновлено {дата}» (мокап, DV-3)
-    root_meta = root_node.locator(".tree-meta").first
-    meta_text = root_meta.inner_text()
-    assert meta_text.startswith("2 страницы"), meta_text
-    assert "· обновлено " in meta_text, meta_text
+    # meta-счетчик снят (возврат живой приемки: вытеснял название за плитку) —
+    # в узлах дерева .tree-meta нет ни у корня, ни у листа
+    expect(root_node.locator(".tree-meta")).to_have_count(0)
+    expect(tree.locator(".tree-meta")).to_have_count(0)
+
+    # полное название — в title-подсказке ссылки (ellipsis-обрезка)
+    expect(grandchild_link).to_have_attribute("title", "Внук: смета")
 
     # свернуть корень: aria-expanded=false, поддерево скрыто
     root_toggle = root_node.locator("> .tree-row .tree-toggle")
