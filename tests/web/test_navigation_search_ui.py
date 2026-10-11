@@ -26,7 +26,7 @@ def test_sidebar_all_pages_and_wiki_stub(logged_in_page, web_base_url):
         expect(page.get_by_role("link", name="Доска")).to_be_visible()
         expect(page.get_by_role("link", name="Поиск")).to_be_visible()
         expect(page.get_by_role("link", name="Wiki")).to_be_visible()
-        expect(page.get_by_role("link", name="Wiki").get_by_text("todo")).to_be_visible()
+        # Бейдж todo снят (решение Заказчика 2026-10-11, 4.5 add-wiki).
 
     # Доска → Поиск.
     page.goto(f"{web_base_url}/board")
