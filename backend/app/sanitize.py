@@ -8,8 +8,9 @@ design.md §4; NFR-31, ОГР-8).
 - Whitelist тегов = тулбар редактора (FR-110): h1 h2 h3 p br b strong i em u
   ul ol li blockquote pre code a img table thead tbody tr th td + структурные
   div span (перенос из contenteditable).
-- Whitelist атрибутов: a[href, title], img[src, alt], td/th[colspan, rowspan];
-  все прочие атрибуты снимаются — в т.ч. любые on*, style, class, id.
+- Whitelist атрибутов: a[href, title], img[src, alt, width — только целое],
+  td/th[colspan, rowspan]; все прочие атрибуты снимаются — в т.ч. любые
+  on*, style, class, id.
 - URL-фильтр: a[href], img[src] — только http:, https: и относительные;
   javascript:, data: (кроме data:image/ для img) и прочие схемы вырезаются
   вместе с атрибутом.
@@ -43,13 +44,29 @@ VOID_TAGS = frozenset({"br", "img"})
 # теги разворачиваются — содержимое остается, тег нет.
 DROP_CONTENT_TAGS = frozenset({"script", "style"})
 
-# Whitelist атрибутов (design.md §4); все прочие — снимаются.
+# Whitelist атрибутов (design.md §4 + возврат живой приемки 2026-10-11:
+# img width — масштаб изображений как в Confluence); все прочие — снимаются.
 ALLOWED_ATTRS: dict[str, tuple[str, ...]] = {
     "a": ("href", "title"),
-    "img": ("src", "alt"),
+    "img": ("src", "alt", "width"),
     "td": ("colspan", "rowspan"),
     "th": ("colspan", "rowspan"),
 }
+
+# img[width]: только целое число (возврат живой приемки 2026-10-11 —
+# масштаб изображений). Все, что не целое (дробное, отрицательное, мусор),
+# — атрибут снимается, в духе URL-проверок.
+_WIDTH_RE = re.compile(r"^\d+$")
+
+
+def _safe_width(value: str | None) -> str | None:
+    """img[width]: только целое (плюс — уже покрыт ^\\d+$). None — снять."""
+    if value is None:
+        return None
+    candidate = value.strip()
+    if not _WIDTH_RE.fullmatch(candidate):
+        return None
+    return candidate
 
 # Разрешенные схемы URL (design.md §4): http/https/относительные;
 # data: — только data:image/ (для img). Прочее (javascript:, vbscript:)
@@ -160,6 +177,10 @@ class _Sanitizer(HTMLParser):
                 value = _safe_url(value, is_img=(tag == "img"))
                 if value is None:
                     continue  # запрещенная схема — атрибут вырезан
+            if name == "width" and tag == "img":
+                value = _safe_width(value)
+                if value is None:
+                    continue  # нецелое — атрибут снят (возврат приемки)
             parts.append(f'{name}="{_html.escape(value or "", quote=True)}"')
         return "<" + " ".join(parts) + ">"
 

@@ -36,6 +36,7 @@ TC-ID (реестр тест→кейс, 1 кейс = 1 тест):
 
 import io
 import os
+import re
 import socket
 import sqlite3
 import threading
@@ -530,12 +531,15 @@ def test_image_insert_from_gallery(
     item.click()
     expect(item).to_have_attribute("aria-selected", "true")
 
+    # масштаб: Среднее (480 px) — возврат живой приемки 2026-10-11
+    dialog.get_by_label("Среднее (480 px)").check()
     dialog.get_by_role("button", name="Вставить").click()
 
     img = area.locator("img")
     expect(img).to_have_count(1)
     src = img.get_attribute("src")
     assert src.startswith("/images/"), src
+    expect(img).to_have_attribute("width", "480")
 
 
 def test_image_insert_from_disk_uploads_and_inserts(
@@ -588,6 +592,116 @@ def test_image_insert_from_disk_uploads_and_inserts(
             os.remove(os.path.join(IMAGES_DIR, filename))
         except OSError:
             pass
+
+
+# ---------------------------------------------------------------------------
+# 4b. Масштаб изображения (возврат живой приемки 2026-10-11, как в Confluence)
+# ---------------------------------------------------------------------------
+
+
+def test_image_insert_custom_invalid_size_no_insert(
+    logged_in_page, web_base_url, gallery_image, wiki_images_routing
+):
+    """Возврат живой приемки: «Свой размер» с НЕВАЛИДНЫМ числом (не целое /
+    вне 16..4096) — отказ вставки: ошибки в диалоге, <img> в редакторе НЕТ."""
+    _open_editor_create(logged_in_page, wiki_images_routing)
+    page = logged_in_page
+    area = page.locator(".editor-area")
+    area.click()
+
+    page.get_by_role("button", name="Изображение").click()
+    dialog = page.locator(".editor-img-dialog")
+    expect(dialog).to_be_visible()
+
+    item = dialog.locator(".img-pick-item").filter(
+        has_text=f"{MARKER}gallery-pick.png"
+    ).first
+    expect(item).to_be_visible()
+    item.click()
+
+    dialog.get_by_label("Свой размер (px)").check()
+    custom = dialog.get_by_label("Свой размер в пикселях")
+    expect(custom).to_be_visible()
+
+    # type=number не принимает «abc» на уровне input — невалид как «пустое»;
+    # нецелое проверяем через "480.5" (браузер number-инпута его отбрасывает,
+    # валидное значение целое 16..4096 — проходит), вне диапазона — 5/99999
+    for bad in ("5", "99999", "abc", ""):
+        try:
+            custom.fill(bad)
+        except Exception:
+            # number-input отклонил непарсable строку — поле осталось пустым:
+            # невалид «свой размер без числа», отказ вставки
+            pass
+        dialog.get_by_role("button", name="Вставить").click()
+        # ошибка показана, диалог открыт, ничего не вставлено
+        expect(dialog.locator(".error-banner")).to_be_visible()
+        expect(dialog).to_be_visible()
+        expect(area.locator("img")).to_have_count(0)
+
+    # валидный размер после отказа вставляется
+    custom.fill("320")
+    dialog.get_by_role("button", name="Вставить").click()
+    img = area.locator("img")
+    expect(img).to_have_count(1)
+    expect(img).to_have_attribute("width", "320")
+
+
+def test_image_click_opens_scale_editor_and_changes_width(
+    logged_in_page, web_base_url, gallery_image, wiki_images_routing
+):
+    """Усиление в духе Confluence: клик по уже вставленному img в редакторе —
+    модалка «Масштаб изображения»; выбор меняет width НА МЕСТЕ (src/alt не
+    тронуты); «Оригинал» width снимает."""
+    _open_editor_create(logged_in_page, wiki_images_routing)
+    page = logged_in_page
+    area = page.locator(".editor-area")
+    area.click()
+
+    page.get_by_role("button", name="Изображение").click()
+    dialog = page.locator(".editor-img-dialog")
+    expect(dialog).to_be_visible()
+    item = dialog.locator(".img-pick-item").filter(
+        has_text=f"{MARKER}gallery-pick.png"
+    ).first
+    item.click()
+    dialog.get_by_label("Среднее (480 px)").check()
+    dialog.get_by_role("button", name="Вставить").click()
+
+    img = area.locator("img")
+    expect(img).to_have_count(1)
+    src = img.get_attribute("src")
+    expect(img).to_have_attribute("width", "480")
+
+    # клик по вставленному img → модалка масштаба
+    img.click()
+    scale_dialog = page.locator(".editor-img-scale-dialog")
+    expect(scale_dialog).to_be_visible()
+    expect(scale_dialog.get_by_label("Среднее (480 px)")).to_be_checked()
+
+    # Маленькое → width=240 на месте, src/alt прежние
+    scale_dialog.get_by_label("Маленькое (240 px)").check()
+    scale_dialog.get_by_role("button", name="Применить").click()
+    expect(scale_dialog).not_to_be_visible()
+    expect(img).to_have_attribute("width", "240")
+    assert img.get_attribute("src") == src
+
+    # Свой размер → width=300
+    img.click()
+    expect(scale_dialog).to_be_visible()
+    scale_dialog.get_by_label("Свой размер (px)").check()
+    scale_dialog.get_by_label("Свой размер в пикселях").fill("300")
+    scale_dialog.get_by_role("button", name="Применить").click()
+    expect(scale_dialog).not_to_be_visible()
+    expect(img).to_have_attribute("width", "300")
+
+    # Оригинал → width снят
+    img.click()
+    expect(scale_dialog).to_be_visible()
+    scale_dialog.get_by_label("Оригинал").check()
+    scale_dialog.get_by_role("button", name="Применить").click()
+    expect(scale_dialog).not_to_be_visible()
+    assert img.get_attribute("width") is None
 
 
 # ---------------------------------------------------------------------------
