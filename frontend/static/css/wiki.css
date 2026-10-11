@@ -80,6 +80,8 @@ ul.wiki-tree {
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-soft);
+  /* страховка: ничего из дерева не выезжает за плитку (возврат приемки) */
+  overflow-x: hidden;
 }
 
 .tree-node {
@@ -173,20 +175,10 @@ ul.wiki-tree {
   box-shadow: var(--focus-ring);
 }
 
-.tree-meta {
-  margin-left: auto;
-  font-size: var(--font-size-micro);
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-  /* meta («N страниц · обновлено …») — целиком, сжатие идет на tree-link */
-  flex-shrink: 0;
-  padding-left: var(--space-2);
-}
 
-/* страховка: ничего из дерева не выезжает за плитку (возврат живой приемки) */
-ul.wiki-tree {
-  overflow-x: hidden;
-}
+/* tree-meta («N страниц · обновлено …») снят — возврат живой приемки
+   p15-wiki-5: meta вытеснял название за пределы плитки; узел дерева —
+   только заголовок (полное название в title-подсказке). */
 
 /* --- Тулбар раздела: поиск + создание (паттерн gallery-toolbar) --- */
 .wiki-toolbar {
