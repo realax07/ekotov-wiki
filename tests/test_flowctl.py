@@ -95,6 +95,10 @@ def make_repo(tmp_path: Path, *, change_id: str = "add-widget",
               "## Вердикт: approve\nReviewer-Delegation: deleg_testreviewer0000\n")
     if with_sdd:
         write(repo, "sdd.md", "# SDD\n")
+    # J41 (синхронизация flow_transition с фабрикой): dev_task/create_change
+    # требуют план релиза с объявленным воркфлоу — fixture-репо «собранный».
+    write(repo, "PLAN-add-widget.md",
+          "# PLAN-add-widget\n\n**Флоу: 1** (fixture)\n")
     write(repo, "src/widget.py", "X = 1\n")
     commit_all(repo)
     return repo
