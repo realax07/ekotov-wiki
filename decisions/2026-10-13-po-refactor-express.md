@@ -33,3 +33,19 @@
 settings_categories (84), p12_ui_polish (67), r5_crop (64), qa21_gallery (59),
 r6_tag_combobox (58), settings_profile (56), p15_wiki_editor (43),
 navigation_search (40), r3_selects (37), r3_formv3 (37) локаторов.
+
+## Волна 2 (2026-10-14, deleg_bdd7a28e — завершена)
+
+- Конвертированы все 10 оставшихся топ-файлов (settings_categories 84,
+  p12_ui_polish 67, crop 64, gallery 59, tag_combobox 58, settings_profile 56,
+  wiki_editor 43, navigation_search 40, r3_selects 37, r3_formv3 37).
+- PO: +SettingsPage, +ProfileSettingsPage, +CropWidget, +TagCombobox,
+  +GalleryPage; расширены WikiPage(+WikiEditor), Auth/Sidebar, TaskForm,
+  TaskDetail, Search.
+- Пофайлово: каждый файл НЕ хуже базлайна main (прогоны до/после через
+  worktree). Полный набор дважды: 217 passed / 12 failed / 2 skipped /
+  16 errors; 12 failed и 15 errors — пред-существующий фон; +1 error —
+  ротирующий средовый flake pw 1.63 (Route.fulfill/Fetch disposed при
+  browser.new_context; в разных прогонах разные тесты, автономно зеленые).
+- Итог PO-рефакторинга: tests/web полностью на PO, ~800+ дублированных
+  локаторов вынесены в 14 PO-файлов; test-логика и TC-трассировка не тронуты.
