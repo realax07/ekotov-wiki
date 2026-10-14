@@ -37,3 +37,24 @@ class Sidebar:
         self.search_link = page.get_by_role("link", name="Поиск")
         self.wiki_link = page.get_by_role("link", name="Wiki")
         self.logout_button = page.get_by_role("button", name="Выйти")
+
+    # --- локаторы-возвратники ---
+
+    def name_label(self):
+        """Подпись имени в блоке профиля (.profile-name)."""
+        return self.profile.locator(".profile-name")
+
+    def avatar_image(self):
+        """Аватар в блоке профиля (img.profile-avatar вместо кружка)."""
+        return self.profile.locator("img.profile-avatar")
+
+    def badge(self):
+        """Кружок-заглушка с бейджем (пока аватара нет)."""
+        return self.profile.locator(".profile-badge")
+
+    def wait_filled(self, name: str, timeout: int = 10_000) -> None:
+        """Автожидание заполненного профиля: класс profile-filled +
+        подпись display_name (GET /api/auth/me после ответа /me —
+        асинхронно, автожидание текста, а не мгновенный ассерт)."""
+        expect(self.profile).to_contain_class("profile-filled", timeout=timeout)
+        expect(self.name_label()).to_have_text(name, timeout=timeout)
