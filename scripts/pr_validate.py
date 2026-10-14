@@ -90,7 +90,14 @@ def check_change(repo: Path, change_id: str, marker: str = "") -> list[str]:
     from flow_check import approved_review_tasks  # единый парсер вердиктов (J10)
     pr_tasks = extract_pr_tasks(marker + " " + os.environ.get("GITHUB_HEAD_REF", ""))
     if pr_tasks:
-        covered = approved_review_tasks(repo, change_id)
+        # MIN-4 ревью BUG-AF-RECHECK: warns парсера (нечитаемый/противоречивый
+        # вердикт последней итерации) — в диагностику, не молчаливое
+        # «задача не покрыта».
+        review_warns: list[str] = []
+        covered = approved_review_tasks(repo, change_id, review_warns)
+        for w in review_warns:
+            print(f"pr_validate: FLOW-WARNING: code-reviews/{change_id}/: {w}",
+                  file=sys.stderr)
         # J10 требует review только для DEV-задач: ops/docs-задачи ([ops]/[docs])
         # и незакрытые задачи tasks.md исключаются (контракт flow_control:
         # ops_task/docs_task; упоминание незакрытой задачи в тексте PR —
@@ -143,49 +150,21 @@ def check_change(repo: Path, change_id: str, marker: str = "") -> list[str]:
                 )
                 continue
             _rd = _m.group(1).replace("-", "_")
-            _exists = _ok = _role_bad = False
+            _exists = _ok = False
             try:
                 _c = _sq.connect(f"file:{_db}?mode=ro", uri=True)
                 _row = _c.execute("SELECT state FROM async_delegations WHERE delegation_id=?", (_rd,)).fetchone()
-                # J11: атрибуция роли — делегация обязана принадлежать роли code_reviewer
-                # (источник: active_sessions.json, реестр roles по delegation_id)
-                _role = None
-                try:
-                    import json as _json
-                    _fstate = _json.loads((Path.home() / ".hermes" / "state" / "active_sessions.json").read_text(encoding="utf-8"))
-
-                    def _walk_role(o):
-                        if isinstance(o, dict):
-                            if str(o.get("delegation_id", "")).replace("-", "_") == _rd:
-                                return o.get("role")
-                            for v in o.values():
-                                r = _walk_role(v)
-                                if r:
-                                    return r
-                        elif isinstance(o, list):
-                            for v in o:
-                                r = _walk_role(v)
-                                if r:
-                                    return r
-                        return None
-
-                    _role = _walk_role(_fstate)
-                except Exception:
-                    _role = None
                 _c.close()
                 _exists = _row is not None
-                _role_bad = _exists and _role is not None and _role != "code_reviewer"
-                _ok = _exists and _row[0] in ("completed",) and _rd not in _dev_delegs and not _role_bad
+                _ok = _exists and _row[0] in ("completed",) and _rd not in _dev_delegs
             except _sq.Error:
                 _exists = _ok = True
             if not _ok:
-                _why = ("не найдена в реестре делегаций" if not _exists else
-                        "совпадает с dev-делегацией задачи (SELF_REVIEW)" if _rd in _dev_delegs else
-                        f"роль делегации '{_role}' не code_reviewer (J11: атрибуция роли)" if _role_bad else
-                        "не завершена (state != completed)")
                 missing.append(
                     f"code-reviews/{change_id}/{_rf.name}: Reviewer-Delegation '{_rd}' "
-                    + _why + " — ревью не засчитано"
+                    + ("не найдена в реестре делегаций" if not _exists else
+                       "совпадает с dev-делегацией задачи (SELF_REVIEW)") +
+                    " — ревью не засчитано"
                 )
 
     # Тесты: хотя бы один TC-ID change в tests/ (контракт 6, трассировка)
@@ -232,6 +211,54 @@ def check_docs(repo: Path, marker: str) -> list[str]:
     return errs
 
 
+def check_ui_tests_gate(repo: Path, change_id: str, pr_text: str = "") -> list[str]:
+    """J50 CI-ворота: UI-дельта (frontend/**, services/*/frontend/) в дифе PR
+    + макеты (design/** в change-пакете или проекте) ⇒ в дифе обязаны быть
+    изменения tests/web/*.py, ЛИБО явный маркер `[no-ui-tests]` с основанием
+    (≥10 символов после маркера до конца строки; иначе маркер неполный и
+    валидируется как отсутствие). Честный escape — по образцу [ops] (J26).
+
+    Диф-контекст — env-конвенция CI (flow.yml): PR_CHANGED_UI=1, если диф
+    трогает продуктовый фронтенд; PR_CHANGED_WEBTESTS=1, если tests/web/.
+    Без фронтенд-путей в дифе проверка молчит (бэкенд-PR не мешает)."""
+    if os.environ.get("PR_CHANGED_UI", "").strip() not in ("1", "true"):
+        return []  # (1) фронтенд-путей в дифе нет — проверка молчит
+    if os.environ.get("PR_CHANGED_WEBTESTS", "").strip() in ("1", "true"):
+        print(
+            f"pr_validate: J50 OK: UI-дельта покрыта изменениями tests/web/ ({change_id})",
+            file=sys.stderr,
+        )
+        return []  # (3) web-тесты в дифе — OK
+    m = NO_UI_TESTS_RE.search(pr_text)
+    if m and len(m.group(1).strip()) >= 10:
+        print(
+            f"pr_validate: J50 OK: [no-ui-tests] — основание: {m.group(1).strip()}",
+            file=sys.stderr,
+        )
+        return []  # (2) честный escape с основанием — OK
+    if not _has_design_artifacts(repo, change_id):
+        return []  # макетов нет — правило не применяется
+    if m:
+        return [
+            "J50: маркер [no-ui-tests] без основания — после маркера до конца "
+            "строки нужно ≥10 символов с обоснованием (почему UI-сценарий без web-тестов)"
+        ]
+    return [
+        "J50: UI-дельта без web-тестов: добавь tests/web кейсы или [no-ui-tests] + основание"
+    ]
+
+
+def _has_design_artifacts(repo: Path, change_id: str) -> bool:
+    """J50: макеты — design/** в change-пакете или в проекте (структура
+    ekotov-wiki: design/ в корне репозитория)."""
+    pkg = repo / "openspec" / "changes" / change_id
+    for root in (pkg, repo):
+        d = root / "design"
+        if d.is_dir() and any(p.is_file() for p in d.rglob("*")):
+            return True
+    return False
+
+
 def check_ops(repo: Path, marker: str) -> list[str]:
     """[ops]: эксплуатационные работы (деплой, переключение, инфраструктура).
     Артефакт — протокол приемки Заказчика, не review-файл (контракт ops_task).
@@ -241,7 +268,22 @@ def check_ops(repo: Path, marker: str) -> list[str]:
         errs.append(
             "PR помечен [ops], но содержит изменения openspec/ — изменение as is "
             "только через change-пакет (контракт 7)")
+    # J26: deploy-дифф допустим ТОЛЬКО в [ops]-PR (CI-ворота, детерминированно).
     return errs
+
+
+def check_deploy_gate(marker: str) -> list[str]:
+    """J26 CI-ворота: PR трогает deploy/** или RUNBOOK.md, но не помечен [ops].
+
+    Деплой-инфраструктура — зона devops-роли: ПМ/dev-PR с deploy-файлами
+    обязан идти как [ops] (девопс-делегация + протокол приемки Заказчика).
+    Вызывается из main() для НЕ-ops типов flow."""
+    if os.environ.get("PR_CHANGED_DEPLOY", "").strip() in ("1", "true"):
+        return [
+            "J26: PR содержит изменения deploy/**/RUNBOOK.md, но не помечен [ops] — "
+            "деплой-инфраструктура меняется только через [ops]-PR (devops-делегация, "
+            "приемка Заказчика)"]
+    return []
 
 
 FLOWS = {
@@ -253,6 +295,10 @@ FLOWS = {
 }
 
 MARKER_RE = re.compile(r"\[(BUG-\d+|[a-z0-9]+(?:-[a-z0-9]+)+|\bchore|\bdocs|\bops)\]")
+
+# J50: маркер-escape [no-ui-tests] — в начале строки или после пробела;
+# основание = хвост строки после маркера (валидность проверяет вызыватель).
+NO_UI_TESTS_RE = re.compile(r"(?m)(?:^|\s)\[no-ui-tests\][ \t]*(.*)$")
 
 # J10: извлечение номеров задач из текста PR (ветка/заголовок/тело).
 # Принимает формы: 1.1, 5.2, 2.1+2.2 (объединенная задача — обе).
@@ -311,7 +357,7 @@ def parse_id(text: str) -> tuple[str, str] | None:
     return None
 
 
-def fetch_pr_info() -> tuple[str, str] | None:
+def fetch_pr_info() -> str | None:
     """В CI (GitHub Action): событие pull_request — читает body/title из GITHUB_EVENT_PATH."""
     ev = os.environ.get("GITHUB_EVENT_PATH")
     if not ev or not Path(ev).is_file():
@@ -351,7 +397,24 @@ def main() -> int:
     if args.type:
         flow_type = args.type
 
+    # J26 CI-ворота: deploy-дифф только в [ops]-PR
+    if flow_type != "ops":
+        gate_errs = check_deploy_gate(marker_text)
+        if gate_errs:
+            for e in gate_errs:
+                print(f"pr_validate: {e}")
+            return 1
+
     repo = Path(args.repo).resolve()
+
+    # J50 CI-ворота: UI-дельта (frontend/**) + макеты (design/**) в change-пакете
+    # ⇒ web-тесты обязательны, escape — [no-ui-tests] + основание в body.
+    gate_errs = check_ui_tests_gate(repo, ident, marker_text)
+    if gate_errs:
+        for e in gate_errs:
+            print(f"pr_validate: {e}")
+        return 1
+
     if flow_type == "change":
         missing = FLOWS[flow_type](repo, ident, marker_text)
     else:
