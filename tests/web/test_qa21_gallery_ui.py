@@ -26,6 +26,8 @@ import sqlite3
 import pytest
 from playwright.sync_api import expect
 
+from tests.web.pages.gallery import GalleryPage
+
 pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 BASE_URL = os.environ.get("EKOTOV_WIKI_BASE_URL", "http://127.0.0.1:18443")
@@ -192,22 +194,24 @@ def test_tc_gal_115_grid_and_filters_owner_vs_pe(gallery_js_page, browser_instan
     _upload_api("owner", MARKER + "B.png", category=MARKER + "семья")
     _upload_api("owner", MARKER + "C.png")
     page = gallery_js_page
+    gallery = GalleryPage(page)
     page.reload()
     page.wait_for_load_state("networkidle")
 
     for user in ("owner", "wife"):
         context = browser_instance.new_context(base_url=BASE_URL)
         page = context.new_page()
+        gallery = GalleryPage(page)
         _login(page, user)
         page.goto(f"{BASE_URL}/gallery")
         page.wait_for_load_state("networkidle")
 
         # Полная сетка: 3 карточки с названием + превью.
-        cards = page.locator(".g-card")
+        cards = gallery.cards()
         expect(cards).to_have_count(3)
         for name in ("A.png", "B.png", "C.png"):
-            expect(page.locator(".g-card-title", has_text=MARKER + name)).to_be_visible()
-        first = page.locator(".g-card", has_text=MARKER + "A.png")
+            expect(gallery.card_title(MARKER + name)).to_be_visible()
+        first = gallery.card(MARKER + "A.png")
         expect(first.locator("img")).to_be_visible()
         expect(first.locator(".task-category", has_text=MARKER + "семья")).to_be_visible()
         expect(first.locator(".task-tag", has_text=MARKER + "лето")).to_be_visible()
@@ -215,24 +219,24 @@ def test_tc_gal_115_grid_and_filters_owner_vs_pe(gallery_js_page, browser_instan
         expect(first.locator(".stat").first).to_be_visible()
 
         # Фильтр по категории → A и B.
-        page.select_option("#filter-category", MARKER + "семья")
+        gallery.filter_category.select_option(MARKER + "семья")
         page.wait_for_load_state("networkidle")
-        expect(page.locator(".g-card")).to_have_count(2)
-        expect(page.locator(".g-card", has_text=MARKER + "C.png")).to_have_count(0)
+        expect(gallery.cards()).to_have_count(2)
+        expect(gallery.card(MARKER + "C.png")).to_have_count(0)
 
         # Комбинация category+tag → только A (конъюнкция).
-        page.select_option("#filter-tag", MARKER + "лето")
-        expect(page.locator(".g-card")).to_have_count(1)
-        expect(page.locator(".g-card", has_text=MARKER + "A.png")).to_have_count(1)
+        gallery.filter_tag.select_option(MARKER + "лето")
+        expect(gallery.cards()).to_have_count(1)
+        expect(gallery.card(MARKER + "A.png")).to_have_count(1)
 
         # Только тег (сброс категории через полный reset, затем tag).
-        page.click("#filter-reset")
-        page.select_option("#filter-tag", MARKER + "летo" if False else MARKER + "лето")
-        expect(page.locator(".g-card")).to_have_count(1)
+        gallery.filter_reset.click()
+        gallery.filter_tag.select_option(MARKER + "летo" if False else MARKER + "лето")
+        expect(gallery.cards()).to_have_count(1)
 
         # Сброс — полная сетка.
-        page.click("#filter-reset")
-        expect(page.locator(".g-card")).to_have_count(3)
+        gallery.filter_reset.click()
+        expect(gallery.cards()).to_have_count(3)
         context.close()
 
 
@@ -258,53 +262,54 @@ def test_tc_gal_116_lightbox_nav_reactions_comment_download(gallery_js_page):
     _upload_api("owner", MARKER + "lb3.png")
 
     page = gallery_js_page
+    gallery = GalleryPage(page)
     page.reload()
     page.wait_for_load_state("networkidle")
 
     # Шаг 1: открытие кликом по карточке.
-    page.locator(".g-card", has_text=MARKER + "lb1.png").click()
-    overlay = page.locator("#lightbox-overlay")
+    gallery.card(MARKER + "lb1.png").click()
+    overlay = gallery.lightbox
     expect(overlay).to_be_visible()
-    expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb1.png")
+    expect(gallery.lb_title).to_contain_text(MARKER + "lb1.png")
 
     # Шаг 2: кнопки ←/→ циклично по выдаче created_at DESC
     # ([lb3, lb2, lb1]; lb1 — последний элемент выдачи).
-    page.click("#lb-prev")
-    expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb2.png")
-    page.click("#lb-prev")
-    expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb3.png")
-    page.click("#lb-prev")
-    expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb1.png")
-    page.click("#lb-next")
-    expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb3.png")
+    gallery.lb_prev.click()
+    expect(gallery.lb_title).to_contain_text(MARKER + "lb2.png")
+    gallery.lb_prev.click()
+    expect(gallery.lb_title).to_contain_text(MARKER + "lb3.png")
+    gallery.lb_prev.click()
+    expect(gallery.lb_title).to_contain_text(MARKER + "lb1.png")
+    gallery.lb_next.click()
+    expect(gallery.lb_title).to_contain_text(MARKER + "lb3.png")
 
     # Клавиатура: ArrowRight от lb3 (индекс 0) → lb2, ArrowLeft → обратно lb3.
     page.keyboard.press("ArrowRight")
-    expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb2.png")
+    expect(gallery.lb_title).to_contain_text(MARKER + "lb2.png")
     page.keyboard.press("ArrowLeft")
-    expect(page.locator("#lb-title")).to_contain_text(MARKER + "lb3.png")
+    expect(gallery.lb_title).to_contain_text(MARKER + "lb3.png")
 
     # Шаг 4: лайк из модалки — подсветка + счетчик без выхода из окна.
-    page.click("#lb-like")
-    expect(page.locator("#lb-like")).to_have_attribute("aria-pressed", "true")
-    expect(page.locator("#lb-like-count")).to_have_text("1")
+    gallery.lb_like.click()
+    expect(gallery.lb_like).to_have_attribute("aria-pressed", "true")
+    expect(gallery.lb_like_count).to_have_text("1")
 
     # Комментарий из модалки.
-    page.fill("#comment-input", "QAGAL-коммент из лайтбокса")
-    page.click("#comment-send")
-    expect(page.locator("#lb-comments-list")).to_contain_text(
+    gallery.lb_comment_input.fill("QAGAL-коммент из лайтбокса")
+    gallery.lb_comment_send.click()
+    expect(gallery.lb_comments_list).to_contain_text(
         "QAGAL-коммент из лайтбокса"
     )
 
     # Шаг 5: Esc закрывает; сетка на месте.
     page.keyboard.press("Escape")
     expect(overlay).to_be_hidden()
-    expect(page.locator(".g-card")).to_have_count(3)
+    expect(gallery.cards()).to_have_count(3)
 
     # Шаг 6: «скачать» — href оригинала (/images/<filename>, не превью).
-    page.locator(".g-card", has_text=MARKER + "lb1.png").click()
+    gallery.card(MARKER + "lb1.png").click()
     expect(overlay).to_be_visible()
-    href = page.locator("#lb-download").get_attribute("href")
+    href = gallery.lb_download.get_attribute("href")
     assert href and href.startswith("/images/") and href.endswith(".png"), href
     assert href == a["url"], (href, a["url"])
 
@@ -315,7 +320,7 @@ def test_tc_gal_116_lightbox_nav_reactions_comment_download(gallery_js_page):
     assert len(resp.body()) > 0
 
     # Крестик тоже закрывает.
-    page.click("#lb-close")
+    gallery.lb_close.click()
     expect(overlay).to_be_hidden()
 
 
@@ -331,71 +336,73 @@ def test_tc_gal_117_like_highlight_comment_ui_xss(gallery_js_page, browser_insta
     _upload_api("owner", MARKER + "x1.png")
 
     page = gallery_js_page
+    gallery = GalleryPage(page)
     page.reload()
     page.wait_for_load_state("networkidle")
 
     # Лайк с карточки (через лайтбокс — кнопки реакции в панели).
-    page.locator(".g-card", has_text=MARKER + "x1.png").click()
-    expect(page.locator("#lightbox-overlay")).to_be_visible()
-    page.click("#lb-like")
-    expect(page.locator("#lb-like")).to_have_attribute("aria-pressed", "true")
+    gallery.card(MARKER + "x1.png").click()
+    expect(gallery.lightbox).to_be_visible()
+    gallery.lb_like.click()
+    expect(gallery.lb_like).to_have_attribute("aria-pressed", "true")
 
     # Перезагрузка — состояние пережило (persisted).
     page.reload()
     page.wait_for_load_state("networkidle")
-    page.locator(".g-card", has_text=MARKER + "x1.png").click()
-    expect(page.locator("#lb-like")).to_have_attribute("aria-pressed", "true")
-    expect(page.locator("#lb-like-count")).to_have_text("1")
+    gallery.card(MARKER + "x1.png").click()
+    expect(gallery.lb_like).to_have_attribute("aria-pressed", "true")
+    expect(gallery.lb_like_count).to_have_text("1")
 
     # Смена голоса: dislike — подсветка переместилась.
-    page.click("#lb-dislike")
-    expect(page.locator("#lb-dislike")).to_have_attribute("aria-pressed", "true")
-    expect(page.locator("#lb-like")).to_have_attribute("aria-pressed", "false")
+    gallery.lb_dislike.click()
+    expect(gallery.lb_dislike).to_have_attribute("aria-pressed", "true")
+    expect(gallery.lb_like).to_have_attribute("aria-pressed", "false")
 
     # Повторный same-sign — снятие.
-    page.click("#lb-dislike")
-    expect(page.locator("#lb-dislike")).to_have_attribute("aria-pressed", "false")
-    expect(page.locator("#lb-dislike-count")).to_have_text("0")
+    gallery.lb_dislike.click()
+    expect(gallery.lb_dislike).to_have_attribute("aria-pressed", "false")
+    expect(gallery.lb_dislike_count).to_have_text("0")
 
     # Комментарий через UI (автор — display_name «Владелец» seed-owner'а;
     # COALESCE(display_name, login) в сервисе — комментарий «с автором»).
-    page.fill("#comment-input", "QAGAL-коммент UI")
-    page.click("#comment-send")
-    expect(page.locator("#lb-comments-list")).to_contain_text("QAGAL-коммент UI")
+    gallery.lb_comment_input.fill("QAGAL-коммент UI")
+    gallery.lb_comment_send.click()
+    expect(gallery.lb_comments_list).to_contain_text("QAGAL-коммент UI")
     # автор = COALESCE(display_name, login); документированный seed (app.seed_users)
     # не задает display_name — ожидаем логин 'owner', не литерал (BUG-009-круг урок)
-    expect(page.locator("#lb-comments-list .comment .comment-author").first).to_contain_text("owner")
+    expect(gallery.lb_comments_list.locator(".comment .comment-author").first).to_contain_text("owner")
 
     # Пустой комментарий → ошибка (кнопка disabled и/или 422-текст).
-    page.fill("#comment-input", "   ")
-    send_disabled = page.locator("#comment-send").is_disabled()
+    gallery.lb_comment_input.fill("   ")
+    send_disabled = gallery.lb_comment_send.is_disabled()
     if not send_disabled:
-        page.click("#comment-send")
-        expect(page.locator("#lb-error")).to_be_visible()
+        gallery.lb_comment_send.click()
+        expect(gallery.lb_error).to_be_visible()
     assert True
 
     # XSS: скриптовый текст отображается как текст (без исполнения).
     xss = 'QAGAL-<script>window.__xss=1</script><img src=x onerror="window.__xss=1">'
-    page.fill("#comment-input", xss)
-    page.click("#comment-send")
-    expect(page.locator("#lb-comments-list")).to_contain_text("QAGAL-")
+    gallery.lb_comment_input.fill(xss)
+    gallery.lb_comment_send.click()
+    expect(gallery.lb_comments_list).to_contain_text("QAGAL-")
     page.wait_for_timeout(300)
     leaked = page.evaluate("() => window.__xss === 1")
     assert not leaked, "XSS: скрипт исполнился!"
 
     # Удаление своего комментария доступно (кнопка у своего).
-    own = page.locator("#lb-comments-list .comment", has_text="QAGAL-").last
+    own = gallery.lb_comments_list.locator(".comment", has_text="QAGAL-").last
     expect(own.locator('button[aria-label*="далить"], button.del-btn, .comment-delete').first).to_be_visible()
 
     # Чужой комментарий (PE) — без кнопки удаления.
     pe_context = browser_instance.new_context(base_url=BASE_URL)
     pe_page = pe_context.new_page()
+    pe_gallery = GalleryPage(pe_page)
     _login(pe_page, "wife")
     pe_page.goto(f"{BASE_URL}/gallery")
     pe_page.wait_for_load_state("networkidle")
-    pe_page.locator(".g-card", has_text=MARKER + "x1.png").click()
-    expect(pe_page.locator("#lightbox-overlay")).to_be_visible()
-    foreign = pe_page.locator("#lb-comments-list .comment", has_text="QAGAL-").first
+    pe_gallery.card(MARKER + "x1.png").click()
+    expect(pe_gallery.lightbox).to_be_visible()
+    foreign = pe_gallery.lb_comments_list.locator(".comment", has_text="QAGAL-").first
     expect(foreign).to_be_visible()
     assert foreign.locator("button").count() == 0, "у чужого комментария есть кнопки"
     pe_context.close()
@@ -416,11 +423,12 @@ def test_tc_gal_118_upload_form_happy_and_errors(gallery_js_page):
     select_option несуществующей категории ждал опцию и падал по таймауту,
     кейс категории не диктует — happy-path с созданием новой)."""
     page = gallery_js_page
+    gallery = GalleryPage(page)
     page.reload()
     page.wait_for_load_state("networkidle")
 
-    page.click("#upload-button")
-    form = page.locator("#upload-form")
+    gallery.upload_button.click()
+    form = gallery.upload_form
     expect(form).to_be_visible()
 
     # Happy: валидный PNG через file input.
@@ -428,13 +436,13 @@ def test_tc_gal_118_upload_form_happy_and_errors(gallery_js_page):
         "name": MARKER + "up.png", "mimeType": "image/png",
         "buffer": _png_bytes((30, 180, 90)),
     })
-    page.select_option("#up-category", "__new__")
-    page.fill("#up-category-new", MARKER + "семья-up")
-    page.fill("#up-tags", MARKER + "лето-up")
-    page.click("#upload-submit")
+    gallery.upload_category.select_option("__new__")
+    gallery.upload_category_new.fill(MARKER + "семья-up")
+    gallery.upload_tags.fill(MARKER + "лето-up")
+    gallery.upload_submit.click()
     expect(form).to_be_hidden()
-    expect(page.locator(".g-card", has_text=MARKER + "up.png")).to_be_visible()
-    card = page.locator(".g-card", has_text=MARKER + "up.png")
+    expect(gallery.card(MARKER + "up.png")).to_be_visible()
+    card = gallery.card(MARKER + "up.png")
     expect(card.locator(".task-tag", has_text=MARKER + "лето-up")).to_be_visible()
 
     # Слишком большой: 12 МБ → человекочитаемая ошибка, карточки нет.
@@ -442,37 +450,37 @@ def test_tc_gal_118_upload_form_happy_and_errors(gallery_js_page):
     # «карточка появляется в сетке» в интерпретации dev 1.5; закрываем Esc,
     # чтобы клик по #upload-button не перехватывался оверлеем)
     page.keyboard.press("Escape")
-    expect(page.locator("#lightbox-overlay")).to_be_hidden()
+    expect(gallery.lightbox).to_be_hidden()
     big = _png_bytes() + b"\x00" * (12 * 1024 * 1024)
-    page.click("#upload-button")
+    gallery.upload_button.click()
     expect(form).to_be_visible()
     page.set_input_files("#upload-file", {
         "name": MARKER + "big.png", "mimeType": "image/png", "buffer": big,
     })
-    page.click("#upload-submit")
-    expect(page.locator("#upload-error")).to_be_visible()
-    err_text = page.locator("#upload-error").inner_text()
+    gallery.upload_submit.click()
+    expect(gallery.upload_error).to_be_visible()
+    err_text = gallery.upload_error.inner_text()
     assert err_text.strip(), "пустой текст ошибки too_large"
-    page.click("#upload-close")
+    gallery.upload_close.click()
     expect(form).to_be_hidden()
-    expect(page.locator(".g-card", has_text=MARKER + "big.png")).to_have_count(0)
+    expect(gallery.card(MARKER + "big.png")).to_have_count(0)
 
     # PDF под видом .jpg → ошибка типа.
     pdf = b"%PDF-1.4 fake" + b"\x00" * 400
-    page.click("#upload-button")
+    gallery.upload_button.click()
     expect(form).to_be_visible()
     page.set_input_files("#upload-file", {
         "name": MARKER + "fake.jpg", "mimeType": "image/jpeg", "buffer": pdf,
     })
-    page.click("#upload-submit")
-    expect(page.locator("#upload-error")).to_be_visible()
-    page.click("#upload-close")
-    expect(page.locator(".g-card", has_text=MARKER + "fake.jpg")).to_have_count(0)
+    gallery.upload_submit.click()
+    expect(gallery.upload_error).to_be_visible()
+    gallery.upload_close.click()
+    expect(gallery.card(MARKER + "fake.jpg")).to_have_count(0)
 
     # Drop-зона существует и доступна (HTML5 DnD happy с реальным файлом
     # требует DataTransfer-сессии; input-путь покрыт выше как паритет).
-    page.click("#upload-button")
-    expect(page.locator("#upload-dropzone")).to_be_visible()
+    gallery.upload_button.click()
+    expect(gallery.upload_dropzone).to_be_visible()
     page.keyboard.press("Escape")
 
 
@@ -496,14 +504,14 @@ def test_tc_gal_119_sidebar_gallery_fourth_parity_and_no_tracker_links(
         page.goto(f"{BASE_URL}/board")
         page.wait_for_load_state("networkidle")
 
-        items = page.locator(".sidebar-nav a.nav-item")
+        items = GalleryPage(page).nav_items
         labels = [
             re.sub(r"\s*todo\s*$", "", items.nth(i).inner_text().strip().split("\n")[0])
             for i in range(items.count())
         ]
         assert labels == ["Доска", "Поиск", "Wiki", "Галерея"], labels
 
-        gallery_item = page.locator("a.nav-item-gallery")
+        gallery_item = GalleryPage(page).gallery_nav_item
         expect(gallery_item).to_be_visible()
         expect(gallery_item.locator("svg.nav-icon")).to_be_visible()  # inline-SVG
 
