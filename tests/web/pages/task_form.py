@@ -113,6 +113,10 @@ class TaskForm:
         """Чекбокс is_fast формы (#task-is-fast)."""
         return self.page.locator("#task-is-fast")
 
+    def fast_line_label(self):
+        """Чекбокс fast по label («fast line» — подпись кейсов UIP-103/111)."""
+        return self.page.get_by_label("fast line")
+
     def close_cross(self):
         """Крестик «Закрыть форму без сохранения» (aria-label, текст в svg)."""
         return self.overlay.get_by_role(
