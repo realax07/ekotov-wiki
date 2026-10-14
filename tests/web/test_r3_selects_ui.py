@@ -23,6 +23,10 @@ import json
 import pytest
 from playwright.sync_api import expect
 
+from tests.web.pages.board import BoardPage
+from tests.web.pages.search import SearchPage
+from tests.web.pages.task_form import TaskForm
+
 pytestmark = [pytest.mark.web, pytest.mark.must]
 
 # Порядок опций/ответа — сортировка по имени (GET /api/categories по name).
@@ -35,14 +39,6 @@ def _option_texts(locator) -> list[str]:
     ]
 
 
-def _search_page(logged_in_page, web_base_url):
-    logged_in_page.goto(f"{web_base_url}/search")
-    expect(
-        logged_in_page.get_by_role("button", name="Конструктор")
-    ).to_be_visible()
-    return logged_in_page
-
-
 # --------------------------------------------------------------------------
 # TC-sel-101 — «категория в форме задачи из справочника» (Must)
 # --------------------------------------------------------------------------
@@ -51,10 +47,10 @@ def test_task_form_category_options_from_directory(board_page):
     ровно «Дом», «Работа», «Личное» — фактический справочник, без иных
     значений."""
     page = board_page
-    page.get_by_role("button", name="Создать задачу").click()
-    expect(page.get_by_role("heading", name="Создание задачи")).to_be_visible()
+    form = TaskForm(page)
+    form.open_create()
 
-    select = page.locator("#task-category")
+    select = form.category_select()
     expect(select.locator("option")).to_have_count(4)
     options = _option_texts(select.locator("option"))
     assert options == ["—", *SEED], options
@@ -98,8 +94,10 @@ def test_suggestions_401_silent_empty_datalist(
     assert created.status_code == 201, created.text
     web_cleanup_created(created.json()["id"])
 
-    page = _search_page(logged_in_page, web_base_url)
-    options = page.locator("#tag-hints option")
+    page = logged_in_page
+    search = SearchPage(page)
+    search.open(web_base_url)
+    options = search.tag_hints_options
     expect(options.filter(has_text="QAT-sel-401")).to_have_count(1, timeout=10_000)
 
     # Нештатные JS-ошибки страницы (uncaught); сетевые записи браузера о
@@ -116,9 +114,7 @@ def test_suggestions_401_silent_empty_datalist(
 
     page.route("**/api/suggestions", _unauthorized)
     page.reload()
-    expect(
-        page.get_by_role("button", name="Конструктор")
-    ).to_be_visible()
+    expect(search.constructor_button).to_be_visible()
 
     # Прямой fetch из страницы подтверждает 401 перехвата.
     status = page.evaluate(
@@ -138,9 +134,10 @@ def test_suggestions_401_silent_empty_datalist(
 def test_search_filter_category_options_from_directory(logged_in_page, web_base_url):
     """TC-sel-104 (CHK-175): #search-category = «любая» (пустое значение,
     вне справочника) + ровно Дом/Работа/Личное."""
-    page = _search_page(logged_in_page, web_base_url)
+    search = SearchPage(logged_in_page)
+    search.open(web_base_url)
 
-    select = page.locator("#search-category")
+    select = search.category_select
     expect(select.locator("option")).to_have_count(4)
     texts = _option_texts(select.locator("option"))
     assert texts == ["любая", *SEED], texts
@@ -163,21 +160,22 @@ def test_category_directory_changes_reflected_in_both_selects(
     )
     assert created.status_code == 201, created.text
     category_id = created.json()["id"]
+    board = BoardPage(logged_in_page)
+    form = TaskForm(logged_in_page)
+    search = SearchPage(logged_in_page)
     try:
         # Форма задачи: опции перезагружаются при каждом открытии.
-        page = logged_in_page
-        page.goto(f"{web_base_url}/board")
-        expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-        page.get_by_role("button", name="Создать задачу").click()
-        form_options = page.locator("#task-category option")
+        board.open(web_base_url)
+        form.open_create()
+        form_options = form.category_options
         expect(form_options.filter(has_text="QAT-sel-новая")).to_have_count(
             1, timeout=10_000
         )
-        page.get_by_role("button", name="Отмена").click()
+        form.cancel_button().click()
 
         # Фильтр-конструктор.
-        _search_page(page, web_base_url)
-        search_options = page.locator("#search-category option")
+        search.open(web_base_url)
+        search_options = search.category_options
         expect(search_options.filter(has_text="QAT-sel-новая")).to_have_count(
             1, timeout=10_000
         )
@@ -187,15 +185,13 @@ def test_category_directory_changes_reflected_in_both_selects(
         ).status_code == 200
 
     # После удаления категория исчезла из обоих (дополнение автора кейса).
-    page = logged_in_page
-    _search_page(page, web_base_url)
-    search_options = page.locator("#search-category option")
+    search.open(web_base_url)
+    search_options = search.category_options
     expect(search_options.filter(has_text="QAT-sel-новая")).to_have_count(0)
 
-    page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    page.get_by_role("button", name="Создать задачу").click()
-    form_options = page.locator("#task-category option")
+    board.open(web_base_url)
+    form.open_create()
+    form_options = form.category_options
     expect(form_options.filter(has_text="QAT-sel-новая")).to_have_count(0)
 
 
@@ -219,22 +215,23 @@ def test_datalists_show_task_tag_and_category_values(
     web_cleanup_created(created.json()["id"])
 
     # Форма задачи: datalist перезагружается при каждом открытии.
-    page = logged_in_page
-    page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    page.get_by_role("button", name="Создать задачу").click()
-    form_hints = page.locator("#task-tag-hints option")
+    board = BoardPage(logged_in_page)
+    form = TaskForm(logged_in_page)
+    search = SearchPage(logged_in_page)
+    board.open(web_base_url)
+    form.open_create()
+    form_hints = form.tag_hints_options
     expect(form_hints.filter(has_text="QAT-sel-тег")).to_have_count(1, timeout=10_000)
     # ОВ-1/Д-14: форма — только теги, категории в подсказках формы нет.
     expect(form_hints.filter(has_text="Дом")).to_have_count(0)
     # Дублей нет (set-семантика).
     texts = _option_texts(form_hints)
     assert len(texts) == len(set(texts)), texts
-    page.get_by_role("button", name="Отмена").click()
+    form.cancel_button().click()
 
     # Поиск.
-    _search_page(page, web_base_url)
-    search_hints = page.locator("#tag-hints option")
+    search.open(web_base_url)
+    search_hints = search.tag_hints_options
     expect(search_hints.filter(has_text="QAT-sel-тег")).to_have_count(1, timeout=10_000)
     expect(search_hints.filter(has_text="Дом")).to_have_count(1)
 
@@ -249,6 +246,9 @@ def test_single_mechanism_two_endpoints(
     из GET /api/categories; подсказки (оба datalist) — из GET
     /api/suggestions; значения в DOM не выходят за ответы API."""
     page = logged_in_page
+    board = BoardPage(page)
+    form = TaskForm(page)
+    search = SearchPage(page)
 
     api_responses: dict[str, object] = {}
     urls_seen: list[str] = []
@@ -271,15 +271,14 @@ def test_single_mechanism_two_endpoints(
     page.on("response", _on_response)
 
     # Форма задачи (категории + подсказки).
-    page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    page.get_by_role("button", name="Создать задачу").click()
-    expect(page.locator("#task-category option")).to_have_count(4)
-    page.get_by_role("button", name="Отмена").click()
+    board.open(web_base_url)
+    form.open_create()
+    expect(form.category_options).to_have_count(4)
+    form.cancel_button().click()
 
     # Поиск (категории + подсказки).
-    _search_page(page, web_base_url)
-    expect(page.locator("#search-category option")).to_have_count(4)
+    search.open(web_base_url)
+    expect(search.category_options).to_have_count(4)
 
     assert "categories" in api_responses and "suggestions" in api_responses, (
         urls_seen
@@ -287,7 +286,8 @@ def test_single_mechanism_two_endpoints(
     directory = {item["name"] for item in api_responses["categories"]["categories"]}
     suggestions = set(api_responses["suggestions"]["suggestions"])
 
-    # Значения в DOM не выходят за ответы двух эндпоинтов.
+    # Значения в DOM не выходят за ответы двух эндпоинтов (перебор
+    # селекторов-строк — прямой locator, правило «PO — не догма»).
     for selector in ("#task-category option", "#search-category option"):
         values = set(
             page.locator(selector).nth(i).text_content().strip()
@@ -309,26 +309,26 @@ def test_single_mechanism_two_endpoints(
 def test_selects_not_empty_not_static(logged_in_page, web_base_url):
     """TC-sel-108 (CHK-179): оба поля — ≥2 опции (служебное пустое +
     справочник), состав равен справочнику, лишних/захардкоженных нет."""
-    page = logged_in_page
+    board = BoardPage(logged_in_page)
+    form = TaskForm(logged_in_page)
+    search = SearchPage(logged_in_page)
 
-    page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    page.get_by_role("button", name="Создать задачу").click()
-    form_select = page.locator("#task-category")
+    board.open(web_base_url)
+    form.open_create()
+    form_select = form.category_select()
     expect(form_select.locator("option")).to_have_count(4)
-    page.get_by_role("button", name="Отмена").click()
+    form.cancel_button().click()
 
-    _search_page(page, web_base_url)
-    search_select = page.locator("#search-category")
+    search.open(web_base_url)
+    search_select = search.category_select
     expect(search_select.locator("option")).to_have_count(4)
 
     expected_search = ["любая", *SEED]
     assert _option_texts(search_select.locator("option")) == expected_search
 
     # Форма задачи — сверка при открытой форме (страница /board).
-    page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    page.get_by_role("button", name="Создать задачу").click()
+    board.open(web_base_url)
+    form.open_create()
     expect(form_select.locator("option")).to_have_count(4)
     expected_form = ["—", *SEED]
     assert _option_texts(form_select.locator("option")) == expected_form
