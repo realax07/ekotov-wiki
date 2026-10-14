@@ -71,3 +71,13 @@ class TaskForm:
 
     def move_select(self):
         return self.page.get_by_label("Столбец")
+
+    def delete_button(self):
+        return self.page.get_by_role("button", name="Удалить")
+
+    def title_by_id(self):
+        """id-локатор (fallback кейсов: поля скрытой формы без роли)."""
+        return self.page.locator("#task-title")
+
+    def description_by_id(self):
+        return self.page.locator("#task-description")

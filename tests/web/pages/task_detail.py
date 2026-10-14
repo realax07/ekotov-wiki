@@ -13,6 +13,7 @@ class TaskDetailView:
     def __init__(self, page):
         self.page = page
         self.overlay = page.locator("#task-detail-overlay")
+        self.modal = page.locator("#task-detail-overlay .modal")
         self.title = page.locator("#task-detail-title")
         self.attrs = page.locator("#task-detail-attrs")
         self.comments = page.locator("#task-comments-list")
@@ -41,9 +42,11 @@ class TaskDetailView:
 
     def inputs(self):
         """Все поля ввода view-модалки (негатив: их быть не должно)."""
-        return self.page.locator(
-            f"{self._OVERLAY_SEL} input, {self._OVERLAY_SEL} textarea, "
-            f"{self._OVERLAY_SEL} select"
-        )
+        sel = self._OVERLAY_SEL
+        return self.page.locator(f"{sel} input, {sel} textarea, {sel} select")
+
+    def buttons(self):
+        """Все кнопки view-модалки."""
+        return self.page.locator(f"{self._OVERLAY_SEL} button")
 
     _OVERLAY_SEL = "#task-detail-overlay"

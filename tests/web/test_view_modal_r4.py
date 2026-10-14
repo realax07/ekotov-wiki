@@ -35,14 +35,15 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.web.conftest import create_task_via_ui
+from tests.web.pages.board import BoardPage
+from tests.web.pages.search import SearchPage
+from tests.web.pages.task_detail import TaskDetailView
+from tests.web.pages.task_form import TaskForm
 
 pytestmark = [pytest.mark.web, pytest.mark.must]
 
-OVERLAY = "#task-detail-overlay"
 
 
-def _card(page, title: str):
-    return page.get_by_role("article").filter(has_text=title)
 
 
 def _card_task_id(card) -> int:
@@ -52,9 +53,11 @@ def _card_task_id(card) -> int:
 def _open_view(page, title: str):
     """Клик по карточке → открыта view-модалка с заголовком задачи
     (якорь — #task-detail-title: heading матчится и на заголовок карточки)."""
-    _card(page, title).click()
-    expect(page.locator(OVERLAY)).to_be_visible()
-    expect(page.locator("#task-detail-title")).to_have_text(title)
+    board = BoardPage(page)
+    detail = TaskDetailView(page)
+    board.card(title).click()
+    detail.wait_open()
+    expect(detail.title).to_have_text(title)
 
 
 # --------------------------------------------------------------------------
@@ -66,6 +69,9 @@ def test_card_click_opens_readonly_view(
     """TC-view-101: задача со всеми признаками и комментарием; клик по
     карточке → view: название, описание, приоритет, категория, срок, теги,
     комментарий — все значения видны; полей ввода и сохранения нет (FR-47)."""
+    board = BoardPage(board_page)
+    form = TaskForm(board_page)
+    detail = TaskDetailView(board_page)
     page = board_page
     created = web_owner_session.post(
         f"{web_base_url}/api/tasks",
@@ -86,21 +92,20 @@ def test_card_click_opens_readonly_view(
         json={"body": "Коммент во view"},
     ).status_code == 201, "комментарий не создался"
     page.reload()
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    expect(board.board).to_have_attribute("data-loaded", "true")
 
     _open_view(page, "QAT-view-полная")
 
-    attrs = page.locator("#task-detail-attrs")
+    attrs = detail.attrs
     for value in ("Описание для просмотра", "high", "Дом", "2026-12-31",
                   "дом, просмотр"):
         expect(attrs.get_by_text(value, exact=True)).to_be_visible()
     # Комментарии видны во view (сценарии 1/4) — read-only список.
-    expect(page.locator("#task-comments-list").get_by_text("Коммент во view")
+    expect(detail.comments.get_by_text("Коммент во view")
            ).to_be_visible()
     # Ввод и сохранение недоступны: ни одного input/textarea/select
     # внутри view-модалки (без «Редактировать» данные не изменить).
-    assert page.locator(f"{OVERLAY} input, {OVERLAY} textarea, "
-                        f"{OVERLAY} select").count() == 0
+    assert detail.inputs().count() == 0
 
 
 # --------------------------------------------------------------------------
@@ -110,25 +115,27 @@ def test_view_has_no_edit_elements(board_page, web_cleanup_created):
     """TC-view-102: во view нет полей ввода, кнопки сохранения, удаления
     и селекта «Столбец»; из действий — только «Редактировать» (Д-9) и
     закрытие. Оформление — класс .task-view (не .task-form)."""
+    board = BoardPage(board_page)
+    form = TaskForm(board_page)
+    detail = TaskDetailView(board_page)
     page = board_page
     create_task_via_ui(page, "QAT-view-чистая")
-    card = _card(page, "QAT-view-чистая")
+    card = board.card("QAT-view-чистая")
     web_cleanup_created(_card_task_id(card))
 
     _open_view(page, "QAT-view-чистая")
 
-    modal = page.locator(f"{OVERLAY} .modal")
+    modal = detail.modal
     assert "task-view" in (modal.get_attribute("class") or "")
     assert "task-form" not in (modal.get_attribute("class") or "")
-    assert page.locator(f"{OVERLAY} input, {OVERLAY} textarea, "
-                        f"{OVERLAY} select").count() == 0
-    buttons = page.locator(f"{OVERLAY} button")
+    assert detail.inputs().count() == 0
+    buttons = detail.buttons()
     names = sorted(t for t in buttons.all_inner_texts() if t)
     assert names == sorted(["Редактировать", "Закрыть"]), names
     # Крестик — отдельная кнопка закрытия view (aria-label).
-    expect(page.locator("#task-view-close")).to_be_visible()
+    expect(detail.close_cross).to_be_visible()
     # Форма комментария — не во view (она в режиме редактирования, скрыта).
-    assert not page.locator("#comment-form").is_visible()
+    assert not form.comment_form.is_visible()
 
 
 # --------------------------------------------------------------------------
@@ -137,28 +144,31 @@ def test_view_has_no_edit_elements(board_page, web_cleanup_created):
 def test_edit_button_opens_task_form(board_page, web_cleanup_created):
     """TC-view-103: «Редактировать» из view → существующая форма
     редактирования ЭТОЙ задачи (заголовок, поля заполнены значениями)."""
+    board = BoardPage(board_page)
+    form = TaskForm(board_page)
+    detail = TaskDetailView(board_page)
     page = board_page
     create_task_via_ui(page, "QAT-view-редактор", description="до правки")
-    card = _card(page, "QAT-view-редактор")
+    card = board.card("QAT-view-редактор")
     web_cleanup_created(_card_task_id(card))
 
     _open_view(page, "QAT-view-редактор")
-    page.get_by_role("button", name="Редактировать").click()
+    detail.edit_button().click()
 
-    expect(page.locator("#task-form-overlay")).to_be_visible()
-    expect(page.locator(OVERLAY)).to_be_hidden()
-    expect(page.get_by_role("heading", name="Редактирование задачи")
+    expect(form.overlay).to_be_visible()
+    expect(detail.overlay).to_be_hidden()
+    expect(form.heading_edit
            ).to_be_visible()
-    assert page.locator("#task-title").input_value() == "QAT-view-редактор"
-    assert page.locator("#task-description").input_value() == "до правки"
+    assert form.title_by_id().input_value() == "QAT-view-редактор"
+    assert form.description_by_id().input_value() == "до правки"
     # Действия задачи — в форме редактирования (4.1): селект «Столбец»,
     # «Удалить», комментарии.
-    expect(page.locator("#task-actions")).to_be_visible()
-    expect(page.get_by_role("button", name="Удалить")).to_be_visible()
-    expect(page.locator("#comment-form")).to_be_visible()
+    expect(form.actions).to_be_visible()
+    expect(form.delete_button()).to_be_visible()
+    expect(form.comment_form).to_be_visible()
     # Обратный путь без изменений — «Отмена» закрывает форму.
     page.get_by_role("button", name="Отмена").click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    expect(form.overlay).to_be_hidden()
 
 
 # --------------------------------------------------------------------------
@@ -168,6 +178,9 @@ def test_escape_closes_view(board_page, web_base_url, web_owner_session,
                             web_cleanup_created):
     """TC-view-104: Escape закрывает view; данные задачи не изменяются
     (после закрытия карточка на месте, значения прежние)."""
+    board = BoardPage(board_page)
+    form = TaskForm(board_page)
+    detail = TaskDetailView(board_page)
     page = board_page
     created = web_owner_session.post(
         f"{web_base_url}/api/tasks",
@@ -176,30 +189,33 @@ def test_escape_closes_view(board_page, web_base_url, web_owner_session,
     assert created.status_code == 201, created.text
     web_cleanup_created(created.json()["id"])
     page.reload()
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    expect(board.board).to_have_attribute("data-loaded", "true")
 
     _open_view(page, "QAT-view-escape")
     page.keyboard.press("Escape")
-    expect(page.locator(OVERLAY)).to_be_hidden()
+    expect(detail.overlay).to_be_hidden()
 
     # Данные не изменены (сценарий 5): переоткрытие — те же значения.
     _open_view(page, "QAT-view-escape")
-    expect(page.locator("#task-detail-attrs").get_by_text("low", exact=True)
+    expect(detail.attrs.get_by_text("low", exact=True)
            ).to_be_visible()
-    page.get_by_role("button", name="Закрыть", exact=True).click()
+    detail.close_button().click()
 
 
 def test_cross_closes_view(board_page, web_cleanup_created):
     """TC-view-105: крестик (#task-view-close) закрывает view без
     изменения данных; доска в прежнем состоянии."""
+    board = BoardPage(board_page)
+    form = TaskForm(board_page)
+    detail = TaskDetailView(board_page)
     page = board_page
     create_task_via_ui(page, "QAT-view-крестик")
-    card = _card(page, "QAT-view-крестик")
+    card = board.card("QAT-view-крестик")
     web_cleanup_created(_card_task_id(card))
 
     _open_view(page, "QAT-view-крестик")
-    page.locator("#task-view-close").click()
-    expect(page.locator(OVERLAY)).to_be_hidden()
+    detail.close_cross.click()
+    expect(detail.overlay).to_be_hidden()
     expect(card).to_be_visible()
 
 
@@ -212,6 +228,9 @@ def test_user_rows_when_api_provides(board_page, web_base_url,
     полей в ответе GET /api/tasks/{id} (задача 5.1; данные не выдумываются):
     фильтр-роут перехватывает ответ API, добавляет поля — ряды появляются
     с логинами; при пустом assigned — курсивом «Unassigned» (ОВ-24)."""
+    board = BoardPage(board_page)
+    form = TaskForm(board_page)
+    detail = TaskDetailView(board_page)
     page = board_page
     created = web_owner_session.post(
         f"{web_base_url}/api/tasks", json={"title": "QAT-view-юзеры"}
@@ -219,7 +238,7 @@ def test_user_rows_when_api_provides(board_page, web_base_url,
     assert created.status_code == 201, created.text
     web_cleanup_created(created.json()["id"])
     page.reload()
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    expect(board.board).to_have_attribute("data-loaded", "true")
 
     def with_users(route):
         import json
@@ -232,7 +251,7 @@ def test_user_rows_when_api_provides(board_page, web_base_url,
     page.route("**/api/tasks/*", with_users)
     _open_view(page, "QAT-view-юзеры")
 
-    attrs = page.locator("#task-detail-attrs")
+    attrs = detail.attrs
     expect(attrs.get_by_text("Создатель")).to_be_visible()
     expect(attrs.get_by_text("owner", exact=True)).to_be_visible()
     expect(attrs.get_by_text("Исполнитель")).to_be_visible()
@@ -249,13 +268,16 @@ def test_unassigned_em_when_empty(board_page, web_base_url,
     в view-модалке ряд «Исполнитель» показывает курсивный
     «Unassigned» (ОВ-24), ряд «Создатель» — логин создателя
     (контракт 5.1: creator/assigned в ответе всегда)."""
+    board = BoardPage(board_page)
+    form = TaskForm(board_page)
+    detail = TaskDetailView(board_page)
     page = board_page
     create_task_via_ui(page, "QAT-view-без-юзеров")
-    card = _card(page, "QAT-view-без-юзеров")
+    card = board.card("QAT-view-без-юзеров")
     web_cleanup_created(_card_task_id(card))
 
     _open_view(page, "QAT-view-без-юзеров")
-    attrs = page.locator("#task-detail-attrs")
+    attrs = detail.attrs
     unassigned = attrs.locator("em.task-view-unassigned")
     expect(unassigned).to_have_text("Unassigned")
     expect(unassigned).to_have_css("font-style", "italic")
@@ -269,6 +291,9 @@ def test_fast_task_shown_in_view(board_page, web_base_url, web_owner_session,
                                  web_cleanup_created):
     """TC-view-108: fast-задача в view показывает признак «Fast line: да»;
     заголовок на месте (fast line не мешает открытию просмотра)."""
+    board = BoardPage(board_page)
+    form = TaskForm(board_page)
+    detail = TaskDetailView(board_page)
     page = board_page
     created = web_owner_session.post(
         f"{web_base_url}/api/tasks",
@@ -277,13 +302,13 @@ def test_fast_task_shown_in_view(board_page, web_base_url, web_owner_session,
     assert created.status_code == 201, created.text
     web_cleanup_created(created.json()["id"])
     page.reload()
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    expect(board.board).to_have_attribute("data-loaded", "true")
 
     _open_view(page, "QAT-view-fast")
-    attrs = page.locator("#task-detail-attrs")
+    attrs = detail.attrs
     expect(attrs.get_by_text("Fast line")).to_be_visible()
     expect(attrs.get_by_text("да", exact=True)).to_be_visible()
-    page.get_by_role("button", name="Закрыть", exact=True).click()
+    detail.close_button().click()
 
 
 # --------------------------------------------------------------------------
@@ -294,6 +319,10 @@ def test_search_card_click_opens_view(page, web_base_url, board_page,
     """TC-view-109: REGRESSION BUG-001 (FR-10/CHK-E-17) на механике 4.1 —
     клик по карточке из результатов поиска открывает view-модалку с
     признаками задачи (read-only), комментарии видны."""
+    board = BoardPage(board_page)
+    form = TaskForm(board_page)
+    detail = TaskDetailView(board_page)
+    search = SearchPage(page)
     created = web_owner_session.post(
         f"{web_base_url}/api/tasks",
         json={
@@ -314,27 +343,26 @@ def test_search_card_click_opens_view(page, web_base_url, board_page,
     page.goto(f"{web_base_url}/search")
     # Режим advanced — фильтр по тегу (поля фильтра: priority/category/
     # tag/due/due_before/due_after/archived; свободного текста нет).
-    page.get_by_role("button", name="Advanced").click()
-    page.locator("#search-advanced-query").fill('tag IN ("поиск2026")')
-    page.locator("#search-advanced").get_by_role("button", name="Найти").click()
-    results = page.locator("#search-results")
+    search.advanced_button.click()
+    search.advanced_query.fill('tag IN ("поиск2026")')
+    search.find_button().click()
+    results = search.results
     expect(results.get_by_role("article").filter(
         has_text="QAT-view-поиск")).to_be_visible()
 
     results.get_by_role("article").filter(has_text="QAT-view-поиск").click()
-    expect(page.locator(OVERLAY)).to_be_visible()
+    expect(detail.overlay).to_be_visible()
     # Локатор скоуплен на OVERLAY: карточка в #search-results за модалкой —
     # тоже heading с тем же именем, голый get_by_role дает strict violation.
-    expect(page.locator(OVERLAY).get_by_role(
+    expect(detail.overlay.get_by_role(
         "heading", name="QAT-view-поиск")).to_be_visible()
-    attrs = page.locator("#task-detail-attrs")
+    attrs = detail.attrs
     expect(attrs.get_by_text("найди меня", exact=True)).to_be_visible()
     expect(attrs.get_by_text("medium", exact=True)).to_be_visible()
     expect(attrs.get_by_text("поиск2026", exact=True)).to_be_visible()
-    expect(page.locator("#task-comments-list").get_by_text("Коммент из поиска")
+    expect(detail.comments.get_by_text("Коммент из поиска")
            ).to_be_visible()
     # Search-модалка тоже read-only (4.1): без полей ввода.
-    assert page.locator(f"{OVERLAY} input, {OVERLAY} textarea, "
-                        f"{OVERLAY} select").count() == 0
-    page.get_by_role("button", name="Закрыть", exact=True).click()
-    expect(page.locator(OVERLAY)).to_be_hidden()
+    assert detail.inputs().count() == 0
+    detail.close_button().click()
+    expect(detail.overlay).to_be_hidden()
