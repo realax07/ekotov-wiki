@@ -1,4 +1,4 @@
-name: flow
+name: test-flow-control
 
 on:
   push:
@@ -6,34 +6,6 @@ on:
   pull_request:
 
 jobs:
-  # P0.5: полный набор тестов Flow Control (включая негативные сценарии
-  # P0.2–P0.4) в обычном PR CI. Задача Заказчика — включить этот job в
-  # required checks ruleset, тогда он станет обязательным для merge.
-  test-flow-control:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install pytest
-        run: python -m pip install --upgrade pip pytest
-
-      # GITHUB_EVENT_PATH удаляется на уровне процесса (env -u): Actions
-      # всегда указывает эту переменную, а pr_validate/gate_runner трактуют
-      # её наличие как «PR-контекст есть» — тогда негативные тесты
-      # (SKIPPED без PR-контекста, tests/test_gate_runner.py) получают
-      # FAIL вместо SKIPPED. Локально переменной нет — тесты зеленые.
-      - name: Run tests
-        run: env -u GITHUB_EVENT_PATH python -m pytest tests/ -q
-
-      # pm_bounds_check (J9/J10) НЕ в CI: требует реестра сессий
-      # (~/.hermes/state/active_sessions.json), которого на раннере нет —
-      # консервативная ветка дает ложный FAIL. Гейт локальный (приемка).
-
   flow:
     runs-on: ubuntu-latest
     steps:
@@ -45,7 +17,7 @@ jobs:
           node-version: 22
 
       - name: Install OpenSpec CLI
-        run: npm install -g @fission-ai/openspec@1.14.0
+        run: npm install -g @fission-ai/openspec@1.14.0  # пин: @latest (>=1.15) поднял WARNING >500 chars до фейла strict — красит все ветки; апгрейд осознанно, отдельной задачей
 
       - name: Validate specs (strict)
         run: openspec validate --all --strict
@@ -58,32 +30,30 @@ jobs:
       - name: Flow check
         run: python3 scripts/flow_check.py .
 
-      - name: PR artifact validation (I3/I4, J6; code-review gate J10)
+      # Детерминированные код-гейты (J4, решение Заказчика 2026-10-04):
+      # auth-тайминг (bcrypt/dummy/сравнения секретов) + codegraph (I3-покрытие
+      # импортов). Быстрые, stdlib-only, детерминированные — ломаются только
+      # при реальном нарушении.
+      - name: Auth timing gate
+        run: python3 scripts/check_auth_timing.py backend
+
+      - name: Codegraph gate (I3)
+        run: python3 scripts/codegraph.py .
+
+      # pm_bounds_check (J9/J10) НЕ в CI: гейт проверяет ПМ-коммиты против
+      # реестра сессий (~/.hermes/state), которого в CI нет — консервативная
+      # ветка сочтет все коммиты ПМ-скими (ложный FAIL). Гейт гоняется
+      # локально при приемке (проверено: OK на последних 5).
+
+      - name: PR artifact validation (I3/I4, J6; code-review gate J10; J50 UI-gate)
         if: github.event_name == 'pull_request'
         run: |
           PR_TEXT="$(cat "$GITHUB_EVENT_PATH" | python3 -c "import json,sys; d=json.load(sys.stdin); pr=d.get('pull_request',{}); print(pr.get('title','')+' '+(pr.get('body') or ''))")"
           # J10: PR по change-маркеру обязан иметь code-reviews/<change-id>/ с
           # approve-вердиктами задач из дифа — проверяет pr_validate.py (check_change).
           # Задачи берутся из ветки PR (GITHUB_HEAD_REF) и title/body.
-          # Контекст диффа для [chore]/[docs]/[ops]-чекеров (env-конвенция
-          # pr_validate): трогает ли PR активные спеки / код продукта.
-          if git diff --name-only "origin/${{ github.base_ref }}"...HEAD | grep '^openspec/changes/' | grep -vq '^openspec/changes/archive/'; then
-            export PR_CHANGED_SPECS=1
-          fi
-          if git diff --name-only "origin/${{ github.base_ref }}"...HEAD | grep -qE '^(backend|frontend|services|src|e2e)/'; then
-            export PR_CHANGED_CODE=1
-          fi
-          # J26: deploy-дифф (deploy/**, RUNBOOK.md) без [ops]-маркера в PR = FAIL.
-          # Деплой-инфраструктура — зона devops-роли; ПМ/dev-PR с deploy-файлами
-          # обязан идти как [ops] (девопс-делегация) — большинство наших ошибок
-          # происходило на деплое (Р4/6.3 nginx-аватары, уроки прод-выкаток).
-          if git diff --name-only "origin/${{ github.base_ref }}"...HEAD | grep -qE '^(deploy/|RUNBOOK\.md$)'; then
-            export PR_CHANGED_DEPLOY=1
-          fi
-          # J50: UI-дельта (frontend/**, services/*/frontend/) и web-тесты
-          # (tests/web/*.py) в дифе. Ворота «UI-дельта + макеты (design/**)
-          # ⇒ web-тесты или [no-ui-tests] + основание» — check_ui_tests_gate
-          # в pr_validate.py.
+          # J50: UI-дельта и web-тесты в дифе — ворота «UI-дельта + макеты
+          # (design/**) ⇒ web-тесты или [no-ui-tests] + основание».
           if git diff --name-only "origin/${{ github.base_ref }}"...HEAD | grep -qE '^(frontend/|services/[^/]+/frontend/)'; then
             export PR_CHANGED_UI=1
           fi
@@ -95,8 +65,95 @@ jobs:
             exit 1
           fi
 
-# Примечание (P0.5): job test-flow-control (pytest tests/) НЕ зависит от job flow —
-# pytest независим от flow_check. На момент этого изменения flow_check на main
-# красный из-за 5 самоссылочных ошибок пакета add-deterministic-flow (гигиена P0.6,
-# вне рамок P0.5), поэтому PR могут оставаться красными из-за соседнего job flow —
-# это ожидаемо и не связано с тестами.
+  # e2e против compose-стенда (change add-containerization, tasks 1.7; FR-69).
+  # Только ДОБАВЛЕНИЕ job: существующие job'ы не переименованы (required
+  # checks синхронны с именами job — урок конвейера).
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend deps
+        run: pip install -r backend/requirements.txt
+
+      - name: Install playwright browser
+        run: python -m playwright install --with-deps chromium
+
+      # Стенд: те же образы, что у прода (FR-67); TLS-серт для стенда —
+      # self-signed генерируется на шаге (в репозитории ключей нет, NFR-5).
+      - name: Generate self-signed cert for stand
+        run: |
+          mkdir -p /tmp/ekotov-ssl
+          openssl req -x509 -newkey rsa:2048 -keyout /tmp/ekotov-ssl/ekotov-wiki.key \
+            -out /tmp/ekotov-ssl/ekotov-wiki.crt -days 30 -nodes \
+            -subj "/CN=127.0.0.1" -addext "subjectAltName=IP:127.0.0.1"
+
+      # TLS-серт стенда: compose.test.yaml монтирует /etc/nginx/ssl/* хоста
+      # (паритет с продом по путям); в CI путь не существует — создаем symlink
+      # на серт, сгенерированный предыдущим шагом (нужен root — контейнер
+      # раннера его дает).
+      - name: Place stand certificate
+        run: |
+          sudo mkdir -p /etc/nginx/ssl
+          sudo cp /tmp/ekotov-ssl/ekotov-wiki.crt /etc/nginx/ssl/
+          sudo cp /tmp/ekotov-ssl/ekotov-wiki.key /etc/nginx/ssl/
+          # nginx-unprivileged (uid 101) читает ключ: world-readable для self-signed
+          # стенда CI (ключ тестовый, живет 30 дней, генерируется на раннере);
+          # на проде права дает хост (RUNBOOK §7).
+          sudo chmod 644 /etc/nginx/ssl/ekotov-wiki.crt /etc/nginx/ssl/ekotov-wiki.key
+
+      - name: Start compose test stand
+        run: |
+          # J37-инфра: netdata из Docker Hub упирается в анонимный pull rate limit
+          # раннеров (netdata/netdata:stable, IP-пул GitHub). Для e2e netdata —
+          # заглушка: frontend-образ (nginx) слушает 19999 (healthcheck-маршрут
+          # compose = 200 на «/» у nginx → 404, но healthcheck только для
+          # depends_on-гейта, UI-тесты проверяют ЛИНК /netdata/, не дашборд).
+          # Реальный netdata остаётся дефолтом compose.yaml (прод/ручные прогоны).
+          docker tag ekotov-wiki/frontend:p14-responsive-2 netdata-stub:local 2>/dev/null || \
+            docker build -t netdata-stub:local -f services/frontend/Dockerfile .
+          export NETDATA_IMAGE=netdata-stub:local
+          export NETDATA_IMAGE=netdata-stub:local
+          docker compose -f deploy/compose.test.yaml -p wiki-test up -d --build
+        shell: bash
+
+      # Схема БД до seed (init_db идемпотентен; tmpfs-том стенда пуст при первом up).
+      - name: Init database schema
+        run: |
+          docker compose -f deploy/compose.test.yaml -p wiki-test exec -T app \
+            python -m app.db
+
+      - name: Seed owner user
+        run: |
+          docker compose -f deploy/compose.test.yaml -p wiki-test exec -T app \
+            python -c "from app.seed_users import seed_user; print(seed_user('owner', 'owner', 'QaOwner_Pass_1!'))" \
+            || echo "seed skip (уже заведен)"
+
+      - name: Wait for stand healthy
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sk -o /dev/null https://127.0.0.1:8443/api/health; then
+              echo "stand ready"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::стенд не поднялся за 120s"; docker compose -p wiki-test logs; exit 1
+
+      - name: Run e2e suite
+        env:
+          EKOTOV_WIKI_E2E_BASE_URL: https://127.0.0.1:8443
+        run: python -m pytest e2e -v
+
+      # Логи стенда при падении сьюта (диагностика 500/timeout без второго прогона).
+      - name: Dump stand logs on failure
+        if: failure()
+        run: docker compose -f deploy/compose.test.yaml -p wiki-test logs --tail 100
+
+      - name: Tear down stand
+        if: always()
+        run: docker compose -f deploy/compose.test.yaml -p wiki-test down -v
