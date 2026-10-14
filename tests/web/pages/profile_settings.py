@@ -55,3 +55,53 @@ class ProfileSettingsPage:
         expect(self.profile_form).to_have_attribute(
             "data-loaded", "true", timeout=10_000
         )
+
+
+class CropWidget:
+    """Компонент-PO: кроп-виджет аватара (add-r5, Д-12; avatar-crop.js).
+
+    Локаторы дословно из кейсов TC-r5crop-401…415; drag/pinch/touch-сценарии
+    — прямые mouse/evaluate в тестах (правило «PO — не догма»)."""
+
+    def __init__(self, page):
+        self.page = page
+        self.widget = page.locator("#crop-widget")
+        self.mask = page.locator("#crop-mask")
+        self.warning = page.locator("#crop-warning")
+        self.slider = page.locator("#crop-zoom")
+        self.zoom_out = page.locator("#zoom-out")
+        self.zoom_in = page.locator("#zoom-in")
+        self.apply = page.locator("#crop-apply")
+        self.cancel = page.locator("#crop-cancel")
+
+    # --- действия / wait-обертки ---
+
+    def select_photo(self, png: bytes, name: str = "photo.png"):
+        """Выбор файла в карточке → виджет открылся (Д-12). Возвращает
+        локатор виджета."""
+        self.page.locator("#avatar-file").set_input_files(
+            files=[{"name": name, "mimeType": "image/png", "buffer": png}]
+        )
+        expect(self.widget).to_contain_class("is-open", timeout=10_000)
+        return self.widget
+
+    def set_slider(self, value: int) -> None:
+        """Значение слайдера программно (fill() не работает для range выше
+        max; dispatch 'input' — как реальное движение)."""
+        self.slider.evaluate(
+            "(el, v) => { el.value = String(v); el.dispatchEvent(new Event('input')); }",
+            value,
+        )
+
+    def state(self) -> dict:
+        """dataset-состояние виджета (cropX/cropY/cropZoom) — без ассертов."""
+        return self.page.evaluate(
+            """() => {
+              const w = document.getElementById('crop-widget');
+              return {
+                x: Number(w.dataset.cropX || 0),
+                y: Number(w.dataset.cropY || 0),
+                zoom: Number(w.dataset.cropZoom || 0),
+              };
+            }"""
+        )

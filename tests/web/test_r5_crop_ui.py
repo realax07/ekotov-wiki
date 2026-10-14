@@ -62,6 +62,10 @@ import pytest
 from PIL import Image
 from playwright.sync_api import expect
 
+from tests.web.pages.auth import AuthPage
+from tests.web.pages.board import BoardPage
+from tests.web.pages.profile_settings import CropWidget, ProfileSettingsPage
+
 pytestmark = [pytest.mark.web, pytest.mark.must]
 
 OWNER_LOGIN = "owner"
@@ -130,21 +134,12 @@ def _make_png(width: int = 800, height: int = 600, color=(200, 30, 30)) -> bytes
 
 
 def _goto(page, web_base_url):
-    page.goto(f"{web_base_url}/settings/profile")
-    # Автожидание предзаполнения (конвенция data-loaded, profile-settings.js).
-    expect(page.locator("#profile-form")).to_have_attribute(
-        "data-loaded", "true", timeout=10_000
-    )
+    ProfileSettingsPage(page).open(web_base_url)
 
 
 def _select_photo(page, png: bytes, name="photo.png"):
     """Выбор файла в карточке → виджет открылся (Д-12)."""
-    page.locator("#avatar-file").set_input_files(
-        files=[{"name": name, "mimeType": "image/png", "buffer": png}]
-    )
-    widget = page.locator("#crop-widget")
-    expect(widget).to_contain_class("is-open", timeout=10_000)
-    return widget
+    return CropWidget(page).select_photo(png, name)
 
 
 def _install_post_spy(page):
@@ -192,25 +187,11 @@ def _install_post_spy(page):
 
 
 def _crop_state(page) -> dict:
-    return page.evaluate(
-        """() => {
-          const w = document.getElementById('crop-widget');
-          return {
-            x: Number(w.dataset.cropX || 0),
-            y: Number(w.dataset.cropY || 0),
-            zoom: Number(w.dataset.cropZoom || 0),
-          };
-        }"""
-    )
+    return CropWidget(page).state()
 
 
 def _set_slider(page, value: int):
-    """Значение слайдера программно (fill() не работает для range выше max;
-    dispatch 'input' — как реальное движение)."""
-    page.locator("#crop-zoom").evaluate(
-        "(el, v) => { el.value = String(v); el.dispatchEvent(new Event('input')); }",
-        value,
-    )
+    CropWidget(page).set_slider(value)
 
 
 # ==========================================================================
@@ -222,23 +203,24 @@ def test_widget_opens_on_file_select(logged_in_page, web_base_url):
     """Scenario «Фото под маской, drag», GIVEN-часть (Д-12): выбор png в
     карточке → кроп-виджет открыт СРАЗУ (фото декодировано под маской);
     ОГР-21: при открытии страницы без выбора файла виджет закрыт —
-    перекадрирование сохраненного аватара недоступно."""
+    перекадрирование сохраненного аватара недоступен."""
     page = logged_in_page
     _goto(page, web_base_url)
+    crop = CropWidget(page)
 
     # Без выбора файла виджет закрыт (ОГР-21).
-    expect(page.locator("#crop-widget")).not_to_contain_class("is-open")
+    expect(crop.widget).not_to_contain_class("is-open")
 
     # Выбор валидного png → открыт немедленно, предупреждения нет (800×600).
     _select_photo(page, _make_png())
-    expect(page.locator("#crop-warning")).to_be_hidden()
-    expect(page.locator("#crop-zoom")).to_have_value("100")
-    expect(page.locator("#zoom-out")).to_be_disabled()
-    expect(page.locator("#zoom-in")).to_be_enabled()
+    expect(crop.warning).to_be_hidden()
+    expect(crop.slider).to_have_value("100")
+    expect(crop.zoom_out).to_be_disabled()
+    expect(crop.zoom_in).to_be_enabled()
 
     # «Отмена» — виджет закрылся, аватар не затронут (FR-53, база для 407).
-    page.locator("#crop-cancel").click()
-    expect(page.locator("#crop-widget")).not_to_contain_class("is-open")
+    crop.cancel.click()
+    expect(crop.widget).not_to_contain_class("is-open")
 
 
 def test_drag_moves_photo(logged_in_page, web_base_url):
@@ -248,12 +230,13 @@ def test_drag_moves_photo(logged_in_page, web_base_url):
     100% имеет запас по X)."""
     page = logged_in_page
     _goto(page, web_base_url)
+    crop = CropWidget(page)
     _select_photo(page, _make_png(800, 600))
 
     before = _crop_state(page)
     assert before["x"] == 0 and before["y"] == 0
 
-    mask = page.locator("#crop-mask")
+    mask = crop.mask
     box = mask.bounding_box()
     page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
     page.mouse.down()
@@ -266,8 +249,8 @@ def test_drag_moves_photo(logged_in_page, web_base_url):
     # По Y на 100% у 800×600 запаса нет (высота покрывает маску ровно) —
     # корректное поведение клэмпа (FR-50); вертикальное перемещение
     # проверяем после зума, когда запас появился.
-    page.locator("#crop-zoom").fill("200")
-    page.locator("#crop-zoom").dispatch_event("input")
+    crop.slider.fill("200")
+    crop.slider.dispatch_event("input")
     zoomed = _crop_state(page)
 
     box = mask.bounding_box()
@@ -286,6 +269,7 @@ def test_drag_clamped_to_mask(logged_in_page, web_base_url):
     на границе попытка утащить фото дальше ничего не меняет."""
     page = logged_in_page
     _goto(page, web_base_url)
+    crop = CropWidget(page)
     _select_photo(page, _make_png(800, 600))
 
     def limits(page):
@@ -304,7 +288,7 @@ def test_drag_clamped_to_mask(logged_in_page, web_base_url):
         )
 
     lim = limits(page)
-    mask = page.locator("#crop-mask")
+    mask = crop.mask
     box = mask.bounding_box()
 
     def drag(dx, dy):
@@ -344,18 +328,19 @@ def test_zoom_slider_and_wheel(logged_in_page, web_base_url):
     «дыр»."""
     page = logged_in_page
     _goto(page, web_base_url)
+    crop = CropWidget(page)
     _select_photo(page, _make_png(800, 600))
 
     # Слайдер: значение из range → dataset.cropZoom изменился.
-    page.locator("#crop-zoom").fill("180")
-    page.locator("#crop-zoom").dispatch_event("input")
+    crop.slider.fill("180")
+    crop.slider.dispatch_event("input")
     state = _crop_state(page)
     assert state["zoom"] == 180, state
-    expect(page.locator("#zoom-out")).to_be_enabled()
-    expect(page.locator("#zoom-in")).to_be_enabled()
+    expect(crop.zoom_out).to_be_enabled()
+    expect(crop.zoom_in).to_be_enabled()
 
     # Колесо над фото: +10% за оборот вверх.
-    mask = page.locator("#crop-mask")
+    mask = crop.mask
     box = mask.bounding_box()
     page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
     page.mouse.wheel(0, -120)
@@ -363,19 +348,19 @@ def test_zoom_slider_and_wheel(logged_in_page, web_base_url):
 
     # Кнопка «−» до границы: на 100% кнопка disabled (макет).
     for _ in range(10):
-        if page.locator("#zoom-out").is_disabled():
+        if crop.zoom_out.is_disabled():
             break
-        page.locator("#zoom-out").click()
+        crop.zoom_out.click()
     assert _crop_state(page)["zoom"] == 100
-    expect(page.locator("#zoom-out")).to_be_disabled()
+    expect(crop.zoom_out).to_be_disabled()
 
     # Кнопка «+» до границы 300 — тоже disabled (max = ×3 cover).
     for _ in range(25):
-        if page.locator("#zoom-in").is_disabled():
+        if crop.zoom_in.is_disabled():
             break
-        page.locator("#zoom-in").click()
+        crop.zoom_in.click()
     assert _crop_state(page)["zoom"] == 300
-    expect(page.locator("#zoom-in")).to_be_disabled()
+    expect(crop.zoom_in).to_be_disabled()
 
     # Выше max нативный range не поднимается (min=100 / max=300, ОВ-СА-4).
     _set_slider(page, 500)
@@ -395,11 +380,12 @@ def test_small_source_upscaled_with_warning(logged_in_page, web_base_url):
     показано, загрузка (виджет) не блокируется."""
     page = logged_in_page
     _goto(page, web_base_url)
+    crop = CropWidget(page)
     _select_photo(page, _make_png(64, 64))
 
-    expect(page.locator("#crop-warning")).to_be_visible()
+    expect(crop.warning).to_be_visible()
     # Покрытие: зум доступен (апскейл не блокирует взаимодействие).
-    expect(page.locator("#crop-apply")).to_be_enabled()
+    expect(crop.apply).to_be_enabled()
 
 
 # ==========================================================================
@@ -418,12 +404,14 @@ def test_apply_posts_256_png_of_preview(
     (центр масс результата смещен относительно center-crop); ответ API
     обновил превью с новым ?v=."""
     page = logged_in_page
+    profile = ProfileSettingsPage(page)
+    crop = CropWidget(page)
     _goto(page, web_base_url)
     _install_post_spy(page)
 
     # Неквадратный исходник: смещение по X возможно уже на 100%.
     _select_photo(page, _make_png(800, 600))
-    mask = page.locator("#crop-mask")
+    mask = crop.mask
     box = mask.bounding_box()
     page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
     page.mouse.down()
@@ -432,8 +420,8 @@ def test_apply_posts_256_png_of_preview(
     offset_before = _crop_state(page)["x"]
     assert offset_before != 0
 
-    page.locator("#crop-apply").click()
-    expect(page.locator("#avatar-success")).to_be_visible(timeout=10_000)
+    crop.apply.click()
+    expect(profile.avatar_success).to_be_visible(timeout=10_000)
 
     stats = page.evaluate(
         "() => ({ posts: window.__avatarPosts, bodies: window.__avatarBodies })"
@@ -448,7 +436,7 @@ def test_apply_posts_256_png_of_preview(
     assert body["size"] > 0, body
 
     # Превью кружка обновлено из ответа API (?v= — кеш-бастинг, ОГР-23).
-    src = page.locator("#avatar-preview").get_attribute("src")
+    src = profile.avatar_preview.get_attribute("src")
     assert src is not None and "/avatars/" in src and "?v=" in src, src
 
     # Аватар в БД сохранен (сервер принял итоговый квадрат).
@@ -464,6 +452,8 @@ def test_apply_result_matches_preview_pixels(
     перерисовкой маски-предпросмотра в момент «Применить» — визуально
     идентичен до и после применения."""
     page = logged_in_page
+    profile = ProfileSettingsPage(page)
+    crop = CropWidget(page)
     _goto(page, web_base_url)
 
     # Уникальная картинка с меткой-маркером в левом верхнем углу: смещение
@@ -482,7 +472,7 @@ def test_apply_result_matches_preview_pixels(
 
     _select_photo(page, buf.getvalue())
     # Смещение вправо на треть запаса (по X запас = (224*800/600 − 224)/2 ≈ 37).
-    mask = page.locator("#crop-mask")
+    mask = crop.mask
     box = mask.bounding_box()
     page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
     page.mouse.down()
@@ -494,10 +484,10 @@ def test_apply_result_matches_preview_pixels(
         "el => el.toDataURL('image/png')"
     )
 
-    page.locator("#crop-apply").click()
-    expect(page.locator("#avatar-success")).to_be_visible(timeout=10_000)
+    crop.apply.click()
+    expect(profile.avatar_success).to_be_visible(timeout=10_000)
 
-    src = page.locator("#avatar-preview").get_attribute("src")
+    src = profile.avatar_preview.get_attribute("src")
     assert src and "?v=" in src
 
     # Итог на сервере — файл <user_id>.png в AVATARS_DIR стенда (прод:
@@ -532,6 +522,7 @@ def test_cancel_no_requests(logged_in_page, web_base_url, web_db_path, avatar_hy
     изменились; виджет закрыт; повторный выбор того же файла снова
     открывает виджет (input очищен)."""
     page = logged_in_page
+    crop = CropWidget(page)
     _goto(page, web_base_url)
     _install_post_spy(page)
 
@@ -539,8 +530,8 @@ def test_cancel_no_requests(logged_in_page, web_base_url, web_db_path, avatar_hy
 
     _select_photo(page, _make_png())
     _set_slider(page, 220)
-    page.locator("#crop-cancel").click()
-    expect(page.locator("#crop-widget")).not_to_contain_class("is-open")
+    crop.cancel.click()
+    expect(crop.widget).not_to_contain_class("is-open")
 
     stats = page.evaluate("() => window.__avatarPosts")
     assert stats == 0, stats  # ни одного запроса (ОВ-СА-3)
@@ -549,7 +540,7 @@ def test_cancel_no_requests(logged_in_page, web_base_url, web_db_path, avatar_hy
 
     # Повторный выбор того же файла снова открывает виджет.
     _select_photo(page, _make_png())
-    page.locator("#crop-cancel").click()
+    crop.cancel.click()
 
 
 def test_page_leave_no_requests(logged_in_page, web_base_url, web_db_path, avatar_hygiene):
@@ -580,14 +571,16 @@ def test_oversize_file_rejected_before_widget(
     отклоняется ДО открытия виджета — виджет не открыт, страница
     работает."""
     page = logged_in_page
+    profile = ProfileSettingsPage(page)
+    crop = CropWidget(page)
     _goto(page, web_base_url)
 
     big = b"\x89PNG\r\n\x1a\n" + b"\x00" * (2 * 1024 * 1024 + 1)
-    page.locator("#avatar-file").set_input_files(
+    profile.avatar_file.set_input_files(
         files=[{"name": "big.png", "mimeType": "image/png", "buffer": big}]
     )
-    expect(page.locator("#avatar-error")).to_be_visible()
-    expect(page.locator("#crop-widget")).not_to_contain_class("is-open")
+    expect(profile.avatar_error).to_be_visible()
+    expect(crop.widget).not_to_contain_class("is-open")
 
 
 # ==========================================================================
@@ -611,11 +604,10 @@ def touch_page(browser, web_server, web_base_url):
 
         context.route(f"{web_base_url}/static/**", _to_static)
     page = context.new_page()
-    page.goto(f"{web_base_url}/login")
-    page.get_by_label("Логин").fill(OWNER_LOGIN)
-    page.get_by_label("Пароль").fill(OWNER_PASSWORD)
-    page.get_by_role("button", name="Войти").click()
-    page.get_by_role("heading", name="Доска", exact=True).wait_for()
+    auth = AuthPage(page)
+    auth.open(web_base_url)
+    auth.login_as(OWNER_LOGIN, OWNER_PASSWORD)
+    BoardPage(page).heading().wait_for()
     yield page
     context.close()
 
@@ -648,11 +640,10 @@ def no_canvas_page(browser, web_server, web_base_url):
           kill(window, 'HTMLCanvasElement');
         })();"""
     )
-    page.goto(f"{web_base_url}/login")
-    page.get_by_label("Логин").fill(OWNER_LOGIN)
-    page.get_by_label("Пароль").fill(OWNER_PASSWORD)
-    page.get_by_role("button", name="Войти").click()
-    page.get_by_role("heading", name="Доска", exact=True).wait_for()
+    auth = AuthPage(page)
+    auth.open(web_base_url)
+    auth.login_as(OWNER_LOGIN, OWNER_PASSWORD)
+    BoardPage(page).heading().wait_for()
     yield page
     context.close()
 
@@ -666,10 +657,8 @@ def test_touch_drag_pinch_and_slider(
     (PointerEvent pointerType=touch → 'input'); touch-action маски = none,
     у страницы вне виджета скролл не сломан."""
     page = touch_page
-    page.goto(f"{web_base_url}/settings/profile")
-    expect(page.locator("#profile-form")).to_have_attribute(
-        "data-loaded", "true", timeout=10_000
-    )
+    ProfileSettingsPage(page).open(web_base_url)
+    crop = CropWidget(page)
     widget = _select_photo(page, _make_png(800, 600))
 
     # touch-action: none только на маске — скролл страницы не нарушен.
@@ -678,7 +667,7 @@ def test_touch_drag_pinch_and_slider(
 
     # --- Drag пальцем (touchscreen) ---
     before = _crop_state(page)
-    mask = page.locator("#crop-mask")
+    mask = crop.mask
     box = mask.bounding_box()
     cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
     page.touchscreen.tap(cx, cy)  # активация тач-стека
@@ -732,7 +721,7 @@ def test_touch_drag_pinch_and_slider(
     assert _crop_state(page)["zoom"] == 200, _crop_state(page)
 
     # --- Слайдер на таче (NFR-13): pointer-событие с pointerType=touch ---
-    slider = page.locator("#crop-zoom")
+    slider = crop.slider
     slider.evaluate(
         """el => {
           const r = el.getBoundingClientRect();
@@ -754,10 +743,7 @@ def test_page_scroll_outside_widget_not_broken(touch_page, web_base_url):
     нарушен» (NFR-13): при открытом виджете колесо/тап вне маски скроллят
     страницу; touch-action у body не 'none'."""
     page = touch_page
-    page.goto(f"{web_base_url}/settings/profile")
-    expect(page.locator("#profile-form")).to_have_attribute(
-        "data-loaded", "true", timeout=10_000
-    )
+    ProfileSettingsPage(page).open(web_base_url)
     _select_photo(page, _make_png(800, 600))
 
     body_ta = page.evaluate(
@@ -783,9 +769,10 @@ def test_keyboard_arrows_move_and_zoom(logged_in_page, web_base_url):
     «Применить»/«Отмена» фокусируемы."""
     page = logged_in_page
     _goto(page, web_base_url)
+    crop = CropWidget(page)
     _select_photo(page, _make_png(800, 600))
 
-    mask = page.locator("#crop-mask")
+    mask = crop.mask
     assert mask.get_attribute("tabindex") == "0"
     mask.focus()
 
@@ -818,9 +805,10 @@ def test_slider_keyboard_native_range(logged_in_page, web_base_url):
     его value (нативное поведение), 'input' обновляет зум виджета."""
     page = logged_in_page
     _goto(page, web_base_url)
+    crop = CropWidget(page)
     _select_photo(page, _make_png(800, 600))
 
-    slider = page.locator("#crop-zoom")
+    slider = crop.slider
     assert slider.evaluate("el => el.type") == "range"
     slider.focus()
     assert page.evaluate(
@@ -844,12 +832,13 @@ def test_aria_attributes(logged_in_page, web_base_url):
     = % зума (меняется вместе с зумом); canvas aria-hidden."""
     page = logged_in_page
     _goto(page, web_base_url)
+    crop = CropWidget(page)
     widget = _select_photo(page, _make_png(800, 600))
 
     expect(widget).to_have_attribute("role", "group")
     expect(widget).to_have_attribute("aria-label", "Выбор области аватара")
 
-    slider = page.locator("#crop-zoom")
+    slider = crop.slider
     expect(slider).to_have_attribute("aria-valuenow", "100")
     _set_slider(page, 220)
     expect(slider).to_have_attribute("aria-valuenow", "220")
@@ -869,10 +858,7 @@ def test_reduced_motion_no_transition(logged_in_page, web_base_url):
     cdp.send("Emulation.setEmulatedMedia", {
         "features": [{"name": "prefers-reduced-motion", "value": "reduce"}],
     })
-    page.goto(f"{web_base_url}/settings/profile")
-    expect(page.locator("#profile-form")).to_have_attribute(
-        "data-loaded", "true", timeout=10_000
-    )
+    ProfileSettingsPage(page).open(web_base_url)
     widget = _select_photo(page, _make_png(800, 600))
 
     styles = widget.evaluate(
@@ -902,10 +888,9 @@ def test_fallback_no_canvas(no_canvas_page, web_base_url):
     input не очищен (Р4-сабмит уйдет как раньше); ошибок JS на странице
     нет — init в try/catch."""
     page = no_canvas_page
-    page.goto(f"{web_base_url}/settings/profile")
-    expect(page.locator("#profile-form")).to_have_attribute(
-        "data-loaded", "true", timeout=10_000
-    )
+    profile = ProfileSettingsPage(page)
+    crop = CropWidget(page)
+    profile.open(web_base_url)
 
     # Страница функциональна: ошибок JS нет (pageerror-подписка ниже).
     errors = []
@@ -914,13 +899,13 @@ def test_fallback_no_canvas(no_canvas_page, web_base_url):
     # Выбор валидного файла: виджет НЕ открывается (модуль не
     # инициализирован), file input остаётся с файлом — Р4-загрузка.
     png = _make_png()
-    page.locator("#avatar-file").set_input_files(
+    profile.avatar_file.set_input_files(
         files=[{"name": "photo.png", "mimeType": "image/png", "buffer": png}]
     )
     page.wait_for_timeout(500)
-    expect(page.locator("#crop-widget")).not_to_contain_class("is-open")
+    expect(crop.widget).not_to_contain_class("is-open")
     # Input не очищен виджетом — сабмит уйдет в Р4-обработчик.
-    assert page.locator("#avatar-file").evaluate("el => el.files.length") == 1
+    assert profile.avatar_file.evaluate("el => el.files.length") == 1
 
     # Сабмит не перехвачен кропом: fetch POST /api/profile/avatar уходит
     # (перехват существует только при открытом виджете). Здесь
@@ -942,20 +927,22 @@ def test_upload_button_hidden_when_crop_active(logged_in_page, web_base_url):
     кроп → «Применить». Разметка не менялась — кнопка hidden, не
     удалена; после «Отмена» остается скрытой (модуль по-прежнему активен)."""
     page = logged_in_page
+    profile = ProfileSettingsPage(page)
+    crop = CropWidget(page)
     _goto(page, web_base_url)
 
-    btn = page.locator("#avatar-upload")
+    btn = profile.avatar_upload
     # Скрыта сразу после init кроп-модуля (еще до выбора файла).
     expect(btn).to_be_hidden()
 
     _select_photo(page, _make_png())
-    expect(page.locator("#crop-widget")).to_contain_class("is-open")
+    expect(crop.widget).to_contain_class("is-open")
     # Кнопка не вернулась при открытом кропе (сабмит = «Применить»).
     expect(btn).to_be_hidden()
 
     # «Отмена»: виджет закрыт, модуль активен — кнопка не возвращается.
-    page.locator("#crop-cancel").click()
-    expect(page.locator("#crop-widget")).not_to_contain_class("is-open")
+    crop.cancel.click()
+    expect(crop.widget).not_to_contain_class("is-open")
     expect(btn).to_be_hidden()
 
 
@@ -965,8 +952,6 @@ def test_upload_button_visible_in_fallback(no_canvas_page, web_base_url):
     видимой: Р4-сабмит формы с исходным файлом — единственный путь
     загрузки."""
     page = no_canvas_page
-    page.goto(f"{web_base_url}/settings/profile")
-    expect(page.locator("#profile-form")).to_have_attribute(
-        "data-loaded", "true", timeout=10_000
-    )
-    expect(page.locator("#avatar-upload")).to_be_visible()
+    profile = ProfileSettingsPage(page)
+    profile.open(web_base_url)
+    expect(profile.avatar_upload).to_be_visible()
