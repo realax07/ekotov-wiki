@@ -21,6 +21,11 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.web.conftest import SEED_CATEGORIES
+from tests.web.pages.auth import AuthPage, Sidebar
+from tests.web.pages.board import BoardPage
+from tests.web.pages.search import SearchPage
+from tests.web.pages.settings import SettingsPage
+from tests.web.pages.task_form import TaskForm
 
 pytestmark = [pytest.mark.web, pytest.mark.must]
 
@@ -50,58 +55,6 @@ def _categories_names(http, base_url: str) -> list[str]:
     resp = http.get(f"{base_url}/api/categories")
     assert resp.status_code == 200
     return [item["name"] for item in resp.json()["categories"]]
-
-
-def _wait_options_at_least(page, selector: str, min_names: int) -> None:
-    """Автожидание загрузки опций (select заполняется асинхронно):
-    wait_for_function — количество непустых (value != "") опций >= min_names,
-    таймаут 10 c, без sleep."""
-    page.wait_for_function(
-        """([sel, minNames]) => {
-          const el = document.querySelector(sel);
-          if (!el) return false;
-          const named = Array.from(el.querySelectorAll('option'))
-            .filter((o) => o.getAttribute('value')).length;
-          return named >= minNames;
-        }""",
-        arg=[selector, min_names],
-        timeout=10_000,
-    )
-
-
-def _open_category_select_options(page, min_names: int = 1) -> list[str]:
-    """Опции select «Категория» формы задачи без пустой опции-плейсхолдера
-    (пустое значение «—» = «категория не задана», Д-2, не элемент
-    справочника). Опции загружаются асинхронно — ожидание >= min_names.
-    На общей сессионной странице несколько select «Категория» быть не может
-    (одна форма); locator.first — защита от множественного label-матча."""
-    _wait_options_at_least(page, "#task-category", min_names)
-    options = page.locator("#task-category option")
-    return [
-        options.nth(i).text_content().strip()
-        for i in range(options.count())
-        if options.nth(i).get_attribute("value")
-    ]
-
-
-def _open_filter_select_options(page, min_names: int = 1) -> list[str]:
-    """Опции select «Категория» фильтра-конструктора без пустой опции
-    («любая» = «фильтр не задан», не элемент справочника). Опции загружаются
-    асинхронно — ожидание >= min_names."""
-    _wait_options_at_least(page, "#search-category", min_names)
-    options = page.locator("#search-category option")
-    return [
-        options.nth(i).text_content().strip()
-        for i in range(options.count())
-        if options.nth(i).get_attribute("value")
-    ]
-
-
-def _open_form(page):
-    """Открытая форма создания задачи (шаг кейсов form/sel)."""
-    page.get_by_role("button", name="Создать задачу").click()
-    expect(page.locator("#task-form-overlay")).to_be_visible()
-    return page
 
 
 def _route_static(page, web_server) -> None:
@@ -136,6 +89,8 @@ def test_settings_page_opens_direct_and_via_content(
     настройки — прямым GET /settings и через сайдбар; заголовок «Настройки»
     виден, справочник seed (Дом/Работа/Личное) отображается (sdd §3.3)."""
     page = logged_in_page
+    settings = SettingsPage(page)
+    sidebar = Sidebar(page)
 
     # Шаг 1: прямой GET → 200, HTML страницы настроек.
     resp = web_owner_session.get(f"{web_base_url}/settings")
@@ -143,20 +98,17 @@ def test_settings_page_opens_direct_and_via_content(
     assert "Настройки" in resp.text
 
     # Шаг 2: UI — прямая навигация: заголовок и URL.
-    page.goto(f"{web_base_url}/settings")
-    expect(page.get_by_role("heading", name="Настройки")).to_be_visible()
+    settings.open(web_base_url)
     assert page.url == f"{web_base_url}/settings"
 
     # Шаг 3: блок управления справочником; список содержит seed.
     for name in SEED_CATEGORIES:
-        expect(
-            page.locator("#category-list").get_by_text(name, exact=True)
-        ).to_be_visible()
+        expect(settings.category_text(name)).to_be_visible()
 
     # Дополнительный путь «через сайдбар» (GIVEN/WHEN кейса).
     page.goto(f"{web_base_url}/board")
-    page.get_by_role("link", name="Настройки").click()
-    expect(page.get_by_role("heading", name="Настройки")).to_be_visible()
+    sidebar.settings_link.click()
+    expect(settings.heading).to_be_visible()
     assert page.url == f"{web_base_url}/settings"
 
 
@@ -164,15 +116,16 @@ def test_settings_unauthenticated_redirect_and_api_401(page, web_base_url):
     """TC-set-002 (CHK-104, негативный): без сессии /settings — редирект на
     /login (содержимого настроек нет); /api/categories и мутирующий PATCH —
     401 {\"error\": \"unauthorized\"} (NFR-7: exempt-список не расширяется)."""
+    auth = AuthPage(page)
+    settings = SettingsPage(page)
+
     # Шаг 1: новый контекст БЕЗ куки session (page — чистый контекст теста).
     page.goto(f"{web_base_url}/settings")
     assert page.url.endswith("/login"), f"URL после перехода: {page.url}"
-    expect(page.get_by_role("heading", name="Вход")).to_be_visible()
+    expect(auth.heading).to_be_visible()
 
     # Шаг 2: контента настроек нет.
-    expect(
-        page.get_by_role("heading", name="Настройки", exact=True)
-    ).to_have_count(0)
+    expect(settings.heading_exact()).to_have_count(0)
 
     # Шаг 3: GET /api/categories без кук → 401.
     import requests
@@ -222,19 +175,17 @@ def test_settings_change_visible_to_second_user(
         context2 = logged_in_page.context.browser.new_context()
         page2 = context2.new_page()
         _route_static(page2, web_server)
+        auth2 = AuthPage(page2)
+        settings2 = SettingsPage(page2)
         try:
-            page2.goto(f"{web_base_url}/login")
-            page2.get_by_label("Логин").fill("wife")
-            page2.get_by_label("Пароль").fill("QaWife_Pass_2!")
-            page2.get_by_role("button", name="Войти").click()
+            auth2.open(web_base_url)
+            auth2.login_as("wife", "QaWife_Pass_2!")
             expect(
-                page2.get_by_role("heading", name="Доска", exact=True)
+                BoardPage(page2).heading()
             ).to_be_visible()
             page2.goto(f"{web_base_url}/settings")
             expect(
-                page2.locator("#category-list").get_by_text(
-                    "QAT-общ-work", exact=True
-                )
+                settings2.category_text("QAT-общ-work")
             ).to_be_visible()
         finally:
             page2.close()
@@ -299,14 +250,13 @@ def test_settings_single_directory_no_per_user_lists(
     список (S_wife == S, включая Дом/Работа/Личное) в API, на /settings и в
     select формы задачи; отдельного «личного» списка нет (ОГР-7)."""
     page = logged_in_page
+    settings = SettingsPage(page)
 
     # Шаг 1: owner — список S и его отображение на /settings.
     s_owner = _categories_names(web_owner_session, web_base_url)
     page.goto(f"{web_base_url}/settings")
     for name in s_owner:
-        expect(
-            page.locator("#category-list").get_by_text(name, exact=True)
-        ).to_be_visible()
+        expect(settings.category_text(name)).to_be_visible()
 
     # Шаг 2: вход wife (отдельная сессия/контекст куки).
     wife = http
@@ -326,26 +276,23 @@ def test_settings_single_directory_no_per_user_lists(
     context2 = logged_in_page.context.browser.new_context()
     page2 = context2.new_page()
     _route_static(page2, web_server)
+    auth2 = AuthPage(page2)
+    settings2 = SettingsPage(page2)
+    board2 = BoardPage(page2)
+    form2 = TaskForm(page2)
     try:
-        page2.goto(f"{web_base_url}/login")
-        page2.get_by_label("Логин").fill("wife")
-        page2.get_by_label("Пароль").fill("QaWife_Pass_2!")
-        page2.get_by_role("button", name="Войти").click()
-        expect(
-            page2.get_by_role("heading", name="Доска", exact=True)
-        ).to_be_visible()
+        auth2.open(web_base_url)
+        auth2.login_as("wife", "QaWife_Pass_2!")
+        expect(board2.heading()).to_be_visible()
 
         page2.goto(f"{web_base_url}/settings")
         for name in s_owner:
-            expect(
-                page2.locator("#category-list").get_by_text(name, exact=True)
-            ).to_be_visible()
+            expect(settings2.category_text(name)).to_be_visible()
 
-        page2.goto(f"{web_base_url}/board")
-        expect(page2.locator("#board")).to_have_attribute("data-loaded", "true")
-        _open_form(page2)
-        assert set(_open_category_select_options(page2, min_names=len(s_owner))) == set(s_owner)
-        page2.get_by_role("button", name="Отмена").click()
+        board2.open(web_base_url)
+        form2.open_create()
+        assert set(form2.named_category_options(min_names=len(s_owner))) == set(s_owner)
+        form2.cancel_button().click()
     finally:
         page2.close()
         context2.close()
@@ -372,20 +319,19 @@ def test_settings_contains_only_category_management(logged_in_page, web_base_url
     только создание/переименование/удаление категорий; профиля, смены
     пароля, справочника тегов нет (FR-25, Won't релиза)."""
     page = logged_in_page
-    page.goto(f"{web_base_url}/settings")
+    settings = SettingsPage(page)
+    settings.open(web_base_url)
 
     # Шаг 2: функции категорий присутствуют (поле+кнопка создания,
     # действия у записей — проверка на seed-записи).
-    expect(page.locator("#category-new-name")).to_be_visible()
-    expect(page.locator("#category-create-submit")).to_be_visible()
-    seed_item = page.locator("#category-list .category-item").filter(
-        has_text=SEED_CATEGORIES[0]
-    )
+    expect(settings.new_name_input).to_be_visible()
+    expect(settings.create_submit).to_be_visible()
+    seed_item = settings.category_item(SEED_CATEGORIES[0])
     expect(seed_item).to_be_visible()
     expect(
-        seed_item.get_by_role("button", name="Переименовать")
+        settings.rename_button(SEED_CATEGORIES[0])
     ).to_be_visible()
-    expect(seed_item.get_by_role("button", name="Удалить")).to_be_visible()
+    expect(settings.delete_button(SEED_CATEGORIES[0])).to_be_visible()
 
     # Шаг 3: отсутствующие функции — и по доступному имени, и по тексту
     # страницы, to_have_count(0) каждое.
@@ -426,16 +372,17 @@ def test_settings_link_position_bottom_left_near_logout(logged_in_page, web_base
     слева, рядом с кнопкой выхода (|Y_настройки − Y_выход| < высота +
     отступ; одна колонка X); ниже остальных пунктов навигации."""
     page = logged_in_page
+    sidebar = Sidebar(page)
     page.goto(f"{web_base_url}/board")
 
     # Шаг 2: ссылка «Настройки» видна (роль link — разметка base.html:
     # <a href="/settings" class="nav-item nav-item-settings">).
-    link = page.get_by_role("link", name="Настройки")
+    link = sidebar.settings_link
     expect(link).to_be_visible()
 
     # Шаг 3: геометрия — близость к «Выйти» (одна колонка, соседство по Y).
     bb_link = link.bounding_box()
-    bb_logout = page.get_by_role("button", name="Выйти").bounding_box()
+    bb_logout = sidebar.logout_button.bounding_box()
     assert bb_link is not None and bb_logout is not None
     assert abs(bb_link["y"] - bb_logout["y"]) < bb_link["height"] + 32, (
         f"«Настройки» {bb_link} не рядом с «Выйти» {bb_logout}"
@@ -445,7 +392,7 @@ def test_settings_link_position_bottom_left_near_logout(logged_in_page, web_base
     )
 
     # Шаг 4: ниже остальных пунктов навигации (Y нижней границы ≥ Y низа «Доска»).
-    bb_board = page.get_by_role("link", name="Доска").bounding_box()
+    bb_board = sidebar.board_link.bounding_box()
     assert bb_board is not None
     assert bb_link["y"] + bb_link["height"] >= bb_board["y"] + bb_board["height"], (
         f"«Настройки» ({bb_link}) выше «Доска» ({bb_board})"
@@ -457,18 +404,18 @@ def test_settings_link_navigates_to_settings_page(logged_in_page, web_base_url):
     заголовок «Настройки», список seed-категорий виден — переход на
     страницу настроек, не заглушку."""
     page = logged_in_page
+    sidebar = Sidebar(page)
+    settings = SettingsPage(page)
     page.goto(f"{web_base_url}/board")
 
     # Шаг 2–3: клик → URL и заголовок.
-    page.get_by_role("link", name="Настройки").click()
+    sidebar.settings_link.click()
     assert page.url == f"{web_base_url}/settings"
-    expect(page.get_by_role("heading", name="Настройки")).to_be_visible()
+    expect(settings.heading).to_be_visible()
 
     # Шаг 4: блок управления справочником с seed-категориями.
     for name in SEED_CATEGORIES:
-        expect(
-            page.locator("#category-list").get_by_text(name, exact=True)
-        ).to_be_visible()
+        expect(settings.category_text(name)).to_be_visible()
 
 
 def test_settings_link_available_from_all_pages(logged_in_page, web_base_url):
@@ -476,27 +423,29 @@ def test_settings_link_available_from_all_pages(logged_in_page, web_base_url):
     переход работает с доски и из поиска; на самой странице настроек раздел
     тоже присутствует (активная разметка .active — факт в протоколе)."""
     page = logged_in_page
+    sidebar = Sidebar(page)
+    settings = SettingsPage(page)
 
     # Шаг 1: ссылка видна на всех трех страницах.
     for path in ("/board", "/search", "/settings"):
         page.goto(f"{web_base_url}{path}")
-        expect(page.get_by_role("link", name="Настройки")).to_be_visible()
+        expect(sidebar.settings_link).to_be_visible()
 
     # Шаг 2: с /board клик → /settings.
     page.goto(f"{web_base_url}/board")
-    page.get_by_role("link", name="Настройки").click()
+    sidebar.settings_link.click()
     assert page.url == f"{web_base_url}/settings"
-    expect(page.get_by_role("heading", name="Настройки")).to_be_visible()
+    expect(settings.heading).to_be_visible()
 
     # Шаг 3: с /search снова клик → /settings.
     page.goto(f"{web_base_url}/search")
-    page.get_by_role("link", name="Настройки").click()
+    sidebar.settings_link.click()
     assert page.url == f"{web_base_url}/settings"
-    expect(page.get_by_role("heading", name="Настройки")).to_be_visible()
+    expect(settings.heading).to_be_visible()
 
     # Шаг 4: на /settings раздел присутствует; фактическая разметка —
     # активная ссылка (класс active, base.html: active_page == 'settings').
-    active = page.get_by_role("link", name="Настройки")
+    active = sidebar.settings_link
     expect(active).to_be_visible()
     assert "active" in (active.get_attribute("class") or ""), (
         "активная разметка ссылки «Настройки» на /settings отсутствует"
@@ -517,6 +466,7 @@ def test_task_form_tag_hints_show_known_values(
     категории (QAT-кат-work) в подсказках формы больше нет (осознанное
     поведение ОВ-1); поиск остается на UNION без параметра (ОГР-26)."""
     page = logged_in_page
+    form = TaskForm(page)
 
     # Шаг 1: категория в справочник (FR-21) + задача-носитель через API;
     # контроль GET /api/suggestions.
@@ -543,16 +493,15 @@ def test_task_form_tag_hints_show_known_values(
         # атрибут list снят, но зеркало-datalist #task-tag-hints остается
         # (r6 ОВ-1/Д-14: состав изменился — форма просит kind=tags,
         # зеркало сверяется с kind=tags-ответом).
-        _open_form(page)
-        tags_field = page.get_by_label("Теги (через запятую)")
+        form.open_create()
+        tags_field = form.tags
         assert tags_field.get_attribute("aria-controls") == "task-tag-combobox", (
             "поле «Теги» не связано с комбобоксом (aria-controls)"
         )
-        datalist = page.locator("#task-tag-hints")
 
         # Шаг 3: опции datalist (автожидание наполнения — по числу из API).
         # Пустая опция-плейсхолдер «—» (value="") в справочник не входит.
-        options = datalist.locator("option")
+        options = form.tag_hints_options
         expect(options).to_have_count(len(api_values), timeout=10_000)
         hint_values = [
             options.nth(i).text_content().strip() for i in range(options.count())
@@ -582,6 +531,7 @@ def test_task_form_tag_hints_set_semantics(
     тегом, и категорией, встречается в опциях datalist формы ровно 1 раз и
     ровно 1 раз в теле GET /api/suggestions (set/UNION, Д-3)."""
     page = logged_in_page
+    form = TaskForm(page)
 
     # Шаги 1–2: категория в справочник + задача с пересечением.
     category_id = _create_category(web_owner_session, web_base_url, "QAT-дубль")
@@ -598,9 +548,8 @@ def test_task_form_tag_hints_set_semantics(
 
     try:
         # Шаг 3: форма, опции datalist.
-        _open_form(page)
-        datalist = page.locator("#task-tag-hints")
-        options = datalist.locator("option")
+        form.open_create()
+        options = form.tag_hints_options
 
         resp = web_owner_session.get(f"{web_base_url}/api/suggestions")
         assert resp.status_code == 200
@@ -636,6 +585,7 @@ def test_task_form_pick_existing_hint_value(
     стрелка вниз + Enter) → значение сохраняется как тег создаваемой задачи
     (FR-26; проверка через GET /api/search?archived=false)."""
     page = logged_in_page
+    form = TaskForm(page)
 
     # Шаг 1: задача-источник с тегом QAT-выбор.
     created = web_owner_session.post(
@@ -647,17 +597,17 @@ def test_task_form_pick_existing_hint_value(
 
     # Шаги 2–3: форма → ввод значения → выбор из подсказки (клавиатура:
     # ArrowDown + Enter — фактический механизм datalist) → сохранить.
-    _open_form(page)
-    tags_field = page.get_by_label("Теги (через запятую)")
+    form.open_create()
+    tags_field = form.tags
     tags_field.fill("QAT-выбор")
     page.keyboard.press("ArrowDown")
     page.keyboard.press("Enter")
     assert "QAT-выбор" in tags_field.input_value(), (
         "выбор из подсказки не подставил значение в поле"
     )
-    page.get_by_label("Название").fill("QAT-задача-с-выбором")
-    page.get_by_role("button", name="Создать", exact=True).click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.title_input.fill("QAT-задача-с-выбором")
+    form.submit_button().click()
+    expect(form.overlay).to_be_hidden()
 
     created_id = None
     try:
@@ -685,6 +635,7 @@ def test_task_form_new_tag_value_allowed(
     принято (свободный ввод легитимен, в отличие от поиска FR-17); задача
     сохранена с этим тегом."""
     page = logged_in_page
+    form = TaskForm(page)
 
     # Шаг 1: контроль — QAT-newtag отсутствует в подсказках.
     resp = web_owner_session.get(f"{web_base_url}/api/suggestions")
@@ -693,12 +644,12 @@ def test_task_form_new_tag_value_allowed(
 
     # Шаг 2: форма — ввод QAT-newtag без выбора из подсказок → сохранить;
     # форма закрывается без ошибки ввода.
-    _open_form(page)
-    page.get_by_label("Название").fill("QAT-новый-тег")
-    page.get_by_label("Теги (через запятую)").fill("QAT-newtag")
-    page.get_by_role("button", name="Создать", exact=True).click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
-    expect(page.locator("#task-form-error")).to_be_hidden()
+    form.open_create()
+    form.title_input.fill("QAT-новый-тег")
+    form.tags.fill("QAT-newtag")
+    form.submit_button().click()
+    expect(form.overlay).to_be_hidden()
+    expect(form.error).to_be_hidden()
 
     created_id = None
     try:
@@ -740,16 +691,16 @@ def test_task_form_close_button_top_right(logged_in_page, web_base_url):
     правый верхний угол модалки (зазоры до краев < ~48px; фактические
     значения — в комментарии/выводе теста)."""
     page = logged_in_page
+    form = TaskForm(page)
     page.goto(f"{web_base_url}/board")
 
     # Шаг 1: открыть форму.
-    _open_form(page)
+    form.open_create()
 
     # Шаг 2: крестик — кнопка #task-form-close (aria-label «Закрыть форму
     # без сохранения», текстового «×» нет — текст в svg path; локатор
     # зафиксирован как семантический якорь кейса).
-    overlay = page.locator("#task-form-overlay")
-    close = overlay.get_by_role("button", name="Закрыть форму без сохранения")
+    close = form.close_cross()
     expect(close).to_be_visible()
 
     # Шаги 3–4: геометрия — правый верхний угор ОКНА ФОРМЫ (модалки
@@ -757,7 +708,7 @@ def test_task_form_close_button_top_right(logged_in_page, web_base_url):
     # поэтому зазоры считаются от формы): right = зазор до правого края
     # модалки, top = отступ от верха модалки; порог кейса ~48px.
     bb_close = close.bounding_box()
-    bb_modal = page.locator("#task-form-overlay .task-form-sheet").bounding_box()
+    bb_modal = form.sheet.bounding_box()
     assert bb_close is not None and bb_modal is not None
     right_gap = (bb_modal["x"] + bb_modal["width"]) - (
         bb_close["x"] + bb_close["width"]
@@ -777,6 +728,7 @@ def test_task_form_close_discards_input(
     """TC-form-007 (CHK-118): крестик закрывает окно без сохранения — POST
     /api/tasks не уходил, задача QAT-крестик-не-создана не создана."""
     page = logged_in_page
+    form = TaskForm(page)
     page.goto(f"{web_base_url}/board")
 
     # Шаг 1: сетевой журнал POST /api/tasks.
@@ -789,15 +741,13 @@ def test_task_form_close_discards_input(
     )
 
     # Шаг 2: форма с заполненными полями.
-    _open_form(page)
-    page.get_by_label("Название").fill("QAT-крестик-не-создана")
-    page.get_by_label("Описание").fill("заполнено до закрытия")
+    form.open_create()
+    form.title_input.fill("QAT-крестик-не-создана")
+    form.description.fill("заполнено до закрытия")
 
     # Шаг 3–4: крестик → окно скрыто.
-    page.locator("#task-form-overlay").get_by_role(
-        "button", name="Закрыть форму без сохранения"
-    ).click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.close_cross().click()
+    expect(form.overlay).to_be_hidden()
 
     # Шаг 5: POST не уходил; задача не создана (GET /api/search).
     assert posts == [], f"POST /api/tasks ушел: {posts}"
@@ -820,6 +770,8 @@ def test_task_form_priorities_distinguished_color_and_icon(
     (.priority-field-pill :has(:checked)) и текстом опций «Низкий/Средний/
     Высокий» (CHK-144: фактическая реализация в протоколе)."""
     page = logged_in_page
+    board = BoardPage(page)
+    form = TaskForm(page)
     page.goto(f"{web_base_url}/board")
 
     # Шаг 1: три задачи с разными приоритетами.
@@ -841,10 +793,10 @@ def test_task_form_priorities_distinguished_color_and_icon(
     # Шаг 2: карточки — svg-иконка в бейдже + computed style (задачи созданы
     # через API — доску перечитываем перезагрузкой страницы).
     page.reload()
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    board.wait_loaded()
     styles = {}
     for title in ("QAT-приор-low", "QAT-приор-med", "QAT-приор-high"):
-        card = page.get_by_role("article").filter(has_text=title)
+        card = board.card(title)
         expect(card).to_be_visible()
         badge = card.locator(".task-priority-badge")
         expect(badge).to_be_visible()
@@ -872,12 +824,12 @@ def test_task_form_priorities_distinguished_color_and_icon(
     # Шаг 4: форма — select «Приоритет» (нативный select, контракт
     # task-form.js 4.5/e2e); иконку внутри нативного select реализация не
     # отрисовывает — различимость в форме дают цвет пилюли + текст опций.
-    _open_form(page)
-    pill = page.locator(".priority-field-pill")
-    select = page.get_by_label("Приоритет")
+    form.open_create()
+    pill = form.priority_pill()
+    select = form.priority
     for value, label in (("low", "Низкий"), ("medium", "Средний"), ("high", "Высокий")):
         select.select_option(value)
-        expect(page.locator("#task-form-overlay .priority-field-pill")).to_be_visible()
+        expect(form.priority_pill_in_overlay()).to_be_visible()
     # Цвет пилюли следует выбранному значению (computed style меняется).
     select.select_option("low")
     style_low = pill.evaluate("el => getComputedStyle(el).backgroundColor")
@@ -888,12 +840,12 @@ def test_task_form_priorities_distinguished_color_and_icon(
     )
     # Скриншот формы (шаг 5 — приложить к протоколу).
     page.screenshot(path="tests/web/artifacts/tc-form-008-form.png")
-    page.get_by_role("button", name="Отмена").click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.cancel_button().click()
+    expect(form.overlay).to_be_hidden()
 
     # Шаг 5: скриншоты трех карточек — в артефакты прогонов.
     for title in ("QAT-приор-low", "QAT-приор-med", "QAT-приор-high"):
-        card = page.get_by_role("article").filter(has_text=title)
+        card = board.card(title)
         expect(card).to_be_visible()
     page.screenshot(path="tests/web/artifacts/tc-form-008-cards.png")
 
@@ -905,6 +857,8 @@ def test_task_form_priority_icons_inline_svg_no_external(
     внешние ресурсы (иконки/шрифты/CDN) не подключаются — external == []
     (ОГР-8)."""
     page = logged_in_page
+    board = BoardPage(page)
+    form = TaskForm(page)
 
     # Шаг 1: сетевой журнал внешних запросов; открыть /board.
     external: list[str] = []
@@ -915,14 +869,14 @@ def test_task_form_priority_icons_inline_svg_no_external(
         else None,
     )
     page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    board.wait_loaded()
 
     # Шаг 2: открыть форму — все ресурсы загрузились.
-    _open_form(page)
+    form.open_create()
 
     # Шаг 3: иконки приоритетов — инлайновые <svg> (в разметке формы
     # и в JS-шаблоне карточек; на доске — svg внутри бейджей, см. TC-form-008).
-    assert page.locator("#task-form-overlay svg").count() >= 1, (
+    assert form.overlay.locator("svg").count() >= 1, (
         "в форме нет inline svg (крестик — svg, priority-icons.js)"
     )
 
@@ -934,8 +888,8 @@ def test_task_form_priority_icons_inline_svg_no_external(
         )
     assert external == [], f"внешние ресурсы: {external}"
 
-    page.get_by_role("button", name="Отмена").click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.cancel_button().click()
+    expect(form.overlay).to_be_hidden()
 
 
 def test_task_form_invalid_category_highlighted(
@@ -946,34 +900,36 @@ def test_task_form_invalid_category_highlighted(
     category («not in categories»), поле подсвечено (aria-invalid/класс +
     сообщение), задача не создана (FR-21/FR-29)."""
     page = logged_in_page
+    board = BoardPage(page)
+    form = TaskForm(page)
     page.goto(f"{web_base_url}/board")
 
     # Шаг 1: категория → форма → выбор QAT-Врем-подсветка в select.
     category_id = _create_category(
         web_owner_session, web_base_url, "QAT-Врем-подсветка"
     )
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    _open_form(page)
-    page.get_by_label("Категория").select_option("QAT-Врем-подсветка")
-    page.get_by_label("Название").fill("QAT-подсветка-422")
+    board.wait_loaded()
+    form.open_create()
+    form.category.select_option("QAT-Врем-подсветка")
+    form.title_input.fill("QAT-подсветка-422")
 
     # Шаг 2: удалить категорию через API при открытой форме.
     _delete_category(web_owner_session, web_base_url, category_id)
 
     # Шаг 3: «Создать» → 422 details.category; форма осталась открыта.
-    page.get_by_role("button", name="Создать", exact=True).click()
-    expect(page.locator("#task-form-overlay")).to_be_visible()
+    form.submit_button().click()
+    expect(form.overlay).to_be_visible()
 
     # Шаг 4: поле категории подсвечено: класс field-invalid +
     # aria-invalid=true + сообщение об ошибке (#task-category-error).
-    category_select = page.get_by_label("Категория")
+    category_select = form.category
     state = category_select.evaluate(
         "el => el.className + '|' + el.getAttribute('aria-invalid')"
     )
     assert "field-invalid" in state and "true" in state, (
         f"поле категории не подсвечено: {state!r}"
     )
-    error = page.locator("#task-category-error")
+    error = form.category_error
     expect(error).to_be_visible()
     assert error.inner_text().strip(), "сообщение об ошибке категории пустое"
 
@@ -988,8 +944,8 @@ def test_task_form_invalid_category_highlighted(
     assert len(created) == 0, f"задача создана вопреки 422: {created}"
 
     # Cleanup: закрыть форму (задача не создавалась — удалять нечего).
-    page.get_by_role("button", name="Отмена").click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.cancel_button().click()
+    expect(form.overlay).to_be_hidden()
 
 
 def test_task_form_open_close_animation(logged_in_page, web_base_url):
@@ -998,10 +954,11 @@ def test_task_form_open_close_animation(logged_in_page, web_base_url):
     стиль — Д-5, на усмотрение реализации); механизм открытия и закрытия
     единый (модалка .modal, animation modal-in)."""
     page = logged_in_page
+    form = TaskForm(page)
     page.goto(f"{web_base_url}/board")
 
     # Шаг 1: computed style скрытого оверлея (transition | animation).
-    overlay = page.locator("#task-form-overlay")
+    overlay = form.overlay
     style_hidden = overlay.evaluate(
         "el => getComputedStyle(el).transition + ' | ' + getComputedStyle(el).animation"
     )
@@ -1009,9 +966,9 @@ def test_task_form_open_close_animation(logged_in_page, web_base_url):
 
     # Шаг 2: открыть форму — у видимой модалки заявлена анимация
     # (непустые значения, не «all 0s»/«none»).
-    page.get_by_role("button", name="Создать задачу").click()
-    expect(page.locator("#task-form-overlay")).to_be_visible()
-    modal = page.locator("#task-form-overlay .task-form-sheet")
+    form.open_button().click()
+    expect(form.overlay).to_be_visible()
+    modal = form.sheet
     anim_name = modal.evaluate("el => getComputedStyle(el).animationName")
     anim_duration = modal.evaluate("el => getComputedStyle(el).animationDuration")
     print(
@@ -1025,19 +982,19 @@ def test_task_form_open_close_animation(logged_in_page, web_base_url):
     # Шаг 3: наблюдаемость промежуточного состояния (скриншот ~100 мс
     # после клика — промежуточный кадр открытия; фактический кадр
     # прикладывается к протоколу, артефакты вне git).
-    page.get_by_role("button", name="Отмена").click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
-    page.get_by_role("button", name="Создать задачу").click()
+    form.cancel_button().click()
+    expect(form.overlay).to_be_hidden()
+    form.open_button().click()
     page.wait_for_timeout(100)
     page.screenshot(path="tests/web/artifacts/tc-form-011-open-mid.png")
-    expect(page.locator("#task-form-overlay")).to_be_visible()
+    expect(form.overlay).to_be_visible()
 
     # Шаг 4: закрытие («Отмена») — тот же механизм модалки; скриншот
     # промежуточного кадра закрытия.
-    page.get_by_role("button", name="Отмена").click()
+    form.cancel_button().click()
     page.wait_for_timeout(40)
     page.screenshot(path="tests/web/artifacts/tc-form-011-close-mid.png")
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    expect(form.overlay).to_be_hidden()
 
 
 # ==========================================================================
@@ -1052,8 +1009,9 @@ def test_task_form_category_select_from_directory(
     фактический справочник (Дом/Работа/Личное + QAT-sel-finance) — источник
     GET /api/categories, не статический список (DEF-001/FR-30)."""
     page = logged_in_page
-    page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    board = BoardPage(page)
+    form = TaskForm(page)
+    board.open(web_base_url)
 
     # Шаг 1: заведомо известная 4-я категория.
     category_id = _create_category(
@@ -1070,13 +1028,13 @@ def test_task_form_category_select_from_directory(
 
         # Шаги 3–4: опции select формы (без пустой опции-плейсхолдера) == S;
         # свежесозданная QAT-sel-finance присутствует — источник данных.
-        _open_form(page)
-        options = _open_category_select_options(page, min_names=len(names))
+        form.open_create()
+        options = form.named_category_options(min_names=len(names))
         assert set(options) == set(names), (
             f"опции формы {sorted(options)} != справочнику {sorted(names)}"
         )
         assert "QAT-sel-finance" in options
-        page.get_by_role("button", name="Отмена").click()
+        form.cancel_button().click()
     finally:
         # Шаг 5: cleanup.
         _delete_category(web_owner_session, web_base_url, category_id)
@@ -1088,6 +1046,7 @@ def test_search_filter_category_select_from_directory(
     """TC-sel-002 (CHK-124): select «Категория» фильтра-конструктора
     содержит ровно фактический справочник (seed + QAT-sel-filtr) — FR-30."""
     page = logged_in_page
+    search = SearchPage(page)
 
     # Шаг 1: категория.
     category_id = _create_category(web_owner_session, web_base_url, "QAT-sel-filtr")
@@ -1100,11 +1059,8 @@ def test_search_filter_category_select_from_directory(
 
         # Шаги 3–4: /search (режим «Конструктор») — опции select (без
         # пустой опции «любая») == S; свежая категория присутствует.
-        page.goto(f"{web_base_url}/search")
-        expect(
-            page.get_by_role("button", name="Конструктор")
-        ).to_be_visible()
-        options = _open_filter_select_options(page, min_names=len(names))
+        search.open(web_base_url)
+        options = search.named_category_options(min_names=len(names))
         assert set(options) == set(names), (
             f"опции фильтра {sorted(options)} != справочнику {sorted(names)}"
         )
@@ -1121,17 +1077,18 @@ def test_select_fields_follow_directory_changes(
     удаление отражаются в ОБОИХ селект-полях (форма + фильтр) после
     перезагрузки страниц — без перезапуска сервера (FR-30, данные ведущие)."""
     page = logged_in_page
+    board = BoardPage(page)
+    form = TaskForm(page)
+    search = SearchPage(page)
 
     # Шаг 1: опции «до» — без QAT-sel-new-project.
-    page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    _open_form(page)
-    assert "QAT-sel-new-project" not in _open_category_select_options(page, min_names=3)
-    page.get_by_role("button", name="Отмена").click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
-    page.goto(f"{web_base_url}/search")
-    expect(page.get_by_role("button", name="Конструктор")).to_be_visible()
-    assert "QAT-sel-new-project" not in _open_filter_select_options(page, min_names=3)
+    board.open(web_base_url)
+    form.open_create()
+    assert "QAT-sel-new-project" not in form.named_category_options(min_names=3)
+    form.cancel_button().click()
+    expect(form.overlay).to_be_hidden()
+    search.open(web_base_url)
+    assert "QAT-sel-new-project" not in search.named_category_options(min_names=3)
 
     # Шаг 2: категория добавлена.
     category_id = _create_category(
@@ -1140,25 +1097,22 @@ def test_select_fields_follow_directory_changes(
 
     # Шаги 3–5: перезагрузка страниц (без перезапуска приложения) —
     # категория в обоих списках.
-    page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    _open_form(page)
-    assert "QAT-sel-new-project" in _open_category_select_options(page, min_names=4)
-    page.get_by_role("button", name="Отмена").click()
-    page.goto(f"{web_base_url}/search")
-    expect(page.get_by_role("button", name="Конструктор")).to_be_visible()
-    assert "QAT-sel-new-project" in _open_filter_select_options(page, min_names=4)
+    board.open(web_base_url)
+    form.open_create()
+    assert "QAT-sel-new-project" in form.named_category_options(min_names=4)
+    form.cancel_button().click()
+    search.open(web_base_url)
+    assert "QAT-sel-new-project" in search.named_category_options(min_names=4)
 
     # Шаг 6: cleanup + исчезновение из обоих списков после обновления.
     _delete_category(web_owner_session, web_base_url, category_id)
     page.reload()
-    expect(page.get_by_role("button", name="Конструктор")).to_be_visible()
-    assert "QAT-sel-new-project" not in _open_filter_select_options(page, min_names=3)
-    page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    _open_form(page)
-    assert "QAT-sel-new-project" not in _open_category_select_options(page, min_names=3)
-    page.get_by_role("button", name="Отмена").click()
+    expect(search.constructor_button).to_be_visible()
+    assert "QAT-sel-new-project" not in search.named_category_options(min_names=3)
+    board.open(web_base_url)
+    form.open_create()
+    assert "QAT-sel-new-project" not in form.named_category_options(min_names=3)
+    form.cancel_button().click()
 
 
 def test_select_fields_not_static_not_empty(
@@ -1168,25 +1122,26 @@ def test_select_fields_not_static_not_empty(
     равны справочнику; посторонних (захардкоженных) значений нет —
     DEF-001 закрыт."""
     page = logged_in_page
-    page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    board = BoardPage(page)
+    form = TaskForm(page)
+    search = SearchPage(page)
+    board.open(web_base_url)
 
     # Шаг 1: справочник S (непустой, ≥3 — seed).
     names = _categories_names(web_owner_session, web_base_url)
     assert len(names) >= 3, names
 
     # Шаги 2–3: форма и фильтр — (а) непусты, (б) равны S.
-    _open_form(page)
-    o_form = _open_category_select_options(page, min_names=len(names))
+    form.open_create()
+    o_form = form.named_category_options(min_names=len(names))
     assert len(o_form) >= 1, "select категории формы пуст"
     assert set(o_form) == set(names), (
         f"опции формы {sorted(o_form)} != справочнику {sorted(names)}"
     )
-    page.get_by_role("button", name="Отмена").click()
+    form.cancel_button().click()
 
-    page.goto(f"{web_base_url}/search")
-    expect(page.get_by_role("button", name="Конструктор")).to_be_visible()
-    o_filter = _open_filter_select_options(page, min_names=len(names))
+    search.open(web_base_url)
+    o_filter = search.named_category_options(min_names=len(names))
     assert len(o_filter) >= 1, "select категории фильтра пуст"
     assert set(o_filter) == set(names), (
         f"опции фильтра {sorted(o_filter)} != справочнику {sorted(names)}"

@@ -32,10 +32,14 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.web.conftest import create_task_via_ui
+from tests.web.pages.auth import Sidebar
+from tests.web.pages.board import BoardPage
+from tests.web.pages.search import SearchPage
+from tests.web.pages.tag_combobox import TagCombobox
+from tests.web.pages.task_detail import TaskDetailView
+from tests.web.pages.task_form import TaskForm
 
 pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
-
-LISTBOX = "#task-tag-combobox"
 
 
 def _rgb_to_hex(rgb: str) -> str:
@@ -48,8 +52,9 @@ def _rgb_to_hex(rgb: str) -> str:
 
 
 def _open_board_form(page):
-    page.get_by_role("button", name="Создать задачу").click()
-    expect(page.locator("#task-form-overlay")).to_be_visible()
+    form = TaskForm(page)
+    form.open_create()
+    return form
 
 
 def _seed_tagged_task(web_owner_session, web_base_url, title, tags):
@@ -69,9 +74,9 @@ def test_fast_row_v3_geometry_and_priority_lock(board_page):
     8px-сети, чекбокс 16px; отметка fast → приоритет high и заблокирован,
     снятие — разблокирован (behavior-инвариант FR-88 сохранен)."""
     page = board_page
-    _open_board_form(page)
+    form = _open_board_form(page)
 
-    row = page.locator("#task-form .fast-row")
+    row = form.fast_row()
     expect(row).to_be_visible()
 
     # Токены V3: фон/бордер ряда резолвятся в значения :root-токенов
@@ -109,15 +114,15 @@ def test_fast_row_v3_geometry_and_priority_lock(board_page):
     assert _rgb_to_hex(styles["border"]) == styles["borderToken"].lower(), styles
 
     # Behavior: отметка fast → priority=high, disabled; снятие → разблокирован.
-    fast = page.get_by_label("fast line")
+    fast = form.fast_line_label()
     fast.check()
-    assert page.locator("#task-priority").input_value() == "high"
-    assert page.locator("#task-priority").is_disabled()
+    assert form.priority_by_id().input_value() == "high"
+    assert form.priority_by_id().is_disabled()
     fast.uncheck()
-    assert not page.locator("#task-priority").is_disabled()
+    assert not form.priority_by_id().is_disabled()
 
-    page.get_by_role("button", name="Отмена").click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.cancel_button().click()
+    expect(form.overlay).to_be_hidden()
 
 
 # --------------------------------------------------------------------------
@@ -131,10 +136,12 @@ def test_search_action_buttons_single_btn_action_pattern(logged_in_page, web_bas
     отступы кратны 8px; hover/focus-состояния едины (hover-фон токен,
     focus-visible box-shadow --focus-ring)."""
     page = logged_in_page
-    page.goto(f"{web_base_url}/search")
+    search = SearchPage(page)
+    search.open(web_base_url)
 
     # Advanced-кнопка скрыта до переключения режима — DOM-id и класс
     # проверяем на присутствие в DOM (ОГР-28), видимость после клика.
+    # Перебор DOM-id-селекторов (ОГР-28) — прямые locator (PO — не догма).
     buttons = {}
     for bid in ("#search-builder-submit", "#search-advanced-submit"):
         btn = page.locator(bid)
@@ -172,13 +179,13 @@ def test_search_action_buttons_single_btn_action_pattern(logged_in_page, web_bas
 
     # Advanced-кнопка функционально жива: клик открывает advanced-блок,
     # «Найти» формирует выдачу (поведение не изменилось — keep-семантика).
-    page.get_by_role("button", name="Advanced").click()
-    expect(page.locator("#search-advanced")).to_be_visible()
+    search.advanced_button.click()
+    expect(search.advanced).to_be_visible()
     advanced_submit = page.locator("#search-advanced-submit")
     expect(advanced_submit).to_be_visible()
-    page.locator("#search-advanced-query").fill('archived = "false"')
+    search.advanced_query.fill('archived = "false"')
     advanced_submit.click()
-    expect(page.locator("#search-results")).to_be_visible()
+    expect(search.results).to_be_visible()
 
 
 # --------------------------------------------------------------------------
@@ -191,8 +198,9 @@ def test_settings_link_bbox_stable_across_active_focus(logged_in_page, web_base_
     состояниях (группа H design: border без смены ширины, transform
     запрет)."""
     page = logged_in_page
+    sidebar = Sidebar(page)
     page.goto(f"{web_base_url}/board")
-    link = page.get_by_role("link", name="Настройки")
+    link = sidebar.settings_link
     expect(link).to_be_visible()
 
     box0 = link.bounding_box()
@@ -231,6 +239,8 @@ def test_comment_head_author_and_human_date_in_view(
     разделитель «·», time.comment-date человекочитаем (без сырого
     ISO-вида «2026-10-07T…»); datetime-атрибут хранит исходный ISO."""
     page = board_page
+    board = BoardPage(page)
+    detail = TaskDetailView(page)
     created = web_owner_session.post(
         f"{web_base_url}/api/tasks", json={"title": "QAT-uip108-коммент"}
     )
@@ -242,15 +252,15 @@ def test_comment_head_author_and_human_date_in_view(
         json={"body": "QAT-uip108-текст"},
     ).status_code == 201
     page.reload()
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    board.wait_loaded()
 
-    page.get_by_role("article").filter(has_text="QAT-uip108-коммент").click()
-    expect(page.locator("#task-detail-overlay")).to_be_visible()
+    board.card("QAT-uip108-коммент").click()
+    detail.wait_open()
     expect(
-        page.locator("#task-comments-list").get_by_text("QAT-uip108-текст")
+        detail.comments.get_by_text("QAT-uip108-текст")
     ).to_be_visible()
 
-    head = page.locator("#task-comments-list .comment-head").first
+    head = detail.comments.locator(".comment-head").first
     expect(head).to_be_visible()
 
     # Автор — имя (login 'owner'; NOT NULL id, не «user-1»).
@@ -272,7 +282,7 @@ def test_comment_head_author_and_human_date_in_view(
     iso = date_el.get_attribute("datetime")
     assert iso and "T" in iso, iso  # исходный ISO — в атрибуте
 
-    page.get_by_role("button", name="Закрыть", exact=True).click()
+    detail.close_button().click()
 
 
 # --------------------------------------------------------------------------
@@ -293,45 +303,46 @@ def test_combobox_committed_ledger_all_paths_and_submit_clear(
     web_cleanup_created(task_id)
 
     page = logged_in_page
-    page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    _open_board_form(page)
+    board = BoardPage(page)
+    board.open(web_base_url)
+    form = _open_board_form(page)
+    comb = TagCombobox(page)
 
-    tags = page.get_by_label("Теги (через запятую)")
+    tags = form.tags
 
     # Путь 1: клик по пункту дропдауна.
     tags.fill("QAT-ledсущ")
-    option = page.locator(f'{LISTBOX} [data-value="{existing}"]')
+    option = comb.option_by_value(existing)
     expect(option).to_be_visible()
     option.click()
     assert existing in tags.input_value()
-    chips = page.locator("#task-tags-chips .chip")
+    chips = form.tag_chips()
     expect(chips).to_have_count(1)
     expect(chips.first).to_contain_text(existing)
     assert chips.first.get_by_role("button").count() == 1  # крестик
-    expect(page.locator(LISTBOX)).to_be_hidden()
+    expect(comb.listbox).to_be_hidden()
     expect(tags).to_be_focused()
 
     # Путь 2: Enter (стрелки + Enter) — создание нового тега.
     tags.fill("QAT-ledнов")
-    add_item = page.locator(f"{LISTBOX} .option-add")
+    add_item = comb.add_item()
     expect(add_item).to_be_visible()
     page.keyboard.press("Enter")
     value = tags.input_value()
     assert "QAT-ledнов" in value and existing in value, value
-    expect(page.locator("#task-tags-chips .chip")).to_have_count(2)
+    expect(form.tag_chips()).to_have_count(2)
     expect(tags).to_be_focused()
 
     # Путь 3: Tab-выбор существующего.
     tags.fill(f" QAT-ledнов, {existing}, QAT-ledсущ2")
     page.keyboard.press("Tab")
     assert "QAT-ledсущ2" in tags.input_value()
-    expect(page.locator("#task-tags-chips .chip")).to_have_count(3)
+    expect(form.tag_chips()).to_have_count(3)
 
     # Сабмит: все три тега сохранены, ПОСЛЕ сабмита поле пустое.
-    page.get_by_label("Название").fill("QAT-uip109-итог")
-    page.get_by_role("button", name="Создать", exact=True).click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.title_input.fill("QAT-uip109-итог")
+    form.submit_button().click()
+    expect(form.overlay).to_be_hidden()
     resp = web_owner_session.get(
         f"{web_base_url}/api/search", params={"archived": "false"}
     )
@@ -345,9 +356,9 @@ def test_combobox_committed_ledger_all_paths_and_submit_clear(
 
     # Форма переоткрыта — поле ввода тегов пустое (flushCommittedToInput
     # не оставил хвост; леджер новой формы чист).
-    _open_board_form(page)
-    assert page.get_by_label("Теги (через запятую)").input_value() == ""
-    page.get_by_role("button", name="Отмена").click()
+    form = _open_board_form(page)
+    assert form.tags.input_value() == ""
+    form.cancel_button().click()
 
     web_cleanup_created(matched[0]["id"])
 
@@ -370,32 +381,33 @@ def test_combobox_three_tags_and_one_by_one_removal(
         )
 
     page = logged_in_page
-    page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    _open_board_form(page)
+    board = BoardPage(page)
+    board.open(web_base_url)
+    form = _open_board_form(page)
+    comb = TagCombobox(page)
 
-    tags = page.get_by_label("Теги (через запятую)")
+    tags = form.tags
 
     # 1: клик по существующему.
     tags.fill(t1)
-    page.locator(f'{LISTBOX} [data-value="{t1}"]').click()
+    comb.option_by_value(t1).click()
     assert t1 in tags.input_value()
-    expect(page.locator("#task-tags-chips .chip")).to_have_count(1)
+    expect(form.tag_chips()).to_have_count(1)
 
     # 2: Enter по существующему.
     tags.fill(f" {t1}, {t2}")
     page.keyboard.press("Enter")
     assert t2 in tags.input_value()
-    expect(page.locator("#task-tags-chips .chip")).to_have_count(2)
+    expect(form.tag_chips()).to_have_count(2)
 
     # 3: создание нового.
     t3 = "QAT-u110-три"
     tags.fill(f" {t1}, {t2}, {t3}")
-    add_item = page.locator(f"{LISTBOX} .option-add")
+    add_item = comb.add_item()
     expect(add_item).to_be_visible()
     page.keyboard.press("Enter")
     assert t3 in tags.input_value()
-    chips = page.locator("#task-tags-chips .chip")
+    chips = form.tag_chips()
     expect(chips).to_have_count(3)
     for tag in (t1, t2, t3):
         expect(chips.filter(has_text=tag)).to_have_count(1)
@@ -403,8 +415,8 @@ def test_combobox_three_tags_and_one_by_one_removal(
     # Удаление t2 крестиком: чип исчез, input жив — ввод дополнительного
     # токена проходит НЕ затирая committed-леджер (клавиатурный ввод).
     chips.filter(has_text=t2).get_by_role("button").click()
-    expect(page.locator("#task-tags-chips .chip")).to_have_count(2)
-    expect(page.locator("#task-tags-chips .chip", has_text=t2)).to_have_count(0)
+    expect(form.tag_chips()).to_have_count(2)
+    expect(form.tag_chips().filter(has_text=t2)).to_have_count(0)
     tags.click()  # фокус в поле (поле не блокировано)
     page.keyboard.press("End")
     page.keyboard.type(", QAT-u110-верн")
@@ -414,21 +426,21 @@ def test_combobox_three_tags_and_one_by_one_removal(
     # Возвращенный t2 снова доступен в дропдауне (исключение — только
     # введенные/выбранные; удаленный крестиком вернулся в подсказки).
     tags.fill("QAT-u110-д")
-    option2 = page.locator(f'{LISTBOX} [data-value="{t2}"]')
+    option2 = comb.option_by_value(t2)
     expect(option2).to_be_visible()  # удаленный тег вернулся в подсказки
     option2.click()
     # Выборная строка-запрос «QAT-u110-д» остается ручным токеном — убираем
     # крестиком его чипа (свободный ввод легитимен, FR-26), остаются t1/t3/t2.
-    page.locator("#task-tags-chips .chip").filter(
+    form.tag_chips().filter(
         has=page.get_by_role("button", name="Убрать тег QAT-u110-д", exact=True)
     ).get_by_role("button").click()
-    expect(page.locator("#task-tags-chips .chip")).to_have_count(3)
+    expect(form.tag_chips()).to_have_count(3)
     assert t2 in tags.input_value()
 
     # Сабмит: ровно три тега; после сохранения поле пустое.
-    page.get_by_label("Название").fill("QAT-u110-итог")
-    page.get_by_role("button", name="Создать", exact=True).click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.title_input.fill("QAT-u110-итог")
+    form.submit_button().click()
+    expect(form.overlay).to_be_hidden()
     resp = web_owner_session.get(
         f"{web_base_url}/api/search", params={"archived": "false"}
     )
@@ -439,9 +451,9 @@ def test_combobox_three_tags_and_one_by_one_removal(
     assert sorted(matched[0]["tags"]) == sorted([t1, t2, t3]), matched[0]["tags"]
     web_cleanup_created(matched[0]["id"])
 
-    _open_board_form(page)
-    assert page.get_by_label("Теги (через запятую)").input_value() == ""
-    page.get_by_role("button", name="Отмена").click()
+    form = _open_board_form(page)
+    assert form.tags.input_value() == ""
+    form.cancel_button().click()
 
 
 # --------------------------------------------------------------------------
@@ -457,6 +469,9 @@ def test_fastline_edit_full_toggle_regular_to_fast_409_and_off(
     сохранены, вторая fast не переключена; выключение разблокирует
     приоритет и сохраняет выбранный."""
     page = board_page
+    board = BoardPage(page)
+    form = TaskForm(page)
+    detail = TaskDetailView(page)
 
     regular = web_owner_session.post(
         f"{web_base_url}/api/tasks",
@@ -469,40 +484,40 @@ def test_fastline_edit_full_toggle_regular_to_fast_409_and_off(
     # fast-задача-фикстура (шаг 2) — создается ПОЗЖЕ (после успешного
     # переключения regular→fast, которому нужна СВОБОДНАЯ линия).
     page.reload()
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    board.wait_loaded()
 
     def _open_edit(title):
-        page.get_by_role("article").filter(has_text=title).click()
-        page.get_by_role("button", name="Редактировать").click()
-        expect(page.locator("#task-form-overlay")).to_be_visible()
+        board.card(title).click()
+        detail.edit_button().click()
+        expect(form.overlay).to_be_visible()
 
     # Шаг 1: regular — ряд виден, чекбокс снят.
     _open_edit("QAT-f89-regular")
-    fast_row = page.locator("#task-form .fast-row")
+    fast_row = form.fast_row()
     assert fast_row.get_attribute("hidden") is None
-    assert not page.locator("#task-is-fast").is_checked()
+    assert not form.is_fast_checkbox().is_checked()
 
     # Шаг 3: включение fast (линия свободна) — priority high + блокировка;
     # сохранение → задача стала fast (API: is_fast=true, high).
-    page.get_by_label("fast line").check()
-    assert page.locator("#task-priority").input_value() == "high"
-    assert page.locator("#task-priority").is_disabled()
-    page.get_by_role("button", name="Сохранить").click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.fast_line_label().check()
+    assert form.priority_by_id().input_value() == "high"
+    assert form.priority_by_id().is_disabled()
+    form.save_button().click()
+    expect(form.overlay).to_be_hidden()
     got = web_owner_session.get(f"{web_base_url}/api/tasks/{regular_id}").json()
     assert got["is_fast"] is True and got["priority"] == "high", got
 
     # Шаг 5: выключение fast у бывшей fast-задачи — приоритет разблокирован,
     # сохраняется выбранный (is_fast=false); линия освобождена.
     page.reload()
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    board.wait_loaded()
     _open_edit("QAT-f89-regular")
-    assert page.locator("#task-is-fast").is_checked()
-    page.get_by_label("fast line").uncheck()
-    assert not page.locator("#task-priority").is_disabled()
-    page.get_by_label("Приоритет").select_option("medium")
-    page.get_by_role("button", name="Сохранить").click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    assert form.is_fast_checkbox().is_checked()
+    form.fast_line_label().uncheck()
+    assert not form.priority_by_id().is_disabled()
+    form.priority.select_option("medium")
+    form.save_button().click()
+    expect(form.overlay).to_be_hidden()
     got3 = web_owner_session.get(f"{web_base_url}/api/tasks/{regular_id}").json()
     assert got3["is_fast"] is False and got3["priority"] == "medium", got3
 
@@ -524,16 +539,16 @@ def test_fastline_edit_full_toggle_regular_to_fast_409_and_off(
     second_id = second.json()["id"]
     web_cleanup_created(second_id)
     page.reload()
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    board.wait_loaded()
     _open_edit("QAT-f89-second")
-    page.get_by_label("Название").fill("QAT-f89-second-правка")
-    page.get_by_label("fast line").check()
-    page.get_by_role("button", name="Сохранить").click()
+    form.title_input.fill("QAT-f89-second-правка")
+    form.fast_line_label().check()
+    form.save_button().click()
     expect(page.get_by_text("fast line занята")).to_be_visible()
-    expect(page.locator("#task-form-overlay")).to_be_visible()
-    assert page.get_by_label("Название").input_value() == "QAT-f89-second-правка"
-    assert page.get_by_label("fast line").is_checked()
-    page.get_by_role("button", name="Отмена").click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    expect(form.overlay).to_be_visible()
+    assert form.title_input.input_value() == "QAT-f89-second-правка"
+    assert form.fast_line_label().is_checked()
+    form.cancel_button().click()
+    expect(form.overlay).to_be_hidden()
     got2 = web_owner_session.get(f"{web_base_url}/api/tasks/{second_id}").json()
     assert got2["is_fast"] is False, got2  # вторая fast НЕ переключена

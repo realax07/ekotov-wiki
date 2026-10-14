@@ -15,6 +15,9 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.web.conftest import create_task_via_ui
+from tests.web.pages.board import BoardPage
+from tests.web.pages.task_detail import TaskDetailView
+from tests.web.pages.task_form import TaskForm
 
 pytestmark = [pytest.mark.web, pytest.mark.must]
 
@@ -22,8 +25,9 @@ FORM_FIELDS = ("#task-title", "#task-description", "#task-due-date")
 
 
 def _open_form(page) -> None:
-    page.get_by_role("button", name="Создать задачу").click()
-    expect(page.get_by_role("heading", name="Создание задачи")).to_be_visible()
+    form = TaskForm(page)
+    form.open_button().click()
+    expect(form.heading_create).to_be_visible()
 
 
 def _computed(page, selector: str, prop: str) -> str:
@@ -50,6 +54,7 @@ def test_form_fields_v3_tokens_and_focus_ring(board_page):
     прозрачный фон — «бумажный прием» мокапа V3, шрифт унаследован);
     при фокусе box-shadow виден (токен --focus-ring / акцентная линия)."""
     page = board_page
+    form = TaskForm(page)
     _open_form(page)
 
     focus_ring = page.evaluate(
@@ -68,12 +73,12 @@ def test_form_fields_v3_tokens_and_focus_ring(board_page):
         assert font and "Times" not in font, (selector, font)
 
     # Фокус-кольцо: box-shadow при фокусе ≠ none (токен --focus-ring).
-    title = page.locator("#task-title")
+    title = form.title_by_id()
     title.focus()
     shadow = _computed(page, "#task-title", "boxShadow")
     assert shadow not in ("none", ""), shadow
 
-    description = page.locator("#task-description")
+    description = form.description_by_id()
     description.focus()
     shadow_desc = _computed(page, "#task-description", "boxShadow")
     assert shadow_desc not in ("none", ""), shadow_desc
@@ -87,10 +92,11 @@ def test_selected_tags_rendered_as_chips(board_page):
     2 чипа-пилюли; клик по крестику первого чипа → остался 1 чип
     («QAT-тег2»), input синхронно «QAT-тег2»."""
     page = board_page
+    form = TaskForm(page)
     _open_form(page)
 
-    page.get_by_label("Теги (через запятую)").fill("QAT-тег1, QAT-тег2")
-    chips = page.locator("#task-tags-chips .chip")
+    form.tags.fill("QAT-тег1, QAT-тег2")
+    chips = form.tag_chips()
     expect(chips).to_have_count(2)
     # Текст тега — в первом span чипа (крестик — соседняя button).
     assert chips.nth(0).locator("span").first.text_content().strip() == "QAT-тег1"
@@ -104,12 +110,9 @@ def test_selected_tags_rendered_as_chips(board_page):
 
     # Крестик первого чипа → 1 чип, input синхронен.
     chips.nth(0).get_by_role("button").click()
-    expect(page.locator("#task-tags-chips .chip")).to_have_count(1)
-    assert (
-        page.locator("#task-tags-chips .chip span").first.text_content().strip()
-        == "QAT-тег2"
-    )
-    assert page.locator("#task-tags").input_value() == "QAT-тег2"
+    expect(form.tag_chips()).to_have_count(1)
+    assert form.tag_chips().locator("span").first.text_content().strip() == "QAT-тег2"
+    assert form.tags_by_id().input_value() == "QAT-тег2"
 
 
 # --------------------------------------------------------------------------
@@ -120,12 +123,13 @@ def test_priority_pill_color_changes_and_inline_icon(board_page):
     high (3 разных цвета); для каждого значения в #task-priority-pill-icon
     появляется inline SVG; при сбросе «—» иконки нет."""
     page = board_page
+    form = TaskForm(page)
     _open_form(page)
 
-    pill = page.locator(".priority-field-pill")
-    icon = page.locator("#task-priority-pill-icon")
+    pill = form.priority_pill()
+    icon = form.priority_pill_icon()
 
-    page.locator("#task-priority").select_option("")
+    form.priority_by_id().select_option("")
     # Пустой выбор: иконки нет (бокс :empty → display:none, svg нет).
     assert icon.evaluate("el => el.children.length") == 0
     assert icon.evaluate("el => getComputedStyle(el).display") == "none"
@@ -133,7 +137,7 @@ def test_priority_pill_color_changes_and_inline_icon(board_page):
 
     backgrounds = {}
     for value in ("low", "medium", "high"):
-        page.locator("#task-priority").select_option(value)
+        form.priority_by_id().select_option(value)
         icon_svg = icon.locator("svg")
         expect(icon_svg).to_be_visible()
         assert icon.evaluate(
@@ -162,6 +166,9 @@ def test_edit_form_matches_v3_and_shows_fast_row(
     fast-задача → отмечен, приоритет high заблокирован — инвариант FR-88);
     в создании ряд виден как прежде."""
     page = board_page
+    board = BoardPage(page)
+    form = TaskForm(page)
+    detail = TaskDetailView(page)
     created = web_owner_session.post(
         f"{web_base_url}/api/tasks",
         json={
@@ -174,21 +181,21 @@ def test_edit_form_matches_v3_and_shows_fast_row(
     task_id = created.json()["id"]
     web_cleanup_created(task_id)
     page.reload()
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    board.wait_loaded()
 
     # Открыть карточку → «Редактировать».
-    page.get_by_role("article").filter(has_text="QAT-form-edit").click()
-    page.get_by_role("button", name="Редактировать").click()
-    expect(page.locator("#task-form-overlay")).to_be_visible()
+    board.card("QAT-form-edit").click()
+    detail.edit_button().click()
+    expect(form.overlay).to_be_visible()
 
-    heading = page.locator("#task-form-heading").inner_text()
+    heading = form.heading_by_id().inner_text()
     assert heading == "Редактирование задачи", heading
-    assert page.locator("#task-title").input_value() == "QAT-form-edit"
+    assert form.title_by_id().input_value() == "QAT-form-edit"
     assert (
-        page.locator("#task-description").input_value()
+        form.description_by_id().input_value()
         == "QAT-edit-description-текст"
     )
-    assert page.locator("#task-priority").input_value() == "high"
+    assert form.priority_by_id().input_value() == "high"
 
     # Стили полей редактирования == стилям формы создания (токены V3).
     edit_styles = {}
@@ -200,15 +207,15 @@ def test_edit_form_matches_v3_and_shows_fast_row(
     ):
         edit_styles[(selector, prop)] = _computed(page, selector, prop)
 
-    fast_row = page.locator(".fast-row")
+    fast_row = form.fast_row()
     assert fast_row.count() == 1
     # FR-89 (TC-UIP-112): в редактировании .fast-row ВИДЕН (не hidden) и
     # чекбокс отражает is_fast задачи: у regular-эталона — снят.
     assert fast_row.get_attribute("hidden") is None
-    is_fast_cb = page.locator("#task-is-fast")
+    is_fast_cb = form.is_fast_checkbox()
     assert is_fast_cb.is_visible()
     assert not is_fast_cb.is_checked()
-    assert page.locator("#task-priority").input_value() == "high"
+    assert form.priority_by_id().input_value() == "high"
 
     # Fast-задача: чекбокс отмечен; приоритет high и заблокирован
     # (инвариант is_fast ⇒ high — FR-88 в редактировании, волна 2.7).
@@ -219,23 +226,23 @@ def test_edit_form_matches_v3_and_shows_fast_row(
     assert fast_created.status_code == 201, fast_created.text
     fast_id = fast_created.json()["id"]
     web_cleanup_created(fast_id)
-    page.get_by_role("button", name="Отмена").click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.cancel_button().click()
+    expect(form.overlay).to_be_hidden()
     page.reload()
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    page.get_by_role("article").filter(has_text="QAT-form-edit-fast").click()
-    page.get_by_role("button", name="Редактировать").click()
-    expect(page.locator("#task-form-overlay")).to_be_visible()
-    assert page.locator(".fast-row").get_attribute("hidden") is None
-    assert page.locator("#task-is-fast").is_checked()
-    assert page.locator("#task-priority").input_value() == "high"
-    assert page.locator("#task-priority").is_disabled()
+    board.wait_loaded()
+    board.card("QAT-form-edit-fast").click()
+    detail.edit_button().click()
+    expect(form.overlay).to_be_visible()
+    assert form.fast_row().get_attribute("hidden") is None
+    assert form.is_fast_checkbox().is_checked()
+    assert form.priority_by_id().input_value() == "high"
+    assert form.priority_by_id().is_disabled()
 
     # Закрыть форму; форма создания: .fast-row видим как прежде.
-    page.get_by_role("button", name="Отмена").click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.cancel_button().click()
+    expect(form.overlay).to_be_hidden()
     _open_form(page)
-    assert page.locator(".fast-row").get_attribute("hidden") is None
+    assert form.fast_row().get_attribute("hidden") is None
 
     # Стили создания сверяем в открытой форме создания.
     for (selector, prop), value in edit_styles.items():
@@ -251,8 +258,9 @@ def test_all_form_interactive_elements_styled(board_page):
     border none + прозрачный фон); чекбокс fast покрыт :focus-within-
     правилом контейнера."""
     page = board_page
+    form = TaskForm(page)
     _open_form(page)
-    page.get_by_label("Теги (через запятую)").fill("QAT-стили")
+    form.tags.fill("QAT-стили")
 
     # Классификация «не покрыт» по кейсу (appearance auto + border
     # none/hidden + прозрачный фон) с поправкой на собственный шаг 3

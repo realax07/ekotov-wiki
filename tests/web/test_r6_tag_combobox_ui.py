@@ -23,30 +23,35 @@ tags ∪ categories. Тесты ассертят поведение комбоб
 import pytest
 from playwright.sync_api import expect
 
-pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
+from tests.web.pages.board import BoardPage
+from tests.web.pages.tag_combobox import TagCombobox
+from tests.web.pages.task_form import TaskForm
 
-LISTBOX = "#task-tag-combobox"
+pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 
 def _open_form(page, web_base_url):
-    page.goto(f"{web_base_url}/board")
-    expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    page.get_by_role("button", name="Создать задачу").click()
-    expect(page.locator("#task-form-overlay")).to_be_visible()
+    board = BoardPage(page)
+    form = TaskForm(page)
+    board.open(web_base_url)
+    form.open_create()
+    return form
 
 
 def _tag_hints(page) -> list[str]:
     """Фактическое множество подсказок — опции зеркала-datalist
     (совместимость r3/r4; источник один с комбобоксом)."""
+    form = TaskForm(page)
+    options = form.tag_hints_options
     return [
-        page.locator("#task-tag-hints option").nth(i).text_content().strip()
-        for i in range(page.locator("#task-tag-hints option").count())
+        options.nth(i).text_content().strip()
+        for i in range(options.count())
     ]
 
 
-def _option_texts(page) -> list[str]:
+def _option_texts(comb: TagCombobox) -> list[str]:
     """Тексты пунктов дропдауна без пункта добавления."""
-    options = page.locator(f"{LISTBOX} .option")
+    options = comb.options()
     return [options.nth(i).text_content().strip() for i in range(options.count())]
 
 
@@ -72,27 +77,28 @@ def test_combobox_opens_on_focus_and_filters(
     web_cleanup_created(task_id)
 
     page = logged_in_page
-    _open_form(page, web_base_url)
+    form = _open_form(page, web_base_url)
+    comb = TagCombobox(page)
 
-    tags = page.get_by_label("Теги (через запятую)")
+    tags = form.tags
     tags.click()
-    expect(page.locator(LISTBOX)).to_be_visible()
+    expect(comb.listbox).to_be_visible()
     hints = _tag_hints(page)
     assert "QATcombHome" in hints
-    assert "QATcombHome" in _option_texts(page)
+    assert "QATcombHome" in _option_texts(comb)
 
     # Ввод «ho» → только совпадающие по подстроке (регистр не важен).
     tags.fill("ho")
-    options = _option_texts(page)
+    options = _option_texts(comb)
     assert options == ["QATcombHome"], options
 
     # Несовпадающий ввод → дропдаун с ЕДИНСТВЕННЫМ пунктом добавления
     # (макет, состояние «нет совпадений»); ввод не заблокирован.
     tags.fill("zzz-нет")
-    add_only = page.locator(f"{LISTBOX} .option-add")
+    add_only = comb.add_item()
     expect(add_only).to_have_text("+ Добавить тег «zzz-нет»")
-    expect(page.locator(f"{LISTBOX} .option")).to_have_count(0)
-    assert page.locator("#task-tags").input_value() == "zzz-нет"
+    expect(comb.options()).to_have_count(0)
+    assert form.tags_by_id().input_value() == "zzz-нет"
 
 
 # regression: keep — r6 FR-58: подсветка совпадения <mark> (СЦ-1).
@@ -105,11 +111,12 @@ def test_combobox_highlights_match_fragment(
         web_owner_session, web_base_url, "QAT-comb-подсветка", ["QATurgently"]
     )
     page = logged_in_page
-    _open_form(page, web_base_url)
+    form = _open_form(page, web_base_url)
+    comb = TagCombobox(page)
 
-    tags = page.get_by_label("Теги (через запятую)")
+    tags = form.tags
     tags.fill("urgent")
-    option = page.locator(f"{LISTBOX} .option").first
+    option = comb.options().first
     expect(option).to_contain_text("QATurgently")
     marks = option.locator("mark")
     expect(marks).to_have_count(1)
@@ -134,12 +141,13 @@ def test_combobox_excludes_entered_tags(
         ["QATdup", "QATдругой"],
     )
     page = logged_in_page
-    _open_form(page, web_base_url)
+    form = _open_form(page, web_base_url)
+    comb = TagCombobox(page)
 
-    tags = page.get_by_label("Теги (через запятую)")
+    tags = form.tags
     tags.fill("QATdup, ")
-    expect(page.locator("#task-tags-chips .chip")).to_have_count(1)
-    options = _option_texts(page)
+    expect(form.tag_chips()).to_have_count(1)
+    options = _option_texts(comb)
     assert "QATdup" not in options, options
     assert "QATдругой" in options
 
@@ -154,24 +162,25 @@ def test_combobox_add_new_tag_item(
     assert "QATсовершенноновый" not in _tag_hints_slow(logged_in_page, web_base_url, web_owner_session)
 
     page = logged_in_page
-    _open_form(page, web_base_url)
-    tags = page.get_by_label("Теги (через запятую)")
+    form = _open_form(page, web_base_url)
+    comb = TagCombobox(page)
+    tags = form.tags
     tags.fill("QATсовершенноновый")
 
-    add_item = page.locator(f"{LISTBOX} .option-add")
+    add_item = comb.add_item()
     expect(add_item).to_have_text("+ Добавить тег «QATсовершенноновый»")
 
     add_item.click()
     # FR-92 committed-леджер (TC-UIP-109, волна 2.3): выбранное остается
     # в input до сабмита (строка леджера «тег,»), чип отрендерен.
     assert "QATсовершенноновый" in tags.input_value()
-    expect(page.locator("#task-tags-chips .chip")).to_have_count(1)
-    expect(page.locator(LISTBOX)).to_be_hidden()
+    expect(form.tag_chips()).to_have_count(1)
+    expect(comb.listbox).to_be_hidden()
 
     # Тег сохраняется задачей как обычный (ОГР-27) — проверка через API.
-    page.get_by_label("Название").fill("QAT-comb-новый-тег")
-    page.get_by_role("button", name="Создать", exact=True).click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.title_input.fill("QAT-comb-новый-тег")
+    form.submit_button().click()
+    expect(form.overlay).to_be_hidden()
     resp = web_owner_session.get(
         f"{web_base_url}/api/search", params={"archived": "false"}
     )
@@ -202,11 +211,12 @@ def test_combobox_keyboard_navigation(
         ["QATkbодин", "QATkbдва", "QATkbтри"],
     )
     page = logged_in_page
-    _open_form(page, web_base_url)
+    form = _open_form(page, web_base_url)
+    comb = TagCombobox(page)
 
-    tags = page.get_by_label("Теги (через запятую)")
+    tags = form.tags
     tags.fill("QATkb")
-    options = page.locator(f"{LISTBOX} .option")
+    options = comb.options()
     expect(options).to_have_count(3)
 
     # Первый пункт активен сразу (рендер).
@@ -229,28 +239,28 @@ def test_combobox_keyboard_navigation(
     value = tags.input_value()
     # FR-92 committed-леджер (TC-UIP-109): тег остается в input до сабмита.
     assert "QATkb" in value, value
-    expect(page.locator("#task-form-overlay")).to_be_visible()
-    expect(page.locator(LISTBOX)).to_be_hidden()
+    expect(form.overlay).to_be_visible()
+    expect(comb.listbox).to_be_hidden()
     # Чип отрендерен существующим рендером (источник истины — input).
     # Активный пункт после ArrowDown+ArrowUp — «QATkbдва» (data-value);
     # BUG-012: ручной токен «QATkb» потреблен выбором — чип ОДИН,
     # выбранного тега (semantics: TC-UIP-109 «чип с текстом тега,
     # выбранного активным пунктом»).
-    expect(page.locator("#task-tags-chips .chip")).to_have_count(1)
+    expect(form.tag_chips()).to_have_count(1)
     expect(
-        page.locator("#task-tags-chips .chip", has_text="QATkbдва")
+        form.tag_chips().filter(has_text="QATkbдва")
     ).to_be_visible()
 
     # Tab → выбор активного (после нового ввода — «+ Добавить»); Tab
     # уводит фокус, но дропдаун к моменту ухода закрыт выбором.
     tags.fill(" QATkbодин, QATkbнов")
-    add_item = page.locator(f"{LISTBOX} .option-add")
+    add_item = comb.add_item()
     expect(add_item).to_be_visible()
     page.keyboard.press("Tab")
     # FR-92 committed-леджер (TC-UIP-109): леджер содержит выбранный тег.
     assert "QATkbнов" in tags.input_value()
-    expect(page.locator(LISTBOX)).to_be_hidden()
-    expect(page.locator("#task-tags")).not_to_be_focused()
+    expect(comb.listbox).to_be_hidden()
+    expect(tags).not_to_be_focused()
 
 
 # regression: keep — BUG-012 фикс-цикл 2 (review-001 blocker-1):
@@ -271,14 +281,15 @@ def test_combobox_multitoken_rest_unrelated_token_survives(
         web_owner_session, web_base_url, "QAT-comb-мульти", ["QATmtokдва"]
     )
     page = logged_in_page
-    _open_form(page, web_base_url)
+    form = _open_form(page, web_base_url)
+    comb = TagCombobox(page)
 
-    tags = page.get_by_label("Теги (через запятую)")
+    tags = form.tags
     # Ручной несвязанный токен В НАЧАЛЕ rest + currentToken «QATmtok»,
     # по которому открывается дропдаун (уникальное семейство — единственный
     # пункт «QATmtokдва», активен по умолчанию; Enter выбирает его).
     tags.fill("QATmtokчужой, QATmtok")
-    options = page.locator(f"{LISTBOX} .option")
+    options = comb.options()
     expect(options).to_have_count(1)
     assert options.nth(0).get_attribute("data-value") == "QATmtokдва"
 
@@ -293,16 +304,16 @@ def test_combobox_multitoken_rest_unrelated_token_survives(
         "QATmtok"
     ), value
 
-    chips = page.locator("#task-tags-chips .chip")
+    chips = form.tag_chips()
     expect(chips).to_have_count(2)
     expect(chips.filter(has_text="QATmtokдва")).to_have_count(1)
     expect(chips.filter(has_text="QATmtokчужой")).to_have_count(1)
 
     # End-to-end: оба тега сохраняются задачей (несвязанный токен не
     # потерян безвозвратно — ключевая ассерт-зона blocker-1).
-    page.get_by_label("Название").fill("QAT-comb-мульти-сохранность")
-    page.get_by_role("button", name="Создать", exact=True).click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.title_input.fill("QAT-comb-мульти-сохранность")
+    form.submit_button().click()
+    expect(form.overlay).to_be_hidden()
     resp = web_owner_session.get(
         f"{web_base_url}/api/search", params={"archived": "false"}
     )
@@ -329,27 +340,28 @@ def test_combobox_escape_closes_dropdown_not_form(
         web_owner_session, web_base_url, "QAT-comb-escape", ["QATescтег"]
     )
     page = logged_in_page
-    _open_form(page, web_base_url)
+    form = _open_form(page, web_base_url)
+    comb = TagCombobox(page)
 
-    tags = page.get_by_label("Теги (через запятую)")
+    tags = form.tags
     tags.fill("QATesc")
-    expect(page.locator(LISTBOX)).to_be_visible()
+    expect(comb.listbox).to_be_visible()
     # Выбор из подсказки (Enter) → в input полный тег + запятая.
     page.keyboard.press("Enter")
     assert "QATescтег" in tags.input_value()
-    expect(page.locator(LISTBOX)).to_be_hidden()
+    expect(comb.listbox).to_be_hidden()
 
     # Escape при открытом дропдауне закрывает ТОЛЬКО его — форма открыта.
     tags.fill(" QATescтег, QATesc2")
-    expect(page.locator(LISTBOX)).to_be_visible()
+    expect(comb.listbox).to_be_visible()
     page.keyboard.press("Escape")
-    expect(page.locator(LISTBOX)).to_be_hidden()
-    expect(page.locator("#task-form-overlay")).to_be_visible()
+    expect(comb.listbox).to_be_hidden()
+    expect(form.overlay).to_be_visible()
 
     # Форма жива: значение ввода на месте, сохранение проходит.
-    page.get_by_label("Название").fill("QAT-comb-escape-задача")
-    page.get_by_role("button", name="Создать", exact=True).click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.title_input.fill("QAT-comb-escape-задача")
+    form.submit_button().click()
+    expect(form.overlay).to_be_hidden()
     resp = web_owner_session.get(
         f"{web_base_url}/api/search", params={"archived": "false"}
     )
@@ -377,9 +389,10 @@ def test_combobox_aria_attributes(
         web_owner_session, web_base_url, "QAT-comb-aria", ["QATariaтег"]
     )
     page = logged_in_page
-    _open_form(page, web_base_url)
+    form = _open_form(page, web_base_url)
+    comb = TagCombobox(page)
 
-    tags = page.get_by_label("Теги (через запятую)")
+    tags = form.tags
     assert tags.get_attribute("role") == "combobox"
     assert tags.get_attribute("aria-expanded") == "false"
     assert tags.get_attribute("aria-controls") == "task-tag-combobox"
@@ -387,15 +400,15 @@ def test_combobox_aria_attributes(
 
     tags.click()
     assert tags.get_attribute("aria-expanded") == "true"
-    listbox = page.locator(LISTBOX)
+    listbox = comb.listbox
     assert listbox.get_attribute("role") == "listbox"
-    options = listbox.locator(".option")
+    options = comb.options()
     first_id = options.first.get_attribute("id")
     assert first_id.startswith("tag-opt-")
     assert tags.get_attribute("aria-activedescendant") == first_id
 
     # aria-live узел озвучивает количество (текст «Найдено тегов: N»).
-    live = page.locator("#task-tag-combobox-live")
+    live = comb.live
     assert live.get_attribute("aria-live") == "polite"
     count = options.count()
     expect(live).to_have_text(f"Найдено тегов: {count}")
@@ -417,14 +430,15 @@ def test_combobox_click_outside_closes(
         web_owner_session, web_base_url, "QAT-comb-вне", ["QAToutтег"]
     )
     page = logged_in_page
-    _open_form(page, web_base_url)
+    form = _open_form(page, web_base_url)
+    comb = TagCombobox(page)
 
-    tags = page.get_by_label("Теги (через запятую)")
+    tags = form.tags
     tags.click()
-    expect(page.locator(LISTBOX)).to_be_visible()
-    page.locator("#task-form-heading").click()
-    expect(page.locator(LISTBOX)).to_be_hidden()
-    expect(page.locator("#task-form-overlay")).to_be_visible()
+    expect(comb.listbox).to_be_visible()
+    form.heading_by_id().click()
+    expect(comb.listbox).to_be_hidden()
+    expect(form.overlay).to_be_visible()
 
 
 # regression: keep — r6 NFR-17/СЦ-5: тач-тап выбирает; сбой загрузки не
@@ -441,17 +455,18 @@ def test_combobox_touch_tap_and_load_failure(
         web_owner_session, web_base_url, "QAT-comb-тач", ["QATtapтег"]
     )
     page = logged_in_page
-    _open_form(page, web_base_url)
+    form = _open_form(page, web_base_url)
+    comb = TagCombobox(page)
 
     # Клик/тап по пункту = выбор; фокус остается в input (mousedown
     # preventDefault) — blur-закрытие не опережает выбор.
-    tags = page.get_by_label("Теги (через запятую)")
+    tags = form.tags
     tags.click()
-    option = page.locator(f'{LISTBOX} [data-value="QATtapтег"]')
+    option = comb.option_by_value("QATtapтег")
     expect(option).to_be_visible()
     option.click()
     assert "QATtapтег" in tags.input_value()
-    expect(page.locator("#task-tags-chips .chip")).to_have_count(1)
+    expect(form.tag_chips()).to_have_count(1)
 
     # Сбой загрузки подсказок (перехват → 500): дропдаун не показан,
     # свободный ввод сохраняется.
@@ -459,18 +474,18 @@ def test_combobox_touch_tap_and_load_failure(
         route.fulfill(status=500, body='{"error": "boom"}', content_type="application/json")
 
     page.route("**/api/suggestions*", _fail_route)
-    page.get_by_role("button", name="Отмена").click()
-    _open_form(page, web_base_url)
-    tags = page.get_by_label("Теги (через запятую)")
+    form.cancel_button().click()
+    form = _open_form(page, web_base_url)
+    tags = form.tags
     tags.click()
-    expect(page.locator(LISTBOX)).to_be_hidden()
+    expect(comb.listbox).to_be_hidden()
     tags.fill("QATbezpodskazok")
     # Сбой загрузки → подсказок нет; пункт добавления появляется, НО
     # free-input работает и задача сохраняется с введенным тегом.
-    expect(page.locator(f"{LISTBOX} .option")).to_have_count(0)
-    page.get_by_label("Название").fill("QAT-comb-сбой-загрузки")
-    page.get_by_role("button", name="Создать", exact=True).click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    expect(comb.options()).to_have_count(0)
+    form.title_input.fill("QAT-comb-сбой-загрузки")
+    form.submit_button().click()
+    expect(form.overlay).to_be_hidden()
     resp = web_owner_session.get(
         f"{web_base_url}/api/search", params={"archived": "false"}
     )
@@ -494,23 +509,24 @@ def test_combobox_closes_with_form_no_stuck_dropdown(
         web_owner_session, web_base_url, "QAT-comb-залипание", ["QATstickтег"]
     )
     page = logged_in_page
-    _open_form(page, web_base_url)
+    form = _open_form(page, web_base_url)
+    comb = TagCombobox(page)
 
     # Фокус в «Теги» → дропдаун открыт.
-    tags = page.get_by_label("Теги (через запятую)")
+    tags = form.tags
     tags.click()
-    expect(page.locator(LISTBOX)).to_be_visible()
+    expect(comb.listbox).to_be_visible()
 
     # Закрыть форму КРЕСТИКОМ (не кликом по странице).
-    page.locator("#task-form-close").click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.close_cross().click()
+    expect(form.overlay).to_be_hidden()
     # Дропдаун закрылся вместе с формой (не переживает закрытие).
-    expect(page.locator(LISTBOX)).to_be_hidden()
+    expect(comb.listbox).to_be_hidden()
 
     # Переоткрыть — дропдаун скрыт, не «всплыл» из прошлого открытия.
-    page.get_by_role("button", name="Создать задачу").click()
-    expect(page.locator("#task-form-overlay")).to_be_visible()
-    expect(page.locator(LISTBOX)).to_be_hidden()
+    form.open_button().click()
+    expect(form.overlay).to_be_visible()
+    expect(comb.listbox).to_be_hidden()
 
     # Клик по «Создать» не перехвачен: в точке кнопки — сама кнопка (или
     # ее потомок), а не невидимый дропдаун поверх.
@@ -528,9 +544,9 @@ def test_combobox_closes_with_form_no_stuck_dropdown(
 
     # И по факту: сабмит проходит обычным путем (клик не перехвачен) —
     # форма закрывается, задача создана.
-    page.get_by_label("Название").fill("QAT-comb-незалипание")
-    page.get_by_role("button", name="Создать", exact=True).click()
-    expect(page.locator("#task-form-overlay")).to_be_hidden()
+    form.title_input.fill("QAT-comb-незалипание")
+    form.submit_button().click()
+    expect(form.overlay).to_be_hidden()
     resp = web_owner_session.get(
         f"{web_base_url}/api/search", params={"archived": "false"}
     )

@@ -46,6 +46,8 @@ from types import SimpleNamespace
 import pytest
 from playwright.sync_api import expect
 
+from tests.web.pages.wiki import WikiEditor
+
 pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 # Каталоги сервисов (паттерн conftest: cwd изолирует конфликт пакетов app)
@@ -346,41 +348,6 @@ def gallery_image(web_base_url, web_owner_session, images_service):
         pass
 
 
-def _open_editor_create(logged_in_page, web_base_url, parent_id=None):
-    url = f"{web_base_url}/wiki?create=1"
-    if parent_id:
-        url += f"&parent={parent_id}"
-    logged_in_page.goto(url)
-    area = logged_in_page.locator(".editor-area")
-    expect(area).to_be_visible()
-    return area
-
-
-def _open_editor_edit(logged_in_page, web_base_url, page_id):
-    logged_in_page.goto(f"{web_base_url}/wiki/{page_id}?edit=1")
-    area = logged_in_page.locator(".editor-area")
-    expect(area).to_be_visible()
-    return area
-
-
-def _select_text(area):
-    """Выделить весь текст первой строки contenteditable (для B/I/U/H)."""
-    area.click()
-    area.evaluate(
-        """(node) => {
-          const range = document.createRange();
-          range.selectNodeContents(node);
-          const sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
-        }"""
-    )
-
-
-def _area_html(page):
-    return page.locator(".editor-area").evaluate("node => node.innerHTML")
-
-
 # ---------------------------------------------------------------------------
 # 1. Тулбар: форматирование меняет тег
 # ---------------------------------------------------------------------------
@@ -389,63 +356,65 @@ def _area_html(page):
 def test_toolbar_formats_change_tags(logged_in_page, web_base_url):
     """TC-wiki-301 (FR-110): каждый базовый инструмент тулбара применяет форматирование —
     текст в contenteditable меняет тег (FR-110)."""
-    _open_editor_create(logged_in_page, web_base_url)
     page = logged_in_page
-    area = page.locator(".editor-area")
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
+    area = editor.area
     area.click()
     page.keyboard.type("Строка для форматирования")
-    _select_text(area)
+    editor.select_all_text()
 
     # B → <b> (+ состояние кнопки aria-pressed)
-    page.get_by_role("button", name="Полужирный").click()
+    editor.toolbar_button("Полужирный").click()
     expect(area.locator("b")).to_have_text("Строка для форматирования")
-    expect(page.get_by_role("button", name="Полужирный")).to_have_attribute(
+    expect(editor.toolbar_button("Полужирный")).to_have_attribute(
         "aria-pressed", "true"
     )
 
     # I → <i>, U → <u>
-    page.get_by_role("button", name="Курсив").click()
+    editor.toolbar_button("Курсив").click()
     expect(area.locator("i")).to_have_text("Строка для форматирования")
-    page.get_by_role("button", name="Подчеркнутый").click()
+    editor.toolbar_button("Подчеркнутый").click()
     expect(area.locator("u")).to_have_text("Строка для форматирования")
 
     # H2 → текст внутри <h2>
-    page.get_by_role("button", name="Заголовок 2").click()
+    editor.toolbar_button("Заголовок 2").click()
     expect(area.locator("h2")).to_have_text("Строка для форматирования")
 
     # H3
-    page.get_by_role("button", name="Заголовок 3").click()
+    editor.toolbar_button("Заголовок 3").click()
     expect(area.locator("h3")).to_have_count(1)
 
     # Цитата → <blockquote>
-    page.get_by_role("button", name="Цитата").click()
+    editor.toolbar_button("Цитата").click()
     expect(area.locator("blockquote")).to_have_count(1)
 
     # Код-блок → <pre> (мокап: pre>code)
-    page.get_by_role("button", name="Код-блок").click()
+    editor.toolbar_button("Код-блок").click()
     expect(area.locator("pre")).to_have_count(1)
 
 
 def test_toolbar_lists_and_undo_redo(logged_in_page, web_base_url):
     """TC-wiki-302 (FR-110): ul/ol вставляют списки; undo/redo возвращают/повторяют."""
-    _open_editor_create(logged_in_page, web_base_url)
     page = logged_in_page
-    area = page.locator(".editor-area")
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
+    area = editor.area
     area.click()
     page.keyboard.type("Пункт списка")
-    _select_text(area)
+    editor.select_all_text()
 
-    page.get_by_role("button", name="Маркированный список").click()
+    editor.toolbar_button("Маркированный список").click()
     expect(area.locator("ul li")).to_have_text("Пункт списка")
 
-    page.get_by_role("button", name="Нумерованный список").click()
+    editor.toolbar_button("Нумерованный список").click()
     expect(area.locator("ol li")).to_have_text("Пункт списка")
 
     # undo (кнопка) — список снят, текст вернулся
-    page.get_by_role("button", name="Отменить").click()
+    editor.toolbar_button("Отменить").click()
     expect(area.locator("ol li")).to_have_count(0)
     # redo — вернулся
-    page.get_by_role("button", name="Повторить").click()
+    editor.toolbar_button("Повторить").click()
     expect(area.locator("ol li")).to_have_text("Пункт списка")
 
 
@@ -457,11 +426,12 @@ def test_toolbar_lists_and_undo_redo(logged_in_page, web_base_url):
 def test_toolbar_inserts_table_3x3(logged_in_page, web_base_url):
     """TC-wiki-303 (FR-110): кнопка «Таблица» вставляет таблицу 3×3 по мокапу
     (thead с 3 th + tbody с 2 строками по 3 td)."""
-    _open_editor_create(logged_in_page, web_base_url)
     page = logged_in_page
-    area = page.locator(".editor-area")
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
+    area = editor.area
     area.click()
-    page.get_by_role("button", name="Таблица").click()
+    editor.toolbar_button("Таблица").click()
 
     table = area.locator("table")
     expect(table).to_have_count(1)
@@ -478,29 +448,30 @@ def test_toolbar_inserts_table_3x3(logged_in_page, web_base_url):
 def test_link_javascript_scheme_rejected(logged_in_page, web_base_url):
     """TC-wiki-304 (безопасность, design §4): javascript: в диалоге ссылки —
     ошибка, НИЧЕГО не вставляется (в редакторе нет <a href=javascript:>)."""
-    _open_editor_create(logged_in_page, web_base_url)
     page = logged_in_page
-    area = page.locator(".editor-area")
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
+    area = editor.area
     area.click()
     page.keyboard.type("текст для ссылки")
-    _select_text(area)
+    editor.select_all_text()
 
-    page.get_by_role("button", name="Ссылка").click()
-    dialog = page.locator(".editor-link-dialog")
+    editor.toolbar_button("Ссылка").click()
+    dialog = editor.link_dialog
     expect(dialog).to_be_visible()
-    page.get_by_label("Адрес ссылки").fill("javascript:alert(1)")
+    editor.link_address_input().fill("javascript:alert(1)")
     dialog.get_by_role("button", name="Вставить").click()
 
     # ошибка показана, диалог остался открытым
     expect(dialog.locator(".error-banner")).to_be_visible()
     expect(dialog).to_be_visible()
 
-    html = _area_html(page)
+    html = editor.area_html()
     assert "javascript:" not in html, html
     assert "<a" not in html, html
 
     # корректная ссылка после отказа вставляется
-    page.get_by_label("Адрес ссылки").fill("https://example.com/doc")
+    editor.link_address_input().fill("https://example.com/doc")
     dialog.get_by_role("button", name="Вставить").click()
     expect(area.locator("a")).to_have_attribute("href", "https://example.com/doc")
 
@@ -515,18 +486,17 @@ def test_image_insert_from_gallery(
 ):
     """TC-wiki-305 (FR-111): диалог «Изображение» → «Из галереи» → грид из
     GET /api/images → выбор → Вставить → <img src=/images/{...}>."""
-    _open_editor_create(logged_in_page, wiki_images_routing)
     page = logged_in_page
-    area = page.locator(".editor-area")
+    editor = WikiEditor(page)
+    editor.open_create(wiki_images_routing)
+    area = editor.area
     area.click()
 
-    page.get_by_role("button", name="Изображение").click()
-    dialog = page.locator(".editor-img-dialog")
+    editor.toolbar_button("Изображение").click()
+    dialog = editor.img_dialog
     expect(dialog).to_be_visible()
 
-    item = dialog.locator(".img-pick-item").filter(
-        has_text=f"{MARKER}gallery-pick.png"
-    )
+    item = editor.img_pick_item(f"{MARKER}gallery-pick.png")
     expect(item).to_be_visible()
     item.click()
     expect(item).to_have_attribute("aria-selected", "true")
@@ -547,13 +517,14 @@ def test_image_insert_from_disk_uploads_and_inserts(
 ):
     """TC-wiki-306 (FR-111): «Загрузить с диска» → file input → POST /api/images →
     вставка <img src=/images/{...}>. Teardown чистит изображение по маркеру."""
-    _open_editor_create(logged_in_page, wiki_images_routing)
     page = logged_in_page
-    area = page.locator(".editor-area")
+    editor = WikiEditor(page)
+    editor.open_create(wiki_images_routing)
+    area = editor.area
     area.click()
 
-    page.get_by_role("button", name="Изображение").click()
-    dialog = page.locator(".editor-img-dialog")
+    editor.toolbar_button("Изображение").click()
+    dialog = editor.img_dialog
     expect(dialog).to_be_visible()
 
     dialog.get_by_text("Загрузить с диска").check()
@@ -565,7 +536,7 @@ def test_image_insert_from_disk_uploads_and_inserts(
         tmp.write(payload["buffer"])
         tmp_path = tmp.name
     try:
-        dialog.locator("input[type=file]").set_input_files(tmp_path)
+        editor.img_file_input().set_input_files(tmp_path)
         img = area.locator("img")
         expect(img).to_have_count(1)
         src = img.get_attribute("src")
@@ -604,18 +575,17 @@ def test_image_insert_custom_invalid_size_no_insert(
 ):
     """Возврат живой приемки: «Свой размер» с НЕВАЛИДНЫМ числом (не целое /
     вне 16..4096) — отказ вставки: ошибки в диалоге, <img> в редакторе НЕТ."""
-    _open_editor_create(logged_in_page, wiki_images_routing)
     page = logged_in_page
-    area = page.locator(".editor-area")
+    editor = WikiEditor(page)
+    editor.open_create(wiki_images_routing)
+    area = editor.area
     area.click()
 
-    page.get_by_role("button", name="Изображение").click()
-    dialog = page.locator(".editor-img-dialog")
+    editor.toolbar_button("Изображение").click()
+    dialog = editor.img_dialog
     expect(dialog).to_be_visible()
 
-    item = dialog.locator(".img-pick-item").filter(
-        has_text=f"{MARKER}gallery-pick.png"
-    ).first
+    item = editor.img_pick_item(f"{MARKER}gallery-pick.png").first
     expect(item).to_be_visible()
     item.click()
 
@@ -653,17 +623,16 @@ def test_image_click_opens_scale_editor_and_changes_width(
     """Усиление в духе Confluence: клик по уже вставленному img в редакторе —
     модалка «Масштаб изображения»; выбор меняет width НА МЕСТЕ (src/alt не
     тронуты); «Оригинал» width снимает."""
-    _open_editor_create(logged_in_page, wiki_images_routing)
     page = logged_in_page
-    area = page.locator(".editor-area")
+    editor = WikiEditor(page)
+    editor.open_create(wiki_images_routing)
+    area = editor.area
     area.click()
 
-    page.get_by_role("button", name="Изображение").click()
-    dialog = page.locator(".editor-img-dialog")
+    editor.toolbar_button("Изображение").click()
+    dialog = editor.img_dialog
     expect(dialog).to_be_visible()
-    item = dialog.locator(".img-pick-item").filter(
-        has_text=f"{MARKER}gallery-pick.png"
-    ).first
+    item = editor.img_pick_item(f"{MARKER}gallery-pick.png").first
     item.click()
     dialog.get_by_label("Среднее (480 px)").check()
     dialog.get_by_role("button", name="Вставить").click()
@@ -675,7 +644,7 @@ def test_image_click_opens_scale_editor_and_changes_width(
 
     # клик по вставленному img → модалка масштаба
     img.click()
-    scale_dialog = page.locator(".editor-img-scale-dialog")
+    scale_dialog = editor.img_scale_dialog
     expect(scale_dialog).to_be_visible()
     expect(scale_dialog.get_by_label("Среднее (480 px)")).to_be_checked()
 
@@ -712,14 +681,15 @@ def test_image_click_opens_scale_editor_and_changes_width(
 def test_save_create_posts_and_redirects(logged_in_page, web_base_url, wiki_api):
     """TC-wiki-307 (FR-110): создание — заполненный редактор → «Сохранить» → POST
     /api/wiki/pages → redirect /wiki/{id}; страница появилась в API."""
-    _open_editor_create(logged_in_page, web_base_url)
     page = logged_in_page
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
 
-    page.get_by_label("Заголовок страницы").fill(f"{MARKER}создание через UI")
-    area = page.locator(".editor-area")
+    editor.title_input.fill(f"{MARKER}создание через UI")
+    area = editor.area
     area.click()
     page.keyboard.type("Тело новой страницы")
-    page.get_by_role("button", name="Сохранить").click()
+    editor.save_button().click()
 
     page.wait_for_url("**/wiki/*")
     assert "/wiki?" not in page.url
@@ -750,20 +720,21 @@ def test_save_edit_puts_new_version_and_redirects(
     → «Сохранить» → PUT → redirect /wiki/{id}; в API НОВАЯ версия."""
     page_id = wiki_api.create(f"{MARKER}правка", "старое тело")
     page = logged_in_page
+    editor = WikiEditor(page)
 
-    _open_editor_edit(page, web_base_url, page_id)
+    editor.open_edit(web_base_url, page_id)
 
-    title = page.get_by_label("Заголовок страницы")
+    title = editor.title_input
     expect(title).to_have_value(f"{MARKER}правка")
-    expect(page.locator(".editor-area")).to_contain_text("старое тело")
+    expect(editor.area).to_contain_text("старое тело")
 
     # правим контент и заголовок (заголовок тоже версия — design §5)
-    page.get_by_label("Заголовок страницы").fill(f"{MARKER}правка-2")
-    area = page.locator(".editor-area")
+    editor.title_input.fill(f"{MARKER}правка-2")
+    area = editor.area
     area.click()
     page.keyboard.press("Control+a")
     page.keyboard.type("новое тело от редактора")
-    page.get_by_role("button", name="Сохранить").click()
+    editor.save_button().click()
 
     page.wait_for_url(f"**/wiki/{page_id}")
     assert page.url.endswith(f"/wiki/{page_id}")
@@ -800,15 +771,16 @@ def test_empty_title_error_no_request(logged_in_page, web_base_url):
             requests_seen.append(request.method + " " + request.url)
 
     page.on("request", _track)
-    _open_editor_create(page, web_base_url)
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
 
     # заголовок НЕ заполняем, контент есть
-    area = page.locator(".editor-area")
+    area = editor.area
     area.click()
     page.keyboard.type("тело без заголовка")
-    page.get_by_role("button", name="Сохранить").click()
+    editor.save_button().click()
 
-    banner = page.locator("#wiki-editor .error-banner")
+    banner = editor.error_banner
     expect(banner).to_be_visible()
     expect(banner).to_contain_text("Заголовок не может быть пустым")
 

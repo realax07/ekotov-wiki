@@ -45,6 +45,10 @@ import pytest
 from PIL import Image
 from playwright.sync_api import expect
 
+from tests.web.pages.auth import AuthPage, Sidebar
+from tests.web.pages.board import BoardPage
+from tests.web.pages.profile_settings import ProfileSettingsPage
+
 pytestmark = [pytest.mark.web, pytest.mark.must]
 
 OWNER_LOGIN = "owner"
@@ -124,24 +128,6 @@ def _make_png(width: int = 300, height: int = 200) -> bytes:
     return buf.getvalue()
 
 
-def _expect_profile_filled(page, badge: str, name: str) -> None:
-    profile = page.locator("#sidebar-profile")
-    expect(profile).to_contain_class("profile-filled", timeout=10_000)
-    # Подпись асинхронна (GET /api/auth/me после ответа /me с display_name) —
-    # автожидание текста, а не мгновенный ассерт.
-    expect(profile.locator(".profile-name")).to_have_text(name, timeout=10_000)
-
-
-def _goto_profile_settings(page, web_base_url) -> None:
-    page.goto(f"{web_base_url}/settings/profile")
-    # Автожидание предзаполнения: GET /api/profile асинхронен; форма
-    # ставит data-loaded=true после применения значений (конвенция #board).
-    # Роль PM — дефолт select, поэтому значение роли готовности НЕ сигналит.
-    expect(page.locator("#profile-form")).to_have_attribute(
-        "data-loaded", "true", timeout=10_000
-    )
-
-
 # ==========================================================================
 # Страница: доступ и состав (Requirement «Страница настроек пользователя»)
 # ==========================================================================
@@ -150,10 +136,11 @@ def _goto_profile_settings(page, web_base_url) -> None:
 def test_unauthenticated_redirect(page, web_base_url):
     """Scenario «Негативный: неавторизованный доступ» (NFR-7): /settings/profile
     без сессии → редирект на /login; содержимое страницы не отображается."""
+    auth = AuthPage(page)
     response = page.goto(f"{web_base_url}/settings/profile")
     assert response is not None
     page.wait_for_url(f"**/login")
-    expect(page.get_by_label("Логин")).to_be_visible()
+    expect(auth.login_input).to_be_visible()
     assert "#profile-form" not in page.content()
 
 
@@ -163,26 +150,27 @@ def test_page_composition(logged_in_page, web_base_url):
     аватар); предзаполнение из GET /api/profile; справочника категорий
     на странице НЕТ."""
     page = logged_in_page
-    _goto_profile_settings(page, web_base_url)
+    profile = ProfileSettingsPage(page)
+    profile.open(web_base_url)
 
     # Состав: формы трех независимых блоков с отдельными кнопками.
-    expect(page.locator("#profile-form")).to_be_visible()
-    expect(page.locator("#password-form")).to_be_visible()
-    expect(page.locator("#avatar-form")).to_be_visible()
-    expect(page.get_by_role("button", name="Сохранить")).to_have_count(1)
-    expect(page.get_by_role("button", name="Сменить пароль")).to_have_count(1)
+    expect(profile.profile_form).to_be_visible()
+    expect(profile.password_form).to_be_visible()
+    expect(profile.avatar_form).to_be_visible()
+    expect(profile.save_button).to_have_count(1)
+    expect(profile.change_password_button).to_have_count(1)
     # Хотфикс Р5: кроп-модуль активен (canvas доступен) → кнопка «Загрузить»
     # скрыта (hidden, из разметки не удалена). Путь загрузки: «Выбрать
     # файл…» → кроп → «Применить»; в fallback без canvas кнопка видима
     # (NFR-14, тесты — test_r5_crop_ui.py: hidden_when_crop_active /
     # visible_in_fallback).
-    expect(page.locator("#avatar-upload")).to_have_count(1)
-    expect(page.locator("#avatar-upload")).to_be_hidden()
+    expect(profile.avatar_upload).to_have_count(1)
+    expect(profile.avatar_upload).to_be_hidden()
 
     # Предзаполнение: пустой профиль seed-owner — поля пустые, роль = дефолт.
-    expect(page.locator("#profile-display-name")).to_have_value("")
-    expect(page.locator("#profile-bio")).to_have_value("")
-    expect(page.locator("#profile-role")).to_have_value(OWNER_DEFAULT_ROLE)
+    expect(profile.display_name).to_have_value("")
+    expect(profile.bio).to_have_value("")
+    expect(profile.role).to_have_value(OWNER_DEFAULT_ROLE)
 
     # ОГР-20: управления категориями на странице нет.
     expect(page.locator("#category-list")).to_have_count(0)
@@ -194,26 +182,28 @@ def test_wife_sees_own_data(logged_in_page, web_base_url, web_db_path, profile_h
     видит и редактирует свой профиль (профиль owner задан, wife входит —
     ее форма пуста; FR-39)."""
     page = logged_in_page
-    _goto_profile_settings(page, web_base_url)
-    page.locator("#profile-display-name").fill("QAT Владелец")
-    page.get_by_role("button", name="Сохранить").click()
-    expect(page.locator("#profile-success")).to_be_visible()
+    profile = ProfileSettingsPage(page)
+    profile.open(web_base_url)
+    profile.display_name.fill("QAT Владелец")
+    profile.save_button.click()
+    expect(profile.profile_success).to_be_visible()
     _restore_profile(web_db_path)
 
     # Второй пользователь — свои данные (не данные owner).
     page2 = page.context.new_page()
+    auth2 = AuthPage(page2)
+    profile2 = ProfileSettingsPage(page2)
+    board2 = BoardPage(page2)
     try:
-        page2.goto(f"{web_base_url}/login")
-        page2.get_by_label("Логин").fill(WIFE_LOGIN)
-        page2.get_by_label("Пароль").fill(WIFE_PASSWORD)
-        page2.get_by_role("button", name="Войти").click()
-        expect(page2.get_by_role("heading", name="Доска", exact=True)).to_be_visible()
-        page2.goto(f"{web_base_url}/settings/profile")
+        auth2.open(web_base_url)
+        auth2.login_as(WIFE_LOGIN, WIFE_PASSWORD)
+        expect(board2.heading()).to_be_visible()
+        profile2.open(web_base_url)
         # Роль wife — «Product engineer» (ее данные; предзаполнение асинхронно).
-        expect(page2.locator("#profile-role")).to_have_value(
+        expect(profile2.role).to_have_value(
             "Product engineer", timeout=10_000
         )
-        expect(page2.locator("#profile-display-name")).to_have_value("", timeout=10_000)
+        expect(profile2.display_name).to_have_value("", timeout=10_000)
     finally:
         page2.close()
 
@@ -230,23 +220,25 @@ def test_edit_display_name_bio_saves(
     → PUT /api/profile уходит; после обновления страницы форма показывает
     сохраненные значения, блок профиля — display_name (Д-10, FR-43)."""
     page = logged_in_page
-    _goto_profile_settings(page, web_base_url)
+    profile = ProfileSettingsPage(page)
+    sidebar = Sidebar(page)
+    profile.open(web_base_url)
 
-    page.locator("#profile-display-name").fill("QAT Владелец")
-    page.locator("#profile-role").select_option(OWNER_DEFAULT_ROLE)
-    page.locator("#profile-bio").fill("QAT био профиля")
-    page.get_by_role("button", name="Сохранить").click()
-    expect(page.locator("#profile-success")).to_be_visible()
+    profile.display_name.fill("QAT Владелец")
+    profile.role.select_option(OWNER_DEFAULT_ROLE)
+    profile.bio.fill("QAT био профиля")
+    profile.save_button.click()
+    expect(profile.profile_success).to_be_visible()
 
     # Значения сохранены (GET /api/profile читает обновленный профиль).
     page.reload()
-    expect(page.locator("#profile-display-name")).to_have_value(
+    expect(profile.display_name).to_have_value(
         "QAT Владелец", timeout=10_000
     )
-    expect(page.locator("#profile-bio")).to_have_value("QAT био профиля")
+    expect(profile.bio).to_have_value("QAT био профиля")
 
     # Блок профиля сайдбара показывает display_name (Д-10).
-    _expect_profile_filled(page, "O", "QAT Владелец")
+    sidebar.wait_filled("QAT Владелец")
 
     # Факт на сервере: профиль в БД обновлен (PUT заменил состав).
     conn = sqlite3.connect(web_db_path)
@@ -264,10 +256,11 @@ def test_role_select_exactly_two_options(logged_in_page, web_base_url):
     """Scenario «Роль — только выбор из справочника» (ОВ-21): ровно два
     значения; свободный ввод роли невозможен (select)."""
     page = logged_in_page
-    _goto_profile_settings(page, web_base_url)
+    profile = ProfileSettingsPage(page)
+    profile.open(web_base_url)
 
-    role = page.locator("#profile-role")
-    options = role.locator("option")
+    role = profile.role
+    options = profile.role_options
     expect(options).to_have_count(2)
     expect(options.nth(0)).to_have_attribute("value", "Product manager")
     expect(options.nth(1)).to_have_attribute("value", "Product engineer")
@@ -285,30 +278,30 @@ def test_clear_display_name_fallback_login(
     """Scenario «Очистка display_name — показывается логин» (Д-10): очистка
     и сохранение успешны; в местах отображения имени — логин."""
     page = logged_in_page
-    _goto_profile_settings(page, web_base_url)
+    profile = ProfileSettingsPage(page)
+    sidebar = Sidebar(page)
+    profile.open(web_base_url)
 
-    page.locator("#profile-display-name").fill("Временное имя")
-    page.get_by_role("button", name="Сохранить").click()
-    expect(page.locator("#profile-success")).to_be_visible()
+    profile.display_name.fill("Временное имя")
+    profile.save_button.click()
+    expect(profile.profile_success).to_be_visible()
 
     # Блок профиля сайдбара показывает display_name (Д-10) — после
     # обновления страницы (сценарий navigation: подпись из me).
     page.reload()
-    expect(page.locator("#profile-form")).to_have_attribute(
-        "data-loaded", "true", timeout=10_000
-    )
-    _expect_profile_filled(page, "O", "Временное имя")
+    profile.wait_loaded()
+    sidebar.wait_filled("Временное имя")
 
     # Очистка display_name и сохранение — успех.
-    page.locator("#profile-display-name").fill("")
-    page.get_by_role("button", name="Сохранить").click()
-    expect(page.locator("#profile-success")).to_be_visible()
-    expect(page.locator("#profile-error")).to_be_hidden()
+    profile.display_name.fill("")
+    profile.save_button.click()
+    expect(profile.profile_success).to_be_visible()
+    expect(profile.profile_error).to_be_hidden()
 
     # Имя в местах отображения — логин (fallback Д-10).
     page.reload()
-    expect(page.locator("#profile-display-name")).to_have_value("", timeout=10_000)
-    _expect_profile_filled(page, "O", OWNER_LOGIN)
+    expect(profile.display_name).to_have_value("", timeout=10_000)
+    sidebar.wait_filled(OWNER_LOGIN)
 
 
 # ==========================================================================
@@ -343,25 +336,23 @@ def test_password_wrong_current_error(logged_in_page, web_base_url, owner_passwo
     («Неверный текущий пароль»); пароль не изменен — вход со старым
     работает (Д-11)."""
     page = logged_in_page
-    _goto_profile_settings(page, web_base_url)
+    profile = ProfileSettingsPage(page)
+    profile.open(web_base_url)
 
-    page.locator("#password-current").fill("Wrong_Current_Pass!")
-    page.locator("#password-new").fill("QaWhatever_9!")
-    page.get_by_role("button", name="Сменить пароль").click()
-    expect(page.locator("#password-error")).to_contain_text(
+    profile.password_current.fill("Wrong_Current_Pass!")
+    profile.password_new.fill("QaWhatever_9!")
+    profile.change_password_button.click()
+    expect(profile.password_error).to_contain_text(
         "Неверный текущий пароль"
     )
 
     # Пароль не изменен: свежий вход со старым паролем работает.
     check = page.context.new_page()
+    auth_check = AuthPage(check)
     try:
-        check.goto(f"{web_base_url}/login")
-        check.get_by_label("Логин").fill(OWNER_LOGIN)
-        check.get_by_label("Пароль").fill(OWNER_PASSWORD)
-        check.get_by_role("button", name="Войти").click()
-        expect(
-            check.get_by_role("heading", name="Доска", exact=True)
-        ).to_be_visible()
+        auth_check.open(web_base_url)
+        auth_check.login_as(OWNER_LOGIN, OWNER_PASSWORD)
+        expect(BoardPage(check).heading()).to_be_visible()
     finally:
         check.close()
 
@@ -373,30 +364,28 @@ def test_password_change_success_session_alive(
     ТЕКУЩАЯ сессия жива — страница перезагружается без редиректа на
     /login; вход с новым паролем выполняется."""
     page = logged_in_page
-    _goto_profile_settings(page, web_base_url)
+    profile = ProfileSettingsPage(page)
+    profile.open(web_base_url)
 
     new_password = "QaNew_Pass_77!"
-    page.locator("#password-current").fill(OWNER_PASSWORD)
-    page.locator("#password-new").fill(new_password)
-    page.get_by_role("button", name="Сменить пароль").click()
-    expect(page.locator("#password-success")).to_contain_text("Пароль изменен")
+    profile.password_current.fill(OWNER_PASSWORD)
+    profile.password_new.fill(new_password)
+    profile.change_password_button.click()
+    expect(profile.password_success).to_contain_text("Пароль изменен")
 
     # Д-11: текущая сессия сохраняется — та же страница работает без
     # повторного входа (GET /api/profile отвечает 200, не редирект).
     page.reload()
-    expect(page.locator("#profile-form")).to_be_visible()
+    expect(profile.profile_form).to_be_visible()
     expect(page.get_by_label("Логин")).to_have_count(0)
 
     # Вход с новым паролем успешен (отдельная сессия).
     fresh = page.context.new_page()
+    auth_fresh = AuthPage(fresh)
     try:
-        fresh.goto(f"{web_base_url}/login")
-        fresh.get_by_label("Логин").fill(OWNER_LOGIN)
-        fresh.get_by_label("Пароль").fill(new_password)
-        fresh.get_by_role("button", name="Войти").click()
-        expect(
-            fresh.get_by_role("heading", name="Доска", exact=True)
-        ).to_be_visible()
+        auth_fresh.open(web_base_url)
+        auth_fresh.login_as(OWNER_LOGIN, new_password)
+        expect(BoardPage(fresh).heading()).to_be_visible()
     finally:
         fresh.close()
 
@@ -411,9 +400,10 @@ def test_avatar_txt_rejected(logged_in_page, web_base_url, web_db_path, profile_
     ошибка на странице (текст 422 invalid file type); превью не появилось,
     аватар в БД не изменен."""
     page = logged_in_page
-    _goto_profile_settings(page, web_base_url)
+    profile = ProfileSettingsPage(page)
+    profile.open(web_base_url)
 
-    page.locator("#avatar-file").set_input_files(
+    profile.avatar_file.set_input_files(
         files=[{"name": "note.txt", "mimeType": "text/plain", "buffer": b"hello"}]
     )
     # Хотфикс Р5: невалидный txt отклоняется ДО открытия виджета
@@ -421,9 +411,9 @@ def test_avatar_txt_rejected(logged_in_page, web_base_url, web_db_path, profile_
     # скрыта (hotfix: hidden после initAvatarCrop). Р4-обработчик change
     # через подписку виджета НЕ вызван — ошибка уже показана кроп-модулем
     # (тот же текст, что Р4-ответ сервера: правила едины, NFR-10/ОВ-22).
-    expect(page.locator("#avatar-error")).to_be_visible()
-    expect(page.locator("#crop-widget")).not_to_contain_class("is-open")
-    expect(page.locator("#avatar-preview")).to_be_hidden()
+    expect(profile.avatar_error).to_be_visible()
+    expect(profile.crop_widget).not_to_contain_class("is-open")
+    expect(profile.avatar_preview).to_be_hidden()
 
     # Аватар не сохранен.
     conn = sqlite3.connect(web_db_path)
@@ -443,9 +433,11 @@ def test_avatar_png_upload_preview(
     загрузки; аватар появляется в блоке профиля сайдбара вместо кружка
     (после обновления страницы — из me.avatar_url)."""
     page = logged_in_page
-    _goto_profile_settings(page, web_base_url)
+    profile = ProfileSettingsPage(page)
+    sidebar = Sidebar(page)
+    profile.open(web_base_url)
 
-    page.locator("#avatar-file").set_input_files(
+    profile.avatar_file.set_input_files(
         files=[
             {
                 "name": "photo.png",
@@ -457,12 +449,12 @@ def test_avatar_png_upload_preview(
     # Хотфикс Р5: валидный png открывает кроп-виджет (Д-12), сабмит формы
     # перехватывается виджетом (= «Применить», capture на document) —
     # путь загрузки: кроп открыт → «Применить» (canvas 256×256 → POST).
-    expect(page.locator("#crop-widget")).to_contain_class("is-open", timeout=10_000)
-    page.locator("#crop-apply").click()
-    expect(page.locator("#avatar-success")).to_be_visible()
+    expect(profile.crop_widget).to_contain_class("is-open", timeout=10_000)
+    profile.crop_apply.click()
+    expect(profile.avatar_success).to_be_visible()
 
     # Превью: img показан, src — URL аватара из ответа API (?v= версия).
-    preview = page.locator("#avatar-preview")
+    preview = profile.avatar_preview
     expect(preview).to_be_visible()
     src = preview.get_attribute("src")
     assert src is not None and "/avatars/" in src and "?v=" in src, src
@@ -480,10 +472,9 @@ def test_avatar_png_upload_preview(
     # Блок профиля сайдбара: img.avatar-avatar вместо кружка (после
     # обновления страницы — данные из GET /api/auth/me).
     page.goto(f"{web_base_url}/board")
-    profile = page.locator("#sidebar-profile")
-    expect(profile).to_contain_class("profile-filled", timeout=10_000)
-    expect(profile.locator("img.profile-avatar")).to_be_visible()
-    expect(profile.locator(".profile-badge")).to_have_count(0)
+    sidebar.wait_filled(OWNER_LOGIN)
+    expect(sidebar.avatar_image()).to_be_visible()
+    expect(sidebar.badge()).to_have_count(0)
 
 
 # ==========================================================================
@@ -498,11 +489,13 @@ def test_profile_click_opens_settings_profile(
     блоку профиля внизу сайдбара открывает /settings/profile (свой
     профиль) — а не общий раздел /settings (ОГР-20)."""
     page = logged_in_page
+    sidebar = Sidebar(page)
+    profile = ProfileSettingsPage(page)
     page.goto(f"{web_base_url}/board")
-    _expect_profile_filled(page, "O", OWNER_LOGIN)
+    sidebar.wait_filled(OWNER_LOGIN)
 
-    page.locator("#sidebar-profile").click()
+    sidebar.profile.click()
     page.wait_for_url("**/settings/profile")
-    expect(page.locator("h1", has_text="Профиль")).to_be_visible()
+    expect(profile.heading).to_be_visible()
     # Не общий раздел настроек: справочника категорий нет.
     expect(page.locator("#category-list")).to_have_count(0)
