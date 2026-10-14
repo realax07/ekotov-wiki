@@ -34,4 +34,6 @@ class Sidebar:
         self.profile = page.locator("#sidebar-profile")
         self.settings_link = page.get_by_role("link", name="Настройки")
         self.board_link = page.get_by_role("link", name="Доска")
+        self.search_link = page.get_by_role("link", name="Поиск")
+        self.wiki_link = page.get_by_role("link", name="Wiki")
         self.logout_button = page.get_by_role("button", name="Выйти")

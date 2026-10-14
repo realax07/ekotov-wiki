@@ -18,6 +18,7 @@ class TaskDetailView:
         self.attrs = page.locator("#task-detail-attrs")
         self.comments = page.locator("#task-comments-list")
         self.close_cross = page.locator("#task-view-close")
+        self.archive_badge = page.locator("#task-detail-archive-badge")
         self.unassigned_em = self.attrs.locator("em.task-view-unassigned")
 
     # --- wait-обертки ---

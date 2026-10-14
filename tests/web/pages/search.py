@@ -11,6 +11,7 @@ class SearchPage:
         self.constructor_button = page.get_by_role("button", name="Конструктор")
         self.advanced_button = page.get_by_role("button", name="Advanced")
         self.advanced = page.locator("#search-advanced")
+        self.builder = page.locator("#search-builder")
         self.advanced_query = page.locator("#search-advanced-query")
         self.results = page.locator("#search-results")
         self.category_select = page.locator("#search-category")
@@ -26,12 +27,37 @@ class SearchPage:
 
     # --- локаторы-возвратники ---
 
+    def heading_exact(self):
+        """Заголовок «Поиск» (exact — матчится и с пунктами сайдбара)."""
+        return self.page.get_by_role("heading", name="Поиск", exact=True)
+
+    def archived_select(self):
+        """Select «Архивность» фильтра-конструктора."""
+        return self.page.get_by_label("Архивность")
+
+    def category_by_label(self):
+        """Select «Категория» конструктора (по label, CHK-146)."""
+        return self.page.get_by_label("Категория")
+
+    def filter_sql_input(self):
+        """Поле фильтра advanced (SQL-подобный синтаксис)."""
+        return self.page.get_by_label("Фильтр (SQL-подобный синтаксис)")
+
+    def normalized(self):
+        """Строка нормализованного фильтра advanced."""
+        return self.page.locator("#search-advanced-normalized")
+
     def result_card(self, title: str):
         """Карточка результата поиска (role=article + текст)."""
         return self.results.get_by_role("article").filter(has_text=title)
 
     def find_button(self):
+        """Кнопка «Найти» в advanced."""
         return self.advanced.get_by_role("button", name="Найти")
+
+    def builder_find_button(self):
+        """Кнопка «Найти» в конструкторе."""
+        return self.builder.get_by_role("button", name="Найти")
 
     def wait_category_options(self, min_names: int) -> None:
         """Автожидание загрузки именованных опций select «Категория»
