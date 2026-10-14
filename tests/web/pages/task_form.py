@@ -85,6 +85,34 @@ class TaskForm:
     def description_by_id(self):
         return self.page.locator("#task-description")
 
+    def priority_by_id(self):
+        """id-локатор select приоритета (fallback кейсов formv3)."""
+        return self.page.locator("#task-priority")
+
+    def tags_by_id(self):
+        """id-локатор поля тегов (fallback кейсов formv3)."""
+        return self.page.locator("#task-tags")
+
+    def heading_by_id(self):
+        """Заголовок формы (#task-form-heading, текст «Создание/Редактирование»)."""
+        return self.page.locator("#task-form-heading")
+
+    def tag_chips(self):
+        """Чипы выбранных тегов (.chip в #task-tags-chips)."""
+        return self.page.locator("#task-tags-chips .chip")
+
+    def priority_pill_icon(self):
+        """Бокс inline-SVG-иконки пилюли приоритета."""
+        return self.page.locator("#task-priority-pill-icon")
+
+    def fast_row(self):
+        """Ряд fast-задачи формы (.fast-row; hidden в старых версиях)."""
+        return self.page.locator(".fast-row")
+
+    def is_fast_checkbox(self):
+        """Чекбокс is_fast формы (#task-is-fast)."""
+        return self.page.locator("#task-is-fast")
+
     def close_cross(self):
         """Крестик «Закрыть форму без сохранения» (aria-label, текст в svg)."""
         return self.overlay.get_by_role(
