@@ -32,3 +32,30 @@ class SearchPage:
 
     def find_button(self):
         return self.advanced.get_by_role("button", name="Найти")
+
+    def wait_category_options(self, min_names: int) -> None:
+        """Автожидание загрузки именованных опций select «Категория»
+        фильтра-конструктора (заполняется асинхронно), таймаут 10 c."""
+        self.page.wait_for_function(
+            """([sel, minNames]) => {
+              const el = document.querySelector(sel);
+              if (!el) return false;
+              const named = Array.from(el.querySelectorAll('option'))
+                .filter((o) => o.getAttribute('value')).length;
+              return named >= minNames;
+            }""",
+            arg=["#search-category", min_names],
+            timeout=10_000,
+        )
+
+    def named_category_options(self, min_names: int = 1) -> list[str]:
+        """Опции select «Категория» фильтра без пустой опции («любая» =
+        «фильтр не задан», не элемент справочника). Опции загружаются
+        асинхронно — ожидание >= min_names."""
+        self.wait_category_options(min_names)
+        options = self.category_options
+        return [
+            options.nth(i).text_content().strip()
+            for i in range(options.count())
+            if options.nth(i).get_attribute("value")
+        ]

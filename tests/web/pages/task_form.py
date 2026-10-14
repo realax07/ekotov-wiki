@@ -31,6 +31,9 @@ class TaskForm:
         # Опции селекта «Категория» (форма): опции загружаются асинхронно.
         self.category_options = page.locator("#task-category option")
         self.tag_hints_options = page.locator("#task-tag-hints option")
+        self.tag_hints = page.locator("#task-tag-hints")
+        self.sheet = page.locator("#task-form-overlay .task-form-sheet")
+        self.category_error = page.locator("#task-category-error")
 
     # --- wait-обертки (единственное исключение из «без ассертов в PO») ---
 
@@ -81,3 +84,47 @@ class TaskForm:
 
     def description_by_id(self):
         return self.page.locator("#task-description")
+
+    def close_cross(self):
+        """Крестик «Закрыть форму без сохранения» (aria-label, текст в svg)."""
+        return self.overlay.get_by_role(
+            "button", name="Закрыть форму без сохранения"
+        )
+
+    def priority_pill(self):
+        """Пилюля поля приоритета (цвет следует выбранному значению)."""
+        return self.page.locator(".priority-field-pill")
+
+    def priority_pill_in_overlay(self):
+        """Пилюля приоритета, скоуп оверлея (для expect-автожидания)."""
+        return self.page.locator("#task-form-overlay .priority-field-pill")
+
+    def wait_category_options(self, min_names: int) -> None:
+        """Автожидание загрузки именованных опций select «Категория»
+        (select заполняется асинхронно): wait_for_function — непустых
+        (value != "") опций >= min_names, таймаут 10 c, без sleep."""
+        self.page.wait_for_function(
+            """([sel, minNames]) => {
+              const el = document.querySelector(sel);
+              if (!el) return false;
+              const named = Array.from(el.querySelectorAll('option'))
+                .filter((o) => o.getAttribute('value')).length;
+              return named >= minNames;
+            }""",
+            arg=["#task-category", min_names],
+            timeout=10_000,
+        )
+
+    def named_category_options(self, min_names: int = 1) -> list[str]:
+        """Опции select «Категория» без пустой опции-плейсхолдера (пустое
+        значение «—» = «категория не задана», Д-2, не элемент справочника).
+        Опции загружаются асинхронно — ожидание >= min_names. На общей
+        сессионной странице несколько select «Категория» быть не может
+        (одна форма); locator.first — защита от множественного label-матча."""
+        self.wait_category_options(min_names)
+        options = self.page.locator("#task-category option")
+        return [
+            options.nth(i).text_content().strip()
+            for i in range(options.count())
+            if options.nth(i).get_attribute("value")
+        ]
