@@ -46,10 +46,14 @@
 import * as richParser from "./rich/block-parser.js";
 import { renderCanvas, legacyHtmlNode } from "./rich/renderer.js";
 import { buildBlockBar } from "./rich/toolbar.js";
-/* Импорт = саморегистрация блок-модулей в реестре (design §2); волна 2
- * добавит callout/aside/spoiler/code/image-scale. */
+/* Импорт = саморегистрация блок-модулей в реестре (design §2) */
 import "./rich/blocks/tables.js";
 import "./rich/blocks/columns.js";
+import "./rich/blocks/callout.js";
+import "./rich/blocks/aside.js";
+import "./rich/blocks/spoiler.js";
+import "./rich/blocks/code.js";
+import "./rich/blocks/image-scale.js";
 
 (function () {
   'use strict';
@@ -211,8 +215,12 @@ import "./rich/blocks/columns.js";
     editing: true,
     onChange: function () {}, // привязки канвы пишут в узлы напрямую
     registerCanvas: function (canvas) {
-      /* активная канва — последняя зарегистрированная/сфокусированная */
-      state.rich.activeCanvas = canvas;
+      /* Активная канва верхнего уровня — при рендере документа; вложенные
+         канвы (колонки/callout/врезка/спойлер) становятся активными по
+         фокусу (bindAreaFocusTracking — вставка внутрь, 2.5). */
+      if (canvas.element === state.area) {
+        state.rich.activeCanvas = canvas;
+      }
     },
     refreshActive: function () {
       if (!state.rich) return;

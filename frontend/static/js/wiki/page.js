@@ -50,6 +50,11 @@ import { renderMixed } from "./rich/renderer.js";
 /* Импорт = саморегистрация блок-модулей в реестре (design §2) */
 import "./rich/blocks/tables.js";
 import "./rich/blocks/columns.js";
+import "./rich/blocks/callout.js";
+import "./rich/blocks/aside.js";
+import "./rich/blocks/spoiler.js";
+import "./rich/blocks/code.js";
+import "./rich/blocks/image-scale.js";
 
 /* Короткие месяцы для «Обновлено 2 окт 2026, 14:32» (мокап, без «г.»). */
 var MONTHS_SHORT = [

@@ -1804,3 +1804,187 @@ nav.wiki-breadcrumb {
 .article-body .rich-textline {
   margin: 0;
 }
+
+/* ======================================================================
+ * Rich-блоки волны 2 (change add-rich-editor, tasks.md 2.1–2.4): callout
+ * (FR-119), врезка (FR-120), спойлер (FR-121), код+подсветка (FR-122),
+ * масштаб изображения (FR-123). Только токены var(--…) из app.css.
+ * ====================================================================== */
+
+/* Callout (FR-119): три типа с различимым оформлением */
+.rich-callout {
+  border: 1px solid var(--color-border-default);
+  border-left-width: 4px;
+  border-radius: var(--radius-field);
+  padding: var(--space-1) var(--space-2);
+  margin: var(--space-1) 0;
+}
+
+.rich-callout-info {
+  border-color: var(--p-blue-200);
+  border-left-color: var(--p-blue-700);
+  background: var(--p-blue-050);
+}
+
+.rich-callout-warn {
+  border-color: var(--priority-medium-soft);
+  border-left-color: var(--priority-high);
+  background: var(--priority-medium-soft);
+}
+
+.rich-callout-success {
+  border-color: var(--priority-low-soft);
+  border-left-color: var(--status-success);
+  background: var(--priority-low-soft);
+}
+
+/* Врезка (FR-120): акцентная линия и курсив — отличие и от абзаца,
+   и от callout (без цветовой заливки типов) */
+.rich-aside {
+  border-left: 3px solid var(--color-accent);
+  padding: var(--space-05) var(--space-2);
+  margin: var(--space-2) 0;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* Спойлер (FR-121): заголовок-кнопка, содержимое скрыто до раскрытия */
+.rich-spoiler {
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  margin: var(--space-1) 0;
+  background: var(--color-bg-surface);
+}
+
+.rich-spoiler-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-radius: var(--radius-field);
+}
+
+.rich-spoiler-arrow {
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.rich-spoiler.is-open .rich-spoiler-arrow {
+  transform: rotate(90deg);
+}
+
+.rich-spoiler-title {
+  font-weight: 600;
+}
+
+.rich-spoiler-body {
+  padding: var(--space-1) var(--space-2);
+}
+
+/* Код-блок (FR-122): моноширинный, переносы/пробелы буквально */
+.rich-code {
+  margin: var(--space-1) 0;
+}
+
+.rich-code-pre {
+  background: var(--p-paper-100);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  padding: var(--space-1) var(--space-2);
+  overflow-x: auto;
+  margin: 0;
+}
+
+.rich-code-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  white-space: pre; /* переносы/отступы без типографской обработки */
+}
+
+.rich-code-plain .rich-code-code {
+  outline: none;
+}
+
+/* Классы токенов подсветки (собственный токенайзер, без библиотек) */
+.rich-tok-kw {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.rich-tok-str {
+  color: var(--status-success);
+}
+
+.rich-tok-com {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.rich-tok-num {
+  color: var(--p-blue-700);
+}
+
+.rich-inline-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--p-paper-100);
+  border-radius: var(--radius-field);
+  padding: 0 var(--space-05);
+}
+
+/* Масштаб изображения (FR-123) */
+.rich-image {
+  display: block;
+  margin: var(--space-1) 0;
+}
+
+.rich-image-img {
+  max-width: 100%;
+  height: auto;
+}
+
+.rich-image-controls {
+  align-items: center;
+}
+
+.rich-control-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.rich-control-input {
+  width: 64px;
+  min-height: 28px;
+  padding: var(--space-05);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  font: inherit;
+  font-size: 12px;
+}
+
+.rich-control-select {
+  min-height: 28px;
+  padding: 0 var(--space-05);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  background: var(--color-bg-surface);
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+
+/* Тач-таргеты ≥44px на мобильной ветке (NFR-23 преемственность, 3.3) */
+@media (max-width: 480px) {
+  .rich-control-btn,
+  .rich-control-select,
+  .rich-control-input {
+    min-height: 44px;
+  }
+}
