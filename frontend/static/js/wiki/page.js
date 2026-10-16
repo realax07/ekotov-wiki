@@ -35,9 +35,21 @@
  * createElement + textContent (XSS, паттерн board/search).
  * 401 при протухшей сессии → редирект /login (паттерн tree/search).
  * Без внешних зависимостей (ОГР-8).
+ *
+ * Rich-блоки (change add-rich-editor; design §1/§6, tasks 1.5/2.5):
+ * контент с блоками диалекта рендерится посегментно — legacy-текст по
+ * существующему пути (template.innerHTML), блоки — renderer.js через
+ * createElement/textContent (тот же модуль, что в редакторе, FR-124).
+ * Контент без блоков — прежний путь без единой правки (NFR-38).
  */
 
 "use strict";
+
+import { parse, hasRichBlocks } from "./rich/block-parser.js";
+import { renderMixed } from "./rich/renderer.js";
+/* Импорт = саморегистрация блок-модулей в реестре (design §2) */
+import "./rich/blocks/tables.js";
+import "./rich/blocks/columns.js";
 
 /* Короткие месяцы для «Обновлено 2 окт 2026, 14:32» (мокап, без «г.»). */
 var MONTHS_SHORT = [
@@ -320,6 +332,28 @@ async function enrichMeta(metaNode, page) {
 }
 
 /* ---------------------------------------------------------------------
+ * Тело статьи (design §1, NFR-38): без блоков диалекта — прежний путь
+ * без правок (template.innerHTML); с блоками — посегментно: legacy-текст
+ * тем же template.innerHTML, rich-блоки — renderer.js (createElement/
+ * textContent, тот же модуль, что в редакторе — WYSIWYG FR-124).
+ * ------------------------------------------------------------------- */
+
+function renderArticleBody(body, content) {
+  var nodes = parse(content);
+  if (!hasRichBlocks(nodes)) {
+    var tpl = document.createElement("template");
+    /* Контент просанитизирован сервером (sanitize.py, design §4).
+     * <template>.innerHTML: скрипты внутри не исполняются, узлы
+     * переносятся как статические — страховка поверх серверного
+     * whitelist'а. */
+    tpl.innerHTML = content;
+    body.appendChild(tpl.content);
+    return;
+  }
+  body.appendChild(renderMixed(nodes, { editing: false }));
+}
+
+/* ---------------------------------------------------------------------
  * Рендер статьи (мокап: .article-head + article.article > .article-body)
  * ------------------------------------------------------------------- */
 
@@ -357,13 +391,7 @@ function renderArticle(container, page) {
 
   var article = el("article", "article");
   var body = el("div", "article-body");
-  var tpl = document.createElement("template");
-  /* Контент просанитизирован сервером (sanitize.py, design §4).
-   * <template>.innerHTML: скрипты внутри не исполняются, узлы
-   * переносятся как статические — страховка поверх серверного
-   * whitelist'а. */
-  tpl.innerHTML = String(page.content ?? "");
-  body.appendChild(tpl.content);
+  renderArticleBody(body, String(page.content ?? ""));
   article.appendChild(body);
 
   container.replaceChildren(head, article);

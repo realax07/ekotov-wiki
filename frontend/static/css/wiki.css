@@ -1686,3 +1686,121 @@ nav.wiki-breadcrumb {
     min-height: 44px;
   }
 }
+
+/* ======================================================================
+ * Rich-блоки (change add-rich-editor, tasks.md 1.6; design §2) — ядро
+ * канвы редактора и блоков волны 1 (таблица, колонки). Токены — V3 из
+ * app.css :root (без хардкода цветов). Волна 2 добавит селекторы
+ * callout/врезка/спойлер/код/подсветка/масштаб (шов 1.6→2.1).
+ * ====================================================================== */
+
+/* Кнопки rich-блоков в тулбаре (группа «Вставка блоков») */
+.tb-btn-block {
+  padding: 0 var(--space-2);
+  width: auto;
+}
+
+/* Канва редактора: legacy-сегмент и текстовые строки */
+.editor-area .rich-legacy {
+  min-height: 2.5em;
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-field);
+  padding: var(--space-1);
+  margin-bottom: var(--space-1);
+}
+
+.editor-area .rich-textline {
+  min-height: 1.6em;
+  border: 1px dashed transparent;
+  border-radius: var(--radius-field);
+  padding: 0 var(--space-05);
+  margin-bottom: var(--space-05);
+}
+
+.editor-area .rich-textline:hover,
+.editor-area .rich-legacy:hover {
+  border-color: var(--color-border-default);
+}
+
+/* Блок-виджет: оболочка и панель структурных правок */
+.rich-block {
+  margin: var(--space-1) 0;
+}
+
+.rich-controls {
+  display: flex;
+  gap: var(--space-05);
+  flex-wrap: wrap;
+  margin-top: var(--space-05);
+}
+
+.rich-control-btn {
+  font-size: 12px;
+  line-height: 1;
+  padding: var(--space-05) var(--space-1);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.rich-control-btn:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+
+/* Таблица (FR-117): рамки сеткой, выравнивание колонок; обертка —
+   горизонтальный скролл на узком экране (NFR-23) */
+.rich-table-wrap {
+  overflow-x: auto;
+}
+
+.rich-table {
+  border-collapse: collapse;
+  width: auto;
+  margin: var(--space-1) 0;
+}
+
+.rich-table th,
+.rich-table td {
+  border: 1px solid var(--color-border-default);
+  padding: var(--space-05) var(--space-1);
+  text-align: left;
+}
+
+.rich-table th.is-center,
+.rich-table td.is-center {
+  text-align: center;
+}
+
+.rich-table th.is-right,
+.rich-table td.is-right {
+  text-align: right;
+}
+
+.rich-table thead th {
+  background: var(--color-bg-subtle);
+}
+
+/* Колонки (FR-118): рядом, слева направо; на узком экране — стопкой
+   без прокрутки страницы по X */
+.rich-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-1) 0;
+}
+
+.rich-column {
+  min-width: 0;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  background: var(--color-bg-surface);
+}
+
+/* Просмотр: текстовые абзацы rich-сегментов */
+.article-body .rich-textline {
+  margin: 0;
+}
