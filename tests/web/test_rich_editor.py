@@ -843,3 +843,63 @@ def test_bug018_toolbar_outside_editable_content(
     table2 = page.locator(".editor-area .rich-table")
     expect(table2.locator("tbody tr")).to_have_count(3)
     assert "C1" in table2.inner_text()
+
+
+def test_bug019_image_scale_roundtrip_in_rich_blocks(
+    logged_in_page, rich_page_factory, web_base_url, web_owner_session
+):
+    """TC-RICH-215 (BUG-019): масштаб rich-изображения ({width=N}) сохраняется
+    при save/reload/re-save: модалка масштаба у вставленного img пишет в узел
+    диалекта (пиксельный пресет → процент ширины канвы, whitelist NFR-34
+    10..100), DOM-атрибут не теряется — узел сериализуется с {width=N}."""
+    page_id = rich_page_factory("| A1 | A2 |\n| --- | --- |\n| B1 | B2 |")
+    page = logged_in_page
+    _open_editor(page, web_base_url, page_id)
+    area = page.locator(".editor-area")
+
+    # rich-режим; вставка изображения блоком тулбара (узел диалекта)
+    page.locator(".tb-btn-block", has_text="Изображение").click()
+    img = area.locator(".rich-image img").last
+    expect(img).to_be_visible()
+
+    # модалка масштаба (клик по img): пресет «Маленькое (240 px)» → Применить
+    img.click()
+    dialog = page.locator(".editor-img-scale-dialog")
+    expect(dialog).to_be_visible()
+    dialog.locator("input[name='img-scale'][value='small']").check()
+    dialog.get_by_role("button", name="Применить").click()
+    expect(dialog).to_be_hidden()
+
+    area_width = page.evaluate("() => document.querySelector('.editor-area').clientWidth")
+    expected = max(10, min(100, round(240 / area_width * 100)))  # NFR-34: 10..100
+    assert img.evaluate("el => el.style.width") == f"{expected}%"
+
+    page.get_by_role("button", name="Сохранить").click()
+    page.wait_for_url(f"{web_base_url}/wiki/{page_id}")
+    stored = web_owner_session.get(
+        f"{web_base_url}/api/wiki/pages/{page_id}"
+    ).json()["content"]
+    assert f"{{width={expected}}}" in stored, stored
+
+    # reload → редактор показывает сохраненный масштаб
+    _open_editor(page, web_base_url, page_id)
+    assert (
+        page.locator(".editor-area .rich-image img")
+        .first.evaluate("el => el.style.width")
+        == f"{expected}%"
+    )
+    # re-save без правок → контент не меняется (roundtrip стабильный)
+    page.get_by_role("button", name="Сохранить").click()
+    page.wait_for_url(f"{web_base_url}/wiki/{page_id}")
+    stored2 = web_owner_session.get(
+        f"{web_base_url}/api/wiki/pages/{page_id}"
+    ).json()["content"]
+    assert stored2 == stored
+
+    # просмотр: масштаб применен (style.width = N%)
+    _open_view(page, web_base_url, page_id)
+    assert (
+        page.locator(".article-body .rich-image img")
+        .first.evaluate("el => el.style.width")
+        == f"{expected}%"
+    )

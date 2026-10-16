@@ -1034,6 +1034,14 @@ import "./rich/blocks/image-scale.js";
     state.imgScaleTarget = img;
     resetScalePicker(state.imgScaleEditor);
     var width = parseInt(img.getAttribute('width') || '', 10);
+    if (!Number.isFinite(width) && img.closest && img.closest('.rich-image')) {
+      /* BUG-019: img rich-блока масштабируется процентом стиля, а не px-
+         атрибутом — пресет модалки считаем из процента ширины канвы. */
+      var percent = parseInt(img.style.width, 10);
+      if (Number.isFinite(percent) && state.area.clientWidth) {
+        width = Math.round((percent * state.area.clientWidth) / 100);
+      }
+    }
     if (Number.isFinite(width)) {
       var preset = Object.keys(IMG_SCALE_PRESET_WIDTH).filter(function (key) {
         return IMG_SCALE_PRESET_WIDTH[key] === width;
@@ -1075,6 +1083,12 @@ import "./rich/blocks/image-scale.js";
         'Укажите целый размер в пикселях: ' + IMG_SCALE_MIN_PX + '–' +
         IMG_SCALE_MAX_PX + '.';
       state.imgScaleEditorError.hidden = false;
+      return;
+    }
+    if (state.rich && applyRichImageWidth(img, width)) {
+      /* BUG-019: img rich-блока — масштаб в узел ({width=N}, %); px-атрибут
+         в DOM не переживает перерендер/сохранение. */
+      closeImgScaleEditor();
       return;
     }
     if (width) {
@@ -1160,7 +1174,47 @@ import "./rich/blocks/image-scale.js";
       .replace(/>/g, '&gt;');
   }
 
+  /* BUG-019 (живая приемка p15-wiki-8): пиксельный масштаб диалога/модалки
+     (legacy FR-111) → процент диалекта rich-блока {width=N}, N∈10..100
+     (FR-123, whitelist NFR-34): процент ширины канвы редактора, который
+     занимал бы этот px. «Оригинал» (без px) → null — без {width=N}. */
+  function richWidthPercent(pxWidth) {
+    if (!pxWidth) return null;
+    var areaWidth = state.area.clientWidth || 960;
+    var percent = Math.round((pxWidth / areaWidth) * 100);
+    var min = richParser.WIDTH_MIN || 10;
+    var max = richParser.WIDTH_MAX || 100;
+    return Math.max(min, Math.min(max, percent));
+  }
+
+  /* Вставка изображения в rich-режиме — узлом диалекта (не insertHTML:
+     DOM-вставка не попадала в модель канвы и терялась при сохранении). */
+  function insertRichImage(url, alt, pxWidth) {
+    onInsertBlock(function () {
+      return { type: 'image', alt: alt || '', src: url, width: richWidthPercent(pxWidth) };
+    });
+  }
+
+  /* Масштаб модалкой у УЖЕ вставленного img rich-блока: запись в узел канвы
+     (width=N), перерендер. true — img принадлежал rich-блоку и узел
+     обновлен; false — legacy-img (px-атрибут, как до пакета). */
+  function applyRichImageWidth(img, pxWidth) {
+    var block = img.closest ? img.closest('.rich-block') : null;
+    var canvas = block && block.__richCanvas;
+    if (!canvas) return false;
+    var node = canvas.nodes[block.__richIndex];
+    if (!node || node.type !== 'image') return false;
+    node.width = richWidthPercent(pxWidth);
+    state.rich.activeCanvas = canvas;
+    richCtx.refreshActive();
+    return true;
+  }
+
   function insertImageMarkup(url, alt, width) {
+    if (state.rich) {
+      insertRichImage(url, alt, width);
+      return;
+    }
     var widthAttr = width ? ' width="' + parseInt(width, 10) + '"' : '';
     var html =
       '<img src="' + attrEscape(url) + '" alt="' + attrEscape(alt || '') + '"' +
