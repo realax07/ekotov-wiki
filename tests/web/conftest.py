@@ -53,9 +53,7 @@ OWNER_PASSWORD = os.environ.get("EKOTOV_WIKI_OWNER_PASSWORD", "QaOwner_Pass_1!")
 WIFE_LOGIN = "wife"
 WIFE_PASSWORD = os.environ.get("EKOTOV_WIKI_WIFE_PASSWORD", "QaWife_Pass_2!")
 
-# pytest_plugins = ["pytest_playwright"] — перенесено в корневой conftest.py
-# (pytest >= 8: pytest_plugins только в корневом conftest, иначе ошибка сбора
-# `python -m pytest tests/ -q`; поведение не изменилось).
+pytest_plugins = ["pytest_playwright"]
 
 
 def _free_port() -> int:
@@ -275,17 +273,8 @@ def page(page, web_server):
     search_url = web_server.get("search_url")
     if static_url:
         def _to_static(route):
-            # Запрос может быть отменен навигацией/закрытием контекста между
-            # fetch и fulfill — гонка «Fetch response has been disposed»
-            # валила СЛЕДУЮЩИЙ тест (ошибка приписывалась new_context).
-            try:
-                new_url = static_url + route.request.url.partition("/static")[2]
-                route.fulfill(response=route.fetch(url=new_url))
-            except Exception:
-                try:
-                    route.abort()
-                except Exception:
-                    pass
+            new_url = static_url + route.request.url.partition("/static")[2]
+            route.fulfill(response=route.fetch(url=new_url))
 
         # context.route (не page.route): правило действует и на страницы,
         # открытые тестом в том же контексте (page.context.new_page() —
@@ -293,16 +282,9 @@ def page(page, web_server):
         page.context.route(f"{web_server['base_url']}/static/**", _to_static)
     if search_url:
         def _to_search(route):
-            # та же защита от отмененных запросов, что в _to_static
-            try:
-                suffix = route.request.url.partition("/api/")[2]
-                new_url = f"{search_url}/api/{suffix}"
-                route.fulfill(response=route.fetch(url=new_url))
-            except Exception:
-                try:
-                    route.abort()
-                except Exception:
-                    pass
+            suffix = route.request.url.partition("/api/")[2]
+            new_url = f"{search_url}/api/{suffix}"
+            route.fulfill(response=route.fetch(url=new_url))
 
         # Пара «= точный + префикс» — паритет nginx-локаций: /api/search
         # (поиск), /api/search/ (advanced и будущие), /api/suggestions

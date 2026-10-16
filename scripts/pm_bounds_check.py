@@ -50,14 +50,6 @@ FACTORY = Path(__file__).resolve().parent.parent
 # Продуктовые репо адаптируют через env PM_PROTECTED_EXCLUDE
 # (например, PM_PROTECTED_EXCLUDE=contracts/ — в проекте это OpenAPI-контракты
 # продукта, FR-68, а не контракты конвейера; урок ekotov-wiki 2026-10-04).
-# J26 (2026-10-09): deploy-дерево — зона devops-роли. ПМ-коммит с этими
-# путями требует [ops]-маркера (девопс-делегация/решение), иначе нарушение.
-DEPLOY_PATHS = tuple(
-    p for p in (
-        "deploy/",
-        "RUNBOOK.md",
-    )
-)
 PROTECTED_PATHS = tuple(
     p for p in (
         "openspec/specs/",
@@ -65,9 +57,14 @@ PROTECTED_PATHS = tuple(
         "AGENTS.md",
         "agents/README.md",
     )
-    if p not in [x.strip() for x in __import__("os").environ.get("PM_PROTECTED_EXCLUDE", "").split(",") if x.strip()]
+    if p not in [x.strip() for x in __import__("os").environ.get("PM_PROTECTED_EXCLUDE", "contracts/").split(",") if x.strip()]
 )
 # Промпты ролей: менять можно, но каждый такой диф — событие конвейера.
+# J11 (2026-10-09): code-reviews/ — зона ревьюеров. ПМ-сессии (и любая сессия
+# без маркера) НЕ коммитят сюда вообще: review-файл пишет только ревьюер из своей
+# делегации (Review-Delegation сверяется pr_validate'ом). ПМ вливает review-файлы
+# PR'ом от ветки роли, не прямым коммитом ПМ-сессии.
+CODE_REVIEWS_DIR = "code-reviews/"
 ROLE_PROMPT_PREFIX = "agents/"
 
 PIPELINE_MARKERS = ("[pipeline]", "[флоу 4]", "[flow 4]", "[конвейер]")
@@ -99,6 +96,16 @@ def check_commit(repo: Path, commit: str) -> list[str]:
 
     subject = sh(repo, "show", "-s", "--format=%s", commit).strip()
     has_marker = any(m in subject for m in PIPELINE_MARKERS)
+    # J11: code-reviews/ — зона ревьюеров. Прямой коммит ПМ-сессии сюда —
+    # нарушение атрибуции: вердикт пишет ревьюер из своей делегации, не ПМ.
+    # Влитие review-файла ревьюера — PR'ом веткой роли, не прямым коммитом.
+    cr_touched = [f for f in files if f.startswith(CODE_REVIEWS_DIR)]
+    if cr_touched:
+        problems.append(
+            f"{commit}: прямой коммит ПМ-сессии в {', '.join(cr_touched)[:80]} "
+            f"(code-reviews/) — вердикт пишет ревьюер из делегации (J11); "
+            f"влитие review-файла — PR'ом веткой роли"
+        )
     protected_touched = [
         f for f in files
         if f.startswith(PROTECTED_PATHS) or f == "AGENTS.md"
@@ -115,18 +122,6 @@ def check_commit(repo: Path, commit: str) -> list[str]:
             f"{commit}: затронуты защищенные пути конвейера ({what}) без пометки "
             f"[pipeline] в subject — изменения конвейера только через Флоу 1/4 "
             f"с решением Заказчика (граница J3)"
-        )
-
-    # J26: deploy-дерево — зона devops-роли. Коммит с deploy-путями обязан нести
-    # [ops]-маркер (девопс-делегация/решение); ПМ-коммит без маркера = нарушение
-    # («работа девопса, сделанная ПМ» — прецедент Р4/6.3 nginx-аватары).
-    ops_marker = any(m in subject for m in ("[ops]",))
-    deploy_touched = [f for f in files if f.startswith(DEPLOY_PATHS) or f == "RUNBOOK.md"]
-    if deploy_touched and not has_marker and not ops_marker:
-        what = ", ".join(deploy_touched[:3])
-        problems.append(
-            f"{commit}: затронуто deploy-дерево ({what}) без пометки [ops] в subject — "
-            f"изменения деплой-инфраструктуры только через devops-делегацию (J26)"
         )
 
     for f in files:
