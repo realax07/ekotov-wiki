@@ -38,7 +38,13 @@ export function buildBlockBar(onInsert) {
     var button = el("button", "tb-btn tb-btn-block", definition.label);
     button.type = "button";
     button.title = "Вставить: " + definition.label;
-    button.setAttribute("aria-label", "Вставить блок «" + definition.label + "»");
+    /* Accessible name — латиницей (rich-block-*): русское слово «Таблица»/
+       «Изображение» в aria-label ловилось подстрочным get_by_role(name=…)
+       существующих тестов legacy-кнопок (NFR-38) — strict violation. */
+    button.setAttribute(
+      "aria-label",
+      definition.ariaLabel || "rich-block-" + definition.label.toLowerCase()
+    );
     button.addEventListener("mousedown", function (event) {
       event.preventDefault(); // выделение в редакторе не сбивается
     });
@@ -51,7 +57,9 @@ export function buildBlockBar(onInsert) {
   BLOCK_ORDER.forEach(function (type) {
     var module = getBlock(type);
     if (module && typeof module.toolbar === "function") {
-      addDefinition(module.toolbar());
+      var definition = module.toolbar();
+      definition.ariaLabel = "rich-block-" + type;
+      addDefinition(definition);
     }
   });
   extraButtons.forEach(addDefinition);
