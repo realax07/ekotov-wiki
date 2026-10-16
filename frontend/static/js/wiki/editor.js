@@ -31,7 +31,29 @@
  * Ссылка: модальный ввод (по мокапу); схема проверяется ДО вставки —
  * только http:, https: и относительные «/...» (javascript:/data: — отказ,
  * ничего не вставляется).
+ *
+ * Rich-блоки (change add-rich-editor, tasks.md 1.6; design §4 D4): при
+ * загрузке страницы контент парсится (rich/block-parser.js — зеркало
+ * серверной грамматики); блоки диалекта → интерактивное редактирование
+ * block-модулями через renderCanvas (тот же renderer, что на просмотре —
+ * WYSIWYG FR-124); legacy-HTML без блоков — существующее поведение без
+ * изменений (FR-125). При сохранении: сериализация блоков в диалект,
+ * структурные ошибки перехватываются rich-валидатором ДО отправки
+ * (строгая валидация НОВОГО rich-контента — design §1: на сервере в этом
+ * случае 422 нет). Кнопки вставки блоков — rich/toolbar.js (реестр).
  */
+
+import * as richParser from "./rich/block-parser.js";
+import { renderCanvas, legacyHtmlNode } from "./rich/renderer.js";
+import { buildBlockBar } from "./rich/toolbar.js";
+/* Импорт = саморегистрация блок-модулей в реестре (design §2) */
+import "./rich/blocks/tables.js";
+import "./rich/blocks/columns.js";
+import "./rich/blocks/callout.js";
+import "./rich/blocks/aside.js";
+import "./rich/blocks/spoiler.js";
+import "./rich/blocks/code.js";
+import "./rich/blocks/image-scale.js";
 
 (function () {
   'use strict';
@@ -49,6 +71,9 @@
     area: null,
     errorBox: null,
     toolbarButtons: {}, // aria-label → button
+    /* rich-блоки (tasks.md 1.6): null = legacy-режим (существующее
+       поведение), иначе { canvas, activeCanvas } — канвы renderCanvas */
+    rich: null,
     /* диалог изображения */
     imgDialog: null,
     imgError: null,
@@ -180,6 +205,138 @@
       .catch(function () {
         onError('Сетевая ошибка. Проверьте соединение и попробуйте еще раз.');
       });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Rich-блоки: режим канвы, вставка, сериализация (tasks.md 1.6)       */
+  /* ------------------------------------------------------------------ */
+
+  var richCtx = {
+    editing: true,
+    onChange: function () {}, // привязки канвы пишут в узлы напрямую
+    registerCanvas: function (canvas) {
+      /* Активная канва верхнего уровня — при рендере документа; вложенные
+         канвы (колонки/callout/врезка/спойлер) становятся активными по
+         фокусу (bindAreaFocusTracking — вставка внутрь, 2.5). */
+      if (canvas.element === state.area) {
+        state.rich.activeCanvas = canvas;
+      }
+    },
+    refreshActive: function () {
+      if (!state.rich) return;
+      renderCanvas(state.rich.activeCanvas || state.rich.canvas, richCtx);
+    },
+  };
+
+  function enterRichMode(initialNodes) {
+    if (state.rich) return;
+    var nodes = initialNodes || [legacyHtmlNode(state.area.innerHTML)];
+    var canvas = { nodes: nodes, element: state.area };
+    state.rich = { canvas: canvas, activeCanvas: canvas };
+    renderCanvas(canvas, richCtx);
+  }
+
+  function insertIndex(canvas) {
+    /* Индекс вставки: по каретке (selection anchor) внутри канвы, иначе —
+       в конец канвы. Фокус при клике в канве уходит внешнему editing host
+       (наблюдение Chromium), поэтому активный элемент неинформативен. */
+    var selection = window.getSelection();
+    if (selection && selection.anchorNode) {
+      var node =
+        selection.anchorNode.nodeType === 1
+          ? selection.anchorNode
+          : selection.anchorNode.parentNode;
+      while (node && node !== canvas.element) {
+        if (node.__richCanvas === canvas && node.__richIndex !== undefined) {
+          return node.__richIndex;
+        }
+        node = node.parentElement;
+      }
+    }
+    return canvas.nodes.length - 1;
+  }
+
+  function onInsertBlock(makeNode) {
+    if (!state.rich) enterRichMode();
+    var canvas = state.rich.activeCanvas || state.rich.canvas;
+    var index = insertIndex(canvas);
+    canvas.nodes.splice(index + 1, 0, makeNode());
+    renderCanvas(canvas, richCtx);
+    state.rich.activeCanvas = canvas;
+    /* фокус в первый редактируемый элемент нового блока */
+    var inserted = canvas.element.children[index + 1];
+    if (inserted) {
+      var editable = inserted.querySelector('[contenteditable="true"]');
+      if (editable) editable.focus();
+    }
+  }
+
+  function serializeRichContent() {
+    /* Канонический диалект: legacy-сегменты — HTML как есть (санитизация
+       на сервере), блоки — сериализатор реестра (зеркало бэкенда). */
+    return state.rich.canvas.nodes
+      .map(function (node) {
+        if (node.type === "legacyhtml") return node.html;
+        return richParser.serializeNodes([node]);
+      })
+      .join("\n");
+  }
+
+  function bindAreaFocusTracking(area) {
+    /* Активная канва для вставки блоков (в т.ч. вложенных, 2.5).
+       Фокус (focusin) при клике в канве уходит внешнему editing host
+       (Chromium), поэтому канву определяем по ФАКТИЧЕСКОМУ элементу клика
+       (mousedown.target) и по позиции каретки (keyup — переходы стрелками). */
+    function resolveFromTarget(target) {
+      var node = target;
+      while (node && node !== area) {
+        if (node.__richCanvas) {
+          state.rich.activeCanvas = node.__richCanvas;
+          return true;
+        }
+        node = node.parentNode;
+      }
+      return false;
+    }
+
+    area.addEventListener(
+      "mousedown",
+      function (event) {
+        if (!state.rich) return;
+        if (resolveFromTarget(event.target)) return;
+        state.rich.activeCanvas = state.rich.canvas;
+      },
+      true
+    );
+    area.addEventListener(
+      "keyup",
+      function (event) {
+        if (!state.rich) return;
+        if (event.target === area && !resolveFromCaret()) {
+          state.rich.activeCanvas = state.rich.canvas;
+        }
+      },
+      true
+    );
+
+    function resolveFromCaret() {
+      var selection = window.getSelection();
+      if (!selection || !selection.anchorNode || !area.contains(selection.anchorNode)) {
+        return false;
+      }
+      var node =
+        selection.anchorNode.nodeType === 1
+          ? selection.anchorNode
+          : selection.anchorNode.parentNode;
+      while (node && node !== area) {
+        if (node.__richCanvas) {
+          state.rich.activeCanvas = node.__richCanvas;
+          return true;
+        }
+        node = node.parentNode;
+      }
+      return false;
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -465,6 +622,8 @@
     if (mediaButton) {
       mediaButton.appendChild(document.createTextNode('Изображение'));
     }
+    /* Rich-блоки (1.6): вставка таблицы/колонок и прочих блоков реестра */
+    toolbar.appendChild(buildBlockBar(onInsertBlock));
     toolbar.appendChild(sep());
     toolbar.appendChild(
       group([
@@ -1163,7 +1322,24 @@
       return;
     }
     state.errorBox.hidden = true;
-    var content = state.area.innerHTML;
+    var content;
+    if (state.rich) {
+      /* Rich-режим: сериализация блоков в диалект; структурные ошибки
+         перехватываются ДО отправки (design §1: на сервере 422 нет —
+         строгая валидация нового rich-контента в редакторе, tasks 1.6б). */
+      content = serializeRichContent();
+      try {
+        richParser.validate(content);
+      } catch (error) {
+        showError(
+          'Структурная ошибка блока: ' + error.message +
+          ' — исправьте блок и повторите сохранение (запрос не отправлялся).'
+        );
+        return;
+      }
+    } else {
+      content = state.area.innerHTML;
+    }
 
     var request;
     if (state.mode === 'edit') {
@@ -1252,6 +1428,7 @@
     buildImageDialog();
     buildImgScaleEditorDialog();
     bindAreaImageScale(state.area);
+    bindAreaFocusTracking(state.area);
     markActiveContent();
 
     document.addEventListener('selectionchange', updateToolbarStates);
@@ -1267,8 +1444,19 @@
           state.titleInput.value = page.title;
           heading.textContent = 'Редактирование: ' + page.title;
           document.title = 'Редактирование: ' + page.title + ' · ekotov-wiki';
-          /* Контент сервером уже санитизирован на записи (design §4) */
-          state.area.innerHTML = page.content || '';
+          /* Контент сервером уже санитизирован на записи (design §4).
+           * Rich-блоки (1.6): блоки диалекта → канва (renderCanvas);
+           * legacy-HTML без блоков — существующее поведение (FR-125). */
+          var richNodes = richParser.parse(page.content || '');
+          if (richParser.hasRichBlocks(richNodes)) {
+            enterRichMode(
+              richNodes.map(function (node) {
+                return node.type === 'text' ? legacyHtmlNode(node.text) : node;
+              })
+            );
+          } else {
+            state.area.innerHTML = page.content || '';
+          }
           fillParentSelect([], function () {
             if (page.parent_id) {
               var option = state.parentSelect.querySelector(

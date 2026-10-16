@@ -575,3 +575,104 @@ def test_revert_sanitizes_stored_content(db_path, client, monkeypatch):
     stored = client.get(f"/api/wiki/pages/{page['id']}").json()["content"]
     assert "script" not in stored and "alert" not in stored
     assert "<p>v1</p>" in stored
+
+
+# --------------------------------------------------------------------------
+# rich-шов 1.3: лимит глубины вложенности (review-001-4.1 #1, major)
+# --------------------------------------------------------------------------
+
+
+def _nested_callouts(n: int) -> str:
+    """n вложенных :::callout + контент + n закрытий (патологический контент)."""
+    return ":::callout type=info\n" * n + "глубоко\n" + ":::\n" * n
+
+
+def test_create_page_500_nested_callouts_no_500(client):
+    """TC-RICH-209 (review-001-4.1 #1): страница с 500 вложенными :::callout
+    сохраняется БЕЗ 500 — превышение MAX_DEPTH = структурная ошибка, шов
+    уходит в толерантный fallback (A-2: plain text + лог), POST → 201,
+    контент в БД сохранен как текст."""
+    resp = client.post(
+        "/api/wiki/pages",
+        json={"title": "Глубина", "content": _nested_callouts(500)},
+    )
+    assert resp.status_code == 201, resp.text
+    page_id = resp.json()["id"]
+    stored = client.get(f"/api/wiki/pages/{page_id}").json()["content"]
+    # fallback: диалект не разобран, исходные строки сохранены как есть
+    assert stored.count(":::callout type=info") == 500
+    assert stored.count(":::") == 1000
+
+
+def test_update_and_revert_500_nested_callouts_no_500(client):
+    """TC-RICH-210 (review-001-4.1 #1): PUT и revert с патологическим
+    контентом — 200 без 500 (depth-лимит парсера + RecursionError-страховка
+    шва wiki.py)."""
+    page = _create(client, "Глубина", content="ok")
+    deep = _nested_callouts(500)
+    resp = client.put(f"/api/wiki/pages/{page['id']}", json={"content": deep})
+    assert resp.status_code == 200, resp.text
+    # revert: контент версии патологический → повторный прогон через шов
+    vid = client.get(f"/api/wiki/pages/{page['id']}/versions").json()["versions"][0][
+        "id"
+    ]
+    resp = client.post(f"/api/wiki/pages/{page['id']}/revert/{vid}")
+    assert resp.status_code == 200, resp.text
+    stored = client.get(f"/api/wiki/pages/{page['id']}").json()["content"]
+    assert stored.count(":::") == 1000  # plain text без 500
+
+
+# --------------------------------------------------------------------------
+# Approved-матрица 3.3: fallback-политика A-2 (TC-blocks-107 API-половина,
+# TC-compat-207) и живучесть масштаба изображения (TC-blocks-115, FR-123)
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        # незакрытый спойлер (шаг 1 TC-compat-207)
+        ':::spoiler title="x"\nсодержимое',
+        # неизвестный тип callout (шаг 2)
+        ":::callout type=danger\nx\n:::",
+        # лишний ::: посередине (шаг 3); незакрытый :::columns
+        "текст\n:::\nеще",
+        ":::columns\nодна колонка",
+        # пустая колонка — структурная ошибка по design §1 («колонка без
+        # содержимого», шаг 2 TC-blocks-106) → толерантный fallback-текст
+        ":::columns\nКол-1\n<<<\n\n<<<\nКол-3\n:::",
+        # вне-whitelist width: атрибут отброшен, блок-изображение остается
+        "![a](/images/x.png){width=9}",
+    ],
+)
+def test_structural_error_new_content_fallback_no_422(client, content):
+    """TC-compat-207 (+ TC-blocks-107 шаг 2): структурно некорректный
+    rich-ввод прямым PUT/POST — ТОЛЕРАНТНЫЙ fallback (200/201, НЕ 422),
+    диалектоподобные строки сохранены как plain text."""
+    resp = client.post(
+        "/api/wiki/pages", json={"title": "QAT-fallback", "content": content}
+    )
+    assert resp.status_code == 201, resp.text  # НЕ 422
+    page = resp.json()
+    stored = client.get(f"/api/wiki/pages/{page['id']}").json()["content"]
+    assert "ширина" not in stored  # санитизация не мутирует чужой текст
+    # повторное сохранение (PUT) той же страницы — тоже без 422
+    resp = client.put(f"/api/wiki/pages/{page['id']}", json={"content": content})
+    assert resp.status_code == 200, resp.text
+
+
+def test_image_scale_survives_other_edits_and_re_save(client):
+    """TC-blocks-115 (FR-123): масштаб {width=50} переживает правку другого
+    фрагмента и холстой re-save (круговое сохранение) без сброса."""
+    page = _create(client, "QAT-scale", content="![Скрин](/images/abc.png){width=50}")
+    # правка другого фрагмента: абзац НАД изображением
+    edited = "Правка-после-масштаба\n\n![Скрин](/images/abc.png){width=50}"
+    resp = client.put(f"/api/wiki/pages/{page['id']}", json={"content": edited})
+    assert resp.status_code == 200, resp.text
+    stored = client.get(f"/api/wiki/pages/{page['id']}").json()["content"]
+    assert "{width=50}" in stored
+    assert "Правка-после-масштаба" in stored
+    # холстой re-save: байтовое равенство (масштаб не сбросился)
+    resp = client.put(f"/api/wiki/pages/{page['id']}", json={"content": edited})
+    assert resp.status_code == 200, resp.text
+    assert client.get(f"/api/wiki/pages/{page['id']}").json()["content"] == edited
