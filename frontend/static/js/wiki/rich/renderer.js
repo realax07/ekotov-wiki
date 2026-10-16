@@ -282,6 +282,17 @@ export function renderCanvas(canvas, ctx) {
       }
     } else {
       rendered = el("div", "rich-block rich-block-" + node.type);
+      if (ctx.editing) {
+        /* BUG-018 (живая приемка p15-wiki-8): панель структурных правок
+         * (rich-controls: «+ строка», «− столбец» и т.п.) и обертка блока —
+         * ВНЕ редактируемого контента (contenteditable=false на обертке).
+         * Внутри contenteditable-канвы кнопки редактировались как текст и
+         * уезжали вместе с контентом; вложенные editing host'и (ячейки
+         * таблицы, textline вложенных канв, код) переопределяют
+         * contenteditable=true и остаются редактируемыми. Сериализация —
+         * из узла дерева (модель), панель в нее не попадает по построению. */
+        rendered.contentEditable = "false";
+      }
       rendered.appendChild(renderNode(node, { editing: ctx.editing, ctx: ctx }));
       if (ctx.editing) {
         var module = getBlock(node.type);

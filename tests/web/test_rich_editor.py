@@ -26,6 +26,12 @@ uvicorn app + search + http.server static, tmp-БД + seed owner/wife).
   TC-blocks-109 → test_callout_type_change_keeps_text; TC-blocks-105/106 →
   test_columns_view_order_and_boundaries; TC-blocks-119/120 →
   test_block_combinations_in_containers.
+  TC-RICH-214 → test_bug018_toolbar_outside_editable_content (BUG-018:
+  панель правок таблицы вне редактируемого контента, не сериализуется);
+  TC-RICH-215 → test_bug019_image_scale_roundtrip_in_rich_blocks (BUG-019:
+  {width=N} переживает save/reload/re-save); TC-RICH-216 →
+  test_bug020_code_block_direct_edit_roundtrip (BUG-020: без режима
+  «править код», набор 1:1, подсветка+фон).
 
 Изоляция: страницы создаются API от owner-сессии, удаляются в teardown.
 """
@@ -774,3 +780,66 @@ def test_block_combinations_in_containers(
     spoiler.locator(".rich-spoiler-toggle").click()  # раскрытие внутри колонки
     expect(spoiler.locator(".rich-spoiler-body")).to_be_visible()
     assert "Сп" in spoiler.locator(".rich-spoiler-body").inner_text()
+
+
+# ---------------------------------------------------------------------------
+# BUG-018/019/020 (живая приемка p15-wiki-8, Флоу 2)
+# ---------------------------------------------------------------------------
+
+
+def test_bug018_toolbar_outside_editable_content(
+    logged_in_page, rich_page_factory, web_base_url, web_owner_session
+):
+    """TC-RICH-214 (BUG-018): панель структурных правок таблицы («+ строка»,
+    «− столбец», …) — ВНЕ редактируемого контента: обертка блока
+    contenteditable=false (кнопки не редактируются как текст, каретка в них
+    не встает), сериализация — из узла дерева (панель в контент не попадает:
+    сохранение/перечитывание — кнопок в тексте нет), правка структуры при
+    этом работает и переживает roundtrip."""
+    page_id = rich_page_factory("| A1 | A2 |\n| --- | --- |\n| B1 | B2 |")
+    page = logged_in_page
+    _open_editor(page, web_base_url, page_id)
+
+    area = page.locator(".editor-area")
+    table = area.locator(".rich-table")
+    expect(table).to_be_visible()
+
+    # обертка блока — contenteditable=false; панель и кнопки — вне
+    # редактируемого контента; ячейки остались редактируемыми
+    block = area.locator(".rich-block-table").first
+    assert block.get_attribute("contenteditable") == "false"
+    controls = area.locator(".rich-controls").first
+    assert controls.evaluate("el => el.isContentEditable") is False
+    btn = controls.locator(".rich-control-btn", has_text="+ строка")
+    assert btn.evaluate("el => el.isContentEditable") is False
+    assert table.locator("tbody td").first.evaluate("el => el.isContentEditable") is True
+
+    # правка структуры работает: +2 строки, ячейки редактируются
+    btn.click()
+    btn.click()
+    expect(table.locator("tbody tr")).to_have_count(3)
+    new_cell = table.locator("tbody tr").last.locator("td").first
+    new_cell.click()
+    page.keyboard.type("C1")
+
+    # ввод при фокусе на кнопке панели НЕ меняет контент (каретки в панели нет)
+    controls.locator(".rich-control-btn", has_text="− столбец").click()
+    page.keyboard.type("МУСОР")
+
+    page.get_by_role("button", name="Сохранить").click()
+    page.wait_for_url(f"{web_base_url}/wiki/{page_id}")
+    stored = web_owner_session.get(
+        f"{web_base_url}/api/wiki/pages/{page_id}"
+    ).json()["content"]
+    # тулбар не сериализован: ярлыков кнопок и случайного ввода в контенте нет
+    for label in ("+ строка", "− строка", "столб", "МУСОР", "rich-control"):
+        assert label not in stored, stored
+    # структура и содержимое пережили roundtrip: 3×1 (− столбец снял второй),
+    # C1 на месте
+    assert stored == "| A1 |\n| --- |\n| B1 |\n|  |\n| C1 |"
+
+    # перечитывание: правка структуры продолжается без потери контента
+    _open_editor(page, web_base_url, page_id)
+    table2 = page.locator(".editor-area .rich-table")
+    expect(table2.locator("tbody tr")).to_have_count(3)
+    assert "C1" in table2.inner_text()
