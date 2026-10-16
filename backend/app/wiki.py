@@ -34,7 +34,6 @@
 паттерн board.py; формат «...+03:00» во всех полях даты).
 """
 
-import logging
 import sqlite3
 from html.parser import HTMLParser
 from typing import Any
@@ -45,46 +44,11 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.board import msk_now_iso
 from app.db import get_connection
-from app.rich_blocks import validate as rich_blocks_validate
 from app.sanitize import sanitize_html
-from app.sanitize_rich import sanitize as sanitize_rich_content
 
 router = APIRouter(prefix="/api/wiki")
 
-logger = logging.getLogger("wiki.rich")
-
 NOT_FOUND_BODY = {"error": "not found"}
-
-
-def _sanitize_content(content: str, page_id: Any = None) -> str:
-    """Шов rich-редактора НА ЗАПИСИ (tasks.md 1.3; design §1 fallback-политика,
-    §3 D3) — только точки вызова, логика в новых модулях:
-
-    - валидный диалект/legacy → sanitize_rich (rich-блоки санитизируются,
-      legacy-часть — passthrough к sanitize_html, инвариант M-4);
-    - структурная ошибка диалекта (RichSyntaxError/ValueError) → ТОЛЕРАНТНЫЙ
-      fallback (ревью A-2): страница сохраняется как plain text через
-      существующий sanitize_html (rich-разбор не применяется) + запись в лог
-      с page_id — БЕЗ 422. Строгие ошибки НОВОГО rich-контента перехватываются
-      в редакторе до отправки (задача 1.6).
-    - RecursionError — страховка (review-001-4.1 #1): глубина вложенности
-      ограничена MAX_DEPTH в rich_blocks, но патологический контент мимо
-      лимита (прошлые версии/ручная правка БД) не должен превращать
-      сохранение в необработанный 500 — политика та же (plain text + лог).
-    page_id: идентификатор страницы для лога; при создании страницы (страница
-    еще не имеет id) — пометка «new page» (review-001-4.1 #5)."""
-    try:
-        rich_blocks_validate(content)
-    except (ValueError, RecursionError) as exc:
-        logger.warning(
-            "rich-editor: структурная ошибка диалекта, сохранение как plain text"
-            " (page_id=%s): %s",
-            page_id,
-            exc,
-        )
-        return sanitize_html(content)
-    return sanitize_rich_content(content)
-
 
 # Защита breadcrumb-цепочки от цикла в parent_id (design.md §6: «лимит
 # глубины, например 100»).
@@ -272,9 +236,7 @@ def create_page(body: PageCreate, request: Request) -> JSONResponse:
         if author_id is None:
             return JSONResponse(status_code=401, content={"error": "unauthorized"})
         now = _utcnow()
-        # Страницы еще нет — в лог fallback идет пометка «new page»
-        # (review-001-4.1 #5), а не пустой page_id.
-        content = _sanitize_content(body.content, page_id="new page")
+        content = sanitize_html(body.content)
         try:
             cur = conn.execute(
                 "INSERT INTO pages (parent_id, title, content, author_id,"
@@ -343,9 +305,7 @@ def update_page(page_id: int, body: PageUpdate, request: Request) -> JSONRespons
             return JSONResponse(status_code=401, content={"error": "unauthorized"})
         title = body.title if body.title is not None else row[0]
         content = (
-            _sanitize_content(body.content, page_id=page_id)
-            if body.content is not None
-            else row[1]
+            sanitize_html(body.content) if body.content is not None else row[1]
         )
         _insert_version(conn, page_id, content, author_id)
         conn.execute(
@@ -434,9 +394,7 @@ def revert_page(page_id: int, version_id: int, request: Request) -> JSONResponse
             return JSONResponse(status_code=401, content={"error": "unauthorized"})
         # Контент версии уже санитизирован на записи (§4); повторный прогон —
         # страховка от «грязных» данных прошлых эпох/ручных правок БД.
-        # rich-шов (1.3): диалект в версии санитизируется/валидируется так же,
-        # структурная ошибка — толерантный fallback (БЕЗ 422).
-        content = _sanitize_content(found[0], page_id=page_id)
+        content = sanitize_html(found[0])
         new_version_id = _insert_version(conn, page_id, content, author_id)
         conn.execute(
             "UPDATE pages SET content = ?, updated_at = ? WHERE id = ?",
