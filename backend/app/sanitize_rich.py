@@ -64,6 +64,18 @@ def escape_block_text(text: str) -> str:
 # [link](url), ![img](src){width=N}); фильтруются URL и width. URL-группа
 # допускает ОДИН уровень скобок (javascript:alert(1) режется целиком, без
 # остаточной скобки в тексте).
+#
+# SECURITY-ИНВАРИАНТ (review-001-4.1 #2): строка-кандидат блока-изображения,
+# чей URL содержит скобки (`![a](javascript:alert(1))`), НЕ матчится
+# rich_blocks._IMAGE_LINE_RE — уходит в legacy-passthrough БЕЗ rich-фильтра
+# URL. Это осознанная граница, а не дыра: инвариант M-4 запрещает фильтровать
+# legacy-сегменты (sanitize_rich(legacy) == sanitize_html(legacy), тест
+# зафиксирован), а защита = ТОЧНАЯ идентичность зеркальных regex бэка и
+# фронта: фронтовый block-parser.js IMAGE_LINE_RE — дословное зеркало, такой
+# сегмент рендерится как ТЕКСТ (textContent/createElement — не исполняется,
+# safeUrl — второй слой). Менять один из двух regex БЕЗ синхронного зеркала
+# и дифтеста (fixture URL-со-скобками в test_rich_blocks/test_rich_editor)
+# НЕЛЬЗЯ.
 _URL_GROUP = r"((?:[^()\s]|\([^()]*\))*)"
 _IMAGE_INLINE_RE = re.compile(
     r"!\[([^\]]*)\]" + r"\(" + _URL_GROUP + r"\)(?:\{width=(\d+)\})?"

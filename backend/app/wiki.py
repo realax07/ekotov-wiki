@@ -66,10 +66,16 @@ def _sanitize_content(content: str, page_id: Any = None) -> str:
       fallback (ревью A-2): страница сохраняется как plain text через
       существующий sanitize_html (rich-разбор не применяется) + запись в лог
       с page_id — БЕЗ 422. Строгие ошибки НОВОГО rich-контента перехватываются
-      в редакторе до отправки (задача 1.6)."""
+      в редакторе до отправки (задача 1.6).
+    - RecursionError — страховка (review-001-4.1 #1): глубина вложенности
+      ограничена MAX_DEPTH в rich_blocks, но патологический контент мимо
+      лимита (прошлые версии/ручная правка БД) не должен превращать
+      сохранение в необработанный 500 — политика та же (plain text + лог).
+    page_id: идентификатор страницы для лога; при создании страницы (страница
+    еще не имеет id) — пометка «new page» (review-001-4.1 #5)."""
     try:
         rich_blocks_validate(content)
-    except ValueError as exc:
+    except (ValueError, RecursionError) as exc:
         logger.warning(
             "rich-editor: структурная ошибка диалекта, сохранение как plain text"
             " (page_id=%s): %s",
@@ -78,7 +84,6 @@ def _sanitize_content(content: str, page_id: Any = None) -> str:
         )
         return sanitize_html(content)
     return sanitize_rich_content(content)
-
 
 
 # Защита breadcrumb-цепочки от цикла в parent_id (design.md §6: «лимит
@@ -267,7 +272,9 @@ def create_page(body: PageCreate, request: Request) -> JSONResponse:
         if author_id is None:
             return JSONResponse(status_code=401, content={"error": "unauthorized"})
         now = _utcnow()
-        content = _sanitize_content(body.content)
+        # Страницы еще нет — в лог fallback идет пометка «new page»
+        # (review-001-4.1 #5), а не пустой page_id.
+        content = _sanitize_content(body.content, page_id="new page")
         try:
             cur = conn.execute(
                 "INSERT INTO pages (parent_id, title, content, author_id,"

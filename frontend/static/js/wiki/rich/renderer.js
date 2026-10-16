@@ -48,20 +48,28 @@ export function safeUrl(url) {
 }
 
 function escTextToNode(target, text) {
-  /* Развернуть экранированные сущности sanitize_rich (&lt;/&gt;/&amp;)
-   * в литеральный текст (textContent — безопасно, теги не интерпретируются). */
+  /* Развернуть экранированные сущности sanitize_rich в литеральный текст
+   * (textContent — безопасно, теги не интерпретируются). &amp; НЕ разворачивается:
+   * бэкенд & не экранирует (sanitize_rich._HTML_ESCAPES — только &lt;/&gt;),
+   * литерал «&amp;» в тексте пользователя при декодировании мутировал бы в «&»
+   * и терялся бы при сохранении — roundtrip-сохранность (review-001-4.1 #4). */
   target.textContent = String(text)
     .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&");
+    .replace(/&gt;/g, ">");
 }
 
 /* ------------------------------------------------------------------ */
 /* Инлайн-разметка: **b**, *i*, `code`, [текст](url), ![alt](src){w=N} */
 /* ------------------------------------------------------------------ */
 
+/* URL-группа = дословное зеркало _URL_GROUP в sanitize_rich.py: допускает
+ * ЛЮБОЕ число групп скобок (http://x/a(b)c(d)) — иначе бэкенд сохраняет
+ * такую инлайн-ссылку/картинку, а токенайзер рендерил бы литеральным текстом
+ * (FR-124 «что видишь — то сохранишь», review-001-4.1 #3; не security —
+ * safeUrl ниже второй слой). Менять только синхронно с бэкендом + кейс в
+ * grammar-фикстурах. */
 var INLINE_TOKEN_RE =
-  /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(`([^`]+)`)|(!\[([^\]]*)\]\(([^()\s]*(?:\([^()]*\))?[^()\s]*)\)(?:\{width=(\d+)\})?)|(\[([^\]]*)\]\(([^()\s]*(?:\([^()]*\))?[^()\s]*)\))/g;
+  /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(`([^`]+)`)|(!\[([^\]]*)\]\(((?:[^()\s]|\([^()]*\))*)\)(?:\{width=(\d+)\})?)|(\[([^\]]*)\]\(((?:[^()\s]|\([^()]*\))*)\))/g;
 
 export function renderInline(target, text) {
   var lastIndex = 0;
@@ -122,12 +130,12 @@ function appendImage(target, alt, src, width) {
 }
 
 /* Развернуть текст инлайн-разметки в целевой контейнер (экранированные
- * сущности sanitize_rich → литералы). */
+ * сущности sanitize_rich → литералы; &amp; не разворачивается — бэкенд его
+ * не создает, review-001-4.1 #4). */
 export function renderTextContent(target, text) {
   var plain = String(text)
     .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&");
+    .replace(/&gt;/g, ">");
   renderInline(target, plain);
 }
 
@@ -168,8 +176,7 @@ export function renderChildren(nodes, options) {
 export function appendTextParagraphs(fragment, text, options) {
   var plain = String(text)
     .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&");
+    .replace(/&gt;/g, ">"); /* &amp; не разворачивается — review-001-4.1 #4 */
   var lines = plain.split("\n");
   var paragraph = null;
   lines.forEach(function (line) {
@@ -293,9 +300,11 @@ export function renderCanvas(canvas, ctx) {
 
 /* Экранированный текст sanitize_rich → литералы для contenteditable и
  * обратно (в диалект текст пишется в канонической экранированной форме —
- * зеркально backend sanitize_rich). */
+ * зеркально backend sanitize_rich). &amp; НЕ разворачивается: бэкенд его
+ * не создает, декодирование мутировало бы литеральный «&amp;» пользователя
+ * в «&» при сохранении — roundtrip-сохранность (review-001-4.1 #4). */
 function unfolded(text) {
-  return String(text).replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  return String(text).replace(/&lt;/g, "<").replace(/&gt;/g, ">");
 }
 
 function folded(text) {

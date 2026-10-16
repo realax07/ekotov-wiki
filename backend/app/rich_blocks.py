@@ -41,6 +41,15 @@ import re
 # блок-модуль на фронте (design §2: расширение без правки ядра).
 CONTAINER_TYPES = ("columns", "callout", "aside", "spoiler")
 
+# Лимит глубины вложенности контейнеров (review-001-4.1 #1, major): ~400+
+# вложенных :::callout без лимита роняли рекурсию RecursionError'ом —
+# необработанный 500 на POST/PUT/revert. Превышение = структурная ошибка
+# диалекта: strict (validate) → RichSyntaxError (ValueError) → толерантный
+# fallback шва wiki.py (A-2, plain text + лог, БЕЗ 422); толерантный parse →
+# текст + warning. Зеркальный лимит — frontend/static/js/wiki/rich/
+# block-parser.js (MAX_DEPTH), страховка RecursionError — шов wiki.py.
+MAX_DEPTH = 100
+
 CALLOUT_TYPES = ("info", "warn", "success")
 
 # width∈10..100 — whitelist атрибута масштаба (tasks.md 1.2б; NFR-34 не меняется)
@@ -256,6 +265,7 @@ def _parse_lines(
     stop_at_close: bool,
     strict: bool,
     warnings: list[str],
+    depth: int = 0,
 ) -> tuple[list[dict], int, bool]:
     nodes: list[dict] = []
     text_buffer: list[str] = []
@@ -316,9 +326,23 @@ def _parse_lines(
                 text_buffer.append(line)
                 pos += 1
                 continue
+            if depth >= MAX_DEPTH:
+                # Лимит вложенности (review-001-4.1 #1): превышение —
+                # структурная ошибка, а не падение рекурсии.
+                if strict:
+                    raise RichSyntaxError(
+                        f"превышена глубина вложенности (максимум {MAX_DEPTH})",
+                        pos + 1,
+                    )
+                warnings.append(
+                    f"строка {pos + 1}: превышена глубина вложенности — текст"
+                )
+                text_buffer.append(line)
+                pos += 1
+                continue
             flush_text()
             node, pos, _ = _parse_container(
-                lines, pos, block_type, container.group(2), strict, warnings
+                lines, pos, block_type, container.group(2), strict, warnings, depth
             )
             if node["type"] == "text":
                 text_buffer.append(node["text"])
@@ -368,15 +392,16 @@ def _parse_container(
     attrs: str,
     strict: bool,
     warnings: list[str],
+    depth: int = 0,
 ) -> tuple[dict, int, bool]:
     """Разбор ``:::type … :::`` с рекурсивным содержимым (FR-127).
     Возвращает (узел, след. позиция, закрыт) — узел text при толерантном
-    fallback'е."""
+    fallback'е. ``depth`` — уровень вложенности открываемого контейнера."""
     line_no = start + 1
     fallback = _fallback_text(lines, start)
 
     if block_type == "columns":
-        return _parse_columns(lines, start, strict, warnings, fallback)
+        return _parse_columns(lines, start, strict, warnings, fallback, depth)
 
     # callout / aside / spoiler: содержимое — рекурсивный _parse_lines
     if block_type == "callout":
@@ -390,7 +415,12 @@ def _parse_container(
             )
             return fallback
         children, pos, closed = _parse_lines(
-            lines, start + 1, stop_at_close=True, strict=strict, warnings=warnings
+            lines,
+            start + 1,
+            stop_at_close=True,
+            strict=strict,
+            warnings=warnings,
+            depth=depth + 1,
         )
         if not closed:
             if strict:
@@ -401,7 +431,12 @@ def _parse_container(
 
     if block_type == "aside":
         children, pos, closed = _parse_lines(
-            lines, start + 1, stop_at_close=True, strict=strict, warnings=warnings
+            lines,
+            start + 1,
+            stop_at_close=True,
+            strict=strict,
+            warnings=warnings,
+            depth=depth + 1,
         )
         if not closed:
             if strict:
@@ -419,7 +454,12 @@ def _parse_container(
         warnings.append(f"строка {line_no}: spoiler без title — текст")
         return fallback
     children, pos, closed = _parse_lines(
-        lines, start + 1, stop_at_close=True, strict=strict, warnings=warnings
+        lines,
+        start + 1,
+        stop_at_close=True,
+        strict=strict,
+        warnings=warnings,
+        depth=depth + 1,
     )
     if not closed:
         if strict:
@@ -449,6 +489,7 @@ def _parse_columns(
     strict: bool,
     warnings: list[str],
     fallback: tuple[dict, int, bool],
+    depth: int = 0,
 ) -> tuple[dict, int, bool]:
     """``:::columns`` … ``:::``: колонок минимум две, разделитель ``<<<``
     строкой верхнего уровня (FR-118); содержимое колонки — рекурсивный разбор
@@ -512,7 +553,12 @@ def _parse_columns(
     columns: list[list[dict]] = []
     for segment in segments:
         nodes, _, _ = _parse_lines(
-            segment, 0, stop_at_close=False, strict=strict, warnings=warnings
+            segment,
+            0,
+            stop_at_close=False,
+            strict=strict,
+            warnings=warnings,
+            depth=depth + 1,
         )
         if strict and not any(
             node["type"] != "text" or node["text"].strip() for node in nodes

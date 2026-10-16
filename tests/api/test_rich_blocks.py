@@ -33,6 +33,7 @@ from app.rich_blocks import (  # noqa: E402
     RichSyntaxError,
     content_has_blocks,
     parse,
+    parse_strict,
     serialize,
     serialize_nodes,
     validate,
@@ -75,6 +76,12 @@ def f():
 
 FIX_IMAGE = "![Скрин](/images/abc.png){width=50}"
 
+# URL со скобками (review-001-4.1 #2/#3): кандидат блока-изображения и
+# инлайн-ссылка с ≥2 группами скобок в URL. ЗЕРКАЛИРУЮТСЯ дословно в
+# GRAMMAR_FIXTURES tests/web/test_rich_editor.py — дифтест бэк/фронт.
+FIX_IMAGE_PAREN_URL = "![a](javascript:alert(1))"
+FIX_LINK_TWO_PAREN_GROUPS = "[ссылка](http://x/a(b)c(d))"
+
 FIX_NESTED = """:::columns
 :::aside
 Врезка в колонке.
@@ -88,6 +95,83 @@ FIX_NESTED = """:::columns
 | 1 | 2 |
 :::
 :::"""
+
+
+# --------------------------------------------------------------------------
+# Лимит глубины вложенности (review-001-4.1 #1, major)
+# --------------------------------------------------------------------------
+
+
+def _nested_callouts(n: int) -> str:
+    """n вложенных :::callout (по одному на строку) + контент + n закрытий."""
+    return ":::callout type=info\n" * n + "глубоко\n" + ":::\n" * n
+
+
+def _tree_depth(nodes: list[dict]) -> int:
+    """Максимальная вложенность контейнеров в дереве (text/code/image = 0)."""
+    max_depth = 0
+    for node in nodes:
+        if node["type"] in ("text", "code", "image", "table"):
+            continue
+        children = node.get("children") or (
+            [child for column in node.get("columns", []) for child in column]
+        )
+        max_depth = max(max_depth, 1 + _tree_depth(children))
+    return max_depth
+
+
+def test_max_depth_strict_is_structural_error():
+    """TC-RICH-201 (review-001-4.1 #1): превышение MAX_DEPTH в строгом разборе
+    — структурная ошибка RichSyntaxError (ValueError), попадает под
+    толерантный fallback шва wiki.py, а НЕ RecursionError/500."""
+    from app.rich_blocks import MAX_DEPTH
+
+    with pytest.raises(RichSyntaxError) as excinfo:
+        validate(_nested_callouts(MAX_DEPTH + 50))
+    assert "глубина вложенности" in str(excinfo.value)
+
+
+def test_max_depth_tolerant_parse_no_recursionerror():
+    """TC-RICH-202 (review-001-4.1 #1): толерантный parse на 500 вложенных
+    callout не бросает (раньше — RecursionError ≈ с n=500); результат —
+    стабильная каноническая форма (текст/блоки, без падения рекурсии)."""
+    deep = _nested_callouts(500)
+    once = serialize(parse(deep))  # не бросает
+    assert serialize(parse(once)) == once  # roundtrip стабилен
+
+
+def test_max_depth_boundary_exact_max_depth_allowed():
+    """TC-RICH-203 (review-001-4.1 #1): ровно MAX_DEPTH уровней вложенности —
+    валидный диалект (дерево строится, блоки не деградируют в текст)."""
+    from app.rich_blocks import MAX_DEPTH
+
+    nodes = parse_strict(_nested_callouts(MAX_DEPTH))
+    assert _tree_depth(nodes) == MAX_DEPTH
+    assert serialize(parse_strict(_nested_callouts(MAX_DEPTH))) == _nested_callouts(
+        MAX_DEPTH
+    )
+
+
+def test_max_depth_boundary_over_max_depth_rejected():
+    """TC-RICH-204 (review-001-4.1 #1): MAX_DEPTH+1 уровней — структурная
+    ошибка в strict и текст (без исключений) в толерантном разборе."""
+    from app.rich_blocks import MAX_DEPTH, parse as tolerant_parse
+
+    over = _nested_callouts(MAX_DEPTH + 1)
+    with pytest.raises(RichSyntaxError):
+        parse_strict(over)
+    nodes = tolerant_parse(over)  # толерантно: не бросает, часть — текст
+    assert nodes  # разбор непуст
+
+
+def test_paren_url_grammar_fixtures_roundtrip():
+    """TC-RICH-208 (review-001-4.1 #2/#3): URL-со-скобками фикстуры lossless —
+    кандидат блока-изображения со скобками в URL не становится блоком, инлайн-
+    ссылка с ≥2 группами скобок сохраняется дословно (каноническая форма =
+    исходная строка; зеркало fixtures — tests/web GRAMMAR_FIXTURES)."""
+    for fixture in (FIX_IMAGE_PAREN_URL, FIX_LINK_TWO_PAREN_GROUPS):
+        assert serialize(parse(fixture)) == fixture, fixture
+        assert not content_has_blocks(parse(fixture)), fixture
 
 
 # --------------------------------------------------------------------------

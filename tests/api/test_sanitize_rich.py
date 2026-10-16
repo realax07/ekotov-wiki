@@ -307,3 +307,54 @@ def test_mixed_content_legacy_segment_passthrough():
     out = sanitize(content)
     assert out.startswith(sanitize_html(legacy_part) + "\n\n")
     assert "javascript" not in out
+
+
+# --------------------------------------------------------------------------
+# URL со скобками (review-001-4.1 #2 minor — security-инвариант зеркала;
+# #3 minor — рассинхрон инлайн-URL-групп бэк/фронт)
+# --------------------------------------------------------------------------
+
+
+PAREN_URL_FIXTURES = [
+    # кандидат блока-изображения с URL в скобках: НЕ матчится блок-regex
+    # (_IMAGE_LINE_RE, URL-группа [^)\s]+) → весь контент — legacy-passthrough;
+    # литерал javascript: остается как инертный ТЕКСТ (не в атрибуте).
+    "![a](javascript:alert(1))",
+    # то же с «безопасной» схемой — passthrough тоже литеральный
+    "![к](/images/x(1).png)",
+]
+
+
+def test_paren_url_image_candidate_is_legacy_passthrough():
+    """TC-RICH-205 (review-001-4.1 #2): строка-кандидат блока-изображения с
+    URL, содержащим скобки, уходит в legacy-passthrough — sanitize_rich
+    идентичен sanitize_html (инвариант M-4); инвариант «зеркало regex =
+    security-граница» задокументирован в ОБОИХ парсерах (sanitize_rich.py,
+    block-parser.js), фронт рендерит такой сегмент текстом."""
+    for fixture in PAREN_URL_FIXTURES:
+        assert sanitize(fixture) == sanitize_html(fixture), fixture
+    # вектор javascript: остается литеральным текстом, но НЕ исполняется:
+    # он не в атрибуте href/src, а в текстовом узле (textContent).
+    out = sanitize("![a](javascript:alert(1))")
+    assert "![a](javascript:alert(1))" in out
+
+
+def test_paren_url_inline_in_block_neutralized():
+    """TC-RICH-206 (review-001-4.1 #2): ВНУТРИ блока диалекта инлайн-разметка
+    с URL в скобках фильтруется rich-путем — javascript:-URL нейтрализован,
+    текст остается."""
+    out = sanitize(":::callout type=info\n![a](javascript:alert(1))\n:::")
+    assert "javascript" not in out
+    assert "![a]()" in out
+    out2 = sanitize(":::callout type=info\n[тык](javascript:alert(1))\n:::")
+    assert "javascript" not in out2
+    assert "[тык]()" in out2
+
+
+def test_inline_url_two_paren_groups_kept_intact():
+    """TC-RICH-207 (review-001-4.1 #3): инлайн-ссылка с URL, содержащим ≥2
+    группы скобок, бэкендом сохраняется ЦЕЛИКОМ (та же URL-группа
+    _URL_GROUP, что у фронтового токенайзера renderer.js INLINE_TOKEN_RE —
+    sync-инвариант FR-124 «что видишь — то сохранишь»)."""
+    out = sanitize(":::callout type=info\n[ссылка](http://x/a(b)c(d))\n:::")
+    assert "[ссылка](http://x/a(b)c(d))" in out

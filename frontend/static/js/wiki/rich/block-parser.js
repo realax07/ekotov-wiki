@@ -29,6 +29,13 @@ export var CALLOUT_TYPES = ["info", "warn", "success"];
 export var WIDTH_MIN = 10;
 export var WIDTH_MAX = 100;
 
+/* Лимит глубины вложенности контейнеров (review-001-4.1 #1) — зеркало
+ * MAX_DEPTH в backend/app/rich_blocks.py: превышение = структурная ошибка
+ * (parseStrict бросает RichSyntaxError → редактор отклоняет контент ДО
+ * отправки), толерантный parse → текст. Без лимита ~400+ вложенных :::
+ * роняли рекурсию RangeError'ом и ломали рендер читателю. */
+export var MAX_DEPTH = 100;
+
 var FENCE_RE = /^```(.*)$/;
 var FENCE_CLOSE_RE = /^```\s*$/;
 var CONTAINER_RE = /^:::([a-zA-Z]+)(.*)$/;
@@ -37,6 +44,12 @@ var COLUMN_SEP_RE = /^<<<\s*$/;
 var SPOILER_TITLE_RE = /title="((?:[^"\\]|\\.)*)"/;
 var CALLOUT_TYPE_RE = /type=([a-zA-Z]+)/;
 var IMAGE_LINE_RE = /^!\[([^\]]*)\]\(([^)\s]+)\)(?:\{width=(\d+)\})?\s*$/;
+/* SECURITY-ИНВАРИАНТ (review-001-4.1 #2): IMAGE_LINE_RE — дословное зеркало
+ * rich_blocks._IMAGE_LINE_RE и граница безопасности. Кандидат блока-изображения
+ * с URL в скобках (`![a](javascript:alert(1))`) НЕ матчится — остается ТЕКСТОМ
+ * на бэке (legacy-passthrough) и здесь (textContent — не исполняется, safeUrl
+ * — второй слой). Менять только синхронно с бэком + дифтест fixture
+ * URL-со-скобками (test_rich_blocks/test_rich_editor). */
 
 /* Строгая ошибка структуры (позиция строки — 1-базная, как на сервере). */
 export function RichSyntaxError(message, line) {
@@ -209,10 +222,10 @@ function fallbackText(lines, start) {
   return [textNode(collected.join("\n")), pos, false];
 }
 
-function parseContainer(lines, start, blockType, attrs, strict, warnings) {
+function parseContainer(lines, start, blockType, attrs, strict, warnings, depth) {
   var lineNo = start + 1;
   if (blockType === "columns") {
-    return parseColumns(lines, start, strict, warnings, fallbackText(lines, start));
+    return parseColumns(lines, start, strict, warnings, fallbackText(lines, start), depth);
   }
   var parsed;
   try {
@@ -222,7 +235,7 @@ function parseContainer(lines, start, blockType, attrs, strict, warnings) {
     warnings.push("строка " + lineNo + ": spoiler без title — текст");
     return fallbackText(lines, start);
   }
-  parsed = parseLines(lines, start + 1, true, strict, warnings);
+  parsed = parseLines(lines, start + 1, true, strict, warnings, depth + 1);
   if (!parsed[2]) {
     if (strict) {
       throw RichSyntaxError("незакрытый контейнер :::" + blockType, lineNo);
@@ -252,10 +265,10 @@ function parseContainer(lines, start, blockType, attrs, strict, warnings) {
   ];
 }
 
-function parseColumns(lines, start, strict, warnings, fallback) {
+function parseColumns(lines, start, strict, warnings, fallback, depth) {
   var lineNo = start + 1;
   var segments = [[]];
-  var depth = 0;
+  var openDepth = 0;
   var inFence = false;
   var pos = start + 1;
   var closed = false;
@@ -274,23 +287,23 @@ function parseColumns(lines, start, strict, warnings, fallback) {
       continue;
     }
     if (CONTAINER_RE.test(line)) {
-      depth += 1;
+      openDepth += 1;
       segments[segments.length - 1].push(line);
       pos += 1;
       continue;
     }
     if (CONTAINER_CLOSE_RE.test(line)) {
-      if (depth === 0) {
+      if (openDepth === 0) {
         closed = true;
         pos += 1;
         break;
       }
-      depth -= 1;
+      openDepth -= 1;
       segments[segments.length - 1].push(line);
       pos += 1;
       continue;
     }
-    if (depth === 0 && COLUMN_SEP_RE.test(line)) {
+    if (openDepth === 0 && COLUMN_SEP_RE.test(line)) {
       segments.push([]);
       pos += 1;
       continue;
@@ -312,7 +325,7 @@ function parseColumns(lines, start, strict, warnings, fallback) {
   }
   var columns = [];
   segments.forEach(function (segment) {
-    columns.push(parseLines(segment, 0, false, strict, warnings)[0]);
+    columns.push(parseLines(segment, 0, false, strict, warnings, depth + 1)[0]);
   });
   return [{ type: "columns", columns: columns }, pos, true];
 }
@@ -338,7 +351,7 @@ function serializeContainer(node) {
 /* Ядро: построчный разбор                                             */
 /* ------------------------------------------------------------------ */
 
-function parseLines(lines, start, stopAtClose, strict, warnings) {
+function parseLines(lines, start, stopAtClose, strict, warnings, depth) {
   var nodes = [];
   var textBuffer = [];
   var pos = start;
@@ -392,8 +405,22 @@ function parseLines(lines, start, stopAtClose, strict, warnings) {
         pos += 1;
         continue;
       }
+      if (depth >= MAX_DEPTH) {
+        /* Лимит вложенности (review-001-4.1 #1): превышение — структурная
+         * ошибка, а не RangeError рекурсии. */
+        if (strict) {
+          throw RichSyntaxError(
+            "превышена глубина вложенности (максимум " + MAX_DEPTH + ")",
+            pos + 1
+          );
+        }
+        warnings.push("строка " + (pos + 1) + ": превышена глубина вложенности — текст");
+        textBuffer.push(line);
+        pos += 1;
+        continue;
+      }
       flushText();
-      var parsed = parseContainer(lines, pos, blockType, container[2], strict, warnings);
+      var parsed = parseContainer(lines, pos, blockType, container[2], strict, warnings, depth);
       if (parsed[0].type === "text") textBuffer.push(parsed[0].text);
       else nodes.push(parsed[0]);
       pos = parsed[1];
@@ -439,13 +466,13 @@ function parseLines(lines, start, stopAtClose, strict, warnings) {
  * текст; исключений не бросает. */
 export function parse(content) {
   if (content === "") return [];
-  return parseLines(String(content).split("\n"), 0, false, false, [])[0];
+  return parseLines(String(content).split("\n"), 0, false, false, [], 0)[0];
 }
 
 /* Строгий разбор (новый rich-контент в редакторе): структурная ошибка →
  * RichSyntaxError с позицией строки (зеркало rich_blocks.validate). */
 export function parseStrict(content) {
-  return parseLines(String(content).split("\n"), 0, false, true, [])[0];
+  return parseLines(String(content).split("\n"), 0, false, true, [], 0)[0];
 }
 
 export function validate(content) {

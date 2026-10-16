@@ -19,6 +19,9 @@ uvicorn app + search + http.server static, tmp-БД + seed owner/wife).
                 отправки, запрос не уходит)
   TC-rich-111 → test_editor_insert_into_column_roundtrip (2.5, FR-127)
   TC-rich-112 → test_mixed_page_legacy_part_renders_as_before (1.7в)
+  TC-RICH-201…213 → фиксы review-001-4.1 (MAX_DEPTH бэк/фронт, URL со
+                скобками — инвариант зеркала и синхрон URL-групп, &amp;
+                roundtrip, шов 500→fallback в test_wiki_api/test_sanitize_rich)
 
 Изоляция: страницы создаются API от owner-сессии, удаляются в teardown.
 """
@@ -60,6 +63,12 @@ GRAMMAR_FIXTURES = [
     "Текст с ::: в начале\n:::\nтекст\n:::",
     "| a | b |\n| --- |\n| 1 | 2 |",
     "```незакрытый\nкод",
+    # URL со скобками (review-001-4.1 #2/#3, зеркалят FIX_* в
+    # tests/api/test_rich_blocks.py дословно): кандидат блока-изображения
+    # со скобками в URL — НЕ блок (текст); ссылка с ≥2 группами скобок —
+    # инлайн-разметка, URL-группы бэка и фронта синхронны.
+    "![a](javascript:alert(1))",
+    "[ссылка](http://x/a(b)c(d))",
 ]
 
 RICH_PAGE_CONTENT = """Вступление обычным абзацем.
@@ -497,3 +506,85 @@ def test_editor_insert_into_column_roundtrip(
     expect(nested_edit.locator(".rich-table")).to_be_visible()
     assert "вложенная ячейка" in nested_edit.locator(".rich-table").inner_text()
     assert "Вторая колонка." in page.locator(".editor-area").inner_text()
+
+
+# ---------------------------------------------------------------------------
+# Фиксы review-001-4.1 (MAX_DEPTH + minor'ы #2…#4)
+# ---------------------------------------------------------------------------
+
+
+def test_editor_rejects_over_max_depth(logged_in_page):
+    """TC-RICH-211 (review-001-4.1 #1, major): parseStrict на MAX_DEPTH+1
+    вложенных :::callout бросает RichSyntaxError «глубина вложенности» —
+    редактор отклоняет структурную ошибку ДО отправки; толерантный parse не
+    бросает; MAX_DEPTH фронта = MAX_DEPTH бэкенда."""
+    from app.rich_blocks import MAX_DEPTH as PY_MAX_DEPTH
+
+    deep = ":::callout type=info\n" * (PY_MAX_DEPTH + 1) + "x\n" + ":::\n" * (
+        PY_MAX_DEPTH + 1
+    )
+    result = _js_parser(logged_in_page)(
+        f"""(() => {{
+          let strictError = null;
+          try {{ m.parseStrict({deep!r}); }} catch (e) {{
+            strictError = {{ name: e.name, message: String(e.message) }};
+          }}
+          let tolerantThrew = false;
+          try {{ m.parse({deep!r}); }} catch (e) {{ tolerantThrew = true; }}
+          return {{ strictError, tolerantThrew, maxDepth: m.MAX_DEPTH }};
+        }})()"""
+    )
+    assert result["maxDepth"] == PY_MAX_DEPTH  # зеркало лимита
+    assert result["strictError"] is not None
+    assert result["strictError"]["name"] == "RichSyntaxError"
+    assert "глубина вложенности" in result["strictError"]["message"]
+    assert result["tolerantThrew"] is False
+
+
+def test_editor_roundtrip_amp_not_decoded(logged_in_page):
+    """TC-RICH-213 (review-001-4.1 #4): литерал «&amp;» в тексте блока НЕ
+    декодируется в редакторе (&lt;/&gt; — разворачиваются): открытие-правка-
+    сохранение сохраняет AT&amp;T без мутации — roundtrip-сохранность."""
+    result = logged_in_page.evaluate(
+        """async () => {
+          const renderer = await import('/static/js/wiki/rich/renderer.js');
+          const node = { type: 'text', text: 'AT&amp;T 5&lt;6' };
+          const element = document.createElement('div');
+          renderer.renderCanvas(
+            { nodes: [node], element },
+            { editing: true, onChange() {} }
+          );
+          const shown = element.querySelector('.rich-textline').textContent;
+          // правка DOM → write-back (observeWriteBack → folded(innerText))
+          element.querySelector('.rich-textline').appendChild(
+            document.createTextNode('!')
+          );
+          await new Promise((resolve) => setTimeout(resolve, 80));
+          return { shown, stored: node.text };
+        }"""
+    )
+    assert result["shown"] == "AT&amp;T 5<6"  # &lt; развернут, &amp; — НЕТ
+    assert result["stored"] == "AT&amp;T 5&lt;6!"  # &amp; не мутировал
+
+
+def test_render_inline_url_two_paren_groups_not_literal(logged_in_page):
+    """TC-RICH-212 (review-001-4.1 #3): URL с ≥2 группами скобок фронтовый
+    токенайзер рендерит ССЫЛКОЙ с полным URL (INLINE_TOKEN_RE = зеркало
+    _URL_GROUP бэкенда), а не литеральным текстом (FR-124)."""
+    result = logged_in_page.evaluate(
+        """async () => {
+          const renderer = await import('/static/js/wiki/rich/renderer.js');
+          const target = document.createElement('div');
+          renderer.renderInline(target, 'до [ссылка](http://x/a(b)c(d)) после');
+          const a = target.querySelector('a');
+          return { href: a ? a.getAttribute('href') : null,
+                   text: a ? a.textContent : null };
+        }"""
+    )
+    assert result["href"] == "http://x/a(b)c(d)"
+    assert result["text"] == "ссылка"
+    # бэкенд сохраняет ссылку дословно — URL-группы синхронны
+    from app.sanitize_rich import sanitize_inline
+
+    out = sanitize_inline("до [ссылка](http://x/a(b)c(d)) после")
+    assert "[ссылка](http://x/a(b)c(d))" in out
