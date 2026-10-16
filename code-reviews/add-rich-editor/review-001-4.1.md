@@ -1,5 +1,7 @@
 # Ревью 001 — задача 4.1: диф rich-редактора (change add-rich-editor)
 
+- **Reviewer-Delegation:** deleg_e44ada31 (раунд 1 — return, фиксы внесены) / deleg_58cb8b9a (раунд 2 — APPROVE) (проставлено ПМ из реестра — J10)
+
 - **Ветка:** pipeline/add-rich-editor vs main; 13 коммитов `[rich-editor]`, ~6100 строк (15 новых модулей + швы + 102 теста).
 - **Спека:** openspec/changes/add-rich-editor/ (design D1–D4; requirements FR-117…FR-127, NFR-35…38; spec-дельты wiki-editor + wiki-sanitize; review-001-architecture: A-1/A-2/M-4 учтены).
 - **Вердикт: RETURN** — 1 major (устраняется точечно), 4 minor. Остальное — чисто.

@@ -1,5 +1,7 @@
 # Ревью 002 — задачи 4.2/4.3: повторное ревью дифа фиксов (change add-rich-editor)
 
+- **Reviewer-Delegation:** deleg_58cb8b9a (повторное ревью дифа фиксов — APPROVE) (проставлено ПМ из реестра — J10)
+
 - **Диф:** `git diff f439a26..ae1a136` (единственный фикс-коммит ae1a136; review-001-4.1 не тронут).
 - **Объем:** 10 файлов, +410/−37: rich_blocks.py, sanitize_rich.py, wiki.py, block-parser.js, renderer.js + тесты (api: rich_blocks/sanitize_rich/wiki_api; web: test_rich_editor; REPORT-perf — новая строка прогона 0.24 с PASS).
 - **Вердикт: APPROVE** — все 5 пунктов review-001-4.1 закрыты корректно и подтверждены прогоном. Одно новое наблюдение (minor, вне дифа, не блокирует — см. «Хвост»).
