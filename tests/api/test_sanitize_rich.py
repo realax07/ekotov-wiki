@@ -19,10 +19,16 @@ sanitize.py не тронут (директива Заказчика, design §3
 Реестр тест→TC (rule 6): векторы NFR-35 — TC-richs-101…115;
 whitelist атрибутов — TC-richs-116…118; идемпотентность/структура — TC-richs-119/120;
 инвариант M-4 — TC-richs-121/122.
+Sweep-кейсы approved-матрицы (этап 3.3): script — TC-sec-304; iframe — TC-sec-306;
+object/embed — TC-sec-307; обработчики on* — TC-sec-309; javascript:/data: —
+TC-sec-311 (спойлер, регистр, data:-ссылка); опасные атрибуты — TC-sec-312;
+обходы санитайзера — TC-sec-315.
 """
 
 import os
 import sys
+
+import pytest
 
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "backend")
@@ -358,3 +364,188 @@ def test_inline_url_two_paren_groups_kept_intact():
     sync-инвариант FR-124 «что видишь — то сохранишь»)."""
     out = sanitize(":::callout type=info\n[ссылка](http://x/a(b)c(d))\n:::")
     assert "[ссылка](http://x/a(b)c(d))" in out
+
+
+# --------------------------------------------------------------------------
+# Sweep-кейсы approved-матрицы 3.3: вектор × все типы блоков (NFR-35
+# «во всех поддерживаемых типах»);-approved TC-sec-304/306/307/309/311/312/315.
+# --------------------------------------------------------------------------
+
+
+def _assert_structure_kept(out: str, *block_types: str) -> None:
+    """Структура диалекта не разрушена: блоки перечисленных типов остаются."""
+    types = [node["type"] for node in parse(out)]
+    for expected in block_types:
+        assert expected in types, (expected, types)
+
+
+@pytest.mark.parametrize(
+    "content,kept",
+    [
+        # ячейка таблицы / колонка / врезка / спойлер (заголовок и содержимое)
+        ("| a | b |\n| --- | --- |\n| <script>alert(1)</script> | 2 |", ("table",)),
+        (":::columns\n<script>alert(1)</script>\n<<<\nok\n:::", ("columns",)),
+        (":::aside\n<script>alert(1)</script>\n:::", ("aside",)),
+        (':::spoiler title="С"\n<script>alert(1)</script>\n:::', ("spoiler",)),
+        (':::spoiler title="<script>alert(1)</script>"\nТайна\n:::', ("spoiler",)),
+        # подпись изображения (alt) — остается блоком, вектор — текстом
+        ("![<script>alert(1)</script>](/images/x.png){width=50}", ("image",)),
+    ],
+)
+def test_script_sweep_across_block_types(content, kept):
+    """TC-sec-304: вектор script нейтрализован в КАЖДОМ типе блока —
+    исполняемой разметки нет, текст сохранен, структура блока цела."""
+    out = sanitize(content)
+    assert _no_executable_markup(out)
+    assert "alert(1)" in out  # как ТЕКСТ
+    _assert_structure_kept(out, *kept)
+
+
+@pytest.mark.parametrize(
+    "content,kept",
+    [
+        (":::callout type=info\n<iframe src=\"https://evil.example\"></iframe>\n:::", ("callout",)),
+        (":::aside\n<iframe src=\"https://evil.example\"></iframe>\n:::", ("aside",)),
+        (":::columns\n<iframe src=\"https://evil.example\"></iframe>\n<<<\nok\n:::", ("columns",)),
+        (':::spoiler title="<iframe src=x></iframe>"\n<iframe src=x></iframe>\n:::', ("spoiler",)),
+        ("![<iframe src=x></iframe>](/images/x.png)", ("image",)),
+    ],
+)
+def test_iframe_sweep_across_block_types(content, kept):
+    """TC-sec-306: iframe нейтрализован в каждом типе блока (embed не
+    соберется ни в одном типе — тег экранирован на записи)."""
+    out = sanitize(content)
+    assert _no_executable_markup(out)
+    assert "&lt;iframe" in out
+    _assert_structure_kept(out, *kept)
+
+
+@pytest.mark.parametrize(
+    "content,kept",
+    [
+        # врезка (основной сценарий) + вариант <embed>
+        (":::aside\n<object data=\"https://evil.example/x.swf\"></object>\n:::", ("aside",)),
+        (":::aside\n<embed src=\"https://evil.example/x.swf\">\n:::", ("aside",)),
+        # sweep по остальным типам: callout / колонка / ячейка таблицы /
+        # спойлер (заголовок и содержимое) / подпись изображения
+        (":::callout type=info\n<object data=\"https://evil.example/x.swf\"></object>\n:::", ("callout",)),
+        (":::columns\n<object data=\"https://evil.example/x.swf\"></object>\n<<<\nok\n:::", ("columns",)),
+        ("| a | b |\n| --- | --- |\n| <object data=\"https://evil.example/x.swf\"></object> | 2 |", ("table",)),
+        (':::spoiler title="<object data=x></object>"\n<object data="x"></object>\n:::', ("spoiler",)),
+        ("![<object data=x></object>](/images/x.png)", ("image",)),
+        # код-блок: вектор — литеральный текст, код-блок остается код-блоком
+        ("```html\n<object data=\"x\"></object>\n```", ("code",)),
+    ],
+)
+def test_object_embed_sweep_across_block_types(content, kept):
+    """TC-sec-307: object/embed отсутствуют как элементы во ВСЕХ типах блоков
+    (врезка + callout + колонка + таблица + спойлер + подпись + код-блок);
+    встроенный объект не собирается ни в одном типе (экранирование на записи)."""
+    out = sanitize(content)
+    assert _no_executable_markup(out)
+    assert "&lt;object" in out or "&lt;embed" in out
+    _assert_structure_kept(out, *kept)
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        ':::callout type=info\n<span onmouseover="evil()">x</span>\n:::',
+        ":::aside\n<div onfocus=\"evil()>y</div>\n:::",
+        "| a | b |\n| --- | --- |\n| <td onclick=\"evil()\">x</td> | 2 |",
+        "![<img src=x onload=\"evil()\">](/images/x.png)",
+        ':::spoiler title="<b onerror=\"evil()\">С</b>"\nТайна\n:::',
+    ],
+)
+def test_event_handler_sweep_across_block_types(content):
+    """TC-sec-309: обработчики on* (onmouseover/onfocus/onclick/onload/
+    onerror) не попадают в DOM ни в одном типе блока — разметка экранируется
+    целиком, обработчик остается инертным текстом."""
+    out = sanitize(content)
+    assert _no_executable_markup(out)
+
+
+def test_javascript_url_sweep_spoiler_case_and_data_links():
+    """TC-sec-311: javascript:-URL (в любом регистре) и data:-ссылка с html
+    нейтрализованы в содержимом спойлера, колонке, таблице (caps-регистр) и
+    врезке; текст ссылки остается, URL вырезан ([текст]())."""
+    # содержимое спойлера — представитель sweep по типам блоков
+    out = sanitize(':::spoiler title="С"\n[w](javascript:alert(\'spoiler\'))\n:::')
+    assert "javascript" not in out.lower()
+    assert "[w]()" in out
+    assert parse(out)[0]["type"] == "spoiler"
+    # регистр — граница: JAVASCRIPT: в колонке
+    out = sanitize(":::columns\n[z](JAVASCRIPT:alert('col'))\n<<<\nok\n:::")
+    assert "javascript" not in out.lower()
+    assert "[z]()" in out
+    # caps в ячейке таблицы
+    out = sanitize("| a | b |\n| --- | --- |\n| [x](JavaScript:alert(1)) | 2 |")
+    assert "javascript" not in out.lower()
+    assert "[x]()" in out
+    # data:-ссылка с html во врезке
+    out = sanitize(":::aside\n[y](data:text/html,<script>alert(1)</script>)\n:::")
+    assert "data:" not in out
+    assert "<script>" not in out
+    assert "[y]()" in out
+
+
+@pytest.mark.parametrize(
+    "content,kept",
+    [
+        (':::callout type=info\n<span style="background:url(javascript:alert(1))">x</span>\n:::', ("callout",)),
+        ('| a | b |\n| --- | --- |\n| <a href="#" formaction="javascript:alert(2)">y</a> | 2 |', ("table",)),
+        (':::aside\n<img srcset="javascript:alert(3)">\n:::', ("aside",)),
+        (':::columns\n<form action="javascript:alert(4)"><input></form>\n<<<\nok\n:::', ("columns",)),
+        (':::spoiler title="m"\n<meta http-equiv="refresh" content="0;url=javascript:alert(5)">\n:::', ("spoiler",)),
+    ],
+)
+def test_dangerous_attributes_sweep_across_block_types(content, kept):
+    """TC-sec-312: опасные атрибуты (style с javascript:-url, formaction,
+    srcset, form action, meta refresh) не попадают в DOM ни в одном типе
+    блока — тег экранирован на записи целиком; whitelist диалекта при этом
+    жив (позитив-контроль ниже, TC-blocks-114)."""
+    out = sanitize(content)
+    assert _no_executable_markup(out)
+    _assert_structure_kept(out, *kept)
+    # позитив-контроль: валидный атрибут диалекта не задет
+    assert "{width=50}" in sanitize("![a](/images/1.png){width=50}")
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        # смешанный регистр тега
+        ":::callout type=info\n<ScRiPt>alert(1)</sCrIpT>\n:::",
+        # вложенная мутация (прецедент BUG-AF-RECHECK-004)
+        ":::callout type=info\n<scr<script>ipt>alert(1)</script>\n:::",
+        # незакрытый тег
+        ":::callout type=info\n<script src=https://evil.example/x.js\n:::",
+        # caps-атрибуты
+        ":::callout type=info\n<IMG SRC=x ONERROR=alert(1)>\n:::",
+        # худший класс — повтор в ячейке таблицы
+        "| a | b |\n| --- | --- |\n| <ScRiPt>alert(1)</sCrIpT> | 2 |",
+    ],
+)
+def test_sanitizer_bypass_classes_neutralized(content):
+    """TC-sec-315: классы обходов (регистр, вложенная мутация, незакрытый
+    тег, caps-атрибуты) нейтрализованы — исполняемой разметки в
+    sanitized-контенте нет ни в одном случае."""
+    out = sanitize(content)
+    assert _no_executable_markup(out)
+    assert sanitize(out) == out  # идемпотентность на обходах
+
+
+def test_sanitizer_encoded_and_control_char_urls_inert():
+    """TC-sec-315 (энкодинги/управляющие символы в схеме): HTML-энкодинг
+    &#106;avascript: и таб внутри схемы НЕ образуют исполняемого href —
+    URL-фильтр диалекта вырезает literal-схемы javascript:/data:, остаток —
+    инертный текст ссылки; структура блока цела."""
+    out = sanitize(":::callout type=info\n[a](&#106;avascript:alert(1))\n:::")
+    assert _no_executable_markup(out)
+    assert parse(out)[0]["type"] == "callout"  # блок цел
+    # таб в схеме: java\tscript: не матчится ни как валидный URL, ни как
+    # javascript: — рендер не создает href с исполняемой схемой (инертный
+    # текст; DOM-граница — структурно безопасный renderer, TC-rich-103)
+    out = sanitize(":::callout type=info\n[j](java\tscript:alert(1))\n:::")
+    assert _no_executable_markup(out)
+    assert parse(out)[0]["type"] == "callout"

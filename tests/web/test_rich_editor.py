@@ -22,6 +22,10 @@ uvicorn app + search + http.server static, tmp-БД + seed owner/wife).
   TC-RICH-201…213 → фиксы review-001-4.1 (MAX_DEPTH бэк/фронт, URL со
                 скобками — инвариант зеркала и синхрон URL-групп, &amp;
                 roundtrip, шов 500→fallback в test_wiki_api/test_sanitize_rich)
+  Approved-матрица 3.3: TC-blocks-102 → test_table_structure_edit_no_content_loss;
+  TC-blocks-109 → test_callout_type_change_keeps_text; TC-blocks-105/106 →
+  test_columns_view_order_and_boundaries; TC-blocks-119/120 →
+  test_block_combinations_in_containers.
 
 Изоляция: страницы создаются API от owner-сессии, удаляются в teardown.
 """
@@ -588,3 +592,185 @@ def test_render_inline_url_two_paren_groups_not_literal(logged_in_page):
 
     out = sanitize_inline("до [ссылка](http://x/a(b)c(d)) после")
     assert "[ссылка](http://x/a(b)c(d))" in out
+
+
+# ---------------------------------------------------------------------------
+# Approved-матрица 3.3: TC-blocks-102/105/106/109/120
+# ---------------------------------------------------------------------------
+
+
+def test_table_structure_edit_no_content_loss(
+    logged_in_page, rich_page_factory, web_base_url
+):
+    """TC-blocks-102 (FR-117): правка структуры таблицы в редакторе
+    (+строка с D1/D2, −столбец) — содержимое сохранено без потерь,
+    удален именно столбец 2, оставшиеся ячейки не смещены."""
+    page_id = rich_page_factory(
+        "| A1 | A2 |\n| --- | --- |\n| B1 | B2 |\n| C1 | C2 |"
+    )
+    page = logged_in_page
+    _open_editor(page, web_base_url, page_id)
+
+    table = page.locator(".editor-area .rich-table")
+    expect(table).to_be_visible()
+    # панель правки структуры — сиблинг канвы блока (rich-controls)
+    controls = page.locator(".editor-area .rich-controls").first
+    controls.locator(".rich-control-btn", has_text="+ строка").click()
+    # новая строка 4: D1, D2
+    last_row = table.locator("tbody tr").last
+    last_row.locator("td").first.click()
+    page.keyboard.type("D1")
+    last_row.locator("td").nth(1).click()
+    page.keyboard.type("D2")
+    # удаление столбца 2 (= последнего столбца: −столбец снимает последний)
+    controls.locator(".rich-control-btn", has_text="− столбец").click()
+    expect(table.locator("tbody td")).to_have_count(3)  # 3 строки × 1 колонка
+
+    page.get_by_role("button", name="Сохранить").click()
+    page.wait_for_url(f"{web_base_url}/wiki/{page_id}")
+    view = page.locator(".article-body .rich-table")
+    expect(view).to_be_visible()
+    text = view.inner_text()
+    # 4×1: содержимое столбца 1 сохранено без потерь и без смещения
+    for cell in ("A1", "B1", "C1", "D1"):
+        assert cell in text
+    # столбец 2 удален целиком
+    for cell in ("A2", "B2", "C2", "D2"):
+        assert cell not in text
+    assert view.locator("thead th").count() == 1
+    assert view.locator("tbody tr").count() == 3
+
+
+def test_callout_type_change_keeps_text(
+    logged_in_page, rich_page_factory, web_base_url
+):
+    """TC-blocks-109 (FR-119): смена типа существующего callout в редакторе —
+    в любую сторону, оформление соответствует типу после каждого сохранения,
+    текст блока неизменен."""
+    page_id = rich_page_factory(":::callout type=info\nИнфо-блок\n:::")
+    page = logged_in_page
+
+    for new_type in ("success", "warn", "info"):
+        _open_editor(page, web_base_url, page_id)
+        select = page.locator(".editor-area select[aria-label='Тип callout']")
+        expect(select).to_have_value(
+            {"success": "info", "warn": "success", "info": "warn"}[new_type]
+        )
+        select.select_option(new_type)
+        page.get_by_role("button", name="Сохранить").click()
+        page.wait_for_url(f"{web_base_url}/wiki/{page_id}")
+        callout = page.locator(".article-body .rich-callout")
+        expect(callout).to_be_visible()
+        assert f"rich-callout-{new_type}" in callout.get_attribute("class")
+        assert callout.inner_text().strip() == "Инфо-блок"  # текст не тронут
+
+
+def test_columns_view_order_and_boundaries(
+    logged_in_page, rich_page_factory, web_base_url
+):
+    """TC-blocks-105/106 (FR-118): 3 колонки слева направо в заданном
+    порядке; границы числа колонок — пустая колонка сохраняет позицию,
+    представители 6 и 8 колонок — все рядом по порядку, содержимое целиком
+    (верхняя граница НЕ заявляется)."""
+    page = logged_in_page
+
+    def columns_texts(page_id):
+        _open_view(page, web_base_url, page_id)
+        return page.locator(".article-body .rich-columns .rich-column")
+
+    # 3 колонки, порядок слева направо
+    page_id = rich_page_factory(
+        ":::columns\nПервая\n<<<\nВторая\n<<<\nТретья\n:::"
+    )
+    cols = columns_texts(page_id)
+    expect(cols).to_have_count(3)
+    for i, expected in enumerate(("Первая", "Вторая", "Третья")):
+        assert expected in cols.nth(i).inner_text()
+
+    # пустая колонка (вторая): строгий валидатор диалекта отвергает «колонку
+    # без содержимого» (design §1; test_validate_empty_column_raises) — на
+    # просмотр такая страница не выходит rich-блоком (fallback-текст);
+    # расхождение шага 2 TC-blocks-106 с design §1 зафиксировано в матрице
+    # 3.3; браузерная часть кейса — 3 колонки / 6 и 8 колонок ниже
+
+    # представители 6 и 8 колонок: порядок и содержимое целиком
+    for n in (6, 8):
+        content = (
+            ":::columns\n"
+            + "\n<<<\n".join(f"Кол-{i}" for i in range(1, n + 1))
+            + "\n:::"
+        )
+        page_id = rich_page_factory(content)
+        cols = columns_texts(page_id)
+        expect(cols).to_have_count(n)
+        for i in range(n):
+            assert f"Кол-{i + 1}" in cols.nth(i).inner_text()
+
+
+def test_block_combinations_in_containers(
+    logged_in_page, rich_page_factory, web_base_url
+):
+    """TC-blocks-119/120 (FR-127): комбинации rich-блоков в контейнерах —
+    callout>таблица, колонка>спойлер (раскрытие работает внутри колонки),
+    врезка>код-блок (TC-blocks-119), врезка>callout; каждое вложение внутри
+    своего контейнера."""
+    content = (
+        ":::aside\n"
+        "```python\n"
+        "def f():\n"
+        "    return 1\n"
+        "```\n"
+        ":::"
+        "\n\n"
+        ":::callout type=info\n"
+        "Таблица в callout:\n"
+        "\n"
+        "| C1 | C2 |\n"
+        "| --- | --- |\n"
+        ":::"
+        "\n\n"
+        ":::aside\n"
+        ":::callout type=warn\n"
+        "Callout во врезке.\n"
+        ":::\n"
+        ":::"
+        "\n\n"
+        ":::columns\n"
+        "```python\n"
+        "def f():\n"
+        "    return 1\n"
+        "```\n"
+        "<<<\n"
+        ":::spoiler title=\"В-колонке\"\n"
+        "Сп\n"
+        ":::\n"
+        ":::"
+    )
+    page_id = rich_page_factory(content)
+    page = logged_in_page
+    _open_view(page, web_base_url, page_id)
+    body = page.locator(".article-body")
+
+    # aside > код-блок (TC-blocks-119): подсветка/переносы внутри врезки
+    aside_code = body.locator(".rich-aside .rich-code").first
+    expect(aside_code).to_be_visible()
+    assert "return 1" in aside_code.inner_text()
+
+    # callout > таблица
+    nested_table = body.locator(".rich-callout-info .rich-table")
+    expect(nested_table).to_be_visible()
+    assert nested_table.locator("thead th").count() == 2
+    # aside > callout warn
+    nested_callout = body.locator(".rich-aside .rich-callout-warn")
+    expect(nested_callout).to_be_visible()
+    assert "Callout во врезке." in nested_callout.inner_text()
+    # columns: колонка 1 > код, колонка 2 > спойлер
+    columns = body.locator(".rich-columns").last.locator(".rich-column")
+    expect(columns).to_have_count(2)
+    expect(columns.nth(0).locator(".rich-code")).to_be_visible()
+    spoiler = columns.nth(1).locator(".rich-spoiler")
+    expect(spoiler).to_be_visible()
+    expect(spoiler.locator(".rich-spoiler-body")).to_be_hidden()
+    spoiler.locator(".rich-spoiler-toggle").click()  # раскрытие внутри колонки
+    expect(spoiler.locator(".rich-spoiler-body")).to_be_visible()
+    assert "Сп" in spoiler.locator(".rich-spoiler-body").inner_text()

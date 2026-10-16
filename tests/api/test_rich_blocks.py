@@ -17,6 +17,8 @@ add-rich-editor, tasks.md 1.1; design.md §1; FR-117, FR-118, FR-127).
 Реестр тест→TC (rule 6): 1.1д позитивы/негативы — TC-richb-101…113;
 круговая преобразуемость — TC-richb-114…116; строгие негативы — TC-richb-117…126;
 толерантность (ревью A-2) — TC-richb-123…127.
+Approved-матрица 3.3: границы содержимого ячеек — TC-blocks-103;
+границы числа колонок — TC-blocks-105/106.
 """
 
 import os
@@ -434,3 +436,90 @@ def test_stray_close_marker_line_is_text():
     nodes = parse("Первая строка\n:::\nВторая строка")
     assert not content_has_blocks(nodes)
     assert serialize(nodes) == "Первая строка\n:::\nВторая строка"
+
+
+# --------------------------------------------------------------------------
+# Approved-матрица 3.3: границы (TC-blocks-103, TC-blocks-105/106)
+# --------------------------------------------------------------------------
+
+
+def test_table_cell_content_boundaries():
+    """TC-blocks-103 (FR-117): границы размера и содержимого ячеек —
+    спецсимволы не ломают разбор строки/столбца, содержимое ячеек 1:1."""
+    # 10×10: все 100 ячеек адресно, шапка + 9 строк
+    header = [f"R1C{c}" for c in range(1, 11)]
+    rows = [[f"R{r}C{c}" for c in range(1, 11)] for r in range(2, 11)]
+    lines = ["| " + " | ".join(header) + " |", "| " + " | ".join(["---"] * 10) + " |"]
+    lines += ["| " + " | ".join(row) + " |" for row in rows]
+    (node,) = parse("\n".join(lines))
+    assert node["type"] == "table"
+    assert node["header"] == header
+    assert node["rows"] == rows
+    # 1×1 (одна колонка) — минимум класса: блок-таблица, шапка сохранена 1:1
+    (node,) = parse("| x |\n| --- |")
+    assert node == {
+        "type": "table",
+        "header": ["x"],
+        "rows": [],
+        "align": ["default"],
+    }
+    # пустая ячейка сохраняет позицию
+    (node,) = parse("| a | b |\n| --- | --- |\n| | 2 |")
+    assert node["rows"] == [["", "2"]]
+    # экранированная черта, бэктики, юникод — содержимое ячейки 1:1
+    (node,) = parse("| a \\| b | `x` |\n| --- | --- |\n| эмодзи 🎉 кириллица | 2 |")
+    assert node["header"] == ["a | b", "`x`"]
+    assert node["rows"] == [["эмодзи 🎉 кириллица", "2"]]
+    # псевдо-GFM (шапка+разделитель) внутри ОДНОЙ ячейки — текст ячейки,
+    # не вложенная таблица
+    (node,) = parse(
+        "| a | b |\n| --- | --- |\n| \\| c \\| d \\| --- \\| --- \\| | 2 |"
+    )
+    assert node["type"] == "table"
+    assert node["rows"] == [["| c | d | --- | --- |", "2"]]
+
+
+def test_columns_count_boundaries():
+    """TC-blocks-105/106 (FR-118): порядок 3 колонок слева направо; границы
+    числа колонок — минимум (1 колонка без <<< → толерантный fallback-текст,
+    факт реализации), пустая колонка сохраняет позицию, представители 6 и 8
+    колонок — все рядом в заданном порядке, содержимое целиком (верхняя
+    граница НЕ заявляется)."""
+    # 3 колонки, порядок слева направо
+    three = ":::columns\nПервая\n<<<\nВторая\n<<<\nТретья\n:::"
+    (node,) = parse(three)
+    assert node["type"] == "columns"
+    assert [col[0]["text"] for col in node["columns"]] == [
+        "Первая",
+        "Вторая",
+        "Третья",
+    ]
+    # минимум: 1 колонка (без <<<) — не разбирается как колонки; ТОЛЕРАНТНЫЙ
+    # fallback: диалектоподобный текст сохранен ЦЕЛИКОМ (A-2, факт реализации)
+    single = ":::columns\nодна\n:::"
+    (node,) = parse(single)
+    assert node["type"] == "text"
+    assert node["text"] == single
+    # пустая колонка: ТОЛЕРАНТНЫЙ парсер сохраняет позицию (пустой text-узел
+    # посередине); СТРОГИЙ валидатор при этом отвергает «колонку без
+    # содержимого» (см. test_validate_empty_column_raises) — на сохранении
+    # такой контент уходит в fallback-plain-text (A-2); расхождение с шагом 2
+    # TC-blocks-106 («пустая колонка сохраняет позицию» на просмотре)
+    # зафиксировано в матрице 3.3 как дивергенция кейса и design §1
+    empty = ":::columns\nКол-1\n<<<\n\n<<<\nКол-3\n:::"
+    (node,) = parse(empty)
+    assert [col[0]["text"] for col in node["columns"]] == ["Кол-1", "", "Кол-3"]
+    # представители большого класса: 6 и 8 колонок, порядок и содержимое
+    for n in (6, 8):
+        content = (
+            ":::columns\n"
+            + "\n<<<\n".join(f"Кол-{i}" for i in range(1, n + 1))
+            + "\n:::"
+        )
+        (node,) = parse(content)
+        assert node["type"] == "columns"
+        cols = node["columns"]
+        assert len(cols) == n
+        assert [col[0]["text"] for col in cols] == [f"Кол-{i}" for i in range(1, n + 1)]
+        # круговая преобразуемость на границе класса
+        assert serialize(parse(serialize(parse(content)))) == serialize(parse(content))
