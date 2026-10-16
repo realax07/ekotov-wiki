@@ -9,7 +9,7 @@
 
 "use strict";
 
-import { el } from "../renderer.js";
+import { el, observeWriteBack } from "../renderer.js";
 import { registerBlock } from "../block-parser.js";
 import { highlightInto } from "../highlight.js";
 
@@ -40,7 +40,9 @@ function render(node, h, options) {
     plainCode.contentEditable = "true";
     plainCode.spellcheck = false;
     plainCode.textContent = unfoldEntities(node.code);
-    plainCode.addEventListener("input", function () {
+    /* Правка кода: MutationObserver (события input внутри канвы всплывают
+       до editing host канвы — см. renderer.observeWriteBack). */
+    observeWriteBack(plainCode, function () {
       node.code = String(plainCode.textContent)
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");

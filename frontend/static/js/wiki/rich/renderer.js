@@ -254,7 +254,10 @@ export function renderCanvas(canvas, ctx) {
       rendered = el("div", "rich-legacy");
       rendered.contentEditable = "true";
       rendered.innerHTML = node.html; // legacy-HTML, санитизирован сервером
-      rendered.addEventListener("input", function () {
+      /* Запись правок через MutationObserver: внутри contenteditable-канвы
+       * события input от вложенных editing host'ов всплывают до editing host
+       * канвы (target — не элемент), поэтому наблюдаем изменения DOM. */
+      observeWriteBack(rendered, function () {
         node.html = rendered.innerHTML;
         ctx.onChange();
       });
@@ -263,7 +266,7 @@ export function renderCanvas(canvas, ctx) {
       if (ctx.editing) {
         rendered.contentEditable = "true";
         rendered.innerText = unfolded(node.text);
-        rendered.addEventListener("input", function () {
+        observeWriteBack(rendered, function () {
           node.text = folded(rendered.innerText);
           ctx.onChange();
         });
@@ -297,5 +300,20 @@ function unfolded(text) {
 
 function folded(text) {
   return String(text).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/* Привязка правки через MutationObserver (см. комментарий в renderCanvas):
+ * изменения текста/структуры редактируемого элемента → writeback в узел. */
+export function observeWriteBack(element, write) {
+  var observer = new MutationObserver(function () {
+    write();
+  });
+  observer.observe(element, {
+    characterData: true,
+    childList: true,
+    subtree: true,
+    attributes: true,
+  });
+  return observer;
 }
 

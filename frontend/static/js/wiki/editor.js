@@ -237,14 +237,21 @@ import "./rich/blocks/image-scale.js";
   }
 
   function insertIndex(canvas) {
-    /* Индекс вставки: после элемента под кареткой (перед ним фокус),
-       иначе — в конец канвы. */
-    var active = document.activeElement;
-    while (active && active !== canvas.element) {
-      if (active.__richCanvas === canvas && active.__richIndex !== undefined) {
-        return active.__richIndex;
+    /* Индекс вставки: по каретке (selection anchor) внутри канвы, иначе —
+       в конец канвы. Фокус при клике в канве уходит внешнему editing host
+       (наблюдение Chromium), поэтому активный элемент неинформативен. */
+    var selection = window.getSelection();
+    if (selection && selection.anchorNode) {
+      var node =
+        selection.anchorNode.nodeType === 1
+          ? selection.anchorNode
+          : selection.anchorNode.parentNode;
+      while (node && node !== canvas.element) {
+        if (node.__richCanvas === canvas && node.__richIndex !== undefined) {
+          return node.__richIndex;
+        }
+        node = node.parentElement;
       }
-      active = active.parentElement;
     }
     return canvas.nodes.length - 1;
   }
@@ -276,18 +283,60 @@ import "./rich/blocks/image-scale.js";
   }
 
   function bindAreaFocusTracking(area) {
-    /* Активная канва для вставки блоков (в т.ч. вложенных, 2.5) */
-    area.addEventListener("focusin", function (event) {
-      var node = event.target;
+    /* Активная канва для вставки блоков (в т.ч. вложенных, 2.5).
+       Фокус (focusin) при клике в канве уходит внешнему editing host
+       (Chromium), поэтому канву определяем по ФАКТИЧЕСКОМУ элементу клика
+       (mousedown.target) и по позиции каретки (keyup — переходы стрелками). */
+    function resolveFromTarget(target) {
+      var node = target;
       while (node && node !== area) {
         if (node.__richCanvas) {
           state.rich.activeCanvas = node.__richCanvas;
-          return;
+          return true;
         }
         node = node.parentNode;
       }
-      if (state.rich) state.rich.activeCanvas = state.rich.canvas;
-    });
+      return false;
+    }
+
+    area.addEventListener(
+      "mousedown",
+      function (event) {
+        if (!state.rich) return;
+        if (resolveFromTarget(event.target)) return;
+        state.rich.activeCanvas = state.rich.canvas;
+      },
+      true
+    );
+    area.addEventListener(
+      "keyup",
+      function (event) {
+        if (!state.rich) return;
+        if (event.target === area && !resolveFromCaret()) {
+          state.rich.activeCanvas = state.rich.canvas;
+        }
+      },
+      true
+    );
+
+    function resolveFromCaret() {
+      var selection = window.getSelection();
+      if (!selection || !selection.anchorNode || !area.contains(selection.anchorNode)) {
+        return false;
+      }
+      var node =
+        selection.anchorNode.nodeType === 1
+          ? selection.anchorNode
+          : selection.anchorNode.parentNode;
+      while (node && node !== area) {
+        if (node.__richCanvas) {
+          state.rich.activeCanvas = node.__richCanvas;
+          return true;
+        }
+        node = node.parentNode;
+      }
+      return false;
+    }
   }
 
   /* ------------------------------------------------------------------ */

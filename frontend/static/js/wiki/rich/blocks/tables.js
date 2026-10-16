@@ -37,14 +37,15 @@ function alignClass(align) {
 }
 
 /* Рендер таблицы: thead/tbody, выравнивание колонок по канонической
- * форме; editing=true — ячейки contenteditable c записью в узел. */
+ * форме; editing=true — ячейки contenteditable с записью в узел. */
 function render(node, h, options) {
   var table = el("table", "rich-table");
+  var bindings = []; // {el, row, col} — запись правок ячеек в узел
   var thead = el("thead");
   var headRow = el("tr");
   node.header.forEach(function (cell, col) {
     var th = el("th", alignClass(node.align[col]));
-    bindCell(th, node.header, col, options);
+    fillCell(th, node.header, col, options, bindings);
     headRow.appendChild(th);
   });
   thead.appendChild(headRow);
@@ -55,16 +56,18 @@ function render(node, h, options) {
     var tr = el("tr");
     row.forEach(function (cell, col) {
       var td = el("td", alignClass(node.align[col]));
-      bindCell(td, node.rows[rowIndex], col, options);
+      fillCell(td, node.rows[rowIndex], col, options, bindings);
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
+
+  if (options.editing) attachWriteBack(table, bindings, options);
   return wrap(table);
 }
 
-function bindCell(cell, row, col, options) {
+function fillCell(cell, row, col, options, bindings) {
   var text = String(row[col] || "")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
@@ -72,11 +75,25 @@ function bindCell(cell, row, col, options) {
   renderInline(cell, text);
   if (options.editing) {
     cell.contentEditable = "true";
-    cell.addEventListener("input", function () {
-      row[col] = textToDialect(cell.innerText);
-      if (options.ctx) options.ctx.onChange();
-    });
+    bindings.push({ el: cell, row: row, col: col });
   }
+}
+
+/* Запись правок ячеек в узел через MutationObserver: внутри contenteditable-
+ * канвы редактора события input от ячеек таблицы всплывают до редактируемого
+ * предка (target — editing host канвы), поэтому надежнее наблюдать за
+ * изменениями текста ячеек напрямую. */
+function attachWriteBack(table, bindings, options) {
+  var observer = new MutationObserver(function () {
+    bindings.forEach(function (binding) {
+      var value = textToDialect(binding.el.textContent || "");
+      if (binding.row[binding.col] !== value) {
+        binding.row[binding.col] = value;
+        if (options.ctx) options.ctx.onChange();
+      }
+    });
+  });
+  observer.observe(table, { characterData: true, childList: true, subtree: true });
 }
 
 /* Экранирование < > в тексте ячеек — каноническая форма диалекта

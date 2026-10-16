@@ -11,7 +11,7 @@
 
 "use strict";
 
-import { el } from "../renderer.js";
+import { el, safeUrl } from "../renderer.js";
 import { registerBlock, WIDTH_MIN, WIDTH_MAX } from "../block-parser.js";
 
 var SCALE_STEP = 10;
@@ -19,12 +19,17 @@ var SCALE_STEP = 10;
 function render(node, h, options) {
   var box = el("span", "rich-image");
   var width = node.width === null || node.width === undefined ? 100 : node.width;
-  var img = document.createElement("img");
-  img.src = node.src; // sanitize_rich на записи пропустил только безопасные схемы
-  img.alt = node.alt;
-  img.style.width = width + "%";
-  img.className = "rich-image-img";
-  box.appendChild(img);
+  var src = safeUrl(node.src);
+  if (src) {
+    /* Второй слой защиты (NFR-35): небезопасная схема (javascript: и т.п.)
+       не вставляется даже в узел вне sanitize_rich. */
+    var img = document.createElement("img");
+    img.src = src;
+    img.alt = node.alt;
+    img.style.width = width + "%";
+    img.className = "rich-image-img";
+    box.appendChild(img);
+  }
   return box;
 }
 
