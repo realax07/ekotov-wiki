@@ -16,6 +16,9 @@ tasks.md 1.7; design §1; NFR-36, NFR-38, FR-125).
 
 Запуск (из корня репозитория, стенд поднят — tests/README.md):
   EKOTOV_WIKI_DB_PATH=... python3 -m pytest tests/api/test_render_compat.py -v
+
+Реестр тест→TC (rule 6): эталон NFR-36 — TC-richc-101…103; смешанный — TC-richc-104;
+re-save API (fallback, ревью A-2) — TC-richc-105/106.
 """
 
 import os
@@ -63,7 +66,7 @@ def _reference(name: str) -> str:
 
 @pytest.mark.parametrize("name", LEGACY_CASES)
 def test_render_matches_pre_wave_reference(name):
-    """Рендер (sanitize_rich на записи) идентичен эталону, снятому до
+    """TC-richc-101: Рендер (sanitize_rich на записи) идентичен эталону, снятому до
     внедрения rich-редактора."""
     content = _read(name, ".content.txt")
     assert sanitize(content) == _reference(name)
@@ -71,7 +74,7 @@ def test_render_matches_pre_wave_reference(name):
 
 @pytest.mark.parametrize("name", LEGACY_CASES)
 def test_legacy_render_path_unchanged_m4(name):
-    """Инвариант M-4: legacy-рендер = существующий sanitize_html без правок;
+    """TC-richc-102: Инвариант M-4: legacy-рендер = существующий sanitize_html без правок;
     re-save старой страницы не меняет контент (NFR-38)."""
     content = _read(name, ".content.txt")
     assert sanitize(content) == sanitize_html(content)
@@ -79,7 +82,7 @@ def test_legacy_render_path_unchanged_m4(name):
 
 @pytest.mark.parametrize("name", LEGACY_CASES)
 def test_lookalike_re_save_content_unchanged(name):
-    """Патологические страницы (1.7г): parse не превращает кандидатов в блоки
+    """TC-richc-103: Патологические страницы (1.7г): parse не превращает кандидатов в блоки
     и не теряет контент — serialize∘parse = идентичность (re-save safe)."""
     content = _read(name, ".content.txt")
     nodes = parse(content)
@@ -95,6 +98,7 @@ def test_lookalike_re_save_content_unchanged(name):
 
 
 def test_mixed_content_legacy_part_rendered_as_before():
+    """TC-richc-104."""
     content = _read("case7_mixed", ".content.txt")
     reference = _reference("case7_mixed")
     out = sanitize(content)
@@ -123,7 +127,7 @@ def _create_page(base_url: str, session: requests.Session, content: str) -> int:
 
 @pytest.mark.parametrize("name", LEGACY_CASES)
 def test_re_save_pathological_page_no_422_content_identical(name, base_url, owner_session):
-    """Fallback-политика design §1 (ревью A-2): старую страницу с текстом,
+    """TC-richc-105: Fallback-политика design §1 (ревью A-2): старую страницу с текстом,
     похожим на диалект, можно отредактировать и сохранить — 200, НЕ 422,
     контент сохранен без изменения."""
     content = _read(name, ".content.txt")
@@ -145,7 +149,7 @@ def test_re_save_pathological_page_no_422_content_identical(name, base_url, owne
 
 
 def test_re_save_valid_rich_page_200(base_url, owner_session):
-    """Сохранение страницы с валидным диалектом — 200 (шов 1.3, позитив)."""
+    """TC-richc-106: Сохранение страницы с валидным диалектом — 200 (шов 1.3, позитив)."""
     content = (
         "Вступление.\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n"
         ":::callout type=warn\nТекст\n:::"

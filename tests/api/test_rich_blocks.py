@@ -13,6 +13,10 @@ add-rich-editor, tasks.md 1.1; design.md §1; FR-117, FR-118, FR-127).
 Запуск (из корня репозитория):
   python3 -m pytest tests/api/test_rich_blocks.py -v
 (чистые юниты: импорт app.rich_blocks, без TestClient и БД.)
+
+Реестр тест→TC (rule 6): 1.1д позитивы/негативы — TC-richb-101…113;
+круговая преобразуемость — TC-richb-114…116; строгие негативы — TC-richb-117…126;
+толерантность (ревью A-2) — TC-richb-123…127.
 """
 
 import os
@@ -92,7 +96,7 @@ FIX_NESTED = """:::columns
 
 
 def test_legacy_text_is_single_text_node():
-    """Legacy-страница без диалекта: parse → 0 блоков (legacy passthrough)."""
+    """TC-richb-101: Legacy-страница без диалекта: parse → 0 блоков (legacy passthrough)."""
     nodes = parse(FIX_PLAIN_LEGACY)
     assert [node["type"] for node in nodes] == ["text"]
     assert nodes[0]["text"] == FIX_PLAIN_LEGACY
@@ -100,6 +104,7 @@ def test_legacy_text_is_single_text_node():
 
 
 def test_parse_gfm_table():
+    """TC-richb-102."""
     nodes = parse(FIX_TABLE)
     assert [node["type"] for node in nodes] == ["table"]
     table = nodes[0]
@@ -109,6 +114,7 @@ def test_parse_gfm_table():
 
 
 def test_parse_columns():
+    """TC-richb-103."""
     (node,) = parse(FIX_COLUMNS)
     assert node["type"] == "columns"
     assert len(node["columns"]) == 2  # минимум две колонки (FR-118)
@@ -117,6 +123,7 @@ def test_parse_columns():
 
 
 def test_parse_callout_type():
+    """TC-richb-104."""
     (node,) = parse(FIX_CALLOUT)
     assert node == {
         "type": "callout",
@@ -126,6 +133,7 @@ def test_parse_callout_type():
 
 
 def test_parse_aside_and_spoiler():
+    """TC-richb-105."""
     (aside,) = parse(FIX_ASIDE)
     assert aside["type"] == "aside"
     (spoiler,) = parse(FIX_SPOILER)
@@ -134,16 +142,19 @@ def test_parse_aside_and_spoiler():
 
 
 def test_parse_code_block_literal():
+    """TC-richb-106."""
     (node,) = parse(FIX_CODE)
     assert node == {"type": "code", "lang": "python", "code": "def f():\n    return 42"}
 
 
 def test_parse_image_with_width():
+    """TC-richb-107."""
     (node,) = parse(FIX_IMAGE)
     assert node == {"type": "image", "alt": "Скрин", "src": "/images/abc.png", "width": 50}
 
 
 def test_parse_image_width_outside_whitelist_dropped():
+    """TC-richb-108."""
     (node,) = parse("![a](/images/x.png){width=5}")
     assert node["width"] is None  # вне 10..100 — атрибут отброшен
     (node,) = parse("![a](/images/x.png){width=101}")
@@ -153,6 +164,7 @@ def test_parse_image_width_outside_whitelist_dropped():
 
 
 def test_parse_mixed_legacy_and_blocks():
+    """TC-richb-109."""
     content = "Вступление.\n\n" + FIX_TABLE + "\n\nЗаключение."
     assert [node["type"] for node in parse(content)] == [
         "text",
@@ -162,7 +174,7 @@ def test_parse_mixed_legacy_and_blocks():
 
 
 def test_parse_nested_two_levels():
-    """Вложенность блоков 2 уровней (FR-127): врезка в колонке, таблица в
+    """TC-richb-110: Вложенность блоков 2 уровней (FR-127): врезка в колонке, таблица в
     callout в колонке."""
     nodes = parse(FIX_NESTED)
     (columns,) = nodes
@@ -197,7 +209,7 @@ def test_parse_nested_two_levels():
     ],
 )
 def test_roundtrip_parse_serialize_identity(content):
-    """parse∘serialize = идентичность: serialize(parse(t)) каноничен и
+    """TC-richb-111: parse∘serialize = идентичность: serialize(parse(t)) каноничен и
     стабилен (двойной прогон не меняет текст)."""
     once = serialize(parse(content))
     twice = serialize(parse(once))
@@ -205,13 +217,13 @@ def test_roundtrip_parse_serialize_identity(content):
 
 
 def test_roundtrip_tree_level():
-    """parse(serialize(nodes)) == nodes — дерево восстанавливается точно."""
+    """TC-richb-112: parse(serialize(nodes)) == nodes — дерево восстанавливается точно."""
     nodes = parse(FIX_NESTED)
     assert parse(serialize_nodes(nodes)) == nodes
 
 
 def test_serialize_canonicalizes_table_spacing():
-    """Каноническая форма: ячейки с одной подбивкой пробелами (значения те же)."""
+    """TC-richb-113: Каноническая форма: ячейки с одной подбивкой пробелами (значения те же)."""
     nodes = parse("|a |b|\n|---|---|\n|1|2|")
     assert nodes[0]["type"] == "table"
     assert serialize_nodes(nodes) == "| a | b |\n| --- | --- |\n| 1 | 2 |"
@@ -223,6 +235,7 @@ def test_serialize_canonicalizes_table_spacing():
 
 
 def test_validate_unclosed_container_raises_with_position():
+    """TC-richb-114."""
     with pytest.raises(ValueError) as excinfo:
         validate("Текст.\n\n:::aside\nВрезка без закрытия")
     assert isinstance(excinfo.value, RichSyntaxError)
@@ -230,47 +243,55 @@ def test_validate_unclosed_container_raises_with_position():
 
 
 def test_validate_unknown_container_type_raises():
+    """TC-richb-115."""
     with pytest.raises(ValueError):
         validate(":::widget\nx\n:::")
 
 
 def test_validate_callout_bad_type_raises():
+    """TC-richb-116."""
     with pytest.raises(ValueError):
         validate(":::callout type=danger\nx\n:::")
 
 
 def test_validate_callout_without_type_raises():
+    """TC-richb-117."""
     with pytest.raises(ValueError):
         validate(":::callout\nx\n:::")
 
 
 def test_validate_spoiler_without_title_raises():
+    """TC-richb-118."""
     with pytest.raises(ValueError):
         validate(":::spoiler\nx\n:::")
 
 
 def test_validate_single_column_raises():
+    """TC-richb-119."""
     with pytest.raises(ValueError):
         validate(":::columns\nТолько одна.\n:::")
 
 
 def test_validate_empty_column_raises():
+    """TC-richb-120."""
     with pytest.raises(ValueError):
         validate(":::columns\n<<<\nВторая полная.\n:::")
 
 
 def test_validate_unclosed_code_fence_raises():
+    """TC-richb-121."""
     with pytest.raises(ValueError):
         validate("```python\nx = 1")
 
 
 def test_validate_stray_column_separator_raises():
+    """TC-richb-122."""
     with pytest.raises(ValueError):
         validate("Текст\n<<<\nПродолжение")
 
 
 def test_validate_gfm_header_without_separator_is_not_block():
-    """GFM-шапка без валидного разделителя — НЕ структурная ошибка:
+    """TC-richb-123: GFM-шапка без валидного разделителя — НЕ структурная ошибка:
     это legacy-текст (строковые кандидаты не блок)."""
     nodes = validate("| a | b |\n| --- |\n| 1 | 2 |")
     assert not content_has_blocks(nodes)
@@ -293,7 +314,7 @@ def test_validate_gfm_header_without_separator_is_not_block():
     ],
 )
 def test_tolerant_parse_lookalike_stays_text(lookalike):
-    """Кандидат в блок, не прошедший разбор → текст; parse НЕ бросает."""
+    """TC-richb-124: Кандидат в блок, не прошедший разбор → текст; parse НЕ бросает."""
     nodes = parse(lookalike)  # не бросает
     assert not content_has_blocks(nodes)
     # Контент проходит через толерантный разбор без потерь (re-save
@@ -302,6 +323,7 @@ def test_tolerant_parse_lookalike_stays_text(lookalike):
 
 
 def test_tolerant_parse_unclosed_container_keeps_raw_text():
+    """TC-richb-125."""
     content = ":::aside\nНезакрытая врезка"
     nodes = parse(content)
     assert not content_has_blocks(nodes)
@@ -309,7 +331,7 @@ def test_tolerant_parse_unclosed_container_keeps_raw_text():
 
 
 def test_validate_never_unhandled_on_re_save_of_lookalikes():
-    """Валидатор на re-save lookalike-контента бросает ValueError (ловится
+    """TC-richb-126: Валидатор на re-save lookalike-контента бросает ValueError (ловится
     швом → fallback), но никогда — необработанного исключения иного типа."""
     for lookalike in (
         ":::aside\nбез закрытия",
@@ -324,7 +346,7 @@ def test_validate_never_unhandled_on_re_save_of_lookalikes():
 
 
 def test_stray_close_marker_line_is_text():
-    """Одиночный ::: без открывателя — не блок, проходит как текст."""
+    """TC-richb-127: Одиночный ::: без открывателя — не блок, проходит как текст."""
     nodes = parse("Первая строка\n:::\nВторая строка")
     assert not content_has_blocks(nodes)
     assert serialize(nodes) == "Первая строка\n:::\nВторая строка"
