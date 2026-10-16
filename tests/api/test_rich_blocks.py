@@ -40,6 +40,7 @@ from app.rich_blocks import (  # noqa: E402
     serialize_nodes,
     validate,
 )
+from app.sanitize_rich import sanitize  # noqa: E402
 
 # --------------------------------------------------------------------------
 # Фикстуры-примеры (используются также тестом идентичности фронтового
@@ -523,3 +524,35 @@ def test_columns_count_boundaries():
         assert [col[0]["text"] for col in cols] == [f"Кол-{i}" for i in range(1, n + 1)]
         # круговая преобразуемость на границе класса
         assert serialize(parse(serialize(parse(content)))) == serialize(parse(content))
+
+
+# --------------------------------------------------------------------------
+# BUG-018/019/020 (живая приемка p15-wiki-8): шов сохранения
+# --------------------------------------------------------------------------
+
+
+def test_bug019_image_width_roundtrip_through_sanitize_seam():
+    """TC-RICH-218 (BUG-019): масштаб rich-изображения ({width=N}) переживает
+    save→reload→re-save на шве sanitize_rich: width не теряется, whitelist
+    NFR-34 (10..100) соблюден, re-save идемпотентен (контент не мутирует)."""
+    content = "Вступление.\n\n![Скрин](/images/abc123.png){width=50}"
+    once = sanitize(content)
+    assert "{width=50}" in once  # width пережил санитизацию записи
+    twice = sanitize(once)  # re-save после перечитывания
+    assert twice == once  # идемпотентно — масштаб не теряется на re-save
+    # граница whitelist: NFR-34 не расширен
+    assert "{width=100}" in sanitize("![a](/images/x.png){width=100}")
+    out_over = sanitize("![a](/images/x.png){width=101}")
+    assert "{width" not in out_over and "![a](/images/x.png)" in out_over
+    out_under = sanitize("![a](/images/x.png){width=9}")
+    assert "{width" not in out_under and "![a](/images/x.png)" in out_under
+
+
+def test_bug020_code_block_roundtrip_through_sanitize_seam():
+    """TC-RICH-218 (BUG-020): код-блок переживает save→reload→re-save 1:1
+    (FR-122): переносы/пробелы буквально, HTML-векторы — каноническое
+    экранирование диалекта, re-save идемпотентен (подсветка/фон — фронт)."""
+    content = "```python\ndef f(x):\n    return x + 42 <b>text</b>\n```"
+    once = sanitize(content)
+    assert "```python\ndef f(x):\n    return x + 42 &lt;b&gt;text&lt;/b&gt;\n```" == once
+    assert sanitize(once) == once  # re-save без мутаций

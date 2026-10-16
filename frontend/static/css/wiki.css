@@ -1909,8 +1909,11 @@ nav.wiki-breadcrumb {
   white-space: pre; /* переносы/отступы без типографской обработки */
 }
 
-.rich-code-plain .rich-code-code {
+/* BUG-020: код правится прямо в блоке — editing host (pre) без рамки фокуса
+   (графический фон остается; подсветка переподсвечивается на blur) */
+.rich-code-pre[contenteditable="true"] {
   outline: none;
+  cursor: text;
 }
 
 /* Классы токенов подсветки (собственный токенайзер, без библиотек) */

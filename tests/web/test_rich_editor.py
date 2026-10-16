@@ -26,6 +26,12 @@ uvicorn app + search + http.server static, tmp-БД + seed owner/wife).
   TC-blocks-109 → test_callout_type_change_keeps_text; TC-blocks-105/106 →
   test_columns_view_order_and_boundaries; TC-blocks-119/120 →
   test_block_combinations_in_containers.
+  TC-RICH-214 → test_bug018_toolbar_outside_editable_content (BUG-018:
+  панель правок таблицы вне редактируемого контента, не сериализуется);
+  TC-RICH-215 → test_bug019_image_scale_roundtrip_in_rich_blocks (BUG-019:
+  {width=N} переживает save/reload/re-save); TC-RICH-216 →
+  test_bug020_code_block_direct_edit_roundtrip (BUG-020: без режима
+  «править код», набор 1:1, подсветка+фон).
 
 Изоляция: страницы создаются API от owner-сессии, удаляются в teardown.
 """
@@ -774,3 +780,208 @@ def test_block_combinations_in_containers(
     spoiler.locator(".rich-spoiler-toggle").click()  # раскрытие внутри колонки
     expect(spoiler.locator(".rich-spoiler-body")).to_be_visible()
     assert "Сп" in spoiler.locator(".rich-spoiler-body").inner_text()
+
+
+# ---------------------------------------------------------------------------
+# BUG-018/019/020 (живая приемка p15-wiki-8, Флоу 2)
+# ---------------------------------------------------------------------------
+
+
+def test_bug018_toolbar_outside_editable_content(
+    logged_in_page, rich_page_factory, web_base_url, web_owner_session
+):
+    """TC-RICH-214 (BUG-018): панель структурных правок таблицы («+ строка»,
+    «− столбец», …) — ВНЕ редактируемого контента: обертка блока
+    contenteditable=false (кнопки не редактируются как текст, каретка в них
+    не встает), сериализация — из узла дерева (панель в контент не попадает:
+    сохранение/перечитывание — кнопок в тексте нет), правка структуры при
+    этом работает и переживает roundtrip."""
+    page_id = rich_page_factory("| A1 | A2 |\n| --- | --- |\n| B1 | B2 |")
+    page = logged_in_page
+    _open_editor(page, web_base_url, page_id)
+
+    area = page.locator(".editor-area")
+    table = area.locator(".rich-table")
+    expect(table).to_be_visible()
+
+    # обертка блока — contenteditable=false; панель и кнопки — вне
+    # редактируемого контента; ячейки остались редактируемыми
+    block = area.locator(".rich-block-table").first
+    assert block.get_attribute("contenteditable") == "false"
+    controls = area.locator(".rich-controls").first
+    assert controls.evaluate("el => el.isContentEditable") is False
+    btn = controls.locator(".rich-control-btn", has_text="+ строка")
+    assert btn.evaluate("el => el.isContentEditable") is False
+    assert table.locator("tbody td").first.evaluate("el => el.isContentEditable") is True
+
+    # правка структуры работает: +2 строки, ячейки редактируются
+    btn.click()
+    btn.click()
+    expect(table.locator("tbody tr")).to_have_count(3)
+    new_cell = table.locator("tbody tr").last.locator("td").first
+    new_cell.click()
+    page.keyboard.type("C1")
+
+    # ввод при фокусе на кнопке панели НЕ меняет контент (каретки в панели нет)
+    controls.locator(".rich-control-btn", has_text="− столбец").click()
+    page.keyboard.type("МУСОР")
+
+    page.get_by_role("button", name="Сохранить").click()
+    page.wait_for_url(f"{web_base_url}/wiki/{page_id}")
+    stored = web_owner_session.get(
+        f"{web_base_url}/api/wiki/pages/{page_id}"
+    ).json()["content"]
+    # тулбар не сериализован: ярлыков кнопок и случайного ввода в контенте нет
+    for label in ("+ строка", "− строка", "столб", "МУСОР", "rich-control"):
+        assert label not in stored, stored
+    # структура и содержимое пережили roundtrip: 3×1 (− столбец снял второй),
+    # C1 на месте
+    assert stored == "| A1 |\n| --- |\n| B1 |\n|  |\n| C1 |"
+
+    # перечитывание: правка структуры продолжается без потери контента
+    _open_editor(page, web_base_url, page_id)
+    table2 = page.locator(".editor-area .rich-table")
+    expect(table2.locator("tbody tr")).to_have_count(3)
+    assert "C1" in table2.inner_text()
+
+
+def test_bug019_image_scale_roundtrip_in_rich_blocks(
+    logged_in_page, rich_page_factory, web_base_url, web_owner_session
+):
+    """TC-RICH-215 (BUG-019): масштаб rich-изображения ({width=N}) сохраняется
+    при save/reload/re-save: модалка масштаба у вставленного img пишет в узел
+    диалекта (пиксельный пресет → процент ширины канвы, whitelist NFR-34
+    10..100), DOM-атрибут не теряется — узел сериализуется с {width=N}."""
+    page_id = rich_page_factory("| A1 | A2 |\n| --- | --- |\n| B1 | B2 |")
+    page = logged_in_page
+    _open_editor(page, web_base_url, page_id)
+    area = page.locator(".editor-area")
+
+    # rich-режим; вставка изображения блоком тулбара (узел диалекта)
+    page.locator(".tb-btn-block", has_text="Изображение").click()
+    img = area.locator(".rich-image img").last
+    expect(img).to_be_visible()
+
+    # модалка масштаба (клик по img): пресет «Маленькое (240 px)» → Применить
+    img.click()
+    dialog = page.locator(".editor-img-scale-dialog")
+    expect(dialog).to_be_visible()
+    dialog.locator("input[name='img-scale'][value='small']").check()
+    dialog.get_by_role("button", name="Применить").click()
+    expect(dialog).to_be_hidden()
+
+    area_width = page.evaluate("() => document.querySelector('.editor-area').clientWidth")
+    expected = max(10, min(100, round(240 / area_width * 100)))  # NFR-34: 10..100
+    assert img.evaluate("el => el.style.width") == f"{expected}%"
+
+    page.get_by_role("button", name="Сохранить").click()
+    page.wait_for_url(f"{web_base_url}/wiki/{page_id}")
+    stored = web_owner_session.get(
+        f"{web_base_url}/api/wiki/pages/{page_id}"
+    ).json()["content"]
+    assert f"{{width={expected}}}" in stored, stored
+
+    # reload → редактор показывает сохраненный масштаб
+    _open_editor(page, web_base_url, page_id)
+    assert (
+        page.locator(".editor-area .rich-image img")
+        .first.evaluate("el => el.style.width")
+        == f"{expected}%"
+    )
+    # re-save без правок → контент не меняется (roundtrip стабильный)
+    page.get_by_role("button", name="Сохранить").click()
+    page.wait_for_url(f"{web_base_url}/wiki/{page_id}")
+    stored2 = web_owner_session.get(
+        f"{web_base_url}/api/wiki/pages/{page_id}"
+    ).json()["content"]
+    assert stored2 == stored
+
+    # просмотр: масштаб применен (style.width = N%)
+    _open_view(page, web_base_url, page_id)
+    assert (
+        page.locator(".article-body .rich-image img")
+        .first.evaluate("el => el.style.width")
+        == f"{expected}%"
+    )
+
+
+def _place_caret_at_end(page, block):
+    """Каретка в конец кода блока (клик по подсвеченному тексту встает
+    середину — для дописывания нужна явная позиция)."""
+    block.evaluate(
+        """el => {
+          const target = el.querySelector('.rich-code-code');
+          const range = document.createRange();
+          range.selectNodeContents(target);
+          range.collapse(false);
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }"""
+    )
+
+
+def test_bug020_code_block_direct_edit_roundtrip(
+    logged_in_page, rich_page_factory, web_base_url, web_owner_session
+):
+    """TC-RICH-216 (BUG-020): режим/кнопка «править код» удалены (решение
+    Заказчика дословно: «нужна только подсветка синтаксиса и графический
+    фон»); код — обычный редактируемый текст прямо в блоке: каретка ставится
+    кликом, набор сохраняется 1:1 (FR-122: переносы/пробелы буквально,
+    HTML-векторы — каноническое экранирование диалекта), подсветка и фон на
+    месте при просмотре и после blur."""
+    page_id = rich_page_factory("Текст до кода.")
+    page = logged_in_page
+    _open_editor(page, web_base_url, page_id)
+    area = page.locator(".editor-area")
+
+    page.locator(".tb-btn-block", has_text="Код").click()
+    codebox = area.locator(".rich-code").last
+    expect(codebox).to_be_visible()
+    # кнопки/режима «править код» нет (select языка — не кнопка)
+    assert codebox.locator("button").count() == 0
+    assert page.locator(".editor-area button", has_text="править код").count() == 0
+
+    # код редактируется СРАЗУ: клик в блок → каретка → набор (без режимов)
+    codebox.locator(".rich-code-pre").click()
+    page.keyboard.type("def f(x):")
+    page.keyboard.press("Enter")
+    page.keyboard.type("    return x + 42 <b>text</b>")
+    # blur в другой редактируемый элемент (текст вне блоков — legacy-сегмент
+    # или textline: страница без блоков при входе в rich-режим конвертируется)
+    area.locator(".rich-legacy, .rich-textline").first.click()
+
+    page.get_by_role("button", name="Сохранить").click()
+    page.wait_for_url(f"{web_base_url}/wiki/{page_id}")
+    stored = web_owner_session.get(
+        f"{web_base_url}/api/wiki/pages/{page_id}"
+    ).json()["content"]
+    assert (
+        "```python\ndef f(x):\n    return x + 42 &lt;b&gt;text&lt;/b&gt;\n```"
+        in stored
+    ), stored
+
+    # просмотр: 1:1 (литеральный текст), подсветка (токены) и фон (rich-code)
+    _open_view(page, web_base_url, page_id)
+    code_view = page.locator(".article-body .rich-code")
+    assert "def f(x):" in code_view.inner_text()
+    assert "<b>text</b>" in code_view.inner_text()
+    assert code_view.locator(".rich-tok-kw").count() >= 1
+    assert code_view.locator("pre.rich-code-pre").count() == 1
+
+    # повторное редактирование: дописывание поверх подсветки, re-save 1:1
+    _open_editor(page, web_base_url, page_id)
+    codebox2 = page.locator(".editor-area .rich-code").last
+    expect(codebox2.locator(".rich-tok-kw").first).to_be_visible()  # подсветка видна
+    _place_caret_at_end(page, codebox2)
+    page.keyboard.type("\nx = f(1)")
+    page.locator(".editor-area .rich-legacy, .editor-area .rich-textline").first.click()
+    page.get_by_role("button", name="Сохранить").click()
+    page.wait_for_url(f"{web_base_url}/wiki/{page_id}")
+    stored2 = web_owner_session.get(
+        f"{web_base_url}/api/wiki/pages/{page_id}"
+    ).json()["content"]
+    assert (
+        "```python\ndef f(x):\n    return x + 42 &lt;b&gt;text&lt;/b&gt;\nx = f(1)\n```"
+        in stored2
+    ), stored2
