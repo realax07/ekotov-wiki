@@ -280,5 +280,5 @@ Design §1: «3 страницы + 13 версий». Фактически в `e
 зоны `--path` до файла, швы editor.js/toolbar.js/wiki.css — последовательно,
 wiki.css не параллелить с add-ui-polish-r8.
 
-> ПМ: вписать `Reviewer-Delegation: deleg_<платформенный id>` этой
+> Reviewer-Delegation: deleg_41bdd0d9 (раунд 1) / deleg_5e0888f0 (раунд 2 — approve). Заменяет: eleg_<платформенный id>` этой
 > делегации в шапку файла из реестра (сабагент своего id не видит).

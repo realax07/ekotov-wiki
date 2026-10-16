@@ -2,7 +2,7 @@
 
 - **Change:** add-rich-editor
 - **Ревьюер:** qa_case_reviewer (независимый, автор кейсов — qa_case_author)
-- **Reviewer-Delegation: deleg_PM_FILL_FROM_REGISTRY** <!-- ПМ: заменить на платформенный deleg_<hex> из реестра async_delegations этой делегации -->
+- **Reviewer-Delegation: deleg_58cb8b9a (раунд 1) / deleg_642b6a82 (раунд 2)** <!-- ПМ: заменить на платформенный deleg_<hex> из реестра async_delegations этой делегации -->
 - **Дата:** 2026-10-16
 - **Партия кейсов (47):** `test-model/new/add-rich-editor/` — blocks.md (TC-blocks-101…120, 20), compat.md (TC-compat-201…209, 9), security.md (TC-sec-301…316, 16), perf.md (TC-perf-401…402, 2)
 
@@ -61,7 +61,7 @@ querySelectorAll-пустота на on*).
 - **Объект:** диф 82063ac..aed6ba9 (доработка автора по замечаниям review-001,
   коммит aed6ba9) — 6 кейсов изменено в `test-model/new/add-rich-editor/`
   (blocks.md, security.md); остальные 41 кейс не тронуты (сверено по диффу).
-- **Reviewer-Delegation: deleg_PM_FILL_FROM_REGISTRY** <!-- ПМ: заменить на платформенный deleg_<hex> из реестра async_delegations этой делегации -->
+- **Reviewer-Delegation: deleg_58cb8b9a (раунд 1) / deleg_642b6a82 (раунд 2)** <!-- ПМ: заменить на платформенный deleg_<hex> из реестра async_delegations этой делегации -->
 
 ## Проверка устранения замечаний review-001
 
