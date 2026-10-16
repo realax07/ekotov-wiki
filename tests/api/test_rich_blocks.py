@@ -547,3 +547,12 @@ def test_bug019_image_width_roundtrip_through_sanitize_seam():
     out_under = sanitize("![a](/images/x.png){width=9}")
     assert "{width" not in out_under and "![a](/images/x.png)" in out_under
 
+
+def test_bug020_code_block_roundtrip_through_sanitize_seam():
+    """TC-RICH-218 (BUG-020): код-блок переживает save→reload→re-save 1:1
+    (FR-122): переносы/пробелы буквально, HTML-векторы — каноническое
+    экранирование диалекта, re-save идемпотентен (подсветка/фон — фронт)."""
+    content = "```python\ndef f(x):\n    return x + 42 <b>text</b>\n```"
+    once = sanitize(content)
+    assert "```python\ndef f(x):\n    return x + 42 &lt;b&gt;text&lt;/b&gt;\n```" == once
+    assert sanitize(once) == once  # re-save без мутаций

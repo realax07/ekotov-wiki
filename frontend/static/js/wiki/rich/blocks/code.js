@@ -5,6 +5,13 @@
  * сохраняется); содержимое — ВСЕГДА текст (XSS-вектор код-блока — буквальный
  * рендер, NFR-35). Подсветка — собственный токенайзер rich/highlight.js
  * (vanilla, ОГР-8; без внешних CDN — сетевых запросов нет, NFR-33).
+ *
+ * BUG-020 (живая приемка p15-wiki-8, решение Заказчика дословно: «нужна
+ * только подсветка синтаксиса и графический фон»): режим/кнопка «править
+ * код» УДАЛЕНЫ. Код — обычный редактируемый текст прямо в блоке
+ * (моноширинный, графический фон rich-code); подсветка поверх — рендер
+ * токенайзером, при blur переподсвечивается. Сохранение 1:1 (FR-122):
+ * запись в узел — по текстовому содержимому DOM (BR → \n).
  */
 
 "use strict";
@@ -24,6 +31,44 @@ function unfoldEntities(text) {
   return String(text).replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 }
 
+function foldCode(text) {
+  /* Каноническая экранированная форма диалекта (зеркало sanitize_rich;
+   * &amp; не создаем — бэкенд его не экранирует, roundtrip-сохранность). */
+  return String(text).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/* Текстовое содержимое редактируемого кода 1:1: текстовые узлы как есть,
+ * <br> → \n (Chromium вставляет br при Enter в части состояний editing
+ * host'а), пустые блочные дети (div/p) → \n. FR-122: переносы/пробелы
+ * буквально. */
+function codeToText(host) {
+  var out = "";
+  Array.prototype.forEach.call(host.childNodes, function (child) {
+    if (child.nodeType === 3) {
+      out += child.data;
+    } else if (child.nodeName === "BR") {
+      out += "\n";
+    } else {
+      out += codeToText(child);
+      if (
+        (child.nodeName === "DIV" || child.nodeName === "P") &&
+        child.childNodes.length === 0
+      ) {
+        out += "\n";
+      }
+    }
+  });
+  return out;
+}
+
+function writeBack(code, node, ctx) {
+  var value = foldCode(codeToText(code));
+  if (node.code !== value) {
+    node.code = value;
+    if (ctx) ctx.onChange();
+  }
+}
+
 function render(node, h, options) {
   var box = el("div", "rich-code");
   var pre = el("pre", "rich-code-pre");
@@ -33,37 +78,34 @@ function render(node, h, options) {
   box.appendChild(pre);
 
   if (options.editing) {
-    /* Правка: plain pre без подсветки (переключение кнопкой), запись в
-       узел на ввод; на blur — возврат к подсвеченному виду. */
-    var plain = el("pre", "rich-code-pre rich-code-plain");
-    var plainCode = el("code", "rich-code-code");
-    plainCode.contentEditable = "true";
-    plainCode.spellcheck = false;
-    plainCode.textContent = unfoldEntities(node.code);
-    /* Правка кода: MutationObserver (события input внутри канвы всплывают
-       до editing host канвы — см. renderer.observeWriteBack). */
-    observeWriteBack(plainCode, function () {
-      node.code = String(plainCode.textContent)
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-      if (options.ctx) options.ctx.onChange();
+    /* Правка прямо в блоке: editing host — pre (блочный, кликабелен целиком,
+     * включая ПУСТОЙ код; вложенный инлайн host был ненадежен — caret
+     * вставал на границу нулевого элемента и ввод терялся). Код правится
+     * поверх подсветки; на blur — запись в узел и переподсветка. Никаких
+     * режимов и кнопки «править код» — BUG-020. Запись правок в узел —
+     * MutationObserver (события input внутри канвы всплывают до editing
+     * host канвы — см. renderer.observeWriteBack). */
+    pre.contentEditable = "true";
+    pre.spellcheck = false;
+    observeWriteBack(pre, function () {
+      writeBack(pre, node, options.ctx);
     });
-    plain.hidden = true;
-    box.appendChild(plain);
+    pre.addEventListener("focusout", function () {
+      writeBack(pre, node, options.ctx);
+      /* Канонизация: editing host вставляет текст узлами pre МИМО code —
+         перед переподсветкой весь текст сворачивается в code, иначе после
+         highlightInto текст задвоен (набранный + подсвеченный). Наблюдатель
+         асинхронен: сработает один раз на итоговый DOM. */
+      while (pre.firstChild !== code && pre.firstChild) {
+        pre.removeChild(pre.firstChild);
+      }
+      while (pre.lastChild !== code && pre.lastChild) {
+        pre.removeChild(pre.lastChild);
+      }
+      highlightInto(code, unfoldEntities(node.code), node.lang);
+    });
 
     var bar = el("div", "rich-controls");
-    var editButton = el("button", "rich-control-btn", "Править код");
-    editButton.type = "button";
-    editButton.addEventListener("click", function () {
-      var switchingToPlain = plain.hidden;
-      plain.hidden = !switchingToPlain;
-      pre.hidden = switchingToPlain;
-      if (switchingToPlain) plainCode.focus();
-      else highlightInto(code, unfoldEntities(node.code), node.lang);
-      editButton.textContent = plain.hidden ? "Править код" : "Готово";
-    });
-    bar.appendChild(editButton);
-
     var select = el("select", "rich-control-select");
     select.setAttribute("aria-label", "Язык кода");
     CODE_LANGS.forEach(function (lang) {

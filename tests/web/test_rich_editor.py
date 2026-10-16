@@ -903,3 +903,85 @@ def test_bug019_image_scale_roundtrip_in_rich_blocks(
         .first.evaluate("el => el.style.width")
         == f"{expected}%"
     )
+
+
+def _place_caret_at_end(page, block):
+    """Каретка в конец кода блока (клик по подсвеченному тексту встает
+    середину — для дописывания нужна явная позиция)."""
+    block.evaluate(
+        """el => {
+          const target = el.querySelector('.rich-code-code');
+          const range = document.createRange();
+          range.selectNodeContents(target);
+          range.collapse(false);
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }"""
+    )
+
+
+def test_bug020_code_block_direct_edit_roundtrip(
+    logged_in_page, rich_page_factory, web_base_url, web_owner_session
+):
+    """TC-RICH-216 (BUG-020): режим/кнопка «править код» удалены (решение
+    Заказчика дословно: «нужна только подсветка синтаксиса и графический
+    фон»); код — обычный редактируемый текст прямо в блоке: каретка ставится
+    кликом, набор сохраняется 1:1 (FR-122: переносы/пробелы буквально,
+    HTML-векторы — каноническое экранирование диалекта), подсветка и фон на
+    месте при просмотре и после blur."""
+    page_id = rich_page_factory("Текст до кода.")
+    page = logged_in_page
+    _open_editor(page, web_base_url, page_id)
+    area = page.locator(".editor-area")
+
+    page.locator(".tb-btn-block", has_text="Код").click()
+    codebox = area.locator(".rich-code").last
+    expect(codebox).to_be_visible()
+    # кнопки/режима «править код» нет (select языка — не кнопка)
+    assert codebox.locator("button").count() == 0
+    assert page.locator(".editor-area button", has_text="править код").count() == 0
+
+    # код редактируется СРАЗУ: клик в блок → каретка → набор (без режимов)
+    codebox.locator(".rich-code-pre").click()
+    page.keyboard.type("def f(x):")
+    page.keyboard.press("Enter")
+    page.keyboard.type("    return x + 42 <b>text</b>")
+    # blur в другой редактируемый элемент (текст вне блоков — legacy-сегмент
+    # или textline: страница без блоков при входе в rich-режим конвертируется)
+    area.locator(".rich-legacy, .rich-textline").first.click()
+
+    page.get_by_role("button", name="Сохранить").click()
+    page.wait_for_url(f"{web_base_url}/wiki/{page_id}")
+    stored = web_owner_session.get(
+        f"{web_base_url}/api/wiki/pages/{page_id}"
+    ).json()["content"]
+    assert (
+        "```python\ndef f(x):\n    return x + 42 &lt;b&gt;text&lt;/b&gt;\n```"
+        in stored
+    ), stored
+
+    # просмотр: 1:1 (литеральный текст), подсветка (токены) и фон (rich-code)
+    _open_view(page, web_base_url, page_id)
+    code_view = page.locator(".article-body .rich-code")
+    assert "def f(x):" in code_view.inner_text()
+    assert "<b>text</b>" in code_view.inner_text()
+    assert code_view.locator(".rich-tok-kw").count() >= 1
+    assert code_view.locator("pre.rich-code-pre").count() == 1
+
+    # повторное редактирование: дописывание поверх подсветки, re-save 1:1
+    _open_editor(page, web_base_url, page_id)
+    codebox2 = page.locator(".editor-area .rich-code").last
+    expect(codebox2.locator(".rich-tok-kw").first).to_be_visible()  # подсветка видна
+    _place_caret_at_end(page, codebox2)
+    page.keyboard.type("\nx = f(1)")
+    page.locator(".editor-area .rich-legacy, .editor-area .rich-textline").first.click()
+    page.get_by_role("button", name="Сохранить").click()
+    page.wait_for_url(f"{web_base_url}/wiki/{page_id}")
+    stored2 = web_owner_session.get(
+        f"{web_base_url}/api/wiki/pages/{page_id}"
+    ).json()["content"]
+    assert (
+        "```python\ndef f(x):\n    return x + 42 &lt;b&gt;text&lt;/b&gt;\nx = f(1)\n```"
+        in stored2
+    ), stored2
