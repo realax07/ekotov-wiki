@@ -147,3 +147,40 @@ CSS `frontend/static/css/` (токены дизайна V3 в app.css) + respons
 9. **X-Forwarded-* не читаются приложением**: клиент всегда видит себя как 127.0.0.1; IP нигде не используется — риск нулевой, пока нет функций по IP/аудит.
 10. **CSRF — только SameSite=Lax** (sdd §5, NFR-7 «CSRF-минимум»): без CSRF-токенов; допустимо при текущем профиле, пересмотреть при появлении публичных форм/интеграций.
 11. **Wiki-поиск — линейный LIKE-скан с casefold** (python-функция на каждую строку сравнения): без FTS-индекса стоимость растет с объемом wiki; при личном объеме — норма, при росте — точка пересмотра (FTS5 или вынос в search-сервис).
+
+## 7. Плановая дельта: video-hosting (пакет В РАБОТЕ, не «как есть»)
+
+> Секция добавлена СА при ревью пакета (2026-10-17, ревью №1 —
+> `openspec/changes/video-hosting/review-architecture.md`, verdict APPROVE).
+> Это ПРОЕКТ топологии по change-пакету video-hosting (ветка
+> pipeline/video-hosting): в проде пока ОТСУТСТВУЕТ. При архивации пакета
+> (задача 5.3 tasks.md) сведения переводятся в тело карты (§1–§2), эта
+> секция снимается.
+
+**Новый 7-й контейнер `video`** (FastAPI, uvicorn 1 воркер :8380, статический
+ffmpeg/ffprobe бинарь в образе — НЕ apt, паритет images: USER 10001, без
+публикуемых портов, healthcheck, mem_limit 512m, depends_on [app]).
+
+- **Владение данными:** таблица `video_videos` (метаданные: id/filename/
+  status/size_bytes/mime/uploaded_by/created_at/convert_attempts) — владелец
+  ровно один, сервис `video` (RW-своей-схемы + SELECT users); ядро НЕ пишет —
+  первичное создание one-shot миграцией ядра `migrate_video` (MIGRATE_MODULE
+  строго до up, паттерн migrate_gallery). Файлы — том `videos-data`
+  (`<id>/original.<ext>`, `<id>/video.mp4`, `<id>/preview.jpg`): RW у video,
+  ro-маунт у frontend. Вне БД и репозитория (FR-79-паттерн).
+- **Шов с nginx:** `= /api/videos` + `^~ /api/videos/` → video:8380
+  (X-Service: video, client_max_body_size 520m только upload, деградация
+  `@videos_down` — быстрый JSON 503 при отказе, ядро не затронуто);
+  `/videos/` — alias ro-маунта тома + **auth_request** `/_video_auth` →
+  video:8380 `/api/videos/authcheck` (200/401 по cookie; 401 → /login,
+  отказ subrequest → управляемая 503) — в отличие от публичного `/images/`,
+  публичных ссылок на видео нет (ОВ-2).
+- **Шов с app:** страница `/video` остается в ядре (сессия ядра, редирект
+  на /login); app больше ничего: service-домен целиком у video.
+- **Конвертация:** внутрипроцессный воркер (queue.Queue + 1 поток) +
+  subprocess ffmpeg (nice 10, wall-clock timeout 30 мин, ровно 1 авторетрай,
+  оригинал удаляется после успеха; крэш-восстановление на старте — re-enqueue
+  `uploaded`+`converting`). Брокер не вводится (YAGNI).
+- **Замечания к разделу:** том `videos-data` в бэкап-контур backup-sidecar
+  НЕ входит (наблюдение O1 ревью №1 — решение за Заказчиком при приемке);
+  третий RW-клиент SQLite (после app и images) — наследует риск Д-б/§6.5.
