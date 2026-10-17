@@ -297,6 +297,39 @@ body.app-shell {
 .btn-secondary:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 /* =====================================================================
+   КУСОК D: КАТЕГОРИЯ — паттерн .field / .lab / .hint галереи
+   (design/gallery-upload.html): select справочника с нижней линией 2px
+   + опция «+ Новая категория…»
+   ===================================================================== */
+.field { display: block; margin-bottom: var(--space-2); }
+.field > span.lab {
+  display: block;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+.field input[type="text"],
+.field select {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-05);
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+}
+.field select { cursor: pointer; }
+.field input:hover, .field select:hover { border-bottom-color: var(--color-border-strong); }
+.field input:focus-visible, .field select:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
+}
+.hint { display: block; font-size: var(--font-size-micro); color: var(--color-text-secondary); margin-top: var(--space-05); }
+
+/* =====================================================================
    ДЕМО-ЗОНА (вне продукта): dragover + ошибка размера + состояние загрузки
    ===================================================================== */
 .demo-strip { margin-top: var(--space-4); }
@@ -412,6 +445,27 @@ kbd {
       <button type="button" class="file-remove">убрать</button>
     </div>
 
+    <!-- ===== КУСОК D: КАТЕГОРИЯ — select справочника + «Новая категория…»
+         (паттерн gallery-upload.html; при выборе опции new — JS показывает
+         текстовое поле, демо-состояние ниже) ===== -->
+    <label class="field" for="up-category">
+      <span class="lab">Категория</span>
+      <select id="up-category">
+        <option value="" selected>Без категории</option>
+        <option>Интерьеры</option>
+        <option>Участок</option>
+        <option value="new">+ Новая категория…</option>
+      </select>
+      <span class="hint">Общий справочник с «Галереей» (не категории задач)</span>
+    </label>
+
+    <!-- ДЕМО-СОСТОЯНИЕ: поле «новая категория» после выбора «+ Новая категория…» -->
+    <label class="field" for="up-category-new">
+      <span class="lab">Название новой категории</span>
+      <input type="text" id="up-category-new" value="Дроны">
+      <span class="hint">Будет создана в общем справочнике</span>
+    </label>
+
     <!-- ===== ДЕЙСТВИЯ: отправка заблокирована, пока идет загрузка ===== -->
     <div class="form-actions">
       <button type="button" class="btn-secondary">Отмена</button>
@@ -433,7 +487,8 @@ kbd {
         <li>выбор файла — клик по зоне или <kbd>Enter</kbd> (зона — кнопка, a11y); dragover подсвечивает зону акцентом;</li>
         <li>превью показывает имя/размер/формат и прогресс загрузки; после 100% кнопка «Загрузить» активируется;</li>
         <li>файл &gt; 500 МБ — красная строка с ошибкой, запись на диск не отправляется (Scenario «Отказ при превышении лимита», 422);</li>
-        <li>конвертация в mp4 — фоновая: после отправки пользователь возвращается в список и видит статус (мокап <code>video-list.html</code>).</li>
+        <li>конвертация в mp4 — фоновая: после отправки пользователь возвращается в список и видит статус (мокап <code>video-list.html</code>);</li>
+        <li>категория (кусок D) — необязательна («Без категории»); справочник общий с «Галереей», опция «+ Новая категория…» показывает текстовое поле (демо-состояние выше).</li>
       </ul>
       Токены — дословно из <code>design/tokens.html</code> (J47), новых цветов нет.
     </div>

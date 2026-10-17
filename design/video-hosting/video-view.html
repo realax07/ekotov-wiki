@@ -321,6 +321,155 @@ body.app-shell {
 .btn-delete:active { transform: translateY(1px); }
 
 /* =====================================================================
+   КУСОК D: РЕАКЦИИ (лайк/дизлайк) — паттерн .react-btn галереи
+   (design/gallery-lightbox.html): пилюли, счетчик, «мой голос» —
+   мягкая терракота + заливка иконки (различимо без цвета)
+   ===================================================================== */
+.reactions-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.react-btn {
+  font: inherit;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-primary);
+}
+.react-btn svg { width: 16px; height: 16px; }
+.react-btn:hover { background: var(--color-bg-subtle); }
+.react-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.react-btn:active { transform: translateY(1px); }
+/* Состояние «мой голос»: заливка мягкой терракотой + акцентный текст/рамка */
+.react-btn.my-vote {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent-hover);
+  font-weight: 600;
+}
+.react-btn.my-vote svg path { fill: var(--color-accent); stroke: var(--color-accent); }
+.react-hint { font-size: var(--font-size-micro); color: var(--color-text-secondary); margin-left: auto; }
+
+/* Категория — пилюля .task-category (паттерн board.css / галереи) */
+.task-category {
+  background: var(--color-bg-subtle);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+
+/* =====================================================================
+   КУСОК D: КОММЕНТАРИИ — паттерн .lb-comments галереи (список с
+   автором/датой; «удалить» — только у СВОИХ; форма: textarea с нижней
+   линией 2px + кнопка «Отправить»)
+   ===================================================================== */
+.comments-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-2);
+}
+.comments-card h2 {
+  font-family: var(--font-family-display);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+}
+.comments-card h2 .count { font-weight: 400; color: var(--color-text-secondary); }
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.comment {
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  padding: var(--space-1) 10px;
+}
+.comment-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+}
+.comment-author { font-weight: 600; color: var(--color-text-primary); font-size: var(--font-size-label); }
+.comment-delete {
+  margin-left: auto;
+  border: none; background: none; cursor: pointer;
+  font: inherit; font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  text-decoration: underline; text-underline-offset: 2px;
+  padding: 2px 4px;
+}
+.comment-delete:hover { color: var(--color-accent-hover); }
+.comment-delete:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-field); }
+.comment-body { margin: 4px 0 0; font-size: var(--font-size-label); white-space: pre-wrap; }
+
+/* Форма комментария — паттерн .lb-comment-form (нижняя линия 2px, V3) */
+.comment-form {
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-end;
+  border-top: 1px solid var(--color-border-default);
+  padding-top: var(--space-2);
+}
+.comment-form label {
+  display: block;
+  flex: 1;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+.comment-form textarea {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-05);
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+  resize: none;
+  min-height: 40px;
+}
+.comment-form textarea:hover { border-bottom-color: var(--color-border-strong); }
+.comment-form textarea:focus-visible { outline: none; border-bottom-color: var(--color-accent); box-shadow: 0 1px 0 var(--color-accent); }
+.send-btn {
+  font: inherit;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  padding: 8px var(--space-2);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+  white-space: nowrap;
+}
+.send-btn:hover { background: var(--color-accent-hover); }
+.send-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* =====================================================================
    ДЕМО-ЗОНА (вне продукта)
    ===================================================================== */
 .demo-strip { margin-top: var(--space-4); }
@@ -394,11 +543,27 @@ kbd {
     </video>
   </div>
 
+  <!-- ===== КУСОК D: реакции — лайк/дизлайк (паттерн .react-btn галереи);
+       ровно один голос: повторный клик снимает, клик по второй — переносит ===== -->
+  <div class="reactions-row" aria-label="Реакции на видео">
+    <button type="button" class="react-btn my-vote" aria-pressed="true" aria-label="Нравится, ваш голос учтен. Снять голос">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0l4-7a2.4 2.4 0 0 1 2.4 2.4V9H19a2 2 0 0 1 2 2.2l-1 6.6A2 2 0 0 1 18 19.5H7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      5
+    </button>
+    <button type="button" class="react-btn" aria-pressed="false" aria-label="Не нравится. Поставить голос">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0l-4 7a2.4 2.4 0 0 1-2.4-2.4V15H5a2 2 0 0 1-2-2.2l1-6.6A2 2 0 0 1 6 4.5h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      1
+    </button>
+    <span class="react-hint">ваш голос — «Нравится» (повторный клик снимет)</span>
+  </div>
+
   <!-- ===== МЕТАДАННЫЕ + ДЕЙСТВИЯ ===== -->
   <div class="video-details">
     <dl class="details-list">
       <dt>Статус</dt>
       <dd><span class="status-badge status-ready"><span class="status-dot"></span>готово</span></dd>
+      <dt>Категория</dt>
+      <dd><span class="task-category">Интерьеры</span></dd>
       <dt>Длительность</dt>
       <dd>04:12</dd>
       <dt>Размер</dt>
@@ -419,6 +584,42 @@ kbd {
     </div>
   </div>
 
+  <!-- ===== КУСОК D: комментарии (паттерн галереи). «удалить» — только у
+       СВОИХ (у чужого комментария кнопки нет; dev: рендерит кнопку только
+       если comment.user_id === me.id, иначе 403 по API). ===== -->
+  <section class="comments-card" aria-label="Комментарии к видео">
+    <h2>Комментарии <span class="count">(2)</span></h2>
+
+    <div class="comments-list">
+      <!-- ЧУЖОЙ комментарий: кнопки «удалить» НЕТ -->
+      <div class="comment">
+        <div class="comment-head">
+          <span class="comment-author">maria</span>
+          <span>сегодня, 15:02</span>
+        </div>
+        <p class="comment-body">Отличный обзор! Покажете, как теплицу внутри устроили?</p>
+      </div>
+
+      <!-- СВОЙ комментарий: есть «удалить» -->
+      <div class="comment">
+        <div class="comment-head">
+          <span class="comment-author">ekotov</span>
+          <span>сегодня, 15:20</span>
+          <button type="button" class="comment-delete" aria-label="Удалить свой комментарий">удалить</button>
+        </div>
+        <p class="comment-body">Спасибо! Отдельный ролик по теплице сниму на выходных.</p>
+      </div>
+    </div>
+
+    <!-- Форма ввода: textarea с нижней линией + «Отправить» (disabled, пока пусто) -->
+    <form class="comment-form" aria-label="Новый комментарий">
+      <label for="video-comment-input">Новый комментарий
+        <textarea id="video-comment-input" placeholder="Напишите что-нибудь…" rows="2"></textarea>
+      </label>
+      <button type="submit" class="send-btn" disabled>Отправить</button>
+    </form>
+  </section>
+
   <!-- =================================================================
        ДЕМО-ВСТАВКА (вне продукта): вид страницы для статуса НЕ «готово»
        ================================================================= -->
@@ -432,6 +633,15 @@ kbd {
       <ul>
         <li>отдача файла — только по сессии (NFR-36), прямой ссылке/скачиванию нет;</li>
         <li>подтверждение удаления — модалка ниже (Esc / клик по фону = отмена).</li>
+      </ul>
+    </div>
+    <div class="demo-note">
+      Кусок D (социальный слой, по образцу галереи — паттерны
+      <code>gallery-lightbox.html</code>):
+      <ul>
+        <li>лайк/дизлайк — пилюли с счетчиками; ровно один голос: повторный клик <strong>снимает</strong>, клик по второй — <strong>переносит</strong>; «мой голос» = мягкая терракота + заливка иконки (различимо без цвета);</li>
+        <li>комментарии — список (автор/дата), «удалить» — только у СВОИХ (у чужого кнопки нет, 403 по API);</li>
+        <li>«Отправить» неактивна, пока поле пусто; реакции и комментарии — только авторизованные (NFR-36).</li>
       </ul>
     </div>
   </div>

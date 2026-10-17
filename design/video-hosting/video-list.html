@@ -344,6 +344,7 @@ body.app-shell {
 }
 .v-card-meta {
   display: flex; align-items: center; gap: var(--space-1);
+  flex-wrap: wrap;
   font-size: var(--font-size-micro); color: var(--color-text-secondary);
 }
 
@@ -362,6 +363,16 @@ body.app-shell {
 .status-ready      { background: var(--priority-low-soft); color: var(--status-success); }
 .status-error      { background: var(--status-error-bg); color: var(--status-error); }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* Пилюля категории — паттерн .task-category (board.css / галереи) */
+.task-category {
+  background: var(--color-bg-subtle);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: var(--font-size-micro);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
 
 /* Мини-прогресс конвертации в карточке (строка статуса) */
 .card-progress {
@@ -456,6 +467,17 @@ kbd {
       <label for="video-search">Поиск по имени</label>
       <input id="video-search" type="search" placeholder="подстрока имени…" value="">
     </div>
+    <!-- КУСОК D: фильтр по категории — общий справочник с «Галереей»
+         (паттерн .filter gallery-grid.html); комбинируется с поиском (?category=&q=) -->
+    <div class="filter">
+      <label for="video-category">Категория</label>
+      <select id="video-category">
+        <option value="" selected>Все категории</option>
+        <option>Интерьеры</option>
+        <option>Участок</option>
+        <option>Без категории</option>
+      </select>
+    </div>
     <div class="filter">
       <label for="video-sort">Сортировка</label>
       <select id="video-sort">
@@ -490,6 +512,7 @@ kbd {
       <div class="v-card-body">
         <h3 class="v-card-title">Обзор дома, октябрь</h3>
         <div class="v-card-meta">
+          <span class="task-category">Интерьеры</span>
           <span class="status-badge status-ready"><span class="status-dot"></span>готово</span>
           <span>184 МБ</span>
           <span>· сегодня</span>
@@ -509,6 +532,7 @@ kbd {
       <div class="v-card-body">
         <h3 class="v-card-title">Ремонт кухни, день 3</h3>
         <div class="v-card-meta">
+          <span class="task-category">Интерьеры</span>
           <span class="status-badge status-converting"><span class="status-dot"></span>конвертируется 43%</span>
           <span>512 МБ</span>
           <span>· сегодня</span>
@@ -531,6 +555,7 @@ kbd {
       <div class="v-card-body">
         <h3 class="v-card-title">Участок с дрона</h3>
         <div class="v-card-meta">
+          <span class="task-category">Участок</span>
           <span class="status-badge status-uploaded"><span class="status-dot"></span>загружено</span>
           <span>428 МБ</span>
           <span>· вчера</span>
@@ -551,6 +576,7 @@ kbd {
       <div class="v-card-body">
         <h3 class="v-card-title">Монтаж теплицы</h3>
         <div class="v-card-meta">
+          <span class="task-category">Участок</span>
           <span class="status-badge status-ready"><span class="status-dot"></span>готово</span>
           <span>96 МБ</span>
           <span>· 2 окт</span>
@@ -570,6 +596,7 @@ kbd {
       <div class="v-card-body">
         <h3 class="v-card-title">Запись собрания</h3>
         <div class="v-card-meta">
+          <span class="task-category">Без категории</span>
           <span class="status-badge status-error"><span class="status-dot"></span>ошибка</span>
           <span>210 МБ</span>
           <span>· 30 сен</span>
@@ -591,6 +618,7 @@ kbd {
       <div class="v-card-body">
         <h3 class="v-card-title">Забор, тест камеры</h3>
         <div class="v-card-meta">
+          <span class="task-category">Участок</span>
           <span class="status-badge status-ready"><span class="status-dot"></span>готово</span>
           <span>22 МБ</span>
           <span>· 28 сен</span>
@@ -617,6 +645,9 @@ kbd {
         <li><code>готово</code> (оливковый <code>--status-success</code>) — кадр + play, клик → просмотр;</li>
         <li><code>ошибка</code> (красный <code>--status-error</code>) — авто-ретрай исчерпан, оригинал сохранен.</li>
       </ul>
+      Кусок D: фильтр по категории — между поиском и сортировкой, комбинируется с поиском
+      (<code>?category=&amp;q=</code>, паттерн <code>gallery-grid.html</code>); пилюля категории на карточке —
+      общий справочник с «Галереей», «Без категории» — когда категория не выбрана.
       Токены — дословно из <code>design/tokens.html</code> (J47), новых цветов нет.
       Позиция пункта «Видео» в сайдбаре (после «Галерея») — предложить к финализации на сверке.
     </div>
