@@ -135,6 +135,55 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Video-сервис «Видеохостинг wiki» (задача 1.2, change video-hosting;
+  # design §1/§2): uvicorn :8380. RW-профиль БД — только своя таблица
+  # video_videos + SELECT users (design §7; владение схемой — сервис video,
+  # первичное создание — миграция ядра migrate_video, шов MIGRATE_MODULE
+  # в 6.1 строго до up) + свой том файлов videos-data (design §5: оригинал,
+  # mp4, превью-кадр — вне БД, вне репо; nginx получит ro-маунт — задача 1.4).
+  # По образцу images.
+  video:
+    image: ${VIDEO_IMAGE:-ekotov-wiki/video:local}
+    build:
+      context: ..
+      dockerfile: services/video/Dockerfile
+    restart: unless-stopped
+    # design §2: video 512m (ffmpeg-буферы при 500 МБ исходнике больше, чем
+    # у Pillow; факт — замер NFR-35 на стенде, стабильное превышение =
+    # эскалация до прод).
+    mem_limit: 512m
+    environment:
+      # Путь БД — тот же файл, что у app (env-имя свое —
+      # services/video/app/db.py). RW: пишет только таблицу video_videos.
+      EKOTOV_WIKI_DB_PATH: /data/wiki.db
+      # Том файлов видео (дефолт кода /data/videos — app/storage.py).
+      EKOTOV_WIKI_VIDEOS_DIR: /data/videos
+    volumes:
+      # RW-маунт общей БД (design §7): таблица video_videos + чтение users.
+      # Гарантии профиля — на уровне кода сервиса (short transactions,
+      # busy_timeout, только своя таблица); в sessions сервис не пишет.
+      - wiki-data:/data:rw
+      # Файлы видео (оригинал + mp4 + превью-кадр) — отдельный том
+      # (design §5). nginx (задача 1.4) получит второй, ro-маунт.
+      - videos-data:/data/videos
+    # Поднять после app: схему БД (таблицу video_videos) создает миграция
+    # ядра (design §2: depends_on [app], шов миграций — 6.1 до up).
+    depends_on:
+      - app
+    # Порты НЕ публикуются (design §1: наружу только nginx :10443, FR-65):
+    # nginx-маршрутизация — задача 1.4.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8380/api/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # Sidecar-бэкап (задача 1.2; design §5): cron-цикл средствами python
   # (sqlite3 .backup + tar avatars), retention 14 дней. Релизный бэкап
   # deploy.sh (задача 1.4) вызывает ТОТ ЖЕ модуль — без дубля кода.
@@ -246,6 +295,11 @@ services:
       # alias /data/images/ в конфиге резолвится точно в каталог файлов
       # (урок тома avatars: глубина маунта = глубина alias-пути).
       - images-data:/data/images:ro
+      # Файлы видео (задача 1.4 video-hosting; design §1/§5/§6): ro-маунт
+      # ТОМ ЖЕ глубиной, что у video (том:/data/videos) — alias
+      # /data/videos/ в конфиге резолвится точно в каталог файлов
+      # (урок тома avatars/images: глубина маунта = глубина alias-пути).
+      - videos-data:/data/videos:ro
       # Креды basic auth дашборда Netdata (задача 1.3 add-netdata-monitoring,
       # design §2): bind-mount ro с хоста; на VPS создается до пересоздания
       # frontend (deploy.sh шаг «nginx -t до reload», design §6) — иначе
@@ -269,3 +323,9 @@ volumes:
     # Файлы изображений галереи (оригинал + превью; FR-79 — вне БД;
     # design §4). Новый том, пустой при первом старте; включается в контур
     # бэкапов релиза (design §7: tar images-data). nginx — ro-маунт (1.4).
+  videos-data:
+    # Файлы видео (оригинал + mp4 + превью-кадр; change video-hosting,
+    # design §5 — вне БД, вне репозитория). RW у video, ro у frontend
+    # (задача 1.4). ВНИМАНИЕ (наблюдение O1 ревью №1, задача 6.2): том
+    # videos-data в бэкап-контур НЕ входит — вес видео; фиксируется
+    # в протоколе приемки.

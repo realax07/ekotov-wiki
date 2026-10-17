@@ -166,3 +166,24 @@ def gallery_page(request: Request):
     return templates.TemplateResponse(
         request=request, name="gallery.html", context={"active_page": "gallery"}
     )
+
+
+@router.get("/video")
+def video_page(request: Request):
+    """Страница «Видео» (tasks.md 1.5 video-hosting; дельта specs/
+    video-service — Requirement «Раздел «Видео» в сайдбаре и страница
+    сервиса»): список видео (имя, статус, размер, дата), форма загрузки
+    с прогрессом и ошибкой лимита 500 МБ, встроенный плеер <video>,
+    удаление с подтверждением — вся динамика из ES-модуля
+    frontend/static/js/video.js (данные — GET/POST/DELETE /api/videos*
+    сервиса video; файлы — nginx /videos/<id>/…, design §5). Вид — по
+    утвержденным мокапам 0.2 (design/video-hosting/video-list.html,
+    video-upload.html, video-view.html). Изоляция от wiki (ОВ-3):
+    инструменты редактора статей НЕ расширяются — страница сервиса
+    никаких embed-возможностей не предоставляет. Без сессии — редирект
+    на /login middleware'ом (sdd.md §3.6, дельта specs/video-service,
+    Scenario «Неавторизованный — редирект на login») — здесь не
+    дублируется, как у остальных страниц."""
+    return templates.TemplateResponse(
+        request=request, name="video.html", context={"active_page": "video"}
+    )

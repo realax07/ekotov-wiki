@@ -47,7 +47,7 @@ green на каждом шаге. Порядок: 0 (мокапы утвержд
 
 ## Волна 1. Кусок A — ядро сервиса (после 0.3)
 
-- [ ] 1.1 [migration] [S] Dev: one-shot миграция ядра `backend/app/
+- [x] 1.1 [migration] [S] Dev: one-shot миграция ядра `backend/app/
   migrate_video.py` — таблица `video_videos` по схеме sdd §4 (id TEXT PK
   uuid4, filename, status, size_bytes, mime, uploaded_by FK users,
   created_at, convert_attempts DEFAULT 0), идемпотентно (CREATE IF NOT
@@ -57,7 +57,7 @@ green на каждом шаге. Порядок: 0 (мокапы утвержд
   (строго до up). Проверка: двойной запуск без ошибок; состав колонок
   соответствует sdd §4. Зона: `backend/app/migrate_video.py`.
   (design §7; sdd §4; Requirement «Отдельный контейнерный сервис…»)
-- [ ] 1.2 [infra] [M] Dev: каркас контейнерного сервиса `services/video/` —
+- [x] 1.2 [infra] [M] Dev: каркас контейнерного сервиса `services/video/` —
   (а) Dockerfile по образцу images (python:3.12-slim, deps слоями с пинами
   fastapi/uvicorn/python-multipart, код /srv/app, USER 10001, EXPOSE 8380,
   healthcheck urllib, CMD uvicorn --workers 1) + статический ffmpeg/ffprobe:
@@ -76,7 +76,7 @@ green на каждом шаге. Порядок: 0 (мокапы утвержд
   порты не опубликованы. Зона: `services/video/Dockerfile`,
   `services/video/app/{main,middleware,db}.py`, `deploy/compose.yaml`.
   (design §2; NFR-35; Requirement «Отдельный контейнерный сервис…»)
-- [ ] 1.3 [code] [M] Dev: API видео `app/videos.py` + `app/storage.py` —
+- [x] 1.3 [code] [M] Dev: API видео `app/videos.py` + `app/storage.py` —
   (а) storage: единственный владелец путей тома `<id>/original.<ext>`,
   `<id>/video.mp4`, `<id>/preview.jpg` (uuid; пути из имен пользователя НЕ
   строятся — path traversal, design §8); (б) POST /api/videos — multipart,
@@ -94,7 +94,7 @@ green на каждом шаге. Порядок: 0 (мокапы утвержд
   Зона: `services/video/app/{videos,storage}.py`.
   (design §4, §5, §8; sdd §2, §3; Requirements «Загрузка…», «Список и
   playback», «Удаление видео», NFR-36)
-- [ ] 1.4 [infra] [M] Dev: nginx-маршрутизация и деградация — (а)
+- [x] 1.4 [infra] [M] Dev: nginx-маршрутизация и деградация — (а)
   `services/frontend/nginx/videos-proxy.inc`: set $upstream_videos
   (resolver 127.0.0.11 valid=10s), proxy-заголовки, X-Service: video,
   client_max_body_size 520m (только upload-локации), error_page 502 503 504
@@ -114,7 +114,7 @@ green на каждом шаге. Порядок: 0 (мокапы утвержд
   (frontend-маунт; коммит после 1.2).
   (design §1, §5, §6; Requirements «Отдельный контейнерный сервис…»
   (сценарий деградации), NFR-36)
-- [ ] 1.5 [code] [M] Dev: фронтенд страницы «Видео» — (а) роут `/video` в
+- [x] 1.5 [code] [M] Dev: фронтенд страницы «Видео» — (а) роут `/video` в
   backend/app/pages.py (Jinja2, без сессии — 302 /login по middleware);
   (б) frontend/templates/video.html + frontend/static/js/video.js: список
   (имя, статус, размер, дата), форма загрузки с прогрессом и ошибкой лимита,
@@ -129,7 +129,7 @@ green на каждом шаге. Порядок: 0 (мокапы утвержд
   `frontend/static/js/video.js`, `backend/app/pages.py`.
   (Requirements «Раздел „Видео"…», «Список видео и playback», «Вид
   интерфейса…»; design §0)
-- [ ] 1.6 [tests] [M] Dev: сервисные тесты куска A в
+- [x] 1.6 [tests] [M] Dev: сервисные тесты куска A в
   `services/video/tests/` (паритет services/images/tests): 401 без сессии на
   все эндпоинты; upload happy-path + 422 (501 МБ, обрыв тела, пустое тело);
   список/удаление (200/404); file/preview 409 не-ready; authcheck 200/401;
