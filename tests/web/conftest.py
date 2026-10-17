@@ -53,7 +53,8 @@ OWNER_PASSWORD = os.environ.get("EKOTOV_WIKI_OWNER_PASSWORD", "QaOwner_Pass_1!")
 WIFE_LOGIN = "wife"
 WIFE_PASSWORD = os.environ.get("EKOTOV_WIKI_WIFE_PASSWORD", "QaWife_Pass_2!")
 
-pytest_plugins = ["pytest_playwright"]
+# pytest >= 8: pytest_plugins — только в корневом conftest (см. conftest.py
+# в корне репозитория); здесь регистрация снята, иначе сбор tests/ падает.
 
 
 def _free_port() -> int:
