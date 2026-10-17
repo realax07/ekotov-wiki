@@ -36,6 +36,9 @@ class Sidebar:
         self.board_link = page.get_by_role("link", name="Доска")
         self.search_link = page.get_by_role("link", name="Поиск")
         self.wiki_link = page.get_by_role("link", name="Wiki")
+        # 1.5 video-hosting: 5-й пункт сайдбара «Видео» после «Галерея».
+        self.gallery_link = page.get_by_role("link", name="Галерея")
+        self.video_link = page.get_by_role("link", name="Видео")
         self.logout_button = page.get_by_role("button", name="Выйти")
 
     # --- локаторы-возвратники ---
