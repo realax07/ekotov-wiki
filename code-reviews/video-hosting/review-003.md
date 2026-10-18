@@ -134,6 +134,7 @@ DOM-обновление без перезагрузки подтвержден�
 
 ## Reviewer-Delegation
 
-- review-003: deleg_b01644ff (завершена), Флоу 1, role=code_reviewer, scope=video-hosting task=7.2, 2026-10-18 (approve, 5 замечаний: 3 minor, 2 nit)
+- Reviewer-Delegation: deleg_b01644ff (завершена, role=code_reviewer, ревью №3 волна 7, 2026-10-18)
+- Детали: Флоу 1, scope=video-hosting task=7.2 (approve, 5 замечаний: 3 minor, 2 nit)
 
 - deleg_b01644ff (завершена, role=code_reviewer, ревью №3 волна 7, 2026-10-18)
