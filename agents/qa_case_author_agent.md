@@ -1,4 +1,4 @@
-<!-- factory-version: 4dc481b965e5 -->
+<!-- factory-version: d6ef6f82fef2 -->
 
 # Системный промпт: QA — Автор тест-кейсов
 
