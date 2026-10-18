@@ -20,6 +20,13 @@
  * поиск+категория к дефолту); параметры комбинируются в один запрос
  * ?query=&order=&category= и сохраняются при polling-обновлении списка;
  * пустой результат фильтра — отдельный тихий state (#video-search-empty).
+ * Волна 7 (7.2): переименование видео на странице просмотра по образцу
+ * rename изображений (FR-97, gallery.js): edit-иконка у имени
+ * (#player-rename), инлайн-поле (#player-rename-field), Enter/✓ —
+ * сохранить, Esc — отмена; PATCH {title} на /api/videos/{id}; имя
+ * обновляется в DOM (просмотр + карточка списка) БЕЗ перезагрузки,
+ * новое имя переживает перезагрузку (сервер); ошибки 422/404 — строка
+ * (#player-rename-error).
  *
  * Данные — API video-сервиса (за сессией, NFR-36/38):
  *   GET    /api/videos                       — список (+ ?category=<id|none>
@@ -27,6 +34,8 @@
  *   POST   /api/videos                       — загрузка multipart (≤ 500 МБ,
  *                                              опц. category_id);
  *   DELETE /api/videos/{id}                  — удаление;
+ *   PATCH  /api/videos/{id}                  — {title} переименование
+ *                                              (волна 7; паритет FR-97);
  *   GET    /api/videos/{id}/preview          — кадр (409 = плейсхолдер);
  *   GET    /api/videos/{id}/comments         — комментарии;
  *   POST   /api/videos/{id}/comments         — {text} добавить;
@@ -475,6 +484,8 @@ function openPlayer(item) {
   currentPlayerId = item.id;
   state.playerStatus = item.status;
   document.getElementById('player-title').textContent = item.filename;
+  // Волна 7: редактор имени сбрасывается при открытии/переключении видео.
+  closeRenameEditor();
 
   const card = document.getElementById('player-card');
   card.innerHTML = '';
@@ -527,6 +538,141 @@ function openPlayer(item) {
   loadComments();
 
   showView('video-player-view');
+}
+
+/* ===== Переименование видео (волна 7, tasks 7.2; образец — rename
+   лайтбокса галереи FR-97, gallery.js bindRename/submitRename) ===== */
+
+function currentVideo() {
+  if (!currentPlayerId || !Array.isArray(state.listItems)) return null;
+  return state.listItems.find((entry) => entry.id === currentPlayerId) || null;
+}
+
+function showRenameError(message) {
+  const box = document.getElementById('player-rename-error');
+  box.textContent = message;
+  box.hidden = false;
+}
+
+function hideRenameError() {
+  const box = document.getElementById('player-rename-error');
+  box.textContent = '';
+  box.hidden = true;
+}
+
+function closeRenameEditor() {
+  document.getElementById('player-rename-field').hidden = true;
+  document.getElementById('player-rename-input').value = '';
+  document.getElementById('player-rename-confirm').hidden = true;
+  document.getElementById('player-rename-confirm').disabled = true;
+  document.getElementById('player-rename').hidden = false;
+  document.getElementById('player-title').hidden = false;
+  hideRenameError();
+}
+
+function openRenameEditor() {
+  const video = currentVideo();
+  if (!video) return;
+  hideRenameError();
+  const input = document.getElementById('player-rename-input');
+  input.value = video.filename;
+  document.getElementById('player-rename-confirm').disabled = true;
+  document.getElementById('player-title').hidden = true;
+  document.getElementById('player-rename').hidden = true;
+  document.getElementById('player-rename-confirm').hidden = false;
+  document.getElementById('player-rename-field').hidden = false;
+  input.focus();
+  input.select();
+}
+
+function applyRenamedVideoName(name) {
+  /* Обновить state + имя в просмотре и карточке списка (textContent —
+   * XSS-дисциплина ОГР-11). Сервер уже хранит новое имя — перезагрузка
+   * не нужна; polling/возврат к списку подтянут остальное (бейдж
+   * расширения, поиск/сортировка — по имени с сервера). */
+  const video = currentVideo();
+  if (video) video.filename = name;
+  document.getElementById('player-title').textContent = name;
+  const card = document.querySelector(
+    '.v-card[data-video-id="' + currentPlayerId + '"]'
+  );
+  if (card) {
+    const cardTitle = card.querySelector('.v-card-title');
+    if (cardTitle) cardTitle.textContent = name;
+    const statusLabel =
+      (video && (STATUS_LABELS[video.status] || video.status)) || 'готово';
+    card.setAttribute(
+      'aria-label',
+      `${name} (${statusLabel}) — открыть карточку`
+    );
+  }
+}
+
+async function submitRename() {
+  const video = currentVideo();
+  const input = document.getElementById('player-rename-input');
+  const title = input.value.trim();
+  if (!video || !title) return; // пустое не отправляем (кнопка disabled)
+  if (title === video.filename) {
+    closeRenameEditor(); // без изменений — просто закрыть
+    return;
+  }
+  const confirmBtn = document.getElementById('player-rename-confirm');
+  confirmBtn.disabled = true;
+  let resp;
+  try {
+    resp = await fetch('/api/videos/' + currentPlayerId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+  } catch (err) {
+    confirmBtn.disabled = false;
+    showRenameError('Не удалось переименовать видео — сеть недоступна.');
+    return;
+  }
+  if (resp.status === 401) {
+    window.location.href = '/login';
+    return;
+  }
+  if (!resp.ok) {
+    // 422 — невалидное имя (1–255 символа, без «/» и «\»); 404 — видео
+    // удалено в другом окне; остальное — общий текст (сцена 7.2).
+    if (resp.status === 422) {
+      showRenameError(
+        'Имя не сохранено: нужно 1–255 символов, без «/» и «\\».'
+      );
+    } else if (resp.status === 404) {
+      showRenameError('Видео не найдено — обновите список.');
+    } else {
+      showRenameError('Не удалось переименовать видео.');
+    }
+    confirmBtn.disabled = input.value.trim() === '';
+    return;
+  }
+  const body = await resp.json();
+  closeRenameEditor();
+  applyRenamedVideoName(body.title || title);
+}
+
+function setupRename() {
+  const input = document.getElementById('player-rename-input');
+  const confirmBtn = document.getElementById('player-rename-confirm');
+  document.getElementById('player-rename').addEventListener('click', openRenameEditor);
+  confirmBtn.addEventListener('click', submitRename);
+  input.addEventListener('input', () => {
+    confirmBtn.disabled = input.value.trim() === '';
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (!confirmBtn.disabled) submitRename();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeRenameEditor();
+      document.getElementById('player-rename').focus();
+    }
+  });
 }
 
 /* ===== Загрузка (мокап video-upload.html) ===== */
@@ -812,6 +958,7 @@ function setupDelete() {
 async function init() {
   setupUpload();
   setupDelete();
+  setupRename();
   showView('video-list-view');
   // Кусок D: кто я (кнопка «удалить» у своих) + справочник категорий —
   // параллельно списку; сбой /me не блокирует страницу (комментарии

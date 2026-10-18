@@ -346,7 +346,7 @@ green на каждом шаге. Порядок: 0 (мокапы утвержд
 
 ## Волна 7. Дополнение r3 — переименование видео (решение Заказчика; после 6.2)
 
-- [ ] 7.1 [code] [S] Dev: API переименования `services/video/app/videos.py` —
+- [x] 7.1 [code] [S] Dev: API переименования `services/video/app/videos.py` —
   `PATCH /api/videos/{id}` с телом `{"title"}` (паритет rename изображений
   `PUT /api/images/{id}/name`, FR-97): валидация title — непустая строка
   1–255 символов юникода после обрезки пробелов, без `/`, `\` и управляющих
@@ -361,7 +361,7 @@ green на каждом шаге. Порядок: 0 (мокапы утвержд
   Зона: `services/video/app/videos.py`, `services/video/tests/`
   (последовательно после 4.1 — общая зона videos.py).
   (Requirement «Переименование видео»; NFR-36/38; design §8)
-- [ ] 7.2 [code] [S] Dev: фронтенд переименования — frontend/templates/
+- [x] 7.2 [code] [S] Dev: фронтенд переименования — frontend/templates/
   video.html + frontend/static/js/video.js по образцу rename изображений
   (edit-иконка у имени на странице просмотра, инлайн-правка): PATCH
   `{title}`, обновление имени в DOM без перезагрузки, новое имя переживает
