@@ -76,7 +76,7 @@ def test_done_yesterday_autoarchives_on_first_board_read(
 
 @pytest.mark.must
 def test_msk_midnight_boundary_done_2358_archives_next_day(
-    api, cleanup_task, shift_done_at_yesterday, msk_dates
+    api, cleanup_task, shift_done_at_yesterday, msk_dates, db_hooks
 ):
     """TC-arch-003 (вариант Б, эмуляция — допустимая замена варианта А):
     done_at 23:58 МСК дня D; при первом чтении доски задача архивируется,
@@ -88,11 +88,10 @@ def test_msk_midnight_boundary_done_2358_archives_next_day(
     assert api.move(task["id"], "done").status_code == 200
     # эмуляция: done_at сегодня 23:58 МСК — до границы текущего дня не попадает
     today, _ = msk_dates
-    from conftest import db_update
     import os
 
     db_path = os.environ["EKOTOV_WIKI_DB_PATH"]  # skip выше гарантирует наличие
-    db_update(
+    db_hooks.db_update(
         db_path,
         "UPDATE tasks SET done_at = ? WHERE id = ?",
         (f"{today}T23:58:00+03:00", task["id"]),

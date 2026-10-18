@@ -188,7 +188,7 @@ def test_bare_task_card_empty_fields(api, cleanup_task):
 # --------------------------------------------------------------------------
 
 @pytest.mark.must
-def test_rename_task(api, cleanup_task):
+def test_rename_task(api, cleanup_task, db_hooks):
     """TC-tasks-009: переименование: title="Новое-имя", updated_at обновился;
     задачи «Старое-имя» нет.
 
@@ -205,9 +205,7 @@ def test_rename_task(api, cleanup_task):
 
     db_path = os.environ.get("EKOTOV_WIKI_DB_PATH")
     if db_path:
-        from conftest import db_select_one
-
-        row = db_select_one(
+        row = db_hooks.db_select_one(
             db_path, "SELECT updated_at, created_at FROM tasks WHERE id = ?",
             (task["id"],),
         )

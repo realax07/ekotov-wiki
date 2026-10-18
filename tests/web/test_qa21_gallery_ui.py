@@ -139,6 +139,16 @@ def _clean_qagal_before_each():
     _cleanup()
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _clean_qagal_after_module():
+    """Пост-очистка QAGAL-хвостов сьюта: тесты LEAVE загруженное в галерею
+    (tc_gal_119: QAGAL-sb.png без удаления в теле), галерейный стенд
+    персистентен — хвост ломает сеточные ожидания (count=3) следующего
+    прогона/сьюта (класс утечки regress-final video-hosting, группа 4)."""
+    yield
+    _cleanup()
+
+
 def _login(page, user: str):
     """Вход через /login (UI): cookie session Secure — localhost trustworthy."""
     page.goto(f"{BASE_URL}/login")

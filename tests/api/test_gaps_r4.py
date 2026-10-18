@@ -39,7 +39,7 @@ import requests
 
 pytestmark = [pytest.mark.api]
 
-from conftest import DB_PATH_ENV  # noqa: E402
+from conftest import DB_PATH_ENV, OWNER_LOGIN  # noqa: E402
 
 OWNER = "owner"
 WIFE = "wife"
@@ -273,7 +273,8 @@ def test_sugg_r4_102_directory_only_user_absent_from_suggestions(
 # TC-profile-r4-101 — рассинхрон role (значение вне справочника в БД)
 # ==========================================================================
 @pytest.mark.should
-def test_profile_r4_101_role_desync_read_and_heal(base_url, owner_session, api):
+def test_profile_r4_101_role_desync_read_and_heal(base_url, owner_session, api,
+                                                  db_hooks):
     """TC-profile-r4-101 (CHK-R4-103, гран. Should): БД-значение role вне
     справочника VALID_ROLES (мимо PUT-валидации) — GET /api/profile и
     /api/auth/me отвечают 200 и отдают значение КАК ЕСТЬ (read-only
@@ -287,20 +288,18 @@ def test_profile_r4_101_role_desync_read_and_heal(base_url, owner_session, api):
     if not db_path:
         pytest.skip(f"нужен env {DB_PATH_ENV} (путь SQLite-БД приложения)")
 
-    from conftest import OWNER_LOGIN, db_select_one, db_update
-
     # Шаг 1: baseline — роль после миграции (ОВ-21).
     resp = owner_session.get(f"{base_url}/api/profile")
     assert resp.status_code == 200
     assert resp.json()["role"] == OWNER_DEFAULT_ROLE
 
     def _set_role(value: str) -> None:
-        db_update(
+        db_hooks.db_update(
             db_path,
             "UPDATE users SET role = ? WHERE login = ?",
             (value, OWNER_LOGIN),
         )
-        row = db_select_one(
+        row = db_hooks.db_select_one(
             db_path, "SELECT role FROM users WHERE login = ?", (OWNER_LOGIN,)
         )
         assert row[0] == value, row
