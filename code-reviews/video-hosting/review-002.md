@@ -137,3 +137,8 @@ subprocess (shell=False, uuid-пути куска A держатся, -nostdin),
 тестами. Все 7 эскалаций отчетов B/C согласованы. Minors не блокируют: minor-1/2 — backlog/6.x,
 minor-3 — документирование env к 6.1, minor-4/5 — учесть в QA-волне 5. Следующий рубеж —
 QA-контур 5.1–5.7 (чекбоксы корректно остаются [ ]).
+
+## Reviewer-Delegation
+
+- deleg_8f2f9f3c (завершена, role=code_reviewer, Флоу 1, scope=video-hosting task=5.2, 2026-10-18)
+- review-001: deleg_649140ec (approv, кусок A)
