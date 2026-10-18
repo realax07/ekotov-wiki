@@ -103,7 +103,8 @@ def test_convert_note_in_upload_form(logged_in_page, web_base_url):
 
 
 def test_status_badges_by_mockup(logged_in_page, web_base_url):
-    """TC-vid-108 (мокап video-list.html): четыре бейджа статусов с
+    """TC-vid-108 (approved TC-vid-022: до готовности — плейсхолдер;
+    мокап video-list.html): четыре бейджа статусов с
     токенными классами; «конвертируется» — aria-busy (пульсирующая
     точка); «ошибка» — подсказка «оригинал сохранен»; не готовое видео
     в просмотре — плейсхолдер БЕЗ <video> (плеер только для «готово»)."""

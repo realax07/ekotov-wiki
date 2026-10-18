@@ -166,7 +166,8 @@ def test_search_substring_case_insensitive_latin(client, db_path):
 
 
 def test_search_substring_case_insensitive_cyrillic(client, db_path):
-    """TC-vid-081: кириллица без учета регистра (спека прямо требует
+    """TC-vid-081 (+ approved TC-vid-023: поиск по подстроке без учета
+    регистра): кириллица без учета регистра (спека прямо требует
     кириллицу): встроенный lower() SQLite — ASCII-only, unicode-lower
     db.py складывает «ДОМ»/«дом»/«Дом»."""
     _insert(db_path, "Интерьер ДОМА.jpg.mp4")
@@ -277,3 +278,39 @@ def test_no_matches_and_default_order_unchanged(client, db_path):
     names = _names(client.get("/api/videos"))
     assert names == ["beta.mp4", "alpha.mp4"]
     assert client.get("/api/videos").json()["videos"][0]["id"] == beta
+
+
+# --------------------------------------------------------------------------
+# TC-vid-024 — unicode-имена: загрузка, поиск, сортировка
+# --------------------------------------------------------------------------
+
+
+def test_unicode_names_upload_search_sort(client, db_path):
+    """TC-vid-024 (граничный, Scenario «Поиск и сортировка» — unicode):
+    загрузка имен с кавычками/дефисом/№, emoji и 255-байтного UTF-8 имени
+    — 201 без искажений; поиск находит по unicode-подстроке и emoji;
+    сортировка в обе стороны стабильна, без дублей."""
+    names = [
+        "видео №1 — «тест».mkv",
+        "🎬emoji.mp4",
+        "а" * 127 + "я" * 128 + ".mp4",  # 255 байт UTF-8 (2-байтные коды)
+    ]
+    for name in names:
+        resp = client.post(
+            "/api/videos",
+            files={"file": (name, b"unicode-bytes", "video/x-matroska")},
+        )
+        assert resp.status_code == 201, (name, resp.text)
+        assert resp.json()["filename"] == name
+
+    listed = _names(client.get("/api/videos"))
+    assert sorted(listed) == sorted(names)
+    assert len(set(listed)) == 3  # без дублей и искажений
+
+    for needle, expected in (("№1", [names[0]]), ("🎬", [names[1]])):
+        found = _names(client.get("/api/videos", params={"query": needle}))
+        assert found == expected, (needle, found)
+
+    asc = _names(client.get("/api/videos", params={"order": "asc"}))
+    desc = _names(client.get("/api/videos", params={"order": "desc"}))
+    assert asc == list(reversed(desc))  # стабильность в обе стороны

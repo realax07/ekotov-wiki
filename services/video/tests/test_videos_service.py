@@ -202,7 +202,10 @@ def test_health_no_session(anon_client):
 
 
 def test_endpoints_require_session(anon_client):
-    """Все эндпоинты видео без сессии → 401 {"error": "unauthorized"}."""
+    """Все эндпоинты видео без сессии → 401 {"error": "unauthorized"}.
+    Трассировка approved-кейсов: TC-vid-006 (API /api/videos без сессии),
+    TC-vid-038 (файл/preview не отдаются без сессии; nginx-стык /videos/
+    с auth_request — env-проверка, REPORT)."""
     assert anon_client.get("/api/videos").status_code == 401
     assert anon_client.post("/api/videos").status_code == 401
     assert anon_client.delete("/api/videos/" + uuid.uuid4().hex).status_code == 401
@@ -252,7 +255,9 @@ def test_upload_happy_path(client, videos_dir, db_path):
     """Любой формат (mkv) → 201; файл в томе <id>/original.<ext> (НЕ BLOB,
     НЕ в репо), метаданные в БД (Scenario «Файлы в томе, метаданные в БД»).
     Кусок B: статус «uploaded» (sdd §3) — воркер (волна 3) переводит в
-    converting/ready; в этих тестах воркер выключен (conftest)."""
+    converting/ready; в этих тестах воркер выключен (conftest).
+    Трассировка approved-кейса: TC-vid-005 (файлы в томе videos-data,
+    метаданные в БД; force-recreate контейнера — env-проверка, REPORT)."""
     content = b"\x1aE\xdf\xa3" + b"matroska-fake-payload" * 10
     resp = _upload(client, name="обзор дома.mkv", content=content)
     assert resp.status_code == 201, resp.text
@@ -410,7 +415,9 @@ def test_upload_avoids_path_traversal(client, videos_dir):
 def test_file_served_for_ready(client, videos_dir, db_path):
     """«готово» → 200, байты как есть (формат любой); чужие статусы
     недоступны (Scenario «Playback готового видео»). Кусок B: ready
-    ставит воркер — тест ставит его напрямую (воркер выключен)."""
+    ставит воркер — тест ставит его напрямую (воркер выключен).
+    Трассировка approved-кейса: TC-vid-009 (playback готового; прямая
+    ссылка без сессии — 401, см. test_endpoints_require_session)."""
     content = b"mp4-ish-bytes"
     video_id = _upload(client, name="clip.mp4", content=b"ignored").json()["id"]
     # Перезаписываем файл содержимым, чтобы сверить отдачу 1:1.
@@ -431,7 +438,9 @@ def test_file_served_for_ready(client, videos_dir, db_path):
 
 def test_file_409_not_ready(client, videos_dir, db_path):
     """Не «готово» → 409 (плеер не запускается, Scenario «Не готовое
-    видео не проигрывается»); запись есть — 409, не 404."""
+    видео не проигрывается»); запись есть — 409, не 404.
+    Трассировка approved-кейса: TC-vid-010 (UI-плейсхолдер/статусы —
+    tests/web/test_video_convert_ui.py, TC-vid-108/022)."""
     video_id = _insert_row(db_path, status="converting")
     d = os.path.join(videos_dir, video_id)
     os.makedirs(d)
@@ -458,7 +467,9 @@ def test_preview_409_until_frame_exists(client):
 
 
 def test_file_and_preview_404_missing(client):
-    """Несуществующее видео → 404 на file/preview/delete."""
+    """Несуществующее видео → 404 на file/preview/delete.
+    Трассировка approved-кейса: TC-vid-013 (негативы удаления: 404/401 —
+    401 без сессии в test_endpoints_require_session)."""
     missing = uuid.uuid4().hex
     assert client.get(f"/api/videos/{missing}/file").status_code == 404
     assert client.get(f"/api/videos/{missing}/preview").status_code == 404
@@ -505,9 +516,46 @@ def test_list_order_newest_first(client, db_path):
     }
 
 
+def test_upload_boundary_exact_500mb(client, videos_dir, db_path):
+    """TC-vid-007 (ОВ-1, границы лимита загрузки): ровно LIMIT (500 МиБ) —
+    валидно (201, включительно); LIMIT+1 байт — 422, каталог в томе НЕ
+    создан (проверка до записи на диск). 501 МиБ цельным файлом —
+    test_upload_too_large_422_no_volume_dir; Content-Length pre-check —
+    test_upload_precheck_rejects_huge_content_length."""
+    exact = b"\0" * LIMIT
+    resp = _upload(client, name="video_500mb.mkv", content=exact)
+    assert resp.status_code == 201, resp.text
+    video_id = resp.json()["id"]
+    assert resp.json()["size"] == LIMIT
+    assert os.path.getsize(
+        os.path.join(videos_dir, video_id, "original.mkv")
+    ) == LIMIT
+
+    over = b"\0" * (LIMIT + 1)
+    resp = _upload(client, name="video_501mb.mkv", content=over)
+    assert resp.status_code == 422
+    assert os.listdir(videos_dir) == [video_id]  # лишнего каталога нет
+
+
+def test_delete_error_status_video_removes_volume(client, videos_dir, db_path):
+    """TC-vid-019 (шаг 3, «Удалить видео вручную» после «ошибка»):
+    видео в статусе error удаляется (200), каталог тома очищен, в списке
+    нет. Оригинал при error/ретрае на месте — test_convert_error_keeps_original."""
+    video_id = _insert_row(db_path, status="error")
+    d = os.path.join(videos_dir, video_id)
+    os.makedirs(d)
+    with open(os.path.join(d, "original.mkv"), "wb") as f:
+        f.write(b"original-kept-after-error")
+    assert client.delete(f"/api/videos/{video_id}").status_code == 200
+    assert not os.path.exists(d)
+    assert client.get(f"/api/videos/{video_id}/file").status_code == 404
+
+
 def test_delete_removes_volume_and_row(client, videos_dir, db_path):
     """Удаление «готового»: том <id>/ целиком + метаданные; повторный
-    запрос по id — 404 (Scenario «Удаление готового видео»)."""
+    запрос по id — 404 (Scenario «Удаление готового видео»).
+    Трассировка approved-кейса: TC-vid-011 (паритет pe —
+    test_delete_parity_both_users)."""
     video_id = _upload(client, name="bye.mkv").json()["id"]
     assert os.path.isdir(os.path.join(videos_dir, video_id))
 

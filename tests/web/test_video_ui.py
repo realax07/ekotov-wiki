@@ -23,9 +23,10 @@ pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 
 def test_sidebar_video_item_after_gallery(logged_in_page, web_base_url):
-    """Scenario «Пункт сайдбара виден авторизованным»: пункт «Видео» в
-    сайдбаре, СТРОГО после «Галерея», с иконкой (inline-SVG, .nav-icon);
-    клик ведет на /video, заголовок страницы — «Видео»."""
+    """TC-vid-001 (Scenario «Пункт сайдбара виден авторизованным»):
+    пункт «Видео» в сайдбаре, СТРОГО после «Галерея», с иконкой
+    (inline-SVG, .nav-icon); клик ведет на /video, заголовок страницы —
+    «Видео». Под pe — идентичный каркас (seed-пользователь стенда)."""
     page = logged_in_page
     page.goto(f"{web_base_url}/board")
 
@@ -57,8 +58,10 @@ def test_sidebar_video_item_after_gallery(logged_in_page, web_base_url):
 
 
 def test_video_page_redirects_anonymous_to_login(page, web_base_url):
-    """Scenario «Неавторизованный — редирект на login»: открытие /video
-    без сессии — редирект на страницу входа (middleware ядра, sdd §3.6)."""
+    """TC-vid-002 (Scenario «Неавторизованный — редирект на login»):
+    открытие /video без сессии — редирект на страницу входа (middleware
+    ядра, sdd §3.6); после входа /video открывается — см.
+    test_sidebar_video_item_after_gallery."""
     page.goto(f"{web_base_url}/video")
     page.wait_for_url("**/login")
     assert page.url.endswith("/login")

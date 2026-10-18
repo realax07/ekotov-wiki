@@ -241,7 +241,11 @@ def _wait_until(pred, timeout=15.0):
 def test_convert_mkv_to_mp4_happy_path(row_factory, tiny_media, monkeypatch):
     """TC-vid-060 (Requirement «Серверная конвертация…»): mkv → ready;
     в томе video.mp4 + preview.jpg, оригинал удален; size_bytes = mp4;
-    convert_attempts 1; mp4 — H.264 (ffprobe)."""
+    convert_attempts 1; mp4 — H.264 (ffprobe).
+    Трассировка approved-кейсов: TC-vid-014 (статусы в UI без
+    перезагрузки — tests/web, TC-vid-109), TC-vid-018 (оригинал удален
+    после успеха, size = mp4), TC-vid-020 (preview.jpg вместе с
+    конвертацией)."""
     video_id = row_factory(status="uploaded", ext="mkv")
     shutil.copy(tiny_media["mkv"], storage.original_path(video_id, "mkv"))
     monkeypatch.setenv("EKOTOV_WIKI_FFMPEG", str(FFMPEG_BIN))
@@ -271,7 +275,9 @@ def test_convert_mkv_to_mp4_happy_path(row_factory, tiny_media, monkeypatch):
 def test_mp4_source_skips_transcode_preview_only(row_factory, tiny_media, monkeypatch):
     """TC-vid-061 (Requirement «Превью-кадр…», design §3 r2): исходник
     уже mp4 — перекодирования нет (video.mp4 НЕ создается), кадр снят,
-    статус ready, оригинал остался (он и есть готовое видео)."""
+    статус ready, оригинал остался (он и есть готовое видео).
+    Трассировка approved-кейса: TC-vid-021 (кадр для уже-mp4 без полной
+    переконвертации)."""
     video_id = row_factory(status="uploaded", ext="mp4", content=b"mp4-bytes")
     shutil.copy(tiny_media["mp4"], storage.original_path(video_id, "mp4"))
     monkeypatch.setenv("EKOTOV_WIKI_FFMPEG", str(FFMPEG_BIN))
@@ -291,7 +297,10 @@ def test_mp4_source_skips_transcode_preview_only(row_factory, tiny_media, monkey
 def test_convert_error_keeps_original(row_factory, monkeypatch):
     """TC-vid-062 (Requirement «Удаление оригинала…» сценарий неудачи):
     поврежденный исходник → ровно 2 попытки → error; оригинал на месте,
-    артефактов mp4/кадра нет."""
+    артефактов mp4/кадра нет.
+    Трассировка approved-кейсов: TC-vid-015 (ровно один ретрай, затем
+    «ошибка»), TC-vid-019 (оригинал сохранен при «ошибка»; удаление
+    после ошибки — test_delete_error_status_video_removes_volume)."""
     video_id = row_factory(status="uploaded", ext="mkv", content=b"not-a-video")
     monkeypatch.setenv("EKOTOV_WIKI_FFMPEG", str(FFMPEG_BIN))
     converter.process_one(video_id)
@@ -311,7 +320,9 @@ def test_convert_error_keeps_original(row_factory, monkeypatch):
 
 def test_fail_stub_exactly_one_retry_then_error(row_factory, stub_env, monkeypatch):
     """TC-vid-063: постоянная неудача ffmpeg → ровно 2 вызова (1 ретрай),
-    статус error, оригинал сохранен, частичный mp4 удален."""
+    статус error, оригинал сохранен, частичный mp4 удален.
+    Трассировка approved-кейса: TC-vid-015 (ровно один автоматический
+    повтор, затем «ошибка», оригинал сохранен)."""
     monkeypatch.setenv("EKOTOV_WIKI_FFMPEG", stub_env("fail.sh", FAIL_STUB))
     video_id = row_factory(status="converting", ext="mkv")
     converter.process_one(video_id)
@@ -343,7 +354,9 @@ def test_first_attempt_fails_second_succeeds(row_factory, stub_env, monkeypatch,
 
 def test_timeout_kills_process_and_retries(row_factory, stub_env, monkeypatch):
     """TC-vid-065 (design §3 timeout): зависший ffmpeg убивается по
-    wall-clock таймауту; попытка = неудача → ретрай → error (2 попытки)."""
+    wall-clock таймауту; попытка = неудача → ретрай → error (2 попытки).
+    Трассировка approved-кейса: TC-vid-016 (исчерпание повторов по
+    таймауту — «ошибка», оригинал сохранен)."""
     monkeypatch.setenv("EKOTOV_WIKI_FFMPEG", stub_env("hang.sh", TIMEOUT_STUB))
     monkeypatch.setattr(converter, "CONVERT_TIMEOUT_SECONDS", 1)
     video_id = row_factory(status="converting", ext="mkv")
@@ -431,7 +444,9 @@ def test_start_worker_disabled_by_env(stub_env, monkeypatch):
 
 def test_delete_cancel_discards_artifacts(row_factory, stub_env, monkeypatch):
     """TC-vid-069 (design §3, Scenario «Удаление во время конвертации»):
-    флаг cancel — воркер не пишет статус и отбрасывает артефакты."""
+    флаг cancel — воркер не пишет статус и отбрасывает артефакты.
+    Трассировка approved-кейса: TC-vid-012 (удаление конвертирующегося
+    отменяет конвертацию; логи воркера — env/REPORT)."""
     monkeypatch.setenv("EKOTOV_WIKI_FFMPEG", stub_env("ok.sh", SUCCESS_STUB))
     video_id = row_factory(status="converting", ext="mkv")
     converter.cancel(video_id)

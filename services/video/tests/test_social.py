@@ -24,6 +24,7 @@ TC-vid-058 — CASCADE: удаление видео чистит коммент�
 
 import io
 import os
+import threading
 import sqlite3
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -195,7 +196,9 @@ def test_social_endpoints_unauthorized_401(anon_client, client, db_path):
     """NFR-38, Scenario «Комментарий и реакция без сессии» + «Список
     категорий без сессии»: без валидной сессии каждый D-эндпоинт —
     401 {error: unauthorized}; состояние комментариев и счетчиков
-    НЕ изменилось."""
+    НЕ изменилось.
+    Трассировка approved-кейса: TC-vid-040 (социальные операции и
+    категории без сессии — 401, состояние не изменилось)."""
     video_id = _insert_video(db_path)
     checks = [
         anon_client.get(f"/api/videos/{video_id}/comments"),
@@ -223,7 +226,9 @@ def test_social_endpoints_unauthorized_401(anon_client, client, db_path):
 def test_comment_add_list_author(client, client2, db_path):
     """Scenario «Добавление комментария» + «Видимость»: 201; в списке —
     автор (display_name), время, текст; пользователь_id — для рендера
-    «удалить» только у своих."""
+    «удалить» только у своих.
+    Трассировка approved-кейса: TC-vid-025 (два пользователя: pe видит
+    комментарий owner — автор, время, текст)."""
     video_id = _insert_video(db_path)
     resp = client.post(
         f"/api/videos/{video_id}/comments", json={"text": "Отличный обзор!"}
@@ -245,12 +250,13 @@ def test_comment_add_list_author(client, client2, db_path):
 
 
 def test_comment_empty_and_whitespace_422(client, db_path):
-    """Scenario «Пустой комментарий отклоняется»: пустой и
-    whitespace-текст — 422; записи не появляется."""
+    """Scenario «Пустой комментарий отклоняется»: пустой,
+    whitespace-текст и тело без поля text — 422; записей нет.
+    Трассировка approved-кейса: TC-vid-026."""
     video_id = _insert_video(db_path)
-    for text in ("", "   \n\t "):
-        resp = client.post(f"/api/videos/{video_id}/comments", json={"text": text})
-        assert resp.status_code == 422
+    for body in ({"text": ""}, {"text": "   \n\t "}, {}):
+        resp = client.post(f"/api/videos/{video_id}/comments", json=body)
+        assert resp.status_code == 422, body
     assert client.get(f"/api/videos/{video_id}/comments").json() == {"comments": []}
 
 
@@ -265,7 +271,9 @@ def test_comment_video_not_found_404(client, db_path):
 
 def test_comment_delete_only_own(client, client2, db_path):
     """Scenario «Удаление только своего комментария»: свой — 200 и строка
-    удалена; чужой — 403 и строка на месте; неизвестный — 404."""
+    удалена; чужой — 403 и строка на месте; неизвестный — 404.
+    Трассировка approved-кейсов: TC-vid-027 (удаление своего),
+    TC-vid-028 (чужой удалить нельзя — 403 по эскалации E-3)."""
     video_id = _insert_video(db_path)
     mine = client.post(
         f"/api/videos/{video_id}/comments", json={"text": "мой"}
@@ -302,7 +310,9 @@ def test_comment_delete_only_own(client, client2, db_path):
 def test_reaction_put_toggle_move(client, db_path):
     """Сценарии реакций: постановка (+1 ровно), повторный клик снимает
     (my_reaction=null), клик по второй переносит (лайк → дизлайк) —
-    счетчики меняются ровно на единицу."""
+    счетчики меняются ровно на единицу.
+    Трассировка approved-кейсов: TC-vid-030 (перенос голоса),
+    TC-vid-031 (повторный клик снимает голос)."""
     video_id = _insert_video(db_path)
     url = f"/api/videos/{video_id}/reaction"
 
@@ -332,7 +342,9 @@ def test_reaction_put_toggle_move(client, db_path):
 
 
 def test_reaction_two_users_independent(client, client2, db_path):
-    """Два пользователя голосуют независимо; счетчики — сумма голосов."""
+    """Два пользователя голосуют независимо; счетчики — сумма голосов.
+    Трассировка approved-кейса: TC-vid-029 (с нулевых счетчиков; инвариант
+    ≤ 1 голоса на пару — ровно одна строка, test_reaction_put_toggle_move)."""
     video_id = _insert_video(db_path)
     url = f"/api/videos/{video_id}/reaction"
     assert client.put(url, json={"value": 1}).json()["likes"] == 1
@@ -377,7 +389,9 @@ def test_categories_list_is_gallery_catalog(client, db_path):
 
 def test_upload_with_valid_category(client, db_path):
     """Scenario «Выбор при загрузке»: с категорией — видео имеет категорию;
-    ответ 201 несет category_id; в списке — имя категории."""
+    ответ 201 несет category_id; в списке — имя категории.
+    Трассировка approved-кейса: TC-vid-033 (по умолчанию «Без категории»
+    — test_upload_without_category_defaults_none)."""
     resp = _upload(client, category_id=10)
     assert resp.status_code == 201
     assert resp.json()["category_id"] == 10
@@ -403,7 +417,10 @@ def test_upload_without_category_defaults_none(client, db_path):
 
 def test_upload_unknown_category_422(client, db_path):
     """Валидация существования: несуществующий/нечисловой category_id —
-    422, видео не создано (Scenario «Значения — только из справочника»)."""
+    422, видео не создано (Scenario «Значения — только из справочника»).
+    Трассировка approved-кейса: TC-vid-035 (контракт по решению ПМ в
+    review-002, E-4: значение вне справочника галереи — 422; «work» из
+    задач в справочнике отсутствует — test_categories_list_is_gallery_catalog)."""
     before = len(client.get("/api/videos").json()["videos"])
     for bad in ("999", "abc"):
         resp = _upload(client, category_id=bad)
@@ -413,7 +430,9 @@ def test_upload_unknown_category_422(client, db_path):
 
 def test_list_filter_by_category(client, db_path):
     """Scenario «Фильтр по категории в списке»: по id — только видео
-    категории; none — только «Без категории»; без фильтра — все."""
+    категории; none — только «Без категории»; без фильтра — все.
+    Трассировка approved-кейса: TC-vid-034 (UI-фильтр тулбара —
+    tests/web/test_video_social_ui.py, TC-vid-104)."""
     _insert_video(db_path, category_id=10)
     _insert_video(db_path, category_id=20)
     _insert_video(db_path, category_id=None)
@@ -426,6 +445,50 @@ def test_list_filter_by_category(client, db_path):
     assert len(everything) == 3
     # Неверное значение фильтра — 422.
     assert client.get("/api/videos?category=bogus").status_code == 422
+
+
+# --------------------------------------------------------------------------
+# TC-vid-032 — гонка реакций: уникальность голоса при конкурентных PUT
+# --------------------------------------------------------------------------
+
+
+def test_reaction_race_single_vote(client, db_path):
+    """TC-vid-032 (Scenario «Постановка лайка (конкурентность)»): два
+    параллельных PUT reaction (value 1 и -1) с одной сессии — у
+    пользователя ровно один голос (суммарные счетчики изменились не
+    более чем на 1), двойного голоса нет; 5 повторов гонки."""
+    video_id = _insert_video(db_path)
+    url = f"/api/videos/{video_id}/reaction"
+
+    def put(value, results, i):
+        results[i] = client.put(url, json={"value": value})
+
+    for race_no in range(5):
+        results = {}
+        threads = [
+            threading.Thread(target=put, args=(v, results, i))
+            for i, v in enumerate((1, -1))
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        responses = [results[0].json(), results[1].json()]
+        assert all(r["my_reaction"] in (1, -1, None) for r in responses)
+        state = responses[-1]
+        assert state["likes"] + state["dislikes"] <= 1, (race_no, responses)
+
+        conn = sqlite3.connect(db_path)
+        try:
+            rows = conn.execute(
+                "SELECT user_id, value FROM video_reactions WHERE video_id = ?",
+                (video_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+        # Инвариант: у owner ровно одна строка (PK), суммарно ≤ 1 голоса.
+        assert len(rows) <= 1, (race_no, rows)
+        assert sum(abs(v) for _u, v in rows) <= 1, (race_no, rows)
 
 
 def test_delete_video_cascades_social(client, db_path):
