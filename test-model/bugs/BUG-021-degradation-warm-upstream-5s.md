@@ -1,4 +1,4 @@
-# BUG-video-001: деградация при остановке video — первый запрос висит ~5 c при теплом upstream-пуле nginx
+# BUG-021: деградация при остановке video — первый запрос висит ~5 c при теплом upstream-пуле nginx
 
 - **Дата:** 2026-10-18 (qa_automation, flow=1, video-hosting)
 - **Кейс:** TC-vid-004 (шаг 3: «оба маршрута `/api/videos*` и `/videos/` отвечают HTTP 503 за < 2 с (не таймаут, управляемый ответ)»)
@@ -31,3 +31,7 @@
 ## Окружение
 
 wiki-test стенд (docker compose.test.yaml), nginx frontend, образ video:test пересобран на HEAD pipeline/video-hosting (ef0103f + рабочая копия qa_automation); chromium/requests, https://localhost:8443.
+
+## Статус
+
+- 2026-10-18: open (minor; warm-pool nginx proxy_connect_timeout 5s — решение к волне 6.1)
