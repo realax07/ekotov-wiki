@@ -544,7 +544,10 @@ def test_tc_gal_119_sidebar_gallery_fourth_parity_and_no_tracker_links(
             assert marker in page.content(), f"{path}: нет {marker}"
         page.goto(f"{BASE_URL}/wiki")
         page.wait_for_load_state("networkidle")
-        expect(page.locator(".wiki-create")).to_be_visible()
+        # Скоуп на тулбар: на пустой wiki tree.js добавляет вторую кнопку
+        # .wiki-create в empty-state («Создать первую страницу») — голый
+        # селектор = strict violation «resolved to 2 elements».
+        expect(page.locator(".wiki-toolbar .wiki-create")).to_be_visible()
         expect(page.locator("#wiki-search")).to_be_visible()
 
         # ОВ-3: в галерее нет ссылок на задачи/трекер.

@@ -64,7 +64,10 @@ def test_sidebar_all_pages_and_wiki_stub(logged_in_page, web_base_url):
     sidebar.wiki_link.click()
     expect(wiki.heading).to_be_visible()
     assert page.url.endswith("/wiki")
-    expect(page.locator(".wiki-create")).to_be_visible()
+    # Скоуп на тулбар (паттерн test_p15_wiki_tree): на ПУСТОЙ wiki-БД
+    # tree.js рисует вторую кнопку .wiki-create в пустом состоянии
+    # («Создать первую страницу») — голый .wiki-create = strict violation.
+    expect(page.locator(".wiki-toolbar .wiki-create")).to_be_visible()
     expect(page.locator("#wiki-search")).to_be_visible()
 
 

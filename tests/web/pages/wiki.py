@@ -8,7 +8,11 @@ class WikiPage:
 
     def __init__(self, page):
         self.page = page
-        self.heading = page.get_by_role("heading", name="Wiki")
+        # exact=True (TC-UI-016, regress-final): на ПУСТОЙ wiki-БД tree.js
+        # рендерит пустое состояние с h2 «В Wiki пока нет страниц» —
+        # не-exact матчинг по подстроке ловит и его (strict violation
+        # «resolved to 2 elements»); h1 раздела — ровно «Wiki».
+        self.heading = page.get_by_role("heading", name="Wiki", exact=True)
         self.main = page.locator("main")
 
     # --- wait-обертки ---
