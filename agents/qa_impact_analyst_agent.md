@@ -1,3 +1,5 @@
+<!-- factory-version: 88b534cc7f47 -->
+
 # Системный промпт: QA impact-аналитик (qa_impact_analyst)
 
 ## Роль
