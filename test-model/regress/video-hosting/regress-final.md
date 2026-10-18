@@ -1,12 +1,13 @@
 # Regress video-hosting — regress-final.md
 
 - change: video-hosting
-- date: 2026-10-18T08:33:44+00:00
-- commit: 406112a1de64df2dd2164b4458198107c46cd8c0
-- worktree: /home/openclaw/ekotov-wiki-worktrees/regress-final-vh4
+- date: 2026-10-18T10:52:12+00:00
+- commit: 4602804befa14d5da599fb29668066f6848a89b6
+- worktree: /home/openclaw/ekotov-wiki-worktrees/regress-final-vh5
 - verdict: PASS
 - diff source: git diff main...HEAD
-- changed files: 119
+- changed files: 120
+  - .github/workflows/flow.yml
   - PLAN-video-hosting.md
   - architecture/map.md
   - backend/app/migrate_video.py
@@ -56,8 +57,7 @@
   - services/video/tests/__init__.py
   - services/video/tests/conftest.py
   - services/video/tests/test_converter.py
-  - services/video/tests/test_list_search_order.py
-  - … и еще 69
+  - … и еще 70
 - suites: tests
 - pytest exit code: 0
 
@@ -65,53 +65,53 @@
 
 ```
 tests/web/test_settings_categories_ui.py:30
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh4/tests/web/test_settings_categories_ui.py:30: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh5/tests/web/test_settings_categories_ui.py:30: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
     pytestmark = [pytest.mark.web, pytest.mark.must]
 
 tests/web/test_settings_profile_r4.py:52
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh4/tests/web/test_settings_profile_r4.py:52: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh5/tests/web/test_settings_profile_r4.py:52: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
     pytestmark = [pytest.mark.web, pytest.mark.must]
 
 tests/web/test_tooltip_r4.py:38
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh4/tests/web/test_tooltip_r4.py:38: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh5/tests/web/test_tooltip_r4.py:38: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
     pytestmark = [pytest.mark.web, pytest.mark.must]
 
 tests/web/test_video_convert_ui.py:26
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh4/tests/web/test_video_convert_ui.py:26: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh5/tests/web/test_video_convert_ui.py:26: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
     pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 tests/web/test_video_convert_ui.py:26
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh4/tests/web/test_video_convert_ui.py:26: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh5/tests/web/test_video_convert_ui.py:26: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
     pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 tests/web/test_video_social_ui.py:22
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh4/tests/web/test_video_social_ui.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh5/tests/web/test_video_social_ui.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
     pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 tests/web/test_video_social_ui.py:22
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh4/tests/web/test_video_social_ui.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh5/tests/web/test_video_social_ui.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
     pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 tests/web/test_video_ui.py:22
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh4/tests/web/test_video_ui.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh5/tests/web/test_video_ui.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
     pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 tests/web/test_video_ui.py:22
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh4/tests/web/test_video_ui.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh5/tests/web/test_video_ui.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
     pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 tests/web/test_video_wiki_isolation_ui.py:16
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh4/tests/web/test_video_wiki_isolation_ui.py:16: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh5/tests/web/test_video_wiki_isolation_ui.py:16: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
     pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 tests/web/test_video_wiki_isolation_ui.py:16
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh4/tests/web/test_video_wiki_isolation_ui.py:16: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh5/tests/web/test_video_wiki_isolation_ui.py:16: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
     pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 tests/web/test_view_modal_r4.py:43
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh4/tests/web/test_view_modal_r4.py:43: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh5/tests/web/test_view_modal_r4.py:43: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
     pytestmark = [pytest.mark.web, pytest.mark.must]
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-594 passed, 12 skipped, 2 xfailed, 72 warnings in 774.19s (0:12:54)
+594 passed, 12 skipped, 2 xfailed, 72 warnings in 786.88s (0:13:06)
 ```
