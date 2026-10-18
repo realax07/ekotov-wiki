@@ -109,6 +109,9 @@ services:
       # паритет прода): том проекта стенда, ro, глубина как у images
       # (том:/data/images) — alias /data/images/ в конфиге.
       - images-test-data:/data/images:ro
+      # Файлы видео (задача 1.4 video-hosting; NFR-10 паритет прода):
+      # том проекта стенда, ro, глубина как у video (том:/data/videos).
+      - videos-test-data:/data/videos:ro
       # Креды basic auth дашборда Netdata (задача 1.3): тест-htpasswd —
       # bind из каталога deploy (команда генерации и креды — в шапке файла);
       # qa-monitoring/qa-test-only, ТОЛЬКО стенд (изоляция от прода NFR-10).
@@ -170,6 +173,38 @@ services:
     # Порты НЕ публикуются (паритет прода; nginx-маршрутизация — задача 1.4).
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8379/api/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Video-сервис «Видеохостинг wiki» (задача 1.2 video-hosting; паритет
+  # прода, compose.yaml): uvicorn :8380, RW video_videos + SELECT users,
+  # том видео — именованный том проекта стенда (изоляция NFR-10).
+  video:
+    image: ${VIDEO_IMAGE:-ekotov-wiki/video:test}
+    build:
+      context: ..
+      dockerfile: services/video/Dockerfile
+    restart: unless-stopped
+    # design §2: video 512m (паритет прода; замер NFR-35 — волна 5).
+    mem_limit: 512m
+    environment:
+      EKOTOV_WIKI_DB_PATH: /data/wiki.db
+      EKOTOV_WIKI_VIDEOS_DIR: /data/videos
+    volumes:
+      - wiki-test-data:/data:rw
+      - videos-test-data:/data/videos
+    depends_on:
+      - app
+    # Порты НЕ публикуются (паритет прода; nginx-маршрутизация — 1.4).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8380/api/health', timeout=5).status == 200 else 1)"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -250,3 +285,7 @@ volumes:
   # стенда (wiki-test_images-test-data), изоляция от прода — NFR-10;
   # очистка — down -v (шапка).
   images-test-data:
+  # Файлы видео (оригинал + mp4 + превью; video-hosting design §5) — том
+  # проекта стенда (wiki-test_videos-test-data), изоляция от прода —
+  # NFR-10; очистка — down -v (шапка).
+  videos-test-data:

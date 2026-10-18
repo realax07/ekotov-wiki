@@ -48,6 +48,7 @@ import argparse
 import fnmatch
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -83,6 +84,29 @@ def canonical(rel: str) -> str:
     while p.startswith("./"):
         p = p[2:]
     return p.strip("/")
+
+
+# Каноническая грамматика change-id (review-001 #1): [A-Za-z0-9][A-Za-z0-9._-]
+# до 64 символов, без слэшей и '..'. Единая точка для обоих концов (J51,
+# review-003 #3): flowctl.cmd_regress (запись артефакта) и
+# pr_validate.check_regress_final (чтение артефакта воротами merge).
+CHANGE_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}\Z")
+
+
+def change_id_problem(change_id: str) -> str | None:
+    """Валидация change-id (недоверенный вход из маркеров/автоматизации).
+
+    Возвращает None, если change-id допустим, иначе — текст проблемы
+    (для списка проблем pr_validate / stderr flowctl). Change-id строго
+    в путь не идет при невалидности: без слэшей и '..' — path traversal
+    невозможен по построению.
+    """
+    cid = str(change_id or "")
+    if CHANGE_ID_RE.fullmatch(cid) and ".." not in cid:
+        return None
+    return ("недопустимый change-id: " + repr(cid) + " — разрешены "
+            "латиница/цифры/._- (до 64 символов, первый — буквоцифра), "
+            "без слэшей и '..'")
 
 
 def _fnmatch_segments(pattern: str, path: str) -> bool:
@@ -307,12 +331,20 @@ def _acquire_lock(path: Path, timeout: float = 10.0) -> Path:
         except FileExistsError:
             stale = False
             pid_file = lock / "pid"
+            owner_pid = ""
             if pid_file.is_file():
                 try:
-                    stale = not pid_alive(pid_file.read_text(
-                        encoding="utf-8").strip())
+                    owner_pid = pid_file.read_text(
+                        encoding="utf-8").strip()
                 except OSError:
-                    stale = False
+                    owner_pid = ""
+                # BUG-022 (CI: ['WIN','WIN'] в concurrent-reserve): пустой
+                # или нечитаемый pid — это окно между mkdir() и записью pid
+                # живого владельца, а НЕ мертвый владелец. pid_alive("")
+                # вернет False и прежний код мгновенно снимал лок ЖИВОГО
+                # владельца → двое внутри критической секции. Пустой pid
+                # ждет как живой (съем только по полному таймауту).
+                stale = bool(owner_pid) and not pid_alive(owner_pid)
             else:
                 # Лок без pid-файла: либо создается прямо сейчас (не мешаем
                 # короткую границу), либо оставлен старой версией — снимаем

@@ -48,7 +48,10 @@ def test_profile_badge_and_login_on_all_pages(logged_in_page, web_base_url):
     for path in PAGES:
         page.goto(f"{web_base_url}{path}")
         expect(
-            page.get_by_role("heading", name=HEADINGS[path])
+            # exact=True: не-exact матчинг «Wiki» на пустой wiki ловит и
+            # empty-state h2 «В Wiki пока нет страниц» (tree.js) — strict
+            # violation; класс TC-UI-016, синк 6568ca8.
+            page.get_by_role("heading", name=HEADINGS[path], exact=True)
         ).to_be_visible()
         _expect_profile_filled(page, "O", "owner")
 
@@ -126,7 +129,7 @@ def test_profile_after_logout_and_sections_clickable(logged_in_page, web_base_ur
     page = logged_in_page
     page.goto(f"{web_base_url}/settings")
     expect(
-        page.get_by_role("heading", name="Настройки")
+        page.get_by_role("heading", name="Настройки", exact=True)
     ).to_be_visible()
 
     # Порядок в DOM: profile следует за logout-button.
@@ -148,6 +151,7 @@ def test_profile_after_logout_and_sections_clickable(logged_in_page, web_base_ur
         link = page.get_by_role("link", name=HEADINGS[path])
         link.click()
         expect(
-            page.get_by_role("heading", name=HEADINGS[path])
+            # exact=True — класс TC-UI-016 (см. test_profile_badge_…).
+            page.get_by_role("heading", name=HEADINGS[path], exact=True)
         ).to_be_visible()
         assert path in page.url

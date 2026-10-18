@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап В-1б — страница «Видео»: просмотр + подтверждение удаления (video-hosting)</title>
+<style>
+/* =====================================================================
+   Мокап [design] change video-hosting: страница просмотра видео.
+   Токены V3 «Бумага» — ДОСЛОВНО из design/tokens.html (J47).
+   Плеер — HTML5 <video controls>; для статуса не «готово» вместо
+   плеера — блок статуса (Scenario «Не готовое видео не проигрывается»).
+   Удаление — кнопка на странице + модалка подтверждения
+   (паттерн design/gallery-upload.html / polish-ticket-modal.html).
+   Без внешних библиотек/шрифтов/CDN (ОГР-8).
+   ===================================================================== */
+:root {
+  /* primitives (V3 «Бумага») — снимок design/tokens.html */
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;
+  --p-clay-700: #93391f;
+  --p-clay-050: #f7e8e4;
+  --p-red-700: #9c3524;
+  --p-red-050: #f8ecea;
+  --p-olive-700: #5f6f34;
+  --p-amber-700: #8a5a1e;
+  --p-blue-700: #33608c;
+  --p-blue-050: #eef2f6;
+  --p-blue-200: #c9d6e2;
+
+  /* semantic */
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-text-on-accent: #fff;
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-bg-subtle: var(--p-paper-100);
+  --color-border-default: var(--p-paper-200);
+  --color-border-strong: var(--p-ink-600);
+  --color-accent: var(--p-clay-600);
+  --color-accent-hover: var(--p-clay-700);
+  --color-accent-soft: var(--p-clay-050);
+  --status-error: var(--p-red-700);
+  --status-error-bg: var(--p-red-050);
+  --status-success: var(--p-olive-700);
+  --priority-medium: var(--p-amber-700);
+  --priority-medium-soft: #f4ecdf;
+  --priority-low-soft: #eff1e4;
+
+  /* spacing — 8px сетка */
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+
+  /* geometry */
+  --radius-field: 6px;
+  --radius-card: 10px;
+
+  /* elevation */
+  --shadow-modal: 0 16px 40px rgba(61, 54, 48, 0.18);
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+
+  /* typography */
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --speed-fast: 160ms;
+  --speed-modal: 220ms;
+}
+
+* { box-sizing: border-box; }
+
+body.app-shell {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ===== САЙДБАР — каркас 1:1 из app.css / base.html ===== */
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--p-ink-900);
+  color: var(--p-paper-050);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+}
+.sidebar-nav { display: flex; flex-direction: column; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 10px 20px;
+  color: var(--p-paper-050);
+  text-decoration: none;
+  opacity: 0.85;
+}
+.nav-item:hover { background: rgba(255, 253, 249, 0.08); opacity: 1; }
+.nav-item.active { background: var(--color-accent); opacity: 1; font-weight: bold; }
+.nav-item:focus-visible { outline: none; box-shadow: inset var(--focus-ring); }
+.todo-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 6px;
+  font-size: var(--font-size-micro); font-weight: normal;
+  background: var(--p-amber-700); color: #fff;
+  border-radius: 999px; vertical-align: middle;
+}
+.sidebar-footer { padding: 0 20px; }
+.logout-button {
+  width: 100%; padding: var(--space-1);
+  background: transparent; color: var(--p-paper-050);
+  border: 1px solid var(--p-ink-600); border-radius: var(--radius-field);
+  cursor: pointer; font: inherit;
+}
+.logout-button:hover { background: rgba(255, 253, 249, 0.08); }
+.logout-button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.sidebar-profile {
+  display: flex; align-items: center; gap: var(--space-1);
+  margin-top: var(--space-1); padding-top: var(--space-1);
+  border-top: 1px solid var(--p-ink-600);
+  color: var(--p-paper-050); cursor: pointer;
+}
+.profile-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 50%; background: var(--color-accent);
+  color: var(--color-text-on-accent); font-weight: bold;
+}
+.profile-name { font-size: var(--font-size-label); overflow-wrap: anywhere; }
+.nav-item-video .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* ===== КОНТЕНТ ===== */
+.content { flex: 1; padding: var(--space-3); min-width: 0; }
+.content h1 {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 26px;
+  margin: 0 0 var(--space-2);
+}
+.back-link {
+  display: inline-flex; align-items: center; gap: var(--space-05);
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  margin-bottom: var(--space-1);
+}
+.back-link:hover { color: var(--color-accent-hover); text-decoration: underline; text-underline-offset: 3px; }
+.back-link:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-field); }
+
+/* ===== ПЛЕЕР: HTML5 <video controls>, карточка на surface ===== */
+.player-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+}
+.player-card video {
+  display: block;
+  width: 100%;
+  max-height: 62vh;
+  aspect-ratio: 16 / 9;
+  background: var(--p-ink-900);
+}
+
+/* Не-готовое видео: вместо плеера — блок статуса */
+.player-pending {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 62vh;
+  background: var(--p-ink-900);
+  color: var(--p-paper-100);
+  text-align: center;
+  padding: var(--space-3);
+}
+.player-pending svg { width: 36px; height: 36px; opacity: 0.7; }
+
+/* ===== МЕТАДАННЫЕ + ДЕЙСТВИЯ ===== */
+.video-details {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  flex-wrap: wrap;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-2);
+}
+.details-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px var(--space-2);
+  margin: 0;
+  flex: 1;
+  min-width: 300px;
+}
+.details-list dt {
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+.details-list dd { margin: 0; overflow-wrap: anywhere; }
+
+/* Статус — тот же бейдж, что в списке */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: var(--font-size-micro);
+  font-weight: 600;
+  line-height: 1.8;
+}
+.status-ready { background: var(--priority-low-soft); color: var(--status-success); }
+.status-converting { background: var(--p-blue-050); color: var(--p-blue-700); }
+.status-uploaded { background: var(--priority-medium-soft); color: var(--priority-medium); }
+.status-error { background: var(--status-error-bg); color: var(--status-error); }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* Прогресс конвертации на странице просмотра */
+.details-progress { margin-top: var(--space-1); }
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--p-blue-200);
+  overflow: hidden;
+  max-width: 340px;
+}
+.progress-bar { height: 100%; background: var(--p-blue-700); }
+.progress-label { font-size: var(--font-size-micro); color: var(--p-blue-700); margin-top: var(--space-05); display: block; }
+
+/* Кнопка удаления — вторичная с красным текстом (разрушительное действие) */
+.actions { display: flex; flex-direction: column; gap: var(--space-1); margin-left: auto; }
+.btn-danger {
+  font: inherit;
+  cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: 999px;
+  border: 1px solid var(--status-error);
+  background: transparent;
+  color: var(--status-error);
+  display: inline-flex; align-items: center; gap: var(--space-1);
+}
+.btn-danger:hover { background: var(--status-error-bg); }
+.btn-danger:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn-danger:active { transform: translateY(1px); }
+.actions .hint { font-size: var(--font-size-micro); color: var(--color-text-secondary); max-width: 220px; }
+
+/* =====================================================================
+   МОДАЛКА «Удалить видео?» — паттерн gallery-upload / polish-ticket-modal:
+   overlay + dialog, role=dialog aria-modal, Esc и клик по фону — отмена
+   ===================================================================== */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(61, 54, 48, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+.modal {
+  width: min(460px, calc(100vw - 32px));
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-2);
+  animation: modal-in var(--speed-modal) ease;
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.modal h2 {
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  font-size: 18px;
+  margin: 0 0 var(--space-1);
+}
+.modal p { margin: 0 0 var(--space-1); line-height: 1.5; }
+.modal .video-name { font-weight: 600; }
+.modal .warn { color: var(--color-text-secondary); font-size: var(--font-size-label); }
+.form-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
+.btn-ghost {
+  font: inherit; cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: 999px;
+  border: none; background: transparent;
+  color: var(--color-text-secondary);
+}
+.btn-ghost:hover { background: var(--color-bg-subtle); color: var(--color-text-primary); }
+.btn-ghost:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-field); }
+.btn-delete {
+  font: inherit; cursor: pointer;
+  padding: 10px var(--space-3);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--status-error);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+}
+.btn-delete:hover { background: var(--p-red-700); filter: brightness(0.94); }
+.btn-delete:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn-delete:active { transform: translateY(1px); }
+
+/* =====================================================================
+   КУСОК D: РЕАКЦИИ (лайк/дизлайк) — паттерн .react-btn галереи
+   (design/gallery-lightbox.html): пилюли, счетчик, «мой голос» —
+   мягкая терракота + заливка иконки (различимо без цвета)
+   ===================================================================== */
+.reactions-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.react-btn {
+  font: inherit;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-primary);
+}
+.react-btn svg { width: 16px; height: 16px; }
+.react-btn:hover { background: var(--color-bg-subtle); }
+.react-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.react-btn:active { transform: translateY(1px); }
+/* Состояние «мой голос»: заливка мягкой терракотой + акцентный текст/рамка */
+.react-btn.my-vote {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent-hover);
+  font-weight: 600;
+}
+.react-btn.my-vote svg path { fill: var(--color-accent); stroke: var(--color-accent); }
+.react-hint { font-size: var(--font-size-micro); color: var(--color-text-secondary); margin-left: auto; }
+
+/* Категория — пилюля .task-category (паттерн board.css / галереи) */
+.task-category {
+  background: var(--color-bg-subtle);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+
+/* =====================================================================
+   КУСОК D: КОММЕНТАРИИ — паттерн .lb-comments галереи (список с
+   автором/датой; «удалить» — только у СВОИХ; форма: textarea с нижней
+   линией 2px + кнопка «Отправить»)
+   ===================================================================== */
+.comments-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-2);
+}
+.comments-card h2 {
+  font-family: var(--font-family-display);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+}
+.comments-card h2 .count { font-weight: 400; color: var(--color-text-secondary); }
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.comment {
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  padding: var(--space-1) 10px;
+}
+.comment-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+}
+.comment-author { font-weight: 600; color: var(--color-text-primary); font-size: var(--font-size-label); }
+.comment-delete {
+  margin-left: auto;
+  border: none; background: none; cursor: pointer;
+  font: inherit; font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  text-decoration: underline; text-underline-offset: 2px;
+  padding: 2px 4px;
+}
+.comment-delete:hover { color: var(--color-accent-hover); }
+.comment-delete:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-field); }
+.comment-body { margin: 4px 0 0; font-size: var(--font-size-label); white-space: pre-wrap; }
+
+/* Форма комментария — паттерн .lb-comment-form (нижняя линия 2px, V3) */
+.comment-form {
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-end;
+  border-top: 1px solid var(--color-border-default);
+  padding-top: var(--space-2);
+}
+.comment-form label {
+  display: block;
+  flex: 1;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+.comment-form textarea {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-05);
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+  resize: none;
+  min-height: 40px;
+}
+.comment-form textarea:hover { border-bottom-color: var(--color-border-strong); }
+.comment-form textarea:focus-visible { outline: none; border-bottom-color: var(--color-accent); box-shadow: 0 1px 0 var(--color-accent); }
+.send-btn {
+  font: inherit;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  padding: 8px var(--space-2);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+  white-space: nowrap;
+}
+.send-btn:hover { background: var(--color-accent-hover); }
+.send-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* =====================================================================
+   ДЕМО-ЗОНА (вне продукта)
+   ===================================================================== */
+.demo-strip { margin-top: var(--space-4); }
+.demo-strip h2 {
+  font-family: var(--font-family-display);
+  font-size: 18px; font-weight: 600; margin: 0 0 var(--space-1);
+}
+.demo-note {
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  max-width: 880px;
+  margin: var(--space-1) 0 var(--space-2);
+}
+.demo-note code {
+  font-size: var(--font-size-micro);
+  background: var(--color-accent-soft);
+  padding: 1px 6px; border-radius: var(--radius-field);
+}
+.demo-note ul { margin: var(--space-05) 0 0; padding-left: 20px; }
+kbd {
+  font-family: inherit; font-size: var(--font-size-micro);
+  border: 1px solid var(--color-border-default);
+  border-bottom-width: 2px; border-radius: var(--radius-field);
+  padding: 0 5px; background: var(--color-bg-surface);
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal { animation: none; }
+}
+</style>
+</head>
+<body class="app-shell">
+
+<!-- ===== САЙДБАР: «Видео» после «Галерея» (позиция — финал на сверке) ===== -->
+<aside class="sidebar" aria-label="Разделы">
+  <nav class="sidebar-nav">
+    <a href="#" class="nav-item">Доска</a>
+    <a href="#" class="nav-item">Поиск</a>
+    <a href="#" class="nav-item">Wiki <span class="todo-badge">todo</span></a>
+    <a href="#" class="nav-item">Галерея</a>
+    <a href="/video" class="nav-item nav-item-video active" aria-current="page">
+      <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M10 9.2l5 2.8-5 2.8V9.2z" fill="currentColor" stroke="none"/>
+      </svg>
+      Видео
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="#" class="nav-item nav-item-settings">Настройки</a>
+    <button type="button" class="logout-button">Выйти</button>
+    <div class="sidebar-profile">
+      <span class="profile-badge" aria-hidden="true">Е</span>
+      <span class="profile-name">ekotov</span>
+    </div>
+  </div>
+</aside>
+
+<main class="content">
+  <a href="video-list.html" class="back-link">
+    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Все видео
+  </a>
+  <h1>Обзор дома, октябрь</h1>
+
+  <!-- ===== ПЛЕЕР (статус «готово»): HTML5 <video controls>, публичных ссылок нет (NFR-36) ===== -->
+  <div class="player-card">
+    <!-- В мокапе src-заглушка; в проде — аутентифицированный маршрут отдачи -->
+    <video controls preload="metadata" poster="" aria-label="Видео «Обзор дома, октябрь», 4 минуты 12 секунд">
+      <source src="/video/files/demo.mp4" type="video/mp4">
+      Ваш браузер не поддерживает встроенное видео.
+    </video>
+  </div>
+
+  <!-- ===== КУСОК D: реакции — лайк/дизлайк (паттерн .react-btn галереи);
+       ровно один голос: повторный клик снимает, клик по второй — переносит ===== -->
+  <div class="reactions-row" aria-label="Реакции на видео">
+    <button type="button" class="react-btn my-vote" aria-pressed="true" aria-label="Нравится, ваш голос учтен. Снять голос">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0l4-7a2.4 2.4 0 0 1 2.4 2.4V9H19a2 2 0 0 1 2 2.2l-1 6.6A2 2 0 0 1 18 19.5H7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      5
+    </button>
+    <button type="button" class="react-btn" aria-pressed="false" aria-label="Не нравится. Поставить голос">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0l-4 7a2.4 2.4 0 0 1-2.4-2.4V15H5a2 2 0 0 1-2-2.2l1-6.6A2 2 0 0 1 6 4.5h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      1
+    </button>
+    <span class="react-hint">ваш голос — «Нравится» (повторный клик снимет)</span>
+  </div>
+
+  <!-- ===== МЕТАДАННЫЕ + ДЕЙСТВИЯ ===== -->
+  <div class="video-details">
+    <dl class="details-list">
+      <dt>Статус</dt>
+      <dd><span class="status-badge status-ready"><span class="status-dot"></span>готово</span></dd>
+      <dt>Категория</dt>
+      <dd><span class="task-category">Интерьеры</span></dd>
+      <dt>Длительность</dt>
+      <dd>04:12</dd>
+      <dt>Размер</dt>
+      <dd>184 МБ (mp4 + превью-кадр; оригинал удален после конвертации)</dd>
+      <dt>Формат</dt>
+      <dd>mp4 (исходник: mkv)</dd>
+      <dt>Загружено</dt>
+      <dd>сегодня, 10:24 · ekotov</dd>
+    </dl>
+    <div class="actions">
+      <!-- Удаление — равноправное для обоих пользователей (паритет FR-84);
+           открывает модалку подтверждения (Scenario «Удаление готового видео») -->
+      <button type="button" class="btn-danger" aria-haspopup="dialog">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0l1 13a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9l1-13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Удалить видео
+      </button>
+      <span class="hint">Удалятся mp4, превью-кадр и запись — восстановить нельзя.</span>
+    </div>
+  </div>
+
+  <!-- ===== КУСОК D: комментарии (паттерн галереи). «удалить» — только у
+       СВОИХ (у чужого комментария кнопки нет; dev: рендерит кнопку только
+       если comment.user_id === me.id, иначе 403 по API). ===== -->
+  <section class="comments-card" aria-label="Комментарии к видео">
+    <h2>Комментарии <span class="count">(2)</span></h2>
+
+    <div class="comments-list">
+      <!-- ЧУЖОЙ комментарий: кнопки «удалить» НЕТ -->
+      <div class="comment">
+        <div class="comment-head">
+          <span class="comment-author">maria</span>
+          <span>сегодня, 15:02</span>
+        </div>
+        <p class="comment-body">Отличный обзор! Покажете, как теплицу внутри устроили?</p>
+      </div>
+
+      <!-- СВОЙ комментарий: есть «удалить» -->
+      <div class="comment">
+        <div class="comment-head">
+          <span class="comment-author">ekotov</span>
+          <span>сегодня, 15:20</span>
+          <button type="button" class="comment-delete" aria-label="Удалить свой комментарий">удалить</button>
+        </div>
+        <p class="comment-body">Спасибо! Отдельный ролик по теплице сниму на выходных.</p>
+      </div>
+    </div>
+
+    <!-- Форма ввода: textarea с нижней линией + «Отправить» (disabled, пока пусто) -->
+    <form class="comment-form" aria-label="Новый комментарий">
+      <label for="video-comment-input">Новый комментарий
+        <textarea id="video-comment-input" placeholder="Напишите что-нибудь…" rows="2"></textarea>
+      </label>
+      <button type="submit" class="send-btn" disabled>Отправить</button>
+    </form>
+  </section>
+
+  <!-- =================================================================
+       ДЕМО-ВСТАВКА (вне продукта): вид страницы для статуса НЕ «готово»
+       ================================================================= -->
+  <div class="demo-strip">
+    <h2>Пояснения к макету (вне продукта)</h2>
+    <div class="demo-note">
+      Для статусов <code>загружено</code> / <code>конвертируется</code> / <code>ошибка</code> вместо
+      <code>&lt;video&gt;</code> показывается блок статуса — плеер не запускается (Scenario
+      «Не готовое видео не проигрывается»). Кнопка «Удалить» доступна во всех статусах —
+      удаление недоконченного отменяет конвертацию и чистит артефакты.
+      <ul>
+        <li>отдача файла — только по сессии (NFR-36), прямой ссылке/скачиванию нет;</li>
+        <li>подтверждение удаления — модалка ниже (Esc / клик по фону = отмена).</li>
+      </ul>
+    </div>
+    <div class="demo-note">
+      Кусок D (социальный слой, по образцу галереи — паттерны
+      <code>gallery-lightbox.html</code>):
+      <ul>
+        <li>лайк/дизлайк — пилюли с счетчиками; ровно один голос: повторный клик <strong>снимает</strong>, клик по второй — <strong>переносит</strong>; «мой голос» = мягкая терракота + заливка иконки (различимо без цвета);</li>
+        <li>комментарии — список (автор/дата), «удалить» — только у СВОИХ (у чужого кнопки нет, 403 по API);</li>
+        <li>«Отправить» неактивна, пока поле пусто; реакции и комментарии — только авторизованные (NFR-36).</li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<!-- =====================================================================
+     МОДАЛКА ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ (Scenario «Удаление готового видео»)
+     ===================================================================== -->
+<div class="overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="del-title" aria-describedby="del-desc">
+    <h2 id="del-title">Удалить видео?</h2>
+    <p id="del-desc">Видео <span class="video-name">«Обзор дома, октябрь»</span> будет удалено безвозвратно.</p>
+    <p class="warn">Из тома удалятся сконвертированный mp4, превью-кадр и оригинал (если еще существует), запись — из списка.</p>
+    <div class="form-actions">
+      <button type="button" class="btn-ghost">Отмена</button>
+      <button type="button" class="btn-delete">Удалить</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

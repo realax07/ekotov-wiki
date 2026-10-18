@@ -315,6 +315,54 @@ def wiki_api(web_base_url, web_owner_session):
 
 
 @pytest.fixture
+def disk_upload_teardown():
+    """Teardown-очистка изображений, загруженных в галерею «с диска».
+
+    Тест регистрирует original_name вызовом register(name); teardown
+    (ЛЮБОЙ исход теста, в отличие от инлайн-очистки) удаляет БД-записи
+    и файлы тома. Без него падение теста на ассертах льет tmp*.png в
+    общую галерею стенда и ломает порядко-зависимые галерейные сьюты
+    (tc_gal_115/116: сетка/фильтры считают чужой мусор — regress-final
+    video-hosting, группа 4).
+    """
+    names: list[str] = []
+
+    def register(name: str) -> None:
+        names.append(name)
+
+    yield register
+
+    # DB_PATH из env рантайма — conftest ставит EKOTOV_WIKI_DB_PATH при
+    # подъёме стенда, на импорте модуля его еще нет.
+    db_path = os.environ.get("EKOTOV_WIKI_DB_PATH")
+    if not db_path or not names:
+        return
+    try:
+        conn = sqlite3.connect(db_path)
+        try:
+            for name in names:
+                row = conn.execute(
+                    "SELECT filename, thumb_name FROM images "
+                    "WHERE original_name = ?",
+                    (name,),
+                ).fetchone()
+                if row:
+                    conn.execute(
+                        "DELETE FROM images WHERE original_name = ?", (name,)
+                    )
+                    conn.commit()
+                for filename in row or ():
+                    try:
+                        os.remove(os.path.join(IMAGES_DIR, filename))
+                    except OSError:
+                        pass
+        finally:
+            conn.close()
+    except Exception:
+        pass
+
+
+@pytest.fixture
 def gallery_image(web_base_url, web_owner_session, images_service):
     """Загруженное в галерею изображение (для кейса «из галереи»);
     загрузка — напрямую в images-сервис (тот же сеялочный путь, что у
@@ -513,10 +561,12 @@ def test_image_insert_from_gallery(
 
 
 def test_image_insert_from_disk_uploads_and_inserts(
-    logged_in_page, web_base_url, web_owner_session, wiki_images_routing
+    logged_in_page, web_base_url, web_owner_session, wiki_images_routing,
+    disk_upload_teardown,
 ):
     """TC-wiki-306 (FR-111): «Загрузить с диска» → file input → POST /api/images →
-    вставка <img src=/images/{...}>. Teardown чистит изображение по маркеру."""
+    вставка <img src=/images/{...}>. Teardown (fixture, любой исход) чистит
+    изображение по маркеру."""
     page = logged_in_page
     editor = WikiEditor(page)
     editor.open_create(wiki_images_routing)
@@ -530,39 +580,16 @@ def test_image_insert_from_disk_uploads_and_inserts(
     dialog.get_by_text("Загрузить с диска").check()
     name = f"{MARKER}disk-upload.png"
     payload = _png_file(name)
-    import tempfile
+    disk_upload_teardown(name)
 
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-        tmp.write(payload["buffer"])
-        tmp_path = tmp.name
-    try:
-        editor.img_file_input().set_input_files(tmp_path)
-        img = area.locator("img")
-        expect(img).to_have_count(1)
-        src = img.get_attribute("src")
-        assert src.startswith("/images/"), src
-    finally:
-        os.unlink(tmp_path)
-
-    # teardown: убрать запись + файл из тома (DB_PATH из env рантайма —
-    # conftest ставит EKOTOV_WIKI_DB_PATH при подъёме стенда, на импорте
-    # модуля его ещё нет)
-    db_path = os.environ.get("EKOTOV_WIKI_DB_PATH")
-    conn = sqlite3.connect(db_path)
-    try:
-        row = conn.execute(
-            "SELECT filename, thumb_name FROM images WHERE original_name = ?", (name,)
-        ).fetchone()
-        if row:
-            conn.execute("DELETE FROM images WHERE original_name = ?", (name,))
-            conn.commit()
-    finally:
-        conn.close()
-    for filename in row or ():
-        try:
-            os.remove(os.path.join(IMAGES_DIR, filename))
-        except OSError:
-            pass
+    # set_input_files ПУТЬЮ нельзя: браузер возьмет basename tmp-файла
+    # («tmpXXXXXXXX.png») как original_name — мимо маркер-очистки (утечка
+    # regress-final группа 4). FilePayload-словарь дает имя маркера.
+    editor.img_file_input().set_input_files([payload])
+    img = area.locator("img")
+    expect(img).to_have_count(1)
+    src = img.get_attribute("src")
+    assert src.startswith("/images/"), src
 
 
 # ---------------------------------------------------------------------------

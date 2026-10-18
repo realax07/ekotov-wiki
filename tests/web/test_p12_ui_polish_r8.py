@@ -429,11 +429,14 @@ def test_combobox_three_tags_and_one_by_one_removal(
     option2 = comb.option_by_value(t2)
     expect(option2).to_be_visible()  # удаленный тег вернулся в подсказки
     option2.click()
-    # Выборная строка-запрос «QAT-u110-д» остается ручным токеном — убираем
-    # крестиком его чипа (свободный ввод легитимен, FR-26), остаются t1/t3/t2.
-    form.tag_chips().filter(
+    # Недобор-токен «QAT-u110-д» ПОТРЕБЛЕН выбором (tag-combobox.js, BUG-012:
+    # currentToken — подстрока committed-значения — уходит в выбранный тег;
+    # оставлять его ручным токеном = двойной чип «выбранный тег + его же
+    # недобор», review-001 blocker-1). Ручного чипа «Убрать тег QAT-u110-д»
+    # нет, итог — ровно 3 чипа t1/t3/t2.
+    assert form.tag_chips().filter(
         has=page.get_by_role("button", name="Убрать тег QAT-u110-д", exact=True)
-    ).get_by_role("button").click()
+    ).count() == 0
     expect(form.tag_chips()).to_have_count(3)
     assert t2 in tags.input_value()
 

@@ -50,7 +50,9 @@ def test_sidebar_icons_inline_svg_unified_style(logged_in_page, web_base_url):
     for path in NAV_PAGES:
         page.goto(f"{web_base_url}{path}")
         items = _nav_items(page)
-        assert items.count() == 4, (path, items.count())
+        # 1.5 video-hosting: пятый пункт «Видео» после «Галерея»
+        # (утвержденный мокап 0.2) — было 4, стало 5.
+        assert items.count() == 5, (path, items.count())
         for i in range(items.count()):
             item = items.nth(i)
             svg = item.locator("svg.nav-icon")
@@ -106,7 +108,8 @@ def test_nav_items_clickable_not_overlaid(logged_in_page, web_base_url):
     page.goto(f"{web_base_url}/board")
     items = _nav_items(page)
     targets = [items.nth(i).get_attribute("href") for i in range(items.count())]
-    assert targets == ["/board", "/search", "/wiki", "/gallery"]
+    # 1.5 video-hosting: в семействе сайдбара пятый пункт — «Видео» (/video).
+    assert targets == ["/board", "/search", "/wiki", "/gallery", "/video"]
 
     # elementFromPoint в центре каждого пункта.
     hits = page.evaluate(
@@ -116,7 +119,7 @@ def test_nav_items_clickable_not_overlaid(logged_in_page, web_base_url):
           return hit ? (a === hit || a.contains(hit)) : false;
         })"""
     )
-    assert hits == [True] * 4, hits
+    assert hits == [True] * 5, hits
 
     # Клик по каждому пункту → навигация.
     for href in ("/search", "/wiki", "/gallery"):
@@ -242,10 +245,10 @@ def test_nav_order_addresses_states_unchanged(logged_in_page, web_base_url):
         re.sub(r"todo", "", items.nth(i).inner_text()).strip()
         for i in range(items.count())
     ]
-    assert labels == ["Доска", "Поиск", "Wiki", "Галерея"], labels
+    assert labels == ["Доска", "Поиск", "Wiki", "Галерея", "Видео"], labels
 
     hrefs = [items.nth(i).get_attribute("href") for i in range(items.count())]
-    assert hrefs == ["/board", "/search", "/wiki", "/gallery"]
+    assert hrefs == ["/board", "/search", "/wiki", "/gallery", "/video"]
 
     # SVG внутри <a> (не рядом, не вместо).
     for i in range(items.count()):

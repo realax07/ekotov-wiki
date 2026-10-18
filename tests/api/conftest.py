@@ -18,6 +18,7 @@ import sqlite3
 import subprocess
 import sys
 import uuid
+from types import SimpleNamespace
 
 import pytest
 import requests
@@ -287,6 +288,20 @@ def db_select_one(db_path: str, sql: str, params: tuple = ()):
         return conn.execute(sql, params).fetchone()
     finally:
         conn.close()
+
+
+@pytest.fixture
+def db_hooks():
+    """DB-крюки (db_update/db_select_one) как фикстура — вместо runtime-импорта.
+
+    Голый ``from conftest import db_update`` внутри тела теста при полной
+    коллекции tests/ падает с ImportError: pytest импортирует conftest'ы
+    под одним именем ``conftest`` (rootdir-импорт без пакетов), и к моменту
+    запуска api-тестов sys.modules['conftest'] уже затерт tests/web/conftest.py
+    (tests/web собирается после tests/api). Фикстуры резолвятся по иерархии
+    conftest-файлов, минуя sys.modules['conftest'], — коллизии имен нет.
+    """
+    return SimpleNamespace(db_update=db_update, db_select_one=db_select_one)
 
 
 @pytest.fixture

@@ -1590,6 +1590,23 @@
         "summary": "Profile Settings Page"
       }
     },
+    "/video": {
+      "get": {
+        "description": "Страница «Видео» (tasks.md 1.5 video-hosting; дельта specs/\nvideo-service — Requirement «Раздел «Видео» в сайдбаре и страница\nсервиса»): список видео (имя, статус, размер, дата), форма загрузки\nс прогрессом и ошибкой лимита 500 МБ, встроенный плеер <video>,\nудаление с подтверждением — вся динамика из ES-модуля\nfrontend/static/js/video.js (данные — GET/POST/DELETE /api/videos*\nсервиса video; файлы — nginx /videos/<id>/…, design §5). Вид — по\nутвержденным мокапам 0.2 (design/video-hosting/video-list.html,\nvideo-upload.html, video-view.html). Изоляция от wiki (ОВ-3):\nинструменты редактора статей НЕ расширяются — страница сервиса\nникаких embed-возможностей не предоставляет. Без сессии — редирект\nна /login middleware'ом (sdd.md §3.6, дельта specs/video-service,\nScenario «Неавторизованный — редирект на login») — здесь не\nдублируется, как у остальных страниц.",
+        "operationId": "video_page_video_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Video Page"
+      }
+    },
     "/wiki": {
       "get": {
         "description": "Раздел «Wiki» — каркас: дерево страниц + контентная область\n(tasks.md 2.3 add-wiki; FR-107, дельта navigation — бейдж «todo»\nснимается волной 3 / задача 6.x релизного хвоста).\n\nСписок страниц, поиск, действия — клиентом из ES-модуля\nfrontend/static/js/wiki/* (GET /api/wiki/…, волна 3); роут отдает\nтолько каркас (шаблон wiki.html). Без сессии — редирект на /login\nmiddleware'ом (app/middleware.py, sdd.md §3.6, дельта navigation\nScenario «Неавторизованный доступ к Wiki») — здесь не дублируется,\nкак у остальных страниц. Стили — frontend/static/css/wiki.css,\nподключение в шаблоне (паттерн gallery.html).",

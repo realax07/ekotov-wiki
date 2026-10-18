@@ -23,8 +23,11 @@ pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 
 def test_sidebar_all_pages_and_wiki_stub(logged_in_page, web_base_url):
-    """TC-UI-016: сайдбар (Доска/Поиск/Wiki + бейдж todo) на всех страницах;
-    Доска ↔ Поиск переключаются в обе стороны; Wiki — заглушка без функций."""
+    """TC-UI-016: сайдбар (5 пунктов: Доска/Поиск/Wiki/Галерея/Видео + бейдж
+    todo) на всех страницах; Доска ↔ Поиск переключаются в обе стороны;
+    Wiki — раздел с деревом/тулбаром (add-wiki, прежняя «заглушка без
+    функций» устарела). 5-й пункт «Видео» — 1.5 video-hosting (дельта
+    specs/video-service, утвержденный мокап 0.2)."""
     page = logged_in_page
     sidebar = Sidebar(page)
     search = SearchPage(page)
@@ -35,6 +38,10 @@ def test_sidebar_all_pages_and_wiki_stub(logged_in_page, web_base_url):
         expect(sidebar.board_link).to_be_visible()
         expect(sidebar.search_link).to_be_visible()
         expect(sidebar.wiki_link).to_be_visible()
+        expect(sidebar.gallery_link).to_be_visible()
+        expect(sidebar.video_link).to_be_visible()
+        # Ровно 5 пунктов навигации (по образцу test_p12_nav_icons_favicon_r8).
+        expect(page.locator(".sidebar-nav .nav-item")).to_have_count(5)
         # Бейдж todo снят (решение Заказчика 2026-10-11, 4.5 add-wiki).
 
     # Доска → Поиск.
@@ -50,12 +57,18 @@ def test_sidebar_all_pages_and_wiki_stub(logged_in_page, web_base_url):
     expect(board.heading()).to_be_visible()
     assert page.url.endswith("/board")
 
-    # Доска → Wiki (заглушка).
+    # Доска → Wiki (add-wiki: раздел с деревом и тулбаром — поиск по
+    # разделу + «Создать страницу»; прежние ассерты «заглушка без
+    # функций» устарели после поставки add-wiki, пред-существующий фейл
+    # из 36d1b14 снят).
     sidebar.wiki_link.click()
     expect(wiki.heading).to_be_visible()
     assert page.url.endswith("/wiki")
-    expect(wiki.main.get_by_role("textbox")).to_have_count(0)
-    expect(wiki.main.get_by_role("button")).to_have_count(0)
+    # Скоуп на тулбар (паттерн test_p15_wiki_tree): на ПУСТОЙ wiki-БД
+    # tree.js рисует вторую кнопку .wiki-create в пустом состоянии
+    # («Создать первую страницу») — голый .wiki-create = strict violation.
+    expect(page.locator(".wiki-toolbar .wiki-create")).to_be_visible()
+    expect(page.locator("#wiki-search")).to_be_visible()
 
 
 def _shift_done_at(db_path: str, title: str, done_at: str) -> None:

@@ -50,6 +50,7 @@
       'search': 'Поиск',
       'wiki': 'Wiki',
       'gallery': 'Галерея',
+      'video': 'Видео',
       'settings': 'Настройки',
       'settings-profile': 'Настройки'
     } %}
@@ -112,6 +113,22 @@
           <path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         Галерея
+      </a>
+      {# 1.5 video-hosting (дельта specs/video-service — Requirement «Раздел
+         «Видео» в сайдбаре и страница сервиса», Scenario «Пункт сайдбара
+         виден авторизованным»): «Видео» — ПЯТЫЙ пункт, СТРОГО после
+         «Галерея» (позиция — финал утвержденного мокапа 0.3,
+         design/video-hosting/video-list.html). Виден ВСЕМ авторизованным
+         (ОВ-2, паритет «Галереи»). Иконка — inline-SVG в едином стиле
+         эталона (16px .nav-icon, viewBox 0 0 24 24, stroke="currentColor",
+         fill="none" на путях, aria-hidden) — кадр пленки с треугольником
+         play дословно из мокапа. #}
+      <a href="/video" class="nav-item nav-item-video{% if active_page == 'video' %} active{% endif %}">
+        <svg class="nav-icon" style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M10 9.2l5 2.8-5 2.8V9.2z" fill="currentColor"/>
+        </svg>
+        Видео
       </a>
     </nav>
     <div class="sidebar-footer">
