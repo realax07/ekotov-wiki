@@ -1,7 +1,14 @@
-/* Страница «Видео» — tasks.md 1.5 + 2.4 video-hosting (куски A и D).
+/* Страница «Видео» — tasks.md 1.5 + 2.4 + 3.1/3.2 фронт video-hosting
+ * (куски A, D, B).
  *
  * Вид — по утвержденным мокапам (design/video-hosting/video-list.html,
  * video-upload.html, video-view.html); селекторы — дословно из макетов.
+ * Кусок B (волна 3): бейджи статусов конвертации («загружено»/
+ * «конвертируется» — пульсирующий индикатор, aria-busy; «готово»;
+ * «ошибка» — подсказка «оригинал сохранен»), convert-note в форме
+ * загрузки (ревью-001 п.2), автообновление списка polling'ом (3 c),
+ * пока есть незавершенные конвертации; статус открытого просмотра
+ * обновляется без перезагрузки (плейсхолдер → плеер).
  * Кусок D: реакции (лайк/дизлайк — ровно один голос: повторный клик
  * снимает, клик по второй переносит), комментарии (удаление — только
  * своих: comment.user_id === me.id), категории (общий справочник
@@ -47,6 +54,13 @@ const views = ['video-list-view', 'video-upload-view', 'video-player-view'];
  * справочник категорий (общий с галереей). */
 const state = { me: null, categories: [], activeCategory: '' };
 
+/* Кусок B: статусы «загружено»/«конвертируется» — не финальные, список
+ * обновляется опросом (polling; SSE спекой не предусмотрена), пока есть
+ * незавершенные записи (design §3; сценарий «статусы без перезагрузки»). */
+const PENDING_STATUSES = ['uploaded', 'converting'];
+const REFRESH_INTERVAL_MS = 3000;
+let refreshTimer = null;
+
 function showView(id) {
   for (const v of views) {
     document.getElementById(v).hidden = v !== id;
@@ -77,6 +91,11 @@ function statusBadge(status) {
   const label = STATUS_LABELS[status] || status;
   const span = document.createElement('span');
   span.className = 'status-badge status-' + status;
+  if (status === 'converting') {
+    // Индикатор конвертации (мокап video-list.html): точка пульсирует
+    // CSS-анимацией, для ассистивных технологий — aria-busy.
+    span.setAttribute('aria-busy', 'true');
+  }
   const dot = document.createElement('span');
   dot.className = 'status-dot';
   span.append(dot, document.createTextNode(label));
@@ -148,6 +167,14 @@ function buildCard(item) {
   const date = document.createElement('span');
   date.textContent = '· ' + fmtDate(item.created_at);
   meta.append(size, date);
+  if (item.status === 'error') {
+    // Кусок B: подсказка при ошибке конвертации (оригинал сохранен —
+    // файл можно удалить или перезалить; Requirement «Удаление оригинала…»).
+    const hint = document.createElement('span');
+    hint.className = 'error-hint';
+    hint.textContent = 'конвертация не удалась — оригинал сохранен';
+    meta.append(hint);
+  }
   body.append(title, meta);
 
   card.append(thumb, body);
@@ -174,11 +201,59 @@ async function loadList() {
   }
   const data = await resp.json();
   const videos = data.videos || [];
+  state.listItems = videos;
   document.getElementById('video-count').textContent = 'Видео: ' + videos.length;
   for (const item of videos) {
     grid.append(buildCard(item));
   }
   empty.hidden = videos.length > 0;
+  // Кусок B: пока есть незавершенные конвертации — автообновление списка.
+  scheduleListRefresh(videos);
+}
+
+/* ===== Кусок B: автообновление списка (polling, design §3) ===== */
+
+function hasPending(items) {
+  return items.some((item) => PENDING_STATUSES.includes(item.status));
+}
+
+function scheduleListRefresh(items) {
+  if (!hasPending(items)) {
+    stopListRefresh();
+    return;
+  }
+  if (refreshTimer !== null) return;
+  refreshTimer = setInterval(refreshTick, REFRESH_INTERVAL_MS);
+}
+
+function stopListRefresh() {
+  if (refreshTimer !== null) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+}
+
+async function refreshTick() {
+  const resp = await fetch('/api/videos');
+  if (!resp.ok) return; // сеть/сервис моргнули — следующий тик повторит
+  const data = await resp.json();
+  const videos = data.videos || [];
+  state.listItems = videos;
+  const grid = document.getElementById('video-grid');
+  grid.querySelectorAll('.v-card').forEach((el) => el.remove());
+  for (const item of videos) {
+    grid.append(buildCard(item));
+  }
+  document.getElementById('video-count').textContent = 'Видео: ' + videos.length;
+  document.getElementById('video-empty').hidden = videos.length > 0;
+  scheduleListRefresh(videos);
+  // Открыт просмотр: статус открытого видео изменился — перерисовать
+  // (например, «конвертируется» → «готово»: плейсхолдер сменяется плеером).
+  const playerView = document.getElementById('video-player-view');
+  if (currentPlayerId && !playerView.hidden) {
+    const item = videos.find((entry) => entry.id === currentPlayerId);
+    if (item && item.status !== state.playerStatus) openPlayer(item);
+  }
 }
 
 /* ===== Категории (кусок D: общий справочник с «Галереей») ===== */
@@ -375,6 +450,7 @@ async function submitComment() {
 
 function openPlayer(item) {
   currentPlayerId = item.id;
+  state.playerStatus = item.status;
   document.getElementById('player-title').textContent = item.filename;
 
   const card = document.getElementById('player-card');
@@ -394,6 +470,12 @@ function openPlayer(item) {
     pending.className = 'player-pending';
     pending.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9.2l5 2.8-5 2.8V9.2z" fill="currentColor"/></svg>';
     pending.append(statusBadge(item.status));
+    if (item.status === 'error') {
+      const hint = document.createElement('span');
+      hint.className = 'error-hint';
+      hint.textContent = 'конвертация не удалась — оригинал сохранен';
+      pending.append(hint);
+    }
     card.append(pending);
   }
 

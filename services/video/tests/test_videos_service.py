@@ -251,7 +251,8 @@ def test_openapi_paths(client):
 def test_upload_happy_path(client, videos_dir, db_path):
     """Любой формат (mkv) → 201; файл в томе <id>/original.<ext> (НЕ BLOB,
     НЕ в репо), метаданные в БД (Scenario «Файлы в томе, метаданные в БД»).
-    Кусок A без конвертации: файл сразу «готово», отдается как есть."""
+    Кусок B: статус «uploaded» (sdd §3) — воркер (волна 3) переводит в
+    converting/ready; в этих тестах воркер выключен (conftest)."""
     content = b"\x1aE\xdf\xa3" + b"matroska-fake-payload" * 10
     resp = _upload(client, name="обзор дома.mkv", content=content)
     assert resp.status_code == 201, resp.text
@@ -262,7 +263,7 @@ def test_upload_happy_path(client, videos_dir, db_path):
     assert video_id != "обзор дома.mkv"
     assert len(video_id) == 32 and int(video_id, 16) >= 0
     assert body["filename"] == "обзор дома.mkv"
-    assert body["status"] == "ready"
+    assert body["status"] == "uploaded"
     assert body["size"] == len(content)
 
     # Файл в томе: videos-data/<id>/original.mkv, байты как есть.
@@ -280,7 +281,7 @@ def test_upload_happy_path(client, videos_dir, db_path):
             (video_id,),
         ).fetchone()
         assert row[0] == "обзор дома.mkv"
-        assert row[1] == "ready"
+        assert row[1] == "uploaded"
         assert row[2] == len(content)
         assert row[3] == "video/x-matroska"
         assert row[4] == 1
@@ -300,7 +301,7 @@ def test_upload_list_urls(client, videos_dir):
     item = items[0]
     assert item["id"] == resp.json()["id"]
     assert item["filename"] == "clip.webm"
-    assert item["status"] == "ready"
+    assert item["status"] == "uploaded"
     assert item["size_bytes"] == len(b"webm-bytes")
     assert item["file_url"] == f"/videos/{item['id']}/original.webm"
     assert item["preview_url"] == f"/api/videos/{item['id']}/preview"
@@ -406,14 +407,23 @@ def test_upload_avoids_path_traversal(client, videos_dir):
 # --------------------------------------------------------------------------
 
 
-def test_file_served_for_ready(client, videos_dir):
+def test_file_served_for_ready(client, videos_dir, db_path):
     """«готово» → 200, байты как есть (формат любой); чужие статусы
-    недоступны (Scenario «Playback готового видео»)."""
+    недоступны (Scenario «Playback готового видео»). Кусок B: ready
+    ставит воркер — тест ставит его напрямую (воркер выключен)."""
     content = b"mp4-ish-bytes"
     video_id = _upload(client, name="clip.mp4", content=b"ignored").json()["id"]
     # Перезаписываем файл содержимым, чтобы сверить отдачу 1:1.
     with open(os.path.join(videos_dir, video_id, "original.mp4"), "wb") as f:
         f.write(content)
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute(
+            "UPDATE video_videos SET status = 'ready' WHERE id = ?", (video_id,)
+        )
+        conn.commit()
+    finally:
+        conn.close()
     resp = client.get(f"/api/videos/{video_id}/file")
     assert resp.status_code == 200
     assert resp.content == content

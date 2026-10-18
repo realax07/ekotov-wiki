@@ -9,20 +9,38 @@ middleware (без сессии — 401; exempt /api/health и /api/videos/authc
 env: EKOTOV_WIKI_DB_PATH, EKOTOV_WIKI_VIDEOS_DIR — дефолты /data/wiki.db,
 /data/videos — services/video/app/db.py и app/storage.py).
 
-Волна 3 (tasks 3.1) добавит строку старта converter.start_worker() здесь —
-единственное запланированное расширение этого файла (sdd §2).
+Волна 3 (tasks 3.1, кусок B): converter.start_worker() на СТАРТЕ
+приложения (lifespan — НЕ на импорте: recover_pending читает БД, путь
+которой известен только при старте процесса; найдено смоуком волны 3) —
+крэш-восстановление (re-enqueue uploaded/converting) + поток-воркер
+конвертации; env EKOTOV_WIKI_CONVERTER=off выключает автостарт
+(сервисные тесты кусков A/D — детерминированный «uploaded» без
+писателя статуса).
 """
 
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from starlette.responses import JSONResponse
 
+from app import converter
 from app.middleware import register as register_auth_middleware
 from app.social import router as social_router
 from app.videos import router as videos_router
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Кусок B (tasks 3.1): крэш-восстановление + фоновый поток-воркер
+    # конвертации (uploaded/converting → очередь; design §3). Единственный
+    # писатель статуса — этот воркер; env EKOTOV_WIKI_CONVERTER=off —
+    # детерминированный режим без конвертации (сервисные тесты).
+    converter.start_worker()
+    yield
+
 
 app = FastAPI(
     title="ekotov-wiki",
@@ -31,6 +49,7 @@ app = FastAPI(
     # FR-68-паттерн search/images: машинная схема включена, но публично не
     # раскрывается — /openapi.json защищен сессионным middleware.
     openapi_url="/openapi.json",
+    lifespan=lifespan,
 )
 app.include_router(videos_router)
 app.include_router(social_router)  # кусок D (tasks 2.2): комментарии/реакции/категории

@@ -28,11 +28,10 @@
                                         200 {} / 401 по cookie, без тяжелых
                                         БД-чтений; exempt middleware
 
-Кусок A (без конвертации — tasks 3.1 придет волной 3): загруженный файл
-сразу «готово» (status ready) и отдается как есть, в любом формате —
-плеер и список работают уже на приемке куска A (решение оркестратора
-2026-10-17; в sdd §3 форма ответа «uploaded» — вернется в куске B вместе
-с реальной постановкой в очередь: см. enqueue_conversion ниже).
+Кусок B (волна 3, tasks 3.1): POST возвращает status:"uploaded" и ставит
+запись в очередь конвертации (converter.enqueue); воркер app/converter.py
+ведет жизненный цикл uploaded → converting → ready/error. До готовности
+file/preview отвечают 409 — плеер не запускается.
 
 Файлы — в томе videos-data (storage.py — единственный владелец путей),
 НЕ в БД (design §5). Имя каталога — uuid сервиса; из имени пользователя
@@ -40,6 +39,7 @@
 конвертацией: чтение тела — в основном потоке uvicorn (design §4).
 """
 
+import logging
 import os
 import sqlite3
 import tempfile
@@ -48,7 +48,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from starlette.responses import FileResponse, JSONResponse
 
-from app import storage
+from app import converter, storage
 from app.db import get_connection
 from app.middleware import SESSION_COOKIE_NAME, _user_id
 
@@ -85,15 +85,15 @@ def _validation_error(loc: str, msg: str) -> RequestValidationError:
 
 
 def enqueue_conversion(video_id: str) -> None:
-    """Заглушка-интерфейс очереди конвертации ДО волны 3 (tasks 1.3:
-    «converter.enqueue — заглушка-интерфейс до волны 2»).
+    """Шов очереди конвертации (tasks 1.3 → 3.1, sdd §2: videos.py
+    вызывает converter.enqueue, НЕ subprocess и SQL напрямую).
 
-    Задача 3.1 (кусок B) заменит этот вызов на converter.enqueue и
-    жизненный цикл статусов uploaded → converting → ready; в куске A
-    файл сразу ready (см. докстринг модуля) — вызов сохранен как шов,
-    чтобы смена свелась к одному файлу (videos.py — зона 1.3/2.3/4.1).
-    """
-    return None
+    Кусок B: заглушка куска A заменена на настоящий enqueue — POST
+    возвращает status:"uploaded", воркер (app/converter.py) переводит
+    запись uploaded → converting → ready/error."""
+    from app import converter  # локально: у converter обратный шов на storage
+
+    converter.enqueue(video_id)
 
 
 # --------------------------------------------------------------------------
@@ -205,8 +205,12 @@ async def upload_video(
     try:
         try:
             size = await spool_to_temp(file, spool)
-        except (UploadTooLarge, UploadAborted):
+        except UploadTooLarge:
             raise _validation_error("file", "file is larger than 500 MB")
+        except UploadAborted:
+            # review-001 minor-2: обрыв тела — не «больше 500 МБ»;
+            # тексты разведены (клиент тело не дочитал).
+            raise _validation_error("file", "upload aborted before completion")
         except UploadEmpty:
             raise _validation_error("file", "empty upload")
         spool.close()
@@ -227,13 +231,13 @@ async def upload_video(
                 storage.delete_video_dir(video_id)
                 raise
             try:
-                # Кусок A: сразу ready (файл отдается как есть). Кусок B
-                # (3.1) вернет статус «uploaded» + enqueue_conversion().
-                # category_id — кусок D (NULL = «Без категории»).
+                # Кусок B (3.1): статус «uploaded» (sdd §3) — воркер
+                # переводит uploaded → converting → ready. category_id —
+                # кусок D (NULL = «Без категории»).
                 conn.execute(
                     "INSERT INTO video_videos (id, filename, status, size_bytes,"
                     " mime, uploaded_by, created_at, convert_attempts, category_id)"
-                    " VALUES (?, ?, 'ready', ?, ?, ?, ?, 0, ?)",
+                    " VALUES (?, ?, 'uploaded', ?, ?, ?, ?, 0, ?)",
                     (
                         video_id,
                         file.filename or f"original.{ext}",
@@ -261,13 +265,13 @@ async def upload_video(
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
-    # Заглушка-интерфейс очереди (до волны 3; см. enqueue_conversion).
+    # Шов куска B: настоящий enqueue воркера (см. enqueue_conversion).
     enqueue_conversion(video_id)
 
     return {
         "id": video_id,
         "filename": file.filename or f"original.{ext}",
-        "status": "ready",
+        "status": "uploaded",
         "size": size,
         "category_id": resolved_category_id,
     }
@@ -411,14 +415,24 @@ def delete_video(request: Request, video_id: str):
     """Удаление: том <id>/ целиком + метаданные. Равноправное — БЕЗ
     разделения прав (паритет галереи FR-84); несуществующее — 404.
     Комментарии/реакции удаляются CASCADE'ом FK (PRAGMA foreign_keys=ON
-    в db.get_connection, кусок D). Отмена идущей конвертации — кусок B
-    (флаг воркера, design §3)."""
+    в db.get_connection, кусок D). Кусок B: идущая конвертация
+    отменяется флагом воркера (converter.cancel; артефакты
+    отбрасываются — design §3)."""
+    # Отмена ДО удаления строки/каталога: воркер не начнет новую попытку
+    # и не запишет результат по удаленной записи.
+    converter.cancel(video_id)
     conn = get_connection()
     try:
         _require_video(conn, video_id)
         conn.execute("DELETE FROM video_videos WHERE id = ?", (video_id,))
         conn.commit()
         storage.delete_video_dir(video_id)
+        # review-001 minor-3: rmtree(ignore_errors=True) после коммита —
+        # сбой тома не должен оставлять тихие orphan-файлы без следа.
+        if os.path.isdir(storage.video_dir(video_id)):
+            logging.getLogger("video").warning(
+                "delete: volume dir not removed for %s (orphan files)", video_id
+            )
         return {"ok": True}
     except sqlite3.Error:
         conn.rollback()

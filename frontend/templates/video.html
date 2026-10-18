@@ -1,8 +1,10 @@
-{# Страница «Видео» — tasks.md 1.5 + 2.4 video-hosting (куски A и D).
+{# Страница «Видео» — tasks.md 1.5 + 2.4 + 3.1 фронт video-hosting
+   (куски A, D, B).
    Вид — СТРОГО по утвержденным мокапам 0.2/r2 (design/video-hosting/):
    список карточек (имя, статус, размер, дата, пилюля категории), форма
    загрузки с прогрессом, ошибкой лимита 500 МБ и выбором категории
-   («+ Новая категория…»), плеер <video> только для «готово», реакции
+   («+ Новая категория…»), convert-note «сервер сконвертирует в mp4»
+   (кусок B, ревью-001 п.2), плеер <video> только для «готово», реакции
    (лайк/дизлайк, один голос), комментарии (удаление — только своих),
    фильтр по категории, удаление с подтверждением (модалка).
    Поиск/сортировка — кусок C (4.1), сюда НЕ входит.
@@ -235,6 +237,13 @@
 .status-ready      { background: var(--priority-low-soft); color: var(--status-success); }
 .status-error      { background: var(--status-error-bg); color: var(--status-error); }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+/* Кусок B (мокап video-list.html «конвертируется»): точка бейджа пульсирует,
+   пока идет конвертация; бейджам converting ставится aria-busy (video.js). */
+.status-converting .status-dot { animation: status-busy 1s ease-in-out infinite; }
+@keyframes status-busy {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
 .error-hint { font-size: var(--font-size-micro); color: var(--status-error); }
 .video-empty {
   grid-column: 1 / -1;
@@ -273,6 +282,21 @@
 .dropzone:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .dropzone.dragover { border-color: var(--color-accent); background: var(--color-accent-soft); }
 .dz-limits { font-size: var(--font-size-micro); }
+/* Кусок B: подсказка «сервер сконвертирует в mp4» — дословно мокап
+   video-upload.html .convert-note (ревью-001 п.2) */
+.convert-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  background: var(--p-blue-050);
+  border: 1px solid var(--p-blue-200);
+  border-radius: var(--radius-field);
+  padding: var(--space-1) 10px;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-label);
+  color: var(--p-blue-700);
+}
+.convert-note svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
 .file-row {
   display: flex;
   align-items: center;
@@ -692,6 +716,18 @@
         <span class="dz-limits" id="dz-hint">любой видеоформат · до 500 МБ</span>
       </div>
       <input type="file" id="file-input" hidden />
+
+      {# ===== КУСОК B (ревью-001 п.2; мокап video-upload.html .convert-note):
+         формат любой — сервер сконвертирует в mp4, конвертация в фоне,
+         статус виден в списке (бейджи, автообновление — video.js) ===== #}
+      <div class="convert-note" id="convert-note">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span>Сервер сконвертирует видео в <b>mp4</b> — загружать можно в любом формате.
+        После загрузки конвертация идет в фоне, статус виден в списке.</span>
+      </div>
 
       <div class="file-row" id="file-row" hidden>
         <div class="file-thumb" aria-hidden="true">

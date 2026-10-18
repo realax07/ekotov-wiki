@@ -125,6 +125,16 @@ def playable_path(video_id: str) -> str | None:
     mp4 = mp4_path(video_id)
     if os.path.isfile(mp4):
         return mp4
+    original = find_original(video_id)
+    return original
+
+
+def find_original(video_id: str) -> str | None:
+    """Исходник <id>/original.<ext> (первый по имени) или None.
+
+    Шов конвертера (tasks 3.1, design §3): воркер берет исходник только
+    здесь — путей мимо storage не строит (sdd §2 «пути — только через
+    storage.py»)."""
     d = video_dir(video_id)
     if not os.path.isdir(d):
         return None
