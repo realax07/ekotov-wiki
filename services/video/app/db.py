@@ -27,6 +27,22 @@ DEFAULT_DB_PATH = "/data/wiki.db"
 BUSY_TIMEOUT_MS = 5000
 
 
+def _lower_unicode(value):
+    """Unicode-aware lower для поиска/сортировки по имени (кусок C, 4.1).
+
+    Встроенный lower() SQLite знает только ASCII — «ПРИВЕТ» не lowering'ится
+    в «привет», а сценарий «Поиск и сортировка» спеки прямо требует
+    кириллицу без учета регистра. Перекрытие built-in на строках Python
+    (str.lower) делает lower()-нормализацию обеих сторон LIKE и
+    ORDER BY ... lower(filename) полно-регистронезависимыми; детерминированность
+    объявлена — lower остается допустимым в индексных выражениях/частичных
+    индексах.
+    """
+    if isinstance(value, str):
+        return value.lower()
+    return value
+
+
 def get_connection(db_path: str | None = None) -> sqlite3.Connection:
     """RW-соединение с общей БД; FK-контроль и busy_timeout включены.
 
@@ -40,4 +56,6 @@ def get_connection(db_path: str | None = None) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MS}")
+    # Кусок C (4.1): unicode-lower на этом соединении (см. _lower_unicode).
+    conn.create_function("lower", 1, _lower_unicode, deterministic=True)
     return conn

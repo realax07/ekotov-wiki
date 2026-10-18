@@ -7,7 +7,9 @@
    (кусок B, ревью-001 п.2), плеер <video> только для «готово», реакции
    (лайк/дизлайк, один голос), комментарии (удаление — только своих),
    фильтр по категории, удаление с подтверждением (модалка).
-   Поиск/сортировка — кусок C (4.1), сюда НЕ входит.
+   Поиск/сортировка — кусок C (4.1): поле «Поиск по имени» (подстрока,
+   регистр не учитывается), select «Сортировка» (Имя А→Я / Имя Я→А) и
+   кнопка «Сбросить» — дословно мокап video-list.html.
    Динамика — frontend/static/js/video.js (ES-модуль); данные —
    /api/videos* сервиса video, категории — общий справочник галереи,
    файлы — nginx /videos/<id>/… (NFR-36/38: всё только по сессии).
@@ -77,13 +79,15 @@
   margin: 0 0 var(--space-2);
 }
 
-/* ===== Тулбар списка: фильтр категории (кусок D, мокап video-list.html
-   .filter) + кнопка загрузки (поиск/сортировка — кусок C) ===== */
+/* ===== Тулбар списка: поиск + фильтр категории + сортировка + сброс
+   (куски C и D, мокап video-list.html .video-toolbar/.filter/.filter-reset)
+   + кнопка загрузки ===== */
 .video-toolbar .filter label {
   display: block;
   font-size: var(--font-size-label);
   color: var(--color-text-secondary);
 }
+.video-toolbar .filter input,
 .video-toolbar .filter select {
   display: block;
   width: 220px;
@@ -95,14 +99,30 @@
   font: inherit;
   color: var(--color-text-primary);
   background: transparent;
-  cursor: pointer;
 }
+.video-toolbar .filter input:hover,
 .video-toolbar .filter select:hover { border-bottom-color: var(--color-border-strong); }
+.video-toolbar .filter input:focus-visible,
 .video-toolbar .filter select:focus-visible {
   outline: none;
   border-bottom-color: var(--color-accent);
   box-shadow: 0 1px 0 var(--color-accent);
 }
+.video-toolbar .filter input::placeholder { color: var(--color-text-secondary); opacity: 1; }
+/* Кусок C: «Сбросить» — тихая подчеркнутая кнопка мокапа video-list.html */
+.filter-reset {
+  font: inherit;
+  font-size: var(--font-size-label);
+  background: none;
+  border: none;
+  padding: 0 0 6px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.filter-reset:hover { color: var(--color-accent-hover); }
+.filter-reset:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-field); }
 .video-toolbar {
   display: flex;
   align-items: flex-end;
@@ -676,6 +696,13 @@
   <section id="video-list-view">
     <h1>Видео</h1>
     <div class="video-toolbar">
+      {# Кусок C (4.1): поиск по подстроке имени + сортировка + «Сбросить» —
+         дословно мокап video-list.html; комбинируется с фильтром категории
+         (кусок D) в один запрос ?query=&order=&category= (video.js) #}
+      <div class="filter">
+        <label for="video-search">Поиск по имени</label>
+        <input id="video-search" type="search" placeholder="подстрока имени…" value="" />
+      </div>
       <div class="filter">
         <label for="video-category">Категория</label>
         <select id="video-category">
@@ -684,6 +711,14 @@
              из /api/videos/categories (кусок D, мокап video-list.html) #}
         </select>
       </div>
+      <div class="filter">
+        <label for="video-sort">Сортировка</label>
+        <select id="video-sort">
+          <option value="asc" selected>Имя А→Я</option>
+          <option value="desc">Имя Я→А</option>
+        </select>
+      </div>
+      <button type="button" class="filter-reset" id="video-filter-reset">Сбросить</button>
       <span class="filter-count" id="video-count" aria-live="polite"></span>
       <button type="button" class="upload-button" id="open-upload-button">
         <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -695,6 +730,11 @@
     <div class="video-grid" id="video-grid">
       <div class="video-empty" id="video-empty" hidden>
         Видео пока нет. Загрузите первое — кнопка «Загрузить видео».
+      </div>
+      {# Кусок C: пустой результат поиска/фильтра — тихий state мокапа
+         video-list.html («Ничего не найдено…») #}
+      <div class="video-empty" id="video-search-empty" hidden>
+        Ничего не найдено. Измените поиск — очистка возвращает весь список.
       </div>
     </div>
   </section>

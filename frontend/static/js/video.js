@@ -13,11 +13,17 @@
  * снимает, клик по второй переносит), комментарии (удаление — только
  * своих: comment.user_id === me.id), категории (общий справочник
  * с «Галереей»: выбор при загрузке, «+ Новая категория…» через POST
- * /api/categories ядра, фильтр в списке). Поиск/сортировка (кусок C)
- * НЕ входит — задача 4.1.
+ * /api/categories ядра, фильтр в списке).
+ * Кусок C (4.1): поиск по подстроке имени (#video-search, debounce,
+ * регистр не учитывается — сервер), сортировка по имени (#video-sort,
+ * asc по мокапу — «Имя А→Я»), «Сбросить» (#video-filter-reset —
+ * поиск+категория к дефолту); параметры комбинируются в один запрос
+ * ?query=&order=&category= и сохраняются при polling-обновлении списка;
+ * пустой результат фильтра — отдельный тихий state (#video-search-empty).
  *
  * Данные — API video-сервиса (за сессией, NFR-36/38):
- *   GET    /api/videos                       — список (+ ?category=<id|none>);
+ *   GET    /api/videos                       — список (+ ?category=<id|none>
+ *                                              &query=<подстрока>&order=asc|desc);
  *   POST   /api/videos                       — загрузка multipart (≤ 500 МБ,
  *                                              опц. category_id);
  *   DELETE /api/videos/{id}                  — удаление;
@@ -51,8 +57,22 @@ const STATUS_LABELS = {
 const views = ['video-list-view', 'video-upload-view', 'video-player-view'];
 
 /* Кусок D: текущий пользователь (id — рендер «удалить» у своих) и
- * справочник категорий (общий с галереей). */
-const state = { me: null, categories: [], activeCategory: '' };
+ * справочник категорий (общий с галереей). Кусок C: query — подстрока
+ * поиска (trim, пустая = все), order — сортировка по имени («Имя А→Я»
+ * по мокапу — дефолт). */
+const state = { me: null, categories: [], activeCategory: '', query: '', order: 'asc' };
+
+/* Кусок C: параметры списка одним куском — loadList и polling-тик
+ * (refreshTick) ходят с ОДНИМИ И ТЕМИ ЖЕ фильтрами (поиск/сортировка
+ * не сбрасываются автообновлением куска B). */
+function buildListParams() {
+  const params = new URLSearchParams();
+  if (state.activeCategory) params.set('category', state.activeCategory);
+  if (state.query) params.set('query', state.query);
+  if (state.order) params.set('order', state.order);
+  const qs = params.toString();
+  return qs ? '?' + qs : '';
+}
 
 /* Кусок B: статусы «загружено»/«конвертируется» — не финальные, список
  * обновляется опросом (polling; SSE спекой не предусмотрена), пока есть
@@ -185,16 +205,28 @@ function buildCard(item) {
   return card;
 }
 
-async function loadList() {
-  const grid = document.getElementById('video-grid');
-  const empty = document.getElementById('video-empty');
-  grid.querySelectorAll('.v-card').forEach((el) => el.remove());
+function hasActiveFilters() {
+  return Boolean(state.activeCategory || state.query);
+}
 
-  // Фильтр категории (кусок D): ?category=<id|none> (мокап video-list.html).
-  const params = new URLSearchParams();
-  if (state.activeCategory) params.set('category', state.activeCategory);
-  const qs = params.toString();
-  const resp = await fetch('/api/videos' + (qs ? '?' + qs : ''));
+/* Общая отрисовка списка для loadList и polling-тика (кусок B): карточки,
+ * счетчик, пустые state'ы (библиотека пуста vs ничего не найдено по
+ * фильтрам — кусок C, мокап video-list.html). */
+function renderList(videos) {
+  const grid = document.getElementById('video-grid');
+  grid.querySelectorAll('.v-card').forEach((el) => el.remove());
+  for (const item of videos) {
+    grid.append(buildCard(item));
+  }
+  document.getElementById('video-count').textContent = 'Видео: ' + videos.length;
+  const filtered = hasActiveFilters();
+  document.getElementById('video-empty').hidden = filtered || videos.length > 0;
+  document.getElementById('video-search-empty').hidden = !filtered || videos.length > 0;
+}
+
+async function loadList() {
+  // Кусок C: query/order комбинируются с фильтром категории (кусок D).
+  const resp = await fetch('/api/videos' + buildListParams());
   if (resp.status === 401) {
     window.location.href = '/login';
     return;
@@ -202,11 +234,7 @@ async function loadList() {
   const data = await resp.json();
   const videos = data.videos || [];
   state.listItems = videos;
-  document.getElementById('video-count').textContent = 'Видео: ' + videos.length;
-  for (const item of videos) {
-    grid.append(buildCard(item));
-  }
-  empty.hidden = videos.length > 0;
+  renderList(videos);
   // Кусок B: пока есть незавершенные конвертации — автообновление списка.
   scheduleListRefresh(videos);
 }
@@ -234,18 +262,13 @@ function stopListRefresh() {
 }
 
 async function refreshTick() {
-  const resp = await fetch('/api/videos');
+  // Кусок C: polling ходит с теми же query/order/category, что и loadList.
+  const resp = await fetch('/api/videos' + buildListParams());
   if (!resp.ok) return; // сеть/сервис моргнули — следующий тик повторит
   const data = await resp.json();
   const videos = data.videos || [];
   state.listItems = videos;
-  const grid = document.getElementById('video-grid');
-  grid.querySelectorAll('.v-card').forEach((el) => el.remove());
-  for (const item of videos) {
-    grid.append(buildCard(item));
-  }
-  document.getElementById('video-count').textContent = 'Видео: ' + videos.length;
-  document.getElementById('video-empty').hidden = videos.length > 0;
+  renderList(videos);
   scheduleListRefresh(videos);
   // Открыт просмотр: статус открытого видео изменился — перерисовать
   // (например, «конвертируется» → «готово»: плейсхолдер сменяется плеером).
@@ -646,6 +669,37 @@ function setupUpload() {
   // Кусок D: фильтр категории в списке (мокап video-list.html).
   document.getElementById('video-category').addEventListener('change', (e) => {
     state.activeCategory = e.target.value;
+    loadList();
+  });
+
+  // Кусок C (4.1): поиск по подстроке имени — debounce 300 мс, trim;
+  // пустое поле возвращает весь список (сервер: пустой query — все).
+  const searchInput = document.getElementById('video-search');
+  let searchTimer = null;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      state.query = searchInput.value.trim();
+      loadList();
+    }, 300);
+  });
+
+  // Кусок C (4.1): сортировка по имени (asc — «Имя А→Я», дефолт мокапа).
+  document.getElementById('video-sort').addEventListener('change', (e) => {
+    state.order = e.target.value;
+    loadList();
+  });
+
+  // Кусок C (4.1): «Сбросить» — поиск и категория к дефолту, сортировка
+  // к «Имя А→Я»; очистка возвращает весь список (Scenario «Поиск и
+  // сортировка» спеки).
+  document.getElementById('video-filter-reset').addEventListener('click', () => {
+    state.query = '';
+    state.activeCategory = '';
+    state.order = 'asc';
+    searchInput.value = '';
+    document.getElementById('video-category').value = '';
+    document.getElementById('video-sort').value = 'asc';
     loadList();
   });
 

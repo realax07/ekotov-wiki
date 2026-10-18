@@ -13,7 +13,11 @@
                                         NULL = «Без категории»)
 - GET    /api/videos                — список; 200; 401 (кусок D: фильтр
                                         ?category=<id|none>, none = без
-                                        категории; в элементах — category_id,
+                                        категории; кусок C/4.1: ?query=
+                                        <подстрока имени, регистр не
+                                        учитывается> & order=asc|desc —
+                                        сортировка по имени; пустой query —
+                                        все; в элементах — category_id,
                                         category_name, likes, dislikes,
                                         my_reaction)
 - DELETE /api/videos/{id}           — том <id>/ целиком + метаданные
@@ -283,7 +287,12 @@ async def upload_video(
 
 
 @router.get("/api/videos")
-def list_videos(request: Request, category: str | None = None):
+def list_videos(
+    request: Request,
+    category: str | None = None,
+    query: str | None = None,
+    order: str | None = None,
+):
     """Список: имя, статус, размер, дата + playback/preview URL.
 
     Кусок D: фильтр ?category=<id|none> (none = «Без категории»,
@@ -293,21 +302,51 @@ def list_videos(request: Request, category: str | None = None):
     preview_url — API-эндпоинт (409 = плейсхолдер по макету);
     file_url — nginx-отдача из тома /videos/<id>/… (design §5,
     auth_request-сессия, Range для <video>).
+
+    Кусок C (4.1): ?query=<подстрока>&order=asc|desc (sdd §3) — поиск по
+    подстроке имени БЕЗ учета регистра (lower()-нормализация обеих сторон
+    LIKE; lower перекрыт на unicode — кириллица, см. db.py) и сортировка
+    по имени в обе стороны (lower(filename); встроенный COLLATE NOCASE
+    ASCII-only — кириллицу не складывает, поэтому тот же unicode-lower).
+    Комбинируется с фильтром категории (И всех активных условий);
+    пустой/отсутствующий query — все видео. %/_ в query — обычные
+    символы (ESCAPE '\'). order не указан — прежний порядок свежие-сверху
+    (created_at DESC); неверный order — 422.
     """
     viewer_id = _user_id_of(request)
 
-    where = ""
+    conditions: list[str] = []
     params: list = []
     if category is not None and category != "":
         if category == "none":
-            where = " WHERE v.category_id IS NULL"
+            conditions.append("v.category_id IS NULL")
         else:
             try:
                 cat_id = int(category)
             except ValueError:
                 raise _validation_error("category", "category must be an id or 'none'")
-            where = " WHERE v.category_id = ?"
-            params = [cat_id]
+            conditions.append("v.category_id = ?")
+            params.append(cat_id)
+
+    raw_query = (query or "").strip()
+    if raw_query:
+        # Подстрока без учета регистра; %/_/\ — литералы (ESCAPE '\').
+        needle = (
+            raw_query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        )
+        conditions.append(r"lower(v.filename) LIKE '%' || lower(?) || '%' ESCAPE '\'")
+        params.append(needle)
+
+    where = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    if order is None or order == "":
+        order_by = " ORDER BY v.created_at DESC, v.id DESC"
+    elif order == "asc":
+        order_by = " ORDER BY lower(v.filename) ASC, v.created_at DESC, v.id DESC"
+    elif order == "desc":
+        order_by = " ORDER BY lower(v.filename) DESC, v.created_at DESC, v.id DESC"
+    else:
+        raise _validation_error("order", "order must be 'asc' or 'desc'")
 
     conn = get_connection()
     try:
@@ -324,7 +363,7 @@ def list_videos(request: Request, category: str | None = None):
             " FROM video_videos v"
             " LEFT JOIN image_categories c ON c.id = v.category_id"
             + where
-            + " ORDER BY v.created_at DESC, v.id DESC",
+            + order_by,
             [viewer_id] + params,
         ).fetchall()
         videos = []
