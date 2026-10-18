@@ -1,163 +1,125 @@
 # Regress video-hosting — regress-final.md
 
 - change: video-hosting
-- date: 2026-10-18T03:07:02+00:00
-- commit: 2416f7751b5821b41d532c84c56fd65d37f952df
-- worktree: /home/openclaw/ekotov-wiki-worktrees/regress-final-vh
+- date: 2026-10-18T04:45:00+00:00
+- commit: 1055ec49eb3e46b1cddab7847af480a9eda59c6a
+- worktree: /home/openclaw/ekotov-wiki-worktrees/regress-final-vh2
 - verdict: FAIL
 - diff source: git diff main...HEAD
-- changed files: 103
-  - PLAN-video-hosting.md
-  - architecture/map.md
-  - backend/app/migrate_video.py
-  - backend/app/pages.py
-  - code-reviews/video-hosting/dev-report-A-escalations.md
-  - code-reviews/video-hosting/dev-report-B.md
-  - code-reviews/video-hosting/dev-report-C.md
-  - code-reviews/video-hosting/dev-report-D-wave2.md
-  - code-reviews/video-hosting/review-001.md
-  - code-reviews/video-hosting/review-002.md
-  - conftest.py
-  - contracts/openapi.json
-  - deploy/compose.test.yaml
-  - deploy/compose.yaml
-  - design/video-hosting/video-list.html
-  - design/video-hosting/video-upload.html
-  - design/video-hosting/video-view.html
-  - frontend/static/js/video.js
-  - frontend/templates/base.html
-  - frontend/templates/video.html
-  - openspec/changes/video-hosting/design.md
-  - openspec/changes/video-hosting/proposal.md
-  - openspec/changes/video-hosting/requirements.md
-  - openspec/changes/video-hosting/review-architecture.md
-  - openspec/changes/video-hosting/sdd.md
-  - openspec/changes/video-hosting/specs/video-service/spec.md
-  - openspec/changes/video-hosting/tasks.md
-  - services/frontend/Dockerfile
-  - services/frontend/nginx/ekotov-wiki.conf
-  - services/frontend/nginx/videos-headers.inc
-  - services/frontend/nginx/videos-proxy.inc
-  - services/video/Dockerfile
-  - services/video/app/__init__.py
-  - services/video/app/converter.py
-  - services/video/app/db.py
-  - services/video/app/main.py
-  - services/video/app/middleware.py
-  - services/video/app/social.py
-  - services/video/app/storage.py
-  - services/video/app/videos.py
-  - services/video/install_ffmpeg.py
-  - services/video/tests/__init__.py
-  - services/video/tests/conftest.py
-  - services/video/tests/test_converter.py
-  - services/video/tests/test_list_search_order.py
-  - services/video/tests/test_nfr_nonblocking.py
-  - services/video/tests/test_social.py
-  - services/video/tests/test_storage.py
-  - services/video/tests/test_videos_service.py
-  - test-model/approved/video-hosting/TC-vid-001.md
-  - … и еще 53
-- suites: tests/api, tests/web, tests
-- pytest exit code: 2
+- changed files: 107
+- suites: tests/api, tests/web, tests (маппинг J51.2-дедупом сворачивается в общий домен `tests`)
+- pytest exit code: — (механический прогон не стартовал, см. «Блокер ворот»)
+- Предыдущий прогон: 2416f77 (95105ef), вердикт FAIL — дефект маппинга
+  (дубль домена `tests`); считается устраненным 1055ec4, но зеркало неполное.
 
-## Хвост лога (до 50 строк)
+## Блокер ворот (механический прогон, 2 попытки — детерминировано, не флак)
+
+`python3 scripts/flowctl.py regress --change video-hosting --final` падает ДО
+выбора тестов на обоих прогонах с идентичным трейсом:
 
 ```
-    pytestmark = [pytest.mark.web, pytest.mark.must]
-
-tests/web/test_tooltip_r4.py:38
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh/tests/web/test_tooltip_r4.py:38: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
-    pytestmark = [pytest.mark.web, pytest.mark.must]
-
-tests/web/test_video_convert_ui.py:26
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh/tests/web/test_video_convert_ui.py:26: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
-    pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
-
-tests/web/test_video_convert_ui.py:26
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh/tests/web/test_video_convert_ui.py:26: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
-    pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
-
-tests/web/test_video_social_ui.py:22
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh/tests/web/test_video_social_ui.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
-    pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
-
-tests/web/test_video_social_ui.py:22
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh/tests/web/test_video_social_ui.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
-    pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
-
-tests/web/test_video_ui.py:22
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh/tests/web/test_video_ui.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
-    pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
-
-tests/web/test_video_ui.py:22
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh/tests/web/test_video_ui.py:22: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
-    pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
-
-tests/web/test_video_wiki_isolation_ui.py:16
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh/tests/web/test_video_wiki_isolation_ui.py:16: PytestUnknownMarkWarning: Unknown pytest.mark.e2e - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
-    pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
-
-tests/web/test_video_wiki_isolation_ui.py:16
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh/tests/web/test_video_wiki_isolation_ui.py:16: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
-    pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
-
-tests/web/test_view_modal_r4.py:43
-  /home/openclaw/ekotov-wiki-worktrees/regress-final-vh/tests/web/test_view_modal_r4.py:43: PytestUnknownMarkWarning: Unknown pytest.mark.web - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
-    pytestmark = [pytest.mark.web, pytest.mark.must]
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-=========================== short test summary info ============================
-ERROR tests/api/test_auth.py
-ERROR tests/api/test_auth_me.py
-ERROR tests/api/test_authme_r3.py
-ERROR tests/api/test_profile_r4.py
-!!!!!!!!!!!!!!!!!!! Interrupted: 4 errors during collection !!!!!!!!!!!!!!!!!!!!
-71 warnings, 4 errors in 1.31s
+File "scripts/flowctl.py", line 1393, in cmd_regress
+    cid_problem = sc.change_id_problem(change)
+AttributeError: module 'session_check' has no attribute 'change_id_problem'
 ```
-## Разбор regress_runner (изолированный перепрогон, 2 прогона на каждый упавший)
 
-Механический прогон flowctl прерван на КОЛЛЕКЦИИ (exit 2, до исполнения тестов):
-аргумент-список маппинга `tests/api tests/web tests` рождает коллизию модуля
-`conftest` — bare-импорты `from conftest import ...` в tests/api/test_auth.py,
-test_auth_me.py, test_authme_r3.py, test_profile_r4.py резолвятся в
-tests/web/conftest.py. Воспроизводится на интерпретаторах 3.14/pytest 8 и
-3.11/pytest 9.1, а также на чистом main в том же окружении — дефект маппинга
-J51.2 при первом применении (дубль домена `tests` поверх `tests/api`+`tests/web`),
-не регресс диффа. Фактический регресс выполнен эквивалентным одиночным
-вызовом `pytest tests -q` (608 тестов) + изолированный перепрогон всех 145
-упавших/ошибочных на каноническом контуре (прецедент REPORT-2.1-gallery-qa §1):
-nginx :18443 → app :8080 + search :8391 + images :8392.
+Причина: зеркало фабрики 1055ec4 («зеркало фабрики: flowctl regress — дедуп
+доменов маппинга») перенесло `cmd_regress` из ai-factory/scripts/flowctl.py
+(328 insertions), но НЕ перенесло зависимость из
+ai-factory/scripts/session_check.py:96 — `CHANGE_ID_RE` + `change_id_problem()`.
+В wiki-зеркале scripts/session_check.py этих символов нет. Чинить зеркалом
+фабрики (функция + CHANGE_ID_RE), зона scripts/ — вне зоны regress_runner.
+Попутно: читающий конец ворот `pr_validate.check_regress_final` (упомянут
+комментарием в cmd_regress как «та же функция на читающем конце») в wiki-
+scripts/pr_validate.py тоже отсутствует — зеркало неполное с обеих сторон:
+даже после починки session_check артефакт regress-final останется без
+машинной валидации ворот merge.
 
-- Полный прогон (монолит-стенд :8080 без сервисов): 608 collected —
-  100 failed, 50 errors, 419 passed, 42 skipped, 2 xfailed (11:08).
-- Перепрогон 145 на контуре: 114 ушли в green, 31 остался; разобраны поштучно
-  (каждый — 2 прогона, все детерминированы, ФЛАКОВ НЕТ):
-  - 28 × tests/test_flowctl.py — pre-existing: идентичный падеж на чистом main
-    (28 failed там же, тем же окружением); дрейф scripts/flowctl.py, вне диффа.
-  - tests/api: tc_gal_106 (нужен env EKOTOV_WIKI_IMAGES_PORT — канонический
-    :8379 занят чужим процессом), suggestions ×3 (загрязнение QAT-* категорий
-    в БД стенда от ранних оборванных прогонов) — после устранения PASS.
-  - tests/api: gaps_r5/avatar_r4 boundary «ровно 2 МБ» — по дизайну требуют
-    direct-app стенд + EKOTOV_WIKI_DB_PATH (через nginx 2m-лимит multipart
-    дает 413); в каноническом для них виде — PASS. Наблюдение вне скоупа:
-    через nginx прод-паритета граница «ровно 2 МБ» аватара 413 —
-    напряжка лимит/спека старше диффа.
-  - tests/web: test_tc_gal_119_sidebar_gallery_fourth_parity — ЕДИНСТВЕННЫЙ
-    дифф-зависимый падеж: тест фиксирует сайдбар [Доска, Поиск, Wiki, Галерея],
-    дифф добавляет «Видео» (сама фича TC-vid-001 работает) — тест устарел,
-    требует обновления в пакете (зона test-model, вне зоны regress_runner).
-    Детерминирован 2/2.
-  - tests/web: test_combobox_three_tags_and_one_by_one_removal — pre-existing
-    (воспроизведен на чистом main), детерминирован 2/2.
-  - tests/web: test_profile_badge_and_login_on_all_pages — артефакт стенда:
-    strict-матчинг заголовка «Wiki» ловит пустой wiki-стенд БД контура
-    («В Wiki пока нет страниц»); на каноническом self-стенде ветки PASS,
-    на main PASS. Регресса диффа нет; латентный флак теста (нет exact=True).
+## Фактический регресс (эквивалентный прогон, прецедент предыдущего артефакта)
 
-Итог разбора: продуктовых багов диффа video-hosting не выявлено;
-1 устаревший тест (TC-GAL-119) требует синхронизации с фичей;
-ворота merge сейчас блокирует дефект маппинга flowctl regress (дубль
-домена `tests`) — чинить в ai-factory/scripts/flowctl.py (дедуп доменов,
-покрываемых `tests`) либо в test-layout bare-импортов, после чего перегнать
-regress --final.
+Механический эквивалент при живых воротах — одиночный вызов домена `tests`
+(дедуп сворачивает частичные домены в общий). Фактический прогон выполнен
+покомпонентно на каноническом контуре (прецедент REPORT-regress-21 §2,
+REPORT-2.1-gallery-qa §1, предыдущий regress-final):
+
+- контур: nginx :18443 → app :8080 + search :8391 + images :8392 + video :8399
+  (прод-паритет services/frontend/nginx/ekotov-wiki.conf: search/images/videos-
+  локации, /videos/ c authcheck-subrequest, netdata-заглушка c basic-auth;
+  видео-сервис с ffmpeg в PATH);
+- БД на сессию: свежая схема (`python -m app.db`) → seed owner/wife
+  (программно, bcrypt) → migrate_r4/gallery/wiki/video → справочник
+  «Дом/Работа/Личное» (README-протокол внешнего стенда: автосеем внешний
+  стенд не занимается; migrate_categories на пустой БД справочник НЕ создает —
+  это дата-миграция из задач);
+- env: EKOTOV_WIKI_BASE_URL=http://127.0.0.1:18443, EKOTOV_WIKI_DB_PATH,
+  AVATARS_DIR (tmp), EKOTOV_WIKI_IMAGES_PORT/IMAGES_DIR; mime-проверка статики
+  через nginx — application/javascript; интерпретатор venv (3.11/pytest 9.1).
+
+### tests/api (через nginx) — 310 collected, ИТОГ 0 failed
+
+- маршрутный прогон: 283 passed, 14 failed, 11 skipped, 2 xfailed (125s).
+- Изолированный перепрогон 14 в канонической для них среде — все green:
+  - avatar_r4/avatar_r5/gaps_r5 (16 тестов файлов, 12 упавших + смежные):
+    по дизайну кейсов 2МБ-границы требуют direct-app стенд :8080 + AVATARS_DIR
+    (через nginx серверный лимит 2m дает 413 раньше сервиса) — 16 passed
+    (27s); при первом подъеме стенда ловится грабля env: переменная стенда
+    называется AVATARS_DIR, EKOTOV_WIKI_AVATARS_DIR — только тестовое;
+  - tc_gal_107: нужен env EKOTOV_WIKI_IMAGES_DIR (том сервиса) — 1 passed.
+- skipped/xfailed — эталонные по tests/README (BUG-003 ×2, НФТ-рестарты).
+
+### tests/web (через nginx) — 258 collected: 250 passed, 7 failed (663s)
+
+Изолированный перепрогон семи упавших (2× на свежей БД; оба прогона
+идентичны — ФЛАКОВ НЕТ):
+
+- Green изолированно (2/2); в полном порядке их красит контекст:
+  - test_bug014 computed_styles — известный БАГ-016 (evaluate без
+    предварительного expect — элемент отсутствует в момент снятия); тест-
+    дефект механики, pre-existing (файл вне диффа);
+  - tc_gal_115, tc_gal_116 — в полном порядке галерею засоряет хвост
+    test_p15_wiki_editor (заливает картинку редактора в галерею, original_name
+    `tmp*.png` остается в БД/томе без очистки — pre-existing долг очистки,
+    p15 вне диффа); изолированно 115/116 green 2/2.
+- Детерминированный FAIL 2/2:
+  - **test_navigation_search_ui::test_sidebar_all_pages_and_wiki_stub —
+    ДИФФ-ЗОНА (файл в диффе)**: `get_by_role("heading", name="Wiki")` на
+    пустой wiki-БД матчит ДВА заголовка (h1 «Wiki» + empty-state «В Wiki пока
+    нет страниц») → strict violation, «Actual value: None». Локатору нужен
+    exact=True/.first. Продукт работает (проба playwright: клик «Wiki» →
+    /wiki, h1 на месте, 5 пунктов сайдбара). Синхронизировать в пакете — тот
+    же класс, что уже снятый в ef77e26 устаревший сайдбар-ассерт;
+  - **test_qa21_gallery_ui::test_tc_gal_119... — ДИФФ-ЗОНА (обновлен ef77e26)**:
+    `.wiki-create` на пустой wiki-БД резолвится в ДВЕ кнопки (empty-state
+    «Создать первую страницу» + тулбарная «Создать страницу») → strict
+    violation; нужен `.first()`. Синхронизировать в пакете;
+  - test_p12_ui_polish_r8::test_combobox_three_tags... — pre-existing
+    (идентично предыдущему артефакту: красный на чистом main);
+  - test_r3_profile_ui::test_profile_badge... — задокументированный
+    стенд-артефакт предыдущего артефакта (strict-матчинг заголовка «Wiki»
+    ловит пустую wiki-БД стенда), не регресс диффа.
+
+Видео-сьюты ветки на контуре green: test_video_convert_ui,
+test_video_social_ui, test_video_ui, test_video_wiki_isolation_ui — в числе
+250 passed.
+
+### tests/ (корень) — механический домен
+
+- test_flowctl.py: 28 failed, 11 passed — pre-existing дрейф (идентичный
+  падеж на чистом main, зафиксирован предыдущим артефактом; состав 28
+  совпадает). С учетом того, что scripts/flowctl.py в диффе — после починки
+  зеркала сводить счетчик с чистым main заново.
+- test_walkthrough_probe.py: 1 passed.
+
+## Итог разбора
+
+- Продуктовых багов диффа video-hosting НЕ выявлено: видео-фича работает
+  (сайдбар 5 пунктов с «Видео», /api/videos маршрутизируется через nginx,
+  конвертация и социальные механики — видео-сьюты green на контуре).
+- Ворота merge блокируют ДВЕ вещи, обе вне зоны regress_runner:
+  1. Баг зеркала 1055ec4: scripts/session_check.py без `change_id_problem`
+     (зеркало фабрики неполное; там же отсутствует `check_regress_final` в
+     scripts/pr_validate.py) — механический `regress --final` не запускается;
+  2. Два тест-дефекта дифф-зоны на пустой wiki-БД (TC-UI-016-сайдбар:
+     heading-name без exact; TC-GAL-119: `.wiki-create` без .first) —
+     детерминированы 2/2, синхронизировать в пакете.
+- После устранения 1–2 перегнать `regress --final` механически.
