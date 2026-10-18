@@ -64,3 +64,8 @@ Blocker'ов и Major нет.
 
 - История: review-001 (return), review-002 (настоящий) сохранены в
   `test-model/reviews/video-hosting/`; append-only соблюден.
+
+## Reviewer-Delegation
+
+- deleg_74b15616 (завершена, role=qa_case_reviewer, итерация 2 + перенос 40/40, 2026-10-18)
+- review-001: deleg_176e9c03 (return 1/40, эскалации разобраны)
