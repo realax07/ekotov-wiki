@@ -205,11 +205,18 @@ def test_settings_link_bbox_stable_across_active_focus(logged_in_page, web_base_
 
     box0 = link.bounding_box()
 
-    # Active-нажатие: mouse.down в центре, без release.
+    # Active-нажатие: mouse.down в центре, без release. Отпускание —
+    # с уведенным курсором: down+up на самой ссылке — это click, он
+    # запускает навигацию на /settings и гонит последующие
+    # link.focus()/bounding_box() (флейк полной коллекции, класс
+    # BUG-016 «действие без автожидания»: фокус успевал до коммита
+    # навигации, bbox — нет). Move в сторону до up = клика нет,
+    # :active-состояние уже измерено в box1.
     cx, cy = box0["x"] + box0["width"] / 2, box0["y"] + box0["height"] / 2
     page.mouse.move(cx, cy)
     page.mouse.down()
     box1 = link.bounding_box()
+    page.mouse.move(cx + box0["width"] + 40, cy)
     page.mouse.up()
 
     # Keyboard-focus (focus-visible).

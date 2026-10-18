@@ -375,5 +375,14 @@ def test_dnd_success_after_409_hides_board_error(
     expect(_column(page, "in_progress").get_by_role("article").filter(
         has_text="QAT-dnd-очистка"
     )).to_be_visible()
-    error = page.locator("#board-error")
-    assert not error.is_visible(), error.inner_text()
+    # Автожидание скрытия вместо императивного is_visible() (флейк
+    # связки regress №7: green изолированно, красный полной коллекцией).
+    # Механика гонки: onOk moveTask гасит бокс (hideError) ДО issuing
+    # refreshBoard, но в момент шага 2 еще летит refreshBoard от 409
+    # шага 1 — его перерисовка и ответ успешного POST приходят в
+    # незакрепленном порядке; is_visible() снимает мгновенный слепок и
+    # ловит переходное состояние, expect переопросом ждет факта.
+    # Попутно закрывает и ошибочный путь refreshBoard (сетевой сбой под
+    # нагрузкой коллекции → showBoardError): бокс, снова показанный
+    # после скрытия, честно красит тест вместо молчаливого «повезло».
+    expect(page.locator("#board-error")).to_be_hidden()

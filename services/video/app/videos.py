@@ -24,6 +24,11 @@
                                         (+ CASCADE комментариев/реакций —
                                         FK ON DELETE CASCADE, кусок D);
                                         200; 401; 404
+- PATCH  /api/videos/{id}           — переименование {"title"} (волна 7,
+                                        tasks 7.1; паритет rename изображений
+                                        FR-97): меняется ТОЛЬКО filename в
+                                        video_videos, том uuid не трогается;
+                                        200; 401; 404; 422
 - GET    /api/videos/{id}/file      — файл для playback/скачивания;
                                         200; 401; 404; 409 (не ready)
 - GET    /api/videos/{id}/preview   — превью-кадр; 200; 401; 404; 409
@@ -60,6 +65,10 @@ router = APIRouter()
 
 # ОВ-1: до 500 МБ включительно (паритет images: МБ = МиБ).
 MAX_FILE_BYTES = 500 * 1024 * 1024
+
+# Переименование (tasks 7.1): паритет images MAX_NAME_LENGTH — имя до 255
+# символов юникода после trim.
+MAX_TITLE_LENGTH = 255
 
 # Multipart-обвязка (~20 МБ, design §4): Content-Length pre-check режет
 # заведомо большие тела ДО чтения (nginx-лимит локации 520m согласован).
@@ -473,6 +482,66 @@ def delete_video(request: Request, video_id: str):
                 "delete: volume dir not removed for %s (orphan files)", video_id
             )
         return {"ok": True}
+    except sqlite3.Error:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail="database error")
+    finally:
+        conn.close()
+
+
+# --------------------------------------------------------------------------
+# Переименование (Requirement «Переименование видео», волна 7 / tasks 7.1)
+# --------------------------------------------------------------------------
+
+
+def _validate_title(title) -> str:
+    """Валидация нового имени видео (filename) — паритет images
+    (_validate_image_name, FR-97):
+
+    - непустая строка после trim (пустое/пробелы/отсутствующее/не строка
+      → 422);
+    - длина ≤ MAX_TITLE_LENGTH (255) символов юникода (кириллица —
+      символы, не байты);
+    - без недопустимых символов: разделители путей "/" и "\\" (имя —
+      отображаемое, но попадает в атрибут download/aria-label) и
+      управляющие символы (паритет ограничениям полей ядра).
+
+    422 в форме ядра через _validation_error (RequestValidationError →
+    exception_handler в app/main.py, паритет загрузке).
+    """
+    if not isinstance(title, str) or not title.strip():
+        raise _validation_error("title", "video title is empty")
+    value = title.strip()
+    if len(value) > MAX_TITLE_LENGTH:
+        raise _validation_error(
+            "title", f"video title is too long (max {MAX_TITLE_LENGTH})"
+        )
+    if "/" in value or "\\" in value or any(ord(ch) < 0x20 for ch in value):
+        raise _validation_error("title", "video title contains invalid characters")
+    return value
+
+
+@router.patch("/api/videos/{video_id}")
+def rename_video(request: Request, video_id: str, payload: dict):
+    """PATCH {"title"}: меняет ТОЛЬКО filename в video_videos (tasks 7.1).
+
+    Паритет rename изображений (PUT /api/images/{id}/name, FR-97):
+    физические файлы тома videos-data (имена — uuid) и маршруты
+    /videos/… НЕ меняются — ссылки и кеш не инвалидируются (design §8:
+    путь из имени пользователя не конструируется). 404 — _require_video
+    (несуществующее/чужой формат id); 401 — middleware (новых exempt НЕ
+    добавляется, NFR-36/38). Ответ 200: {"id", "title"} — минимальные
+    поля (паритет форме реакций).
+    """
+    title = _validate_title((payload or {}).get("title"))
+    conn = get_connection()
+    try:
+        _require_video(conn, video_id)
+        conn.execute(
+            "UPDATE video_videos SET filename = ? WHERE id = ?", (title, video_id)
+        )
+        conn.commit()
+        return {"id": video_id, "title": title}
     except sqlite3.Error:
         conn.rollback()
         raise HTTPException(status_code=500, detail="database error")

@@ -152,6 +152,25 @@ def test_search_task_view_computed_styles_match_board(
 
     _open_from_advanced_search(page, web_base_url, "QAT-bug014-st")
 
+    modal = page.locator(f"{OVERLAY} .modal")
+
+    # BUG-016 (класс гонки «evaluate без автожиданий», regress №3 и №7):
+    # открытие окна показывает overlay СРАЗУ, а тело рендерится
+    # асинхронно (GET /api/tasks/{id} → renderTaskDetail). Снятие
+    # computed styles сразу после видимости overlay ловит null-элементы
+    # (getComputedStyle(null) → TypeError). Web-first гейты по всем
+    # узлам evaluate-блока: шапка/тело/сетка/карточка признака
+    # отрендерены, заголовок уже с текстом задачи (данные загружены),
+    # «Редактировать» скрыт (страница поиска) — без sleep.
+    expect(modal.locator(".task-view-head")).to_be_visible()
+    expect(modal.locator(".task-view-body")).to_be_visible()
+    expect(modal.locator(".attr-grid")).to_be_visible()
+    expect(modal.locator(".attr-grid .attr").first).to_be_visible()
+    expect(modal.locator(".task-view-head #task-detail-title")).to_have_text(
+        "QAT-bug014-st"
+    )
+    expect(modal.locator("#task-edit-button")).to_be_hidden()
+
     styles = page.evaluate(
         """() => {
           const modal = document.querySelector(

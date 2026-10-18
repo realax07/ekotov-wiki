@@ -79,6 +79,91 @@
   margin: 0 0 var(--space-2);
 }
 
+/* ===== Переименование видео (волна 7, tasks 7.2; образец — rename
+   лайтбокса галереи FR-97, gallery.css .lb-title-row/.rename-*): edit-иконка
+   у имени на странице просмотра + инлайн-поле (нижняя линия 2px, токены —
+   без хардкода цветов); паттерн .category-rename-input settings.css. ===== */
+.player-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+.player-title-row #player-title {
+  margin: 0 0 var(--space-2);
+  min-width: 0;
+  flex: 1;
+}
+.player-rename-btn {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-field);
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+}
+.player-rename-btn svg { width: 16px; height: 16px; display: block; }
+.player-rename-btn:hover {
+  color: var(--color-accent-hover);
+  background: var(--color-accent-soft);
+}
+.player-rename-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.player-rename-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+.player-rename-field[hidden] { display: none; }
+.player-rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px 4px;
+  border: none;
+  border-bottom: 2px solid var(--color-accent);
+  border-radius: 0;
+  font: inherit;
+  font-family: var(--font-family-display);
+  font-size: 26px; /* поле заменяет h1 (#player-title) — мокапное значение */
+  font-weight: 400;
+  color: var(--color-text-primary);
+  background: transparent;
+}
+.player-rename-input:focus-visible {
+  outline: none;
+  box-shadow: 0 1px 0 var(--color-accent);
+}
+.player-rename-confirm {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  color: var(--color-accent);
+  display: inline-flex;
+  align-items: center;
+}
+.player-rename-confirm svg { width: 18px; height: 18px; display: block; }
+.player-rename-confirm:hover { background: var(--color-accent-soft); }
+.player-rename-confirm:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.player-rename-confirm[disabled] { opacity: 0.5; cursor: default; }
+.player-rename-confirm[disabled]:hover { background: none; }
+.player-rename-error {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-label);
+  color: var(--p-red-700);
+}
+.player-rename-error[hidden] { display: none; }
+
 /* ===== Тулбар списка: поиск + фильтр категории + сортировка + сброс
    (куски C и D, мокап video-list.html .video-toolbar/.filter/.filter-reset)
    + кнопка загрузки ===== */
@@ -822,7 +907,24 @@
       <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Все видео
     </a>
-    <h1 id="player-title"></h1>
+    <div class="player-title-row">
+      <h1 id="player-title"></h1>
+      {# ===== ВОЛНА 7 (7.2): переименование видео — образец rename
+         изображений FR-97 (gallery.html #lb-rename): edit-иконка у имени,
+         инлайн-поле, Enter/✓ — сохранить, Esc — отмена; ошибки 422/404 —
+         строка под полем; PATCH {title} ведет video.js ===== #}
+      <button type="button" id="player-rename" class="player-rename-btn" aria-label="Переименовать видео" title="Переименовать">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11a2.1 2.1 0 0 0-3-3L5 17v3zm11-13l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <div class="player-rename-field" id="player-rename-field" hidden>
+      <input type="text" id="player-rename-input" class="player-rename-input" maxlength="255"
+             aria-label="Новое имя видео" autocomplete="off" spellcheck="false" />
+      <button type="button" id="player-rename-confirm" class="player-rename-confirm" aria-label="Сохранить имя" title="Сохранить (Enter)" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <p class="player-rename-error" id="player-rename-error" hidden></p>
     <div class="player-card" id="player-card"></div>
     {# ===== КУСОК D: реакции (мокап video-view.html .reactions-row):
        ровно один голос — повторный клик снимает, клик по второй переносит;
