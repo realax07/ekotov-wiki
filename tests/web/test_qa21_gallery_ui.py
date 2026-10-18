@@ -12,8 +12,9 @@ nginx-стенд :18443 (app :8080 + search :8378 + images :8379; images-сем�
 - TC-GAL-117 — лайк с подсветкой «мой голос», комментарий через UI, пустой
   422, чужой комментарий без кнопки удаления, XSS-дисциплина.
 - TC-GAL-118 — загрузка: форма (input + drag&drop), ошибки 422 в UI.
-- TC-GAL-119 — сайдбар «Галерея» 4-м пунктом у owner И PE, переход, регресс
-  разделов, отсутствие связей с трекером (ОВ-3).
+- TC-GAL-119 — сайдбар «Галерея» 4-м пунктом, «Видео» — 5-м (1.5
+  video-hosting) у owner И PE, переход, регресс разделов, отсутствие
+  связей с трекером (ОВ-3).
 
 Браузер: playwright headless chromium (браузер уже в ~/.cache/ms-playwright).
 Изоляция: QAGAL-префикс имен загрузок; teardown чистит БД + том по префиксу.
@@ -26,6 +27,7 @@ import sqlite3
 import pytest
 from playwright.sync_api import expect
 
+from tests.web.pages.auth import Sidebar
 from tests.web.pages.gallery import GalleryPage
 
 pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
@@ -485,7 +487,8 @@ def test_tc_gal_118_upload_form_happy_and_errors(gallery_js_page):
 
 
 # ---------------------------------------------------------------------------
-# TC-GAL-119 — сайдбар «Галерея» 4-м пунктом, паритет, регресс, ОВ-3
+# TC-GAL-119 — сайдбар из 5 пунктов: «Галерея» 4-м, «Видео» 5-м (1.5
+# video-hosting), паритет, регресс, ОВ-3
 # ---------------------------------------------------------------------------
 
 
@@ -493,8 +496,10 @@ def test_tc_gal_119_sidebar_gallery_fourth_parity_and_no_tracker_links(
     browser_instance,
 ):
     """TC-GAL-119: «Галерея» — четвертый пункт сайдбара у owner И PE
-    (паритет без role-рендера); клик открывает /gallery; разделы работают;
-    в галерее нет ссылок на задачи/трекер (ОВ-3)."""
+    (паритет без role-рендера); «Видео» — пятый (1.5 video-hosting,
+    по образцу test_navigation_search_ui.py → Sidebar.video_link);
+    клик открывает /gallery; разделы работают; в галерее нет ссылок
+    на задачи/трекер (ОВ-3)."""
     _upload_api("owner", MARKER + "sb.png")
 
     for user in ("owner", "wife"):
@@ -509,7 +514,11 @@ def test_tc_gal_119_sidebar_gallery_fourth_parity_and_no_tracker_links(
             re.sub(r"\s*todo\s*$", "", items.nth(i).inner_text().strip().split("\n")[0])
             for i in range(items.count())
         ]
-        assert labels == ["Доска", "Поиск", "Wiki", "Галерея"], labels
+        # 1.5 video-hosting: сайдбар из 5 пунктов (как в TC-UI-016).
+        assert labels == ["Доска", "Поиск", "Wiki", "Галерея", "Видео"], labels
+        expect(page.locator(".sidebar-nav .nav-item")).to_have_count(5)
+        sidebar = Sidebar(page)
+        expect(sidebar.video_link).to_be_visible()
 
         gallery_item = GalleryPage(page).gallery_nav_item
         expect(gallery_item).to_be_visible()
@@ -525,13 +534,18 @@ def test_tc_gal_119_sidebar_gallery_fourth_parity_and_no_tracker_links(
             re.compile("active")
         )
 
-        # Регресс: разделы открываются (page-маркеры API-сьюта test_navigation).
+        # Регресс: разделы открываются (page-маркеры API-сьюта test_navigation;
+        # wiki — add-wiki: дерево/тулбар, прежний маркер «Раздел-заглушка»
+        # устарел после поставки add-wiki — см. TC-UI-016).
         for path, marker in (("/board", "column-todo"),
-                             ("/search", "search-builder-form"),
-                             ("/wiki", "Раздел-заглушка")):
+                             ("/search", "search-builder-form")):
             page.goto(f"{BASE_URL}{path}")
             page.wait_for_load_state("networkidle")
             assert marker in page.content(), f"{path}: нет {marker}"
+        page.goto(f"{BASE_URL}/wiki")
+        page.wait_for_load_state("networkidle")
+        expect(page.locator(".wiki-create")).to_be_visible()
+        expect(page.locator("#wiki-search")).to_be_visible()
 
         # ОВ-3: в галерее нет ссылок на задачи/трекер.
         page.goto(f"{BASE_URL}/gallery")
