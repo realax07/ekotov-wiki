@@ -7,8 +7,18 @@
                                         лимит 500 МБ ДО записи в том
                                         (Content-Length pre-check + потоковый
                                         счетчик-страховка); 201; 401; 422
-- GET    /api/videos                — список; 200; 401
-- DELETE /api/videos/{id}           — том <id>/ целиком + метаданные;
+                                        (кусок D: опц. category_id —
+                                        валидация существования в
+                                        image_categories, иначе 422;
+                                        NULL = «Без категории»)
+- GET    /api/videos                — список; 200; 401 (кусок D: фильтр
+                                        ?category=<id|none>, none = без
+                                        категории; в элементах — category_id,
+                                        category_name, likes, dislikes,
+                                        my_reaction)
+- DELETE /api/videos/{id}           — том <id>/ целиком + метаданные
+                                        (+ CASCADE комментариев/реакций —
+                                        FK ON DELETE CASCADE, кусок D);
                                         200; 401; 404
 - GET    /api/videos/{id}/file      — файл для playback/скачивания;
                                         200; 401; 404; 409 (не ready)
@@ -34,7 +44,7 @@ import os
 import sqlite3
 import tempfile
 
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from starlette.responses import FileResponse, JSONResponse
 
@@ -140,9 +150,33 @@ class UploadAborted(Exception):
     """Обрыв тела при чтении (клиент отключился; 422, диск не расходуется)."""
 
 
+def _require_category_id(conn: sqlite3.Connection, raw: str | None) -> int | None:
+    """Кусок D: опц. category_id из формы загрузки — валидация существования
+    в image_categories (Scenario «Значения — только из справочника галереи»):
+    не указан/пустой → None («Без категории»); не существует → 422."""
+    if raw is None or str(raw).strip() == "":
+        return None
+    try:
+        category_id = int(raw)
+    except (TypeError, ValueError):
+        raise _validation_error("category_id", "category_id must be an integer")
+    row = conn.execute(
+        "SELECT id FROM image_categories WHERE id = ?", (category_id,)
+    ).fetchone()
+    if row is None:
+        raise _validation_error("category_id", "category_id not found")
+    return category_id
+
+
 @router.post("/api/videos", status_code=201)
-async def upload_video(request: Request, file: UploadFile = File(...)):
-    """multipart: file (любой формат, ≤ 500 МБ, ОВ-1/ОВ-4).
+async def upload_video(
+    request: Request,
+    file: UploadFile = File(...),
+    category_id: str | None = Form(default=None),
+):
+    """multipart: file (любой формат, ≤ 500 МБ, ОВ-1/ОВ-4) + опц.
+    category_id (кусок D; валидация существования в image_categories —
+    иначе 422; NULL = «Без категории»).
 
     Лимит проверяется ДО записи в том: pre-check по Content-Length +
     потоковый счетчик (диск под файл расходуется только под temp вне
@@ -150,6 +184,13 @@ async def upload_video(request: Request, file: UploadFile = File(...)):
     «Отказ при превышении лимита»: 422, файл не сохранен, записи нет.
     """
     user_id = _user_id_of(request)
+
+    # 0) Категория (кусок D): до чтения тела — дешевый SELECT справочника.
+    conn = get_connection()
+    try:
+        resolved_category_id = _require_category_id(conn, category_id)
+    finally:
+        conn.close()
 
     # 1) Pre-check ДО чтения тела (design §4).
     raw_cl = request.headers.get("content-length")
@@ -188,10 +229,11 @@ async def upload_video(request: Request, file: UploadFile = File(...)):
             try:
                 # Кусок A: сразу ready (файл отдается как есть). Кусок B
                 # (3.1) вернет статус «uploaded» + enqueue_conversion().
+                # category_id — кусок D (NULL = «Без категории»).
                 conn.execute(
                     "INSERT INTO video_videos (id, filename, status, size_bytes,"
-                    " mime, uploaded_by, created_at, convert_attempts)"
-                    " VALUES (?, ?, 'ready', ?, ?, ?, ?, 0)",
+                    " mime, uploaded_by, created_at, convert_attempts, category_id)"
+                    " VALUES (?, ?, 'ready', ?, ?, ?, ?, 0, ?)",
                     (
                         video_id,
                         file.filename or f"original.{ext}",
@@ -199,6 +241,7 @@ async def upload_video(request: Request, file: UploadFile = File(...)):
                         mime,
                         user_id,
                         _utcnow_iso(),
+                        resolved_category_id,
                     ),
                 )
                 conn.commit()
@@ -226,6 +269,7 @@ async def upload_video(request: Request, file: UploadFile = File(...)):
         "filename": file.filename or f"original.{ext}",
         "status": "ready",
         "size": size,
+        "category_id": resolved_category_id,
     }
 
 
@@ -235,19 +279,49 @@ async def upload_video(request: Request, file: UploadFile = File(...)):
 
 
 @router.get("/api/videos")
-def list_videos(request: Request):
+def list_videos(request: Request, category: str | None = None):
     """Список: имя, статус, размер, дата + playback/preview URL.
 
+    Кусок D: фильтр ?category=<id|none> (none = «Без категории»,
+    category_id IS NULL; неверный id — 422); в элементах — category_id/
+    category_name (COALESCE имени справочника галереи), likes/dislikes/
+    my_reaction (агрегаты video_reactions; мой голос — по сессии).
     preview_url — API-эндпоинт (409 = плейсхолдер по макету);
     file_url — nginx-отдача из тома /videos/<id>/… (design §5,
     auth_request-сессия, Range для <video>).
     """
+    viewer_id = _user_id_of(request)
+
+    where = ""
+    params: list = []
+    if category is not None and category != "":
+        if category == "none":
+            where = " WHERE v.category_id IS NULL"
+        else:
+            try:
+                cat_id = int(category)
+            except ValueError:
+                raise _validation_error("category", "category must be an id or 'none'")
+            where = " WHERE v.category_id = ?"
+            params = [cat_id]
+
     conn = get_connection()
     try:
         rows = conn.execute(
-            "SELECT id, filename, status, size_bytes, mime, uploaded_by,"
-            " created_at FROM video_videos"
-            " ORDER BY created_at DESC, id DESC"
+            "SELECT v.id, v.filename, v.status, v.size_bytes, v.uploaded_by,"
+            " v.created_at, v.category_id,"
+            " COALESCE(c.name, '') AS category_name,"
+            " (SELECT count(*) FROM video_reactions r"
+            "   WHERE r.video_id = v.id AND r.value = 1) AS likes,"
+            " (SELECT count(*) FROM video_reactions r"
+            "   WHERE r.video_id = v.id AND r.value = -1) AS dislikes,"
+            " (SELECT r.value FROM video_reactions r"
+            "   WHERE r.video_id = v.id AND r.user_id = ?) AS my_reaction"
+            " FROM video_videos v"
+            " LEFT JOIN image_categories c ON c.id = v.category_id"
+            + where
+            + " ORDER BY v.created_at DESC, v.id DESC",
+            [viewer_id] + params,
         ).fetchall()
         videos = []
         for row in rows:
@@ -260,6 +334,11 @@ def list_videos(request: Request):
                     "created_at": row["created_at"],
                     "preview_url": f"/api/videos/{row['id']}/preview",
                     "file_url": storage.playable_url(row["id"]),
+                    "category_id": row["category_id"],
+                    "category_name": row["category_name"] or None,
+                    "likes": row["likes"],
+                    "dislikes": row["dislikes"],
+                    "my_reaction": row["my_reaction"],
                 }
             )
         return {"videos": videos}
@@ -331,7 +410,9 @@ def get_video_preview(request: Request, video_id: str):
 def delete_video(request: Request, video_id: str):
     """Удаление: том <id>/ целиком + метаданные. Равноправное — БЕЗ
     разделения прав (паритет галереи FR-84); несуществующее — 404.
-    Отмена идущей конвертации — кусок B (флаг воркера, design §3)."""
+    Комментарии/реакции удаляются CASCADE'ом FK (PRAGMA foreign_keys=ON
+    в db.get_connection, кусок D). Отмена идущей конвертации — кусок B
+    (флаг воркера, design §3)."""
     conn = get_connection()
     try:
         _require_video(conn, video_id)

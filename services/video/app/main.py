@@ -21,6 +21,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.responses import JSONResponse
 
 from app.middleware import register as register_auth_middleware
+from app.social import router as social_router
 from app.videos import router as videos_router
 
 app = FastAPI(
@@ -32,6 +33,7 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 app.include_router(videos_router)
+app.include_router(social_router)  # кусок D (tasks 2.2): комментарии/реакции/категории
 
 
 # 422 в форме ядра/search/images: {"error": "validation error", "details": {...}}.

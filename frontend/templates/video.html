@@ -1,17 +1,18 @@
-{# Страница «Видео» — tasks.md 1.5 video-hosting (волна 1, кусок A).
-   Вид — СТРОГО по утвержденным мокапам 0.2 (design/video-hosting/
-   video-list.html, video-upload.html, video-view.html): список карточек
-   (имя, статус, размер, дата), форма загрузки с прогрессом и ошибкой
-   лимита 500 МБ, встроенный плеер <video> только для «готово»,
-   удаление с подтверждением (модалка по мокапу video-view.html).
-   Кусок D (комментарии/лайки/категории — блоки мокапов) и поиск/
-   сортировка (кусок C) сюда НЕ входят — свои задачи (2.4, 4.1).
+{# Страница «Видео» — tasks.md 1.5 + 2.4 video-hosting (куски A и D).
+   Вид — СТРОГО по утвержденным мокапам 0.2/r2 (design/video-hosting/):
+   список карточек (имя, статус, размер, дата, пилюля категории), форма
+   загрузки с прогрессом, ошибкой лимита 500 МБ и выбором категории
+   («+ Новая категория…»), плеер <video> только для «готово», реакции
+   (лайк/дизлайк, один голос), комментарии (удаление — только своих),
+   фильтр по категории, удаление с подтверждением (модалка).
+   Поиск/сортировка — кусок C (4.1), сюда НЕ входит.
    Динамика — frontend/static/js/video.js (ES-модуль); данные —
-   /api/videos* сервиса video, файлы — nginx /videos/<id>/… (NFR-36:
-   публичных ссылок нет). Плеер — нативный <video>, иконки — inline-SVG,
-   внешних библиотек/CDN НЕТ (ОГР-8). Стили — в этом шаблоне (зона
-   записи 1.5: video.html/base.html/video.js/pages.py — app.css
-   не трогается), токены V3 «Бумага» — дословно из мокапов. #}
+   /api/videos* сервиса video, категории — общий справочник галереи,
+   файлы — nginx /videos/<id>/… (NFR-36/38: всё только по сессии).
+   Плеер — нативный <video>, иконки — inline-SVG, внешних библиотек/CDN
+   НЕТ (ОГР-8). Стили — в этом шаблоне (запись 1.5/2.4: video.html/
+   base.html/video.js/pages.py — app.css не трогается), токены V3
+   «Бумага» — дословно из мокапов. #}
 {% extends "base.html" %}
 {% block content %}
 <style>
@@ -74,7 +75,32 @@
   margin: 0 0 var(--space-2);
 }
 
-/* ===== Тулбар списка: кнопка загрузки (поиск/сортировка — кусок C) ===== */
+/* ===== Тулбар списка: фильтр категории (кусок D, мокап video-list.html
+   .filter) + кнопка загрузки (поиск/сортировка — кусок C) ===== */
+.video-toolbar .filter label {
+  display: block;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+.video-toolbar .filter select {
+  display: block;
+  width: 220px;
+  margin-top: var(--space-05);
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+  cursor: pointer;
+}
+.video-toolbar .filter select:hover { border-bottom-color: var(--color-border-strong); }
+.video-toolbar .filter select:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
+}
 .video-toolbar {
   display: flex;
   align-items: flex-end;
@@ -328,6 +354,181 @@
 .btn-secondary:hover { background: var(--color-bg-subtle); }
 .btn-secondary:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
+/* ===== Категория в форме загрузки (кусок D, мокап video-upload.html
+   .field: select справочника с нижней линией 2px + «+ Новая категория…») ===== */
+.field { display: block; margin-bottom: var(--space-2); }
+.field > span.lab {
+  display: block;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+.field select,
+.field input[type="text"] {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-05);
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+}
+.field select { cursor: pointer; }
+.field select:hover,
+.field input[type="text"]:hover { border-bottom-color: var(--color-border-strong); }
+.field select:focus-visible,
+.field input[type="text"]:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 1px 0 var(--color-accent);
+}
+.field .hint {
+  display: block;
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-05);
+}
+
+/* ===== Кусок D: реакции + комментарии + пилюля категории
+   (мокап video-view.html; паттерн .react-btn/.lb-comments галереи) ===== */
+.reactions-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.react-btn {
+  font: inherit;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-primary);
+}
+.react-btn svg { width: 16px; height: 16px; }
+.react-btn:hover { background: var(--color-bg-subtle); }
+.react-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.react-btn:active { transform: translateY(1px); }
+/* Состояние «мой голос»: заливка мягкой терракотой + акцентный текст/рамка */
+.react-btn.my-vote {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent-hover);
+  font-weight: 600;
+}
+.react-btn.my-vote svg path { fill: var(--color-accent); stroke: var(--color-accent); }
+.react-hint { font-size: var(--font-size-micro); color: var(--color-text-secondary); margin-left: auto; }
+.task-category {
+  background: var(--color-bg-subtle);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+.task-category.task-category-none { color: var(--color-text-secondary); }
+.comments-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-2);
+  margin-top: var(--space-2);
+}
+.comments-card h2 {
+  font-family: var(--font-family-display);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+}
+.comments-card h2 .count { font-weight: 400; color: var(--color-text-secondary); }
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.comment {
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  padding: var(--space-1) 10px;
+}
+.comment-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+}
+.comment-author { font-weight: 600; color: var(--color-text-primary); font-size: var(--font-size-label); }
+.comment-delete {
+  margin-left: auto;
+  border: none; background: none; cursor: pointer;
+  font: inherit; font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  text-decoration: underline; text-underline-offset: 2px;
+  padding: 2px 4px;
+}
+.comment-delete:hover { color: var(--color-accent-hover); }
+.comment-delete:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-field); }
+.comment-body { margin: 4px 0 0; font-size: var(--font-size-label); white-space: pre-wrap; }
+.comment-form {
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-end;
+  border-top: 1px solid var(--color-border-default);
+  padding-top: var(--space-2);
+}
+.comment-form label {
+  display: block;
+  flex: 1;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+.comment-form textarea {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-05);
+  padding: var(--space-05) var(--space-05) 6px;
+  border: none;
+  border-bottom: 2px solid var(--color-border-default);
+  border-radius: 0;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+  resize: none;
+  min-height: 40px;
+}
+.comment-form textarea:hover { border-bottom-color: var(--color-border-strong); }
+.comment-form textarea:focus-visible { outline: none; border-bottom-color: var(--color-accent); box-shadow: 0 1px 0 var(--color-accent); }
+.send-btn {
+  font: inherit;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  padding: 8px var(--space-2);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  box-shadow: var(--shadow-soft);
+}
+.send-btn:hover { background: var(--color-accent-hover); }
+.send-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.send-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.comments-empty { font-size: var(--font-size-label); color: var(--color-text-secondary); }
+
 /* ===== Страница просмотра (мокап video-view.html; реакции/комментарии —
    кусок D, здесь их нет) ===== */
 .player-card {
@@ -451,6 +652,14 @@
   <section id="video-list-view">
     <h1>Видео</h1>
     <div class="video-toolbar">
+      <div class="filter">
+        <label for="video-category">Категория</label>
+        <select id="video-category">
+          <option value="" selected>Все категории</option>
+          {# Опции справочника и «Без категории» добавляет video.js
+             из /api/videos/categories (кусок D, мокап video-list.html) #}
+        </select>
+      </div>
       <span class="filter-count" id="video-count" aria-live="polite"></span>
       <button type="button" class="upload-button" id="open-upload-button">
         <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -501,6 +710,25 @@
         <button type="button" class="file-remove" id="file-remove">убрать</button>
       </div>
 
+      {# ===== КУСОК D: категория — select общего с «Галереей» справочника +
+         «+ Новая категория…» (мокап video-upload.html; опцию new выбирает
+         video.js — показывает текстовое поле ниже; создание — POST
+         /api/categories ядра, справочник один) ===== #}
+      <label class="field" for="up-category">
+        <span class="lab">Категория</span>
+        <select id="up-category">
+          <option value="" selected>Без категории</option>
+          {# Опции справочника добавляет video.js из /api/videos/categories #}
+          <option value="new">+ Новая категория…</option>
+        </select>
+        <span class="hint">Общий справочник с «Галереей» (не категории задач)</span>
+      </label>
+      <label class="field" for="up-category-new" id="up-category-new-field" hidden>
+        <span class="lab">Название новой категории</span>
+        <input type="text" id="up-category-new" placeholder="Например: Дроны" />
+        <span class="hint">Будет создана в общем справочнике</span>
+      </label>
+
       <div class="form-actions">
         <button type="button" class="btn-secondary" id="upload-cancel-button">Отмена</button>
         <button type="submit" class="btn-primary" id="upload-submit-button" disabled>
@@ -520,10 +748,26 @@
     </a>
     <h1 id="player-title"></h1>
     <div class="player-card" id="player-card"></div>
+    {# ===== КУСОК D: реакции (мокап video-view.html .reactions-row):
+       ровно один голос — повторный клик снимает, клик по второй переносит;
+       состояние кнопок ведет video.js по ответу PUT …/reaction ===== #}
+    <div class="reactions-row" id="reactions-row" aria-label="Реакции на видео">
+      <button type="button" class="react-btn" id="like-button" aria-pressed="false" aria-label="Нравится. Поставить голос">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3zm0 0l4-7a2.4 2.4 0 0 1 2.4 2.4V9H19a2 2 0 0 1 2 2.2l-1 6.6A2 2 0 0 1 18 19.5H7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        <span id="like-count">0</span>
+      </button>
+      <button type="button" class="react-btn" id="dislike-button" aria-pressed="false" aria-label="Не нравится. Поставить голос">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-3zm0 0l-4 7a2.4 2.4 0 0 1-2.4-2.4V15H5a2 2 0 0 1-2-2.2l1-6.6A2 2 0 0 1 6 4.5h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        <span id="dislike-count">0</span>
+      </button>
+      <span class="react-hint" id="react-hint" hidden></span>
+    </div>
     <div class="video-details">
       <dl class="details-list">
         <dt>Статус</dt>
         <dd id="player-status"></dd>
+        <dt>Категория</dt>
+        <dd id="player-category"></dd>
         <dt>Размер</dt>
         <dd id="player-size"></dd>
         <dt>Загружено</dt>
@@ -537,6 +781,23 @@
         <span class="hint">Удалятся файлы видео и запись — восстановить нельзя.</span>
       </div>
     </div>
+    {# ===== КУСОК D: комментарии (мокап video-view.html .comments-card):
+       список (автор/время/текст), «удалить» рендерится только у СВОИХ
+       (comment.user_id === me.id из /api/auth/me, иначе API = 403),
+       «Отправить» неактивна, пока поле пусто ===== #}
+    <section class="comments-card" id="comments-card" aria-label="Комментарии к видео">
+      <h2>Комментарии <span class="count" id="comment-count">(0)</span></h2>
+      <div class="comments-list" id="comments-list"></div>
+      <p class="comments-empty" id="comments-empty">
+        Комментариев пока нет. Напишите первый.
+      </p>
+      <form class="comment-form" id="comment-form" aria-label="Новый комментарий">
+        <label for="video-comment-input">Новый комментарий
+          <textarea id="video-comment-input" placeholder="Напишите что-нибудь…" rows="2"></textarea>
+        </label>
+        <button type="submit" class="send-btn" id="comment-send-button" disabled>Отправить</button>
+      </form>
+    </section>
   </section>
 
   {# ===== Модалка удаления (мокап video-view.html) ===== #}

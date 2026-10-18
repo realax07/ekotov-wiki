@@ -1,19 +1,35 @@
-/* Страница «Видео» — tasks.md 1.5 video-hosting (волна 1, кусок A).
+/* Страница «Видео» — tasks.md 1.5 + 2.4 video-hosting (куски A и D).
  *
- * Вид — по утвержденным мокапам 0.2 (design/video-hosting/video-list.html,
+ * Вид — по утвержденным мокапам (design/video-hosting/video-list.html,
  * video-upload.html, video-view.html); селекторы — дословно из макетов.
- * Кусок D (комментарии/лайки/категории) и поиск/сортировка (кусок C)
- * НЕ входят — свои задачи (2.4, 4.1).
+ * Кусок D: реакции (лайк/дизлайк — ровно один голос: повторный клик
+ * снимает, клик по второй переносит), комментарии (удаление — только
+ * своих: comment.user_id === me.id), категории (общий справочник
+ * с «Галереей»: выбор при загрузке, «+ Новая категория…» через POST
+ * /api/categories ядра, фильтр в списке). Поиск/сортировка (кусок C)
+ * НЕ входит — задача 4.1.
  *
- * Данные — API video-сервиса (за сессией, NFR-36):
- *   GET    /api/videos               — список;
- *   POST   /api/videos               — загрузка multipart (≤ 500 МБ);
- *   DELETE /api/videos/{id}          — удаление;
- *   GET    /api/videos/{id}/preview  — кадр (409 = плейсхолдер по макету).
+ * Данные — API video-сервиса (за сессией, NFR-36/38):
+ *   GET    /api/videos                       — список (+ ?category=<id|none>);
+ *   POST   /api/videos                       — загрузка multipart (≤ 500 МБ,
+ *                                              опц. category_id);
+ *   DELETE /api/videos/{id}                  — удаление;
+ *   GET    /api/videos/{id}/preview          — кадр (409 = плейсхолдер);
+ *   GET    /api/videos/{id}/comments         — комментарии;
+ *   POST   /api/videos/{id}/comments         — {text} добавить;
+ *   DELETE /api/videos/{id}/comments/{cid}   — удалить СВОЙ (чужой = 403);
+ *   PUT    /api/videos/{id}/reaction         — {value: 1|-1} голос;
+ *   GET    /api/videos/categories            — справочник (RO);
+ *   GET    /api/auth/me                      — кто я (id для «свой/чужой»);
+ *   POST   /api/categories                   — новая категория (ядро, галерея).
  * Файл для плеера — file_url из списка (nginx /videos/<id>/…, design §5).
  * Статусы: uploaded «загружено» / converting «конвертируется» /
  * ready «готово» / error «ошибка»; плеер — ТОЛЬКО для «готово»
  * (Scenario «Не готовое видео не проигрывается»).
+ *
+ * XSS-дисциплина (ОГР-11, паритет gallery.js): рендер пользовательских
+ * данных — createElement + textContent; innerHTML — только статические
+ * inline-SVG иконки.
  */
 
 const LIMIT_BYTES = 500 * 1024 * 1024; // ОВ-1: до 500 МБ включительно
@@ -26,6 +42,10 @@ const STATUS_LABELS = {
 };
 
 const views = ['video-list-view', 'video-upload-view', 'video-player-view'];
+
+/* Кусок D: текущий пользователь (id — рендер «удалить» у своих) и
+ * справочник категорий (общий с галереей). */
+const state = { me: null, categories: [], activeCategory: '' };
 
 function showView(id) {
   for (const v of views) {
@@ -117,6 +137,12 @@ function buildCard(item) {
   const meta = document.createElement('div');
   meta.className = 'v-card-meta';
   meta.append(statusBadge(item.status));
+  if (item.category_name) {
+    const pill = document.createElement('span');
+    pill.className = 'task-category';
+    pill.textContent = item.category_name; // пилюля категории (мокап video-list.html)
+    meta.append(pill);
+  }
   const size = document.createElement('span');
   size.textContent = fmtSize(item.size_bytes);
   const date = document.createElement('span');
@@ -137,7 +163,11 @@ async function loadList() {
   const empty = document.getElementById('video-empty');
   grid.querySelectorAll('.v-card').forEach((el) => el.remove());
 
-  const resp = await fetch('/api/videos');
+  // Фильтр категории (кусок D): ?category=<id|none> (мокап video-list.html).
+  const params = new URLSearchParams();
+  if (state.activeCategory) params.set('category', state.activeCategory);
+  const qs = params.toString();
+  const resp = await fetch('/api/videos' + (qs ? '?' + qs : ''));
   if (resp.status === 401) {
     window.location.href = '/login';
     return;
@@ -151,9 +181,197 @@ async function loadList() {
   empty.hidden = videos.length > 0;
 }
 
+/* ===== Категории (кусок D: общий справочник с «Галереей») ===== */
+
+async function loadCategories() {
+  const resp = await fetch('/api/videos/categories');
+  if (resp.status === 401) {
+    window.location.href = '/login';
+    return;
+  }
+  const data = await resp.json();
+  state.categories = data.categories || [];
+  fillCategorySelects();
+}
+
+function fillCategorySelects() {
+  // Фильтр списка (мокап video-list.html): «Все категории» + справочник +
+  // «Без категории» (значение none = category_id IS NULL).
+  const filter = document.getElementById('video-category');
+  const filterValue = filter.value;
+  filter.textContent = '';
+  const all = document.createElement('option');
+  all.value = '';
+  all.textContent = 'Все категории';
+  filter.append(all);
+  for (const cat of state.categories) {
+    const opt = document.createElement('option');
+    opt.value = String(cat.id);
+    opt.textContent = cat.name;
+    filter.append(opt);
+  }
+  const none = document.createElement('option');
+  none.value = 'none';
+  none.textContent = 'Без категории';
+  filter.append(none);
+  filter.value = filterValue;
+
+  // Форма загрузки (мокап video-upload.html): «Без категории» и опция
+  // «+ Новая категория…» стоят в шаблоне — справочник вставляется между.
+  const upload = document.getElementById('up-category');
+  const uploadValue = upload.value;
+  upload.querySelectorAll('option[data-src="api"]').forEach((el) => el.remove());
+  const newOption = upload.querySelector('option[value="new"]');
+  for (const cat of state.categories) {
+    const opt = document.createElement('option');
+    opt.dataset.src = 'api';
+    opt.value = String(cat.id);
+    opt.textContent = cat.name;
+    upload.insertBefore(opt, newOption);
+  }
+  upload.value = uploadValue === 'new' ? 'new' : uploadValue;
+}
+
 /* ===== Просмотр (мокап video-view.html) ===== */
 
 let currentPlayerId = null;
+
+function renderReactionButtons(reaction) {
+  const my = reaction.my_reaction;
+  const likeBtn = document.getElementById('like-button');
+  const dislikeBtn = document.getElementById('dislike-button');
+  document.getElementById('like-count').textContent = String(reaction.likes);
+  document.getElementById('dislike-count').textContent = String(reaction.dislikes);
+  likeBtn.classList.toggle('my-vote', my === 1);
+  dislikeBtn.classList.toggle('my-vote', my === -1);
+  likeBtn.setAttribute('aria-pressed', my === 1 ? 'true' : 'false');
+  dislikeBtn.setAttribute('aria-pressed', my === -1 ? 'true' : 'false');
+  likeBtn.setAttribute(
+    'aria-label',
+    my === 1 ? 'Нравится, ваш голос учтен. Снять голос' : 'Нравится. Поставить голос'
+  );
+  dislikeBtn.setAttribute(
+    'aria-label',
+    my === -1 ? 'Не нравится, ваш голос учтен. Снять голос' : 'Не нравится. Поставить голос'
+  );
+  const hint = document.getElementById('react-hint');
+  if (my === 1 || my === -1) {
+    hint.textContent =
+      'ваш голос — «' + (my === 1 ? 'Нравится' : 'Не нравится') + '» (повторный клик снимет)';
+    hint.hidden = false;
+  } else {
+    hint.textContent = '';
+    hint.hidden = true;
+  }
+}
+
+async function sendReaction(value) {
+  if (!currentPlayerId) return;
+  const resp = await fetch('/api/videos/' + currentPlayerId + '/reaction', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value }),
+  });
+  if (resp.status === 401) {
+    window.location.href = '/login';
+    return;
+  }
+  if (!resp.ok) return;
+  renderReactionButtons(await resp.json());
+}
+
+/* ===== Комментарии (кусок D, мокап video-view.html .comments-card) ===== */
+
+function isMyComment(comment) {
+  // Прямое сравнение по me.id (паритет gallery.js: id из /api/auth/me).
+  return (
+    Boolean(state.me && state.me.id != null) &&
+    Number(comment.user_id) === Number(state.me.id)
+  );
+}
+
+function renderComments(comments) {
+  const list = document.getElementById('comments-list');
+  list.textContent = '';
+  for (const comment of comments) {
+    const item = document.createElement('div');
+    item.className = 'comment';
+
+    const head = document.createElement('div');
+    head.className = 'comment-head';
+    const author = document.createElement('span');
+    author.className = 'comment-author';
+    author.textContent = comment.user;
+    const when = document.createElement('span');
+    when.textContent = fmtDate(comment.created_at);
+    head.append(author, when);
+    if (isMyComment(comment)) {
+      // «удалить» — только у СВОИХ (у чужого кнопки нет; API = 403).
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'comment-delete';
+      del.setAttribute('aria-label', 'Удалить свой комментарий');
+      del.textContent = 'удалить';
+      del.addEventListener('click', () => deleteComment(comment.id));
+      head.append(del);
+    }
+
+    const body = document.createElement('p');
+    body.className = 'comment-body';
+    body.textContent = comment.text;
+
+    item.append(head, body);
+    list.append(item);
+  }
+  document.getElementById('comment-count').textContent = '(' + comments.length + ')';
+  document.getElementById('comments-empty').hidden = comments.length > 0;
+}
+
+async function loadComments() {
+  if (!currentPlayerId) return;
+  const resp = await fetch('/api/videos/' + currentPlayerId + '/comments');
+  if (resp.status === 401) {
+    window.location.href = '/login';
+    return;
+  }
+  if (!resp.ok) return;
+  const data = await resp.json();
+  renderComments(data.comments || []);
+}
+
+async function deleteComment(commentId) {
+  if (!currentPlayerId) return;
+  const resp = await fetch(
+    '/api/videos/' + currentPlayerId + '/comments/' + commentId,
+    { method: 'DELETE' }
+  );
+  if (resp.status === 401) {
+    window.location.href = '/login';
+    return;
+  }
+  if (resp.ok || resp.status === 404) loadComments();
+}
+
+async function submitComment() {
+  if (!currentPlayerId) return;
+  const input = document.getElementById('video-comment-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const resp = await fetch('/api/videos/' + currentPlayerId + '/comments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (resp.status === 401) {
+    window.location.href = '/login';
+    return;
+  }
+  if (resp.status === 201) {
+    input.value = '';
+    document.getElementById('comment-send-button').disabled = true;
+    loadComments();
+  }
+}
 
 function openPlayer(item) {
   currentPlayerId = item.id;
@@ -182,8 +400,26 @@ function openPlayer(item) {
   const statusCell = document.getElementById('player-status');
   statusCell.innerHTML = '';
   statusCell.append(statusBadge(item.status));
+
+  // Пилюля категории (мокап video-view.html: dd .task-category).
+  const catCell = document.getElementById('player-category');
+  catCell.innerHTML = '';
+  const pill = document.createElement('span');
+  pill.className = 'task-category' + (item.category_name ? '' : ' task-category-none');
+  pill.textContent = item.category_name || 'Без категории';
+  catCell.append(pill);
+
   document.getElementById('player-size').textContent = fmtSize(item.size_bytes);
   document.getElementById('player-date').textContent = fmtDate(item.created_at);
+
+  // Кусок D: реакции — из агрегатов списка (my_reaction/likes/dislikes);
+  // комментарии — отдельным запросом.
+  renderReactionButtons({
+    my_reaction: item.my_reaction,
+    likes: item.likes,
+    dislikes: item.dislikes,
+  });
+  loadComments();
 
   showView('video-player-view');
 }
@@ -208,6 +444,50 @@ function resetUploadForm() {
   document.getElementById('file-row').hidden = true;
   document.getElementById('file-input').value = '';
   document.getElementById('upload-submit-button').disabled = true;
+  // Кусок D: категория — назад к «Без категории», поле новой скрыто.
+  document.getElementById('up-category').value = '';
+  document.getElementById('up-category-new-field').hidden = true;
+  document.getElementById('up-category-new').value = '';
+}
+
+/* Категория при загрузке (кусок D): «+ Новая категория…» показывает
+ * текстовое поле (мокап video-upload.html); создание — POST /api/categories
+ * ядра (справочник один, общий с галереей) — id возвращается в FormData. */
+async function resolveUploadCategoryId() {
+  const select = document.getElementById('up-category');
+  const value = select.value;
+  if (!value) return null; // «Без категории»
+  if (value !== 'new') return value;
+
+  const nameInput = document.getElementById('up-category-new');
+  const name = nameInput.value.trim();
+  if (!name) {
+    if (selectedFile) {
+      setFileRow(selectedFile.name, 'Укажите название новой категории', true);
+    }
+    return undefined; // отмена отправки
+  }
+  const resp = await fetch('/api/categories', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (resp.status === 401) {
+    window.location.href = '/login';
+    return undefined;
+  }
+  if (!resp.ok) {
+    if (selectedFile) {
+      setFileRow(selectedFile.name, 'Категория не создана — проверьте название', true);
+    }
+    return undefined;
+  }
+  const created = await resp.json(); // {id, name} — справочник галереи
+  await loadCategories();
+  select.value = String(created.id);
+  document.getElementById('up-category-new-field').hidden = true;
+  nameInput.value = '';
+  return String(created.id);
 }
 
 function pickFile(file) {
@@ -275,14 +555,45 @@ function setupUpload() {
 
   document.getElementById('file-remove').addEventListener('click', resetUploadForm);
 
+  // Кусок D: «+ Новая категория…» — показать/скрыть текстовое поле (мокап).
+  document.getElementById('up-category').addEventListener('change', (e) => {
+    document.getElementById('up-category-new-field').hidden = e.target.value !== 'new';
+    if (e.target.value === 'new') document.getElementById('up-category-new').focus();
+  });
+
+  // Кусок D: фильтр категории в списке (мокап video-list.html).
+  document.getElementById('video-category').addEventListener('change', (e) => {
+    state.activeCategory = e.target.value;
+    loadList();
+  });
+
+  // Кусок D: реакции — поставить/перенести/снять (один голос, sdd §3).
+  document.getElementById('like-button').addEventListener('click', () => sendReaction(1));
+  document.getElementById('dislike-button').addEventListener('click', () => sendReaction(-1));
+
+  // Кусок D: форма комментария — «Отправить» неактивна, пока поле пусто.
+  const commentInput = document.getElementById('video-comment-input');
+  commentInput.addEventListener('input', () => {
+    document.getElementById('comment-send-button').disabled = !commentInput.value.trim();
+  });
+  document.getElementById('comment-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitComment();
+  });
+
   // Отправка — XHR ради upload.onprogress (fetch не дает прогресс аплоада).
-  document.getElementById('upload-form').addEventListener('submit', (e) => {
+  document.getElementById('upload-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!selectedFile || uploading) return;
     if (selectedFile.size > LIMIT_BYTES) return;
 
+    // Кусок D: категория («новая» создается до отправки файла).
+    const categoryId = await resolveUploadCategoryId();
+    if (categoryId === undefined) return; // категория не готова — отправки нет
+
     const form = new FormData();
     form.append('file', selectedFile);
+    if (categoryId !== null) form.append('category_id', categoryId);
 
     const xhr = new XMLHttpRequest();
     uploading = true;
@@ -362,10 +673,20 @@ function setupDelete() {
   });
 }
 
-function init() {
+async function init() {
   setupUpload();
   setupDelete();
   showView('video-list-view');
+  // Кусок D: кто я (кнопка «удалить» у своих) + справочник категорий —
+  // параллельно списку; сбой /me не блокирует страницу (комментарии
+  // просто рендерятся без кнопок удаления).
+  try {
+    const [meResp] = await Promise.allSettled([fetch('/api/auth/me')]);
+    if (meResp.status === 'fulfilled' && meResp.value.ok) {
+      state.me = await meResp.value.json();
+    }
+  } catch (err) { /* /me недоступен — страница работает без «удалить» */ }
+  loadCategories();
   loadList();
 }
 

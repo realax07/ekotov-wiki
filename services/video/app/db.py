@@ -10,10 +10,12 @@
   busy_timeout — сосуществование с писателем-ядром);
 - PRAGMA foreign_keys=ON (паритет ядра и search/images).
 
-Владение схемой (design §7): RW только video_videos (кусок D добавит
-video_comments/video_reactions); SELECT users (имя загрузившего);
-запись в sessions и чужие таблицы ЗАПРЕЩЕНА — гарантируется кодом
-сервиса (каждый запрос — короткая транзакция, только свои таблицы).
+Владение схемой (design §7): RW video_videos + video_comments +
+video_reactions (кусок D, tasks 2.2); SELECT users (имя автора/загрузившего),
+SELECT image_categories (RO — справочник ОБЩИЙ с галереей, запись в него
+остается галерее, tasks 2.2); запись в sessions и чужие таблицы ЗАПРЕЩЕНА —
+гарантируется кодом сервиса (каждый запрос — короткая транзакция, только
+свои таблицы).
 """
 
 import os
@@ -29,8 +31,9 @@ def get_connection(db_path: str | None = None) -> sqlite3.Connection:
     """RW-соединение с общей БД; FK-контроль и busy_timeout включены.
 
     Путь — аргумент, иначе env EKOTOV_WIKI_DB_PATH, иначе дефолт
-    /data/wiki.db. Сервис пишет ТОЛЬКО таблицу video_videos (design §7);
-    users/sessions — только чтение (SELECT).
+    /data/wiki.db. Сервис пишет ТОЛЬКО таблицы video_videos,
+    video_comments, video_reactions (design §7); users/image_categories —
+    только чтение (SELECT).
     """
     path = db_path or os.environ.get("EKOTOV_WIKI_DB_PATH") or DEFAULT_DB_PATH
     conn = sqlite3.connect(path, timeout=BUSY_TIMEOUT_MS / 1000)

@@ -144,7 +144,7 @@ green на каждом шаге. Порядок: 0 (мокапы утвержд
 
 ## Волна 2. Кусок D — социальный слой (после волны 1; Must, решение Заказчика 2026-10-17)
 
-- [ ] 2.1 [migration] [S] Dev: расширение миграции `backend/app/
+- [x] 2.1 [migration] [S] Dev: расширение миграции `backend/app/
   migrate_video.py` (кусок D; последовательно после 1.1 — общая зона) —
   (а) `video_comments` (id TEXT PK, video_id FK CASCADE, user_id FK users,
   text NOT NULL, created_at) и `video_reactions` (video_id, user_id,
@@ -158,7 +158,7 @@ green на каждом шаге. Порядок: 0 (мокапы утвержд
   колонок/таблиц соответствует sdd §4. Зона:
   `backend/app/migrate_video.py`.
   (sdd §4; design §7; Requirements «Комментарии…», «Лайки…», «Категории…»)
-- [ ] 2.2 [code] [M] Dev: API социального слоя `services/video/app/
+- [x] 2.2 [code] [M] Dev: API социального слоя `services/video/app/
   social.py` + расширение `db.py` — (а) GET/POST/DELETE
   /api/videos/{id}/comments: непустой текст (422), удаление ТОЛЬКО своего
   (чужой = 403), автор/время в списке; (б) PUT /api/videos/{id}/reaction
@@ -173,7 +173,7 @@ green на каждом шаге. Порядок: 0 (мокапы утвержд
   `services/video/app/social.py`, `services/video/app/db.py`
   (последовательно после 1.2/1.3 — общая зона db.py).
   (sdd §2, §3; design §7, §8; Requirements куска D, NFR-38)
-- [ ] 2.3 [code] [S] Dev: категории в upload/list `services/video/app/
+- [x] 2.3 [code] [S] Dev: категории в upload/list `services/video/app/
   videos.py` — (а) POST /api/videos: опц. category_id (валидация
   существования в image_categories, иначе 422; NULL = «Без категории»);
   (б) GET /api/videos: `?category=<id|none>` фильтр (none = category_id IS
@@ -184,7 +184,7 @@ green на каждом шаге. Порядок: 0 (мокапы утвержд
   `services/video/app/videos.py` (последовательно после 1.3 и 2.2 —
   общая зона списка).
   (sdd §3; Requirements «Категории видео…», «Комментарии…» (CASCADE))
-- [ ] 2.4 [code] [M] Dev: фронтенд социального слоя — frontend/templates/
+- [x] 2.4 [code] [M] Dev: фронтенд социального слоя — frontend/templates/
   video.html + frontend/static/js/video.js по утвержденным мокапам
   (блоки D): (а) блок комментариев под плеером — список (автор, время,
   текст), форма добавления, удаление своего; (б) лайк/дизлайк с
@@ -196,7 +196,7 @@ green на каждом шаге. Порядок: 0 (мокапы утвержд
   design_validator после dev. Зона: `frontend/templates/video.html`,
   `frontend/static/js/video.js` (последовательно после 1.5 — общая зона).
   (Requirements «Комментарии…», «Лайки…», «Категории…»; design §0)
-- [ ] 2.5 [tests] [M] Dev: тесты социального слоя в `services/video/tests/`
+- [x] 2.5 [tests] [M] Dev: тесты социального слоя в `services/video/tests/`
   — 401 без сессии на все D-эндпоинты (NFR-38); пустой/whitespace
   комментарий 422; чужой комментарий 403; реакция: постановка/снятие
   (повтор клика)/перенос — счетчики ровно на единицу, одна строка на

@@ -40,8 +40,10 @@ AUTH = {"error": "unauthorized"}
 # ОВ-1: лимит 500 МБ (паритет app/videos.py — МиБ).
 LIMIT = 500 * 1024 * 1024
 
-# Схема: users/sessions ядра + video_videos (DDL миграции migrate_video —
-# дословно; кусок A).
+# Схема: users/sessions ядра + image_categories галереи (общий справочник,
+# SELECT у сервиса) + video_videos (+category_id — кусок D) + социальный
+# слой video_comments/video_reactions — DDL миграции migrate_video
+# (дословно; tasks 1.1 + 2.1, sdd §4).
 SCHEMA_SQL = """
 CREATE TABLE users (
   id INTEGER PRIMARY KEY,
@@ -59,6 +61,10 @@ CREATE TABLE sessions (
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL
 );
+CREATE TABLE image_categories (
+  id INTEGER PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL
+);
 CREATE TABLE video_videos (
   id               TEXT NOT NULL PRIMARY KEY,
   filename         TEXT NOT NULL,
@@ -67,7 +73,22 @@ CREATE TABLE video_videos (
   mime             TEXT,
   uploaded_by      INTEGER NOT NULL REFERENCES users(id),
   created_at       TEXT NOT NULL,
-  convert_attempts INTEGER NOT NULL DEFAULT 0
+  convert_attempts INTEGER NOT NULL DEFAULT 0,
+  category_id      INTEGER REFERENCES image_categories(id)
+);
+CREATE TABLE video_comments (
+  id         TEXT NOT NULL PRIMARY KEY,
+  video_id   TEXT NOT NULL REFERENCES video_videos(id) ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id),
+  text       TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE TABLE video_reactions (
+  video_id   TEXT NOT NULL REFERENCES video_videos(id) ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id),
+  value      INTEGER NOT NULL CHECK (value IN (1, -1)),
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (video_id, user_id)
 );
 """
 
@@ -86,6 +107,11 @@ def db_path(tmp_path, monkeypatch):
         conn.execute(
             "INSERT INTO users (id, login, password_hash, display_name)"
             " VALUES (2, 'pe', 'x', 'PE')"
+        )
+        # Общий справочник галереи (кусок D): две категории.
+        conn.executemany(
+            "INSERT INTO image_categories (id, name) VALUES (?, ?)",
+            ((10, "семья"), (20, "дом")),
         )
         for token, user in (("test-token-1", 1), ("test-token-2", 2)):
             conn.execute(
@@ -199,14 +225,18 @@ def test_authcheck_with_session(client):
 
 
 def test_openapi_paths(client):
-    """Схема (под сессией) содержит ровно маршруты куска A (sdd §3;
-    категории/комментарии/реакции появят куски D)."""
+    """Схема (под сессией) содержит ровно маршруты кусков A + D (sdd §3;
+    D-эндпоинты добавлены волной 2 — comments/reaction/categories)."""
     paths = set(client.get("/openapi.json").json()["paths"].keys())
     assert paths == {
         "/api/videos",
         "/api/videos/{video_id}",
         "/api/videos/{video_id}/file",
         "/api/videos/{video_id}/preview",
+        "/api/videos/{video_id}/comments",
+        "/api/videos/{video_id}/comments/{comment_id}",
+        "/api/videos/{video_id}/reaction",
+        "/api/videos/categories",
         "/api/videos/authcheck",
         "/api/health",
     }
@@ -460,6 +490,8 @@ def test_list_order_newest_first(client, db_path):
     assert set(items[0].keys()) == {
         "id", "filename", "status", "size_bytes", "created_at",
         "preview_url", "file_url",
+        # Кусок D (r2): агрегаты социального слоя в элементах списка.
+        "category_id", "category_name", "likes", "dislikes", "my_reaction",
     }
 
 
