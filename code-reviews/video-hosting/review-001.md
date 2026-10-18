@@ -48,3 +48,7 @@
 ## Вердикт: APPROVE
 
 Кусок A соответствует sdd/design/specs по всем пяти фокусам; defense-in-depth авторизации (middleware + auth_request + unpublished ports + internal-локации) корректен, лимит и traversal закрыты тестируемо, том при отказах чист, WAL-нейтралитет соблюден. Minors не блокируют кусок A: minor-1/2/3 — в 3.1, minor-4 — на ПМ (приложить отчет эскалаций), note про /videos/-статус — принять решение к 3.1. Chore-коммиты aaa1900/48fa1c4 — корректны.
+
+## Reviewer-Delegation
+
+- deleg_649140ec (завершена, role=code_reviewer, кусок A, 2026-10-18)
