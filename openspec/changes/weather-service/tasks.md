@@ -15,7 +15,7 @@ green на каждом шаге. Порядок: 1 → 2 (ворота arch) �
 
 - [x] 1.1 [docs] [S] СА: change-пакет weather-service — proposal (ОВ-1…4,
   провайдер, границы), дельта specs/weather-service (14 Requirements /
-  21 сценарий), design r1 (топология weather:8381, кэш-файл в томе,
+  23 сценария), design r1 (топология weather:8381, кэш-файл в томе,
   nginx auth_request, Open-Meteo-параметры, мокап A), tasks.md
   (настоящий). Проверка:
   `openspec validate weather-service --type change --strict` — green.
