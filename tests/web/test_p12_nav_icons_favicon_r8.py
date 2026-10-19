@@ -50,9 +50,10 @@ def test_sidebar_icons_inline_svg_unified_style(logged_in_page, web_base_url):
     for path in NAV_PAGES:
         page.goto(f"{web_base_url}{path}")
         items = _nav_items(page)
-        # 1.5 video-hosting: пятый пункт «Видео» после «Галерея»
-        # (утвержденный мокап 0.2) — было 4, стало 5.
-        assert items.count() == 5, (path, items.count())
+        # P18 weather-service: шестой пункт «Погода» после «Видео»
+        # (утвержденный мокап A, design/p18-weather/variant-a.html) —
+        # было 5, стало 6 (прецедент расширения 1.5 video-hosting).
+        assert items.count() == 6, (path, items.count())
         for i in range(items.count()):
             item = items.nth(i)
             svg = item.locator("svg.nav-icon")
@@ -108,8 +109,8 @@ def test_nav_items_clickable_not_overlaid(logged_in_page, web_base_url):
     page.goto(f"{web_base_url}/board")
     items = _nav_items(page)
     targets = [items.nth(i).get_attribute("href") for i in range(items.count())]
-    # 1.5 video-hosting: в семействе сайдбара пятый пункт — «Видео» (/video).
-    assert targets == ["/board", "/search", "/wiki", "/gallery", "/video"]
+    # P18 weather-service: шестой пункт — «Погода» (/weather).
+    assert targets == ["/board", "/search", "/wiki", "/gallery", "/video", "/weather"]
 
     # elementFromPoint в центре каждого пункта.
     hits = page.evaluate(
@@ -119,7 +120,7 @@ def test_nav_items_clickable_not_overlaid(logged_in_page, web_base_url):
           return hit ? (a === hit || a.contains(hit)) : false;
         })"""
     )
-    assert hits == [True] * 5, hits
+    assert hits == [True] * 6, hits
 
     # Клик по каждому пункту → навигация.
     for href in ("/search", "/wiki", "/gallery"):
@@ -234,10 +235,12 @@ def test_no_external_icon_or_favicon_requests(logged_in_page, web_base_url):
 # --------------------------------------------------------------------------
 def test_nav_order_addresses_states_unchanged(logged_in_page, web_base_url):
     """TC-P12N-007 (CHK-P12-18, FR-94 Won't): DOM-порядок и подписи
-    (Доска, Поиск, Wiki+todo, Галерея), href каждого пункта, active-класс
-    на каждом из 5 разделов, бейдж todo Wiki — как прежде; иконки
-    встроены внутрь существующих <a>; геометрия пунктов не «разъехалась»
-    (иконка inline flex, высота пункта без скачка)."""
+    (Доска, Поиск, Wiki+todo, Галерея, Видео, Погода), href каждого
+    пункта, active-класс на каждом из разделов, бейдж todo Wiki —
+    как прежде; иконки встроены внутрь существующих <a>; геометрия
+    пунктов не «разъехалась» (иконка inline flex, высота пункта без
+    скачка). Список расширен P18 weather-service (шестой пункт «Погода»
+    после «Видео», мокап A) — прецедент расширения 1.5 video-hosting."""
     page = logged_in_page
     page.goto(f"{web_base_url}/board")
     items = _nav_items(page)
@@ -245,10 +248,10 @@ def test_nav_order_addresses_states_unchanged(logged_in_page, web_base_url):
         re.sub(r"todo", "", items.nth(i).inner_text()).strip()
         for i in range(items.count())
     ]
-    assert labels == ["Доска", "Поиск", "Wiki", "Галерея", "Видео"], labels
+    assert labels == ["Доска", "Поиск", "Wiki", "Галерея", "Видео", "Погода"], labels
 
     hrefs = [items.nth(i).get_attribute("href") for i in range(items.count())]
-    assert hrefs == ["/board", "/search", "/wiki", "/gallery", "/video"]
+    assert hrefs == ["/board", "/search", "/wiki", "/gallery", "/video", "/weather"]
 
     # SVG внутри <a> (не рядом, не вместо).
     for i in range(items.count()):

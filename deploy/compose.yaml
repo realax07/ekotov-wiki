@@ -184,6 +184,51 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Weather-сервис (change weather-service, задача 5.2-паттерн; design §2):
+  # FastAPI :8381, БД НЕТ — единственный RW-маунт том weather-cache
+  # (кэш-файл, TTL 60 мин); SELECT sessions — ro-маунт общей БД (паритет
+  # search). mem_limit 128m (сервис stateless-легкий — один HTTP-клиент +
+  # кэш-файл; факт — замер NFR на стенде, волна 4).
+  weather:
+    image: ${WEATHER_IMAGE:-ekotov-wiki/weather:local}
+    build:
+      context: ..
+      dockerfile: services/weather/Dockerfile
+    restart: unless-stopped
+    mem_limit: 128m
+    environment:
+      # Путь БД — тот же файл, что у app (env-имя свое —
+      # services/weather/app/db.py). RO: только SELECT sessions.
+      EKOTOV_WIKI_DB_PATH: /data/wiki.db
+      # Кэш-файл в томе (дефолт кода /cache/weather.json — app/cache.py).
+      EKOTOV_WEATHER_CACHE_PATH: /cache/weather.json
+    volumes:
+      # RO-маунт общей БД: только чтение sessions (design §5 — сервис НЕ
+      # имеет права писать в sessions; журнал принадлежит писателю-ядру).
+      - wiki-data:/data:ro
+      # Кэш погоды (design §2/§4): ЕДИНСТВЕННЫЙ RW-маунт сервиса; named
+      # volume — кэш переживает пересоздание контейнера. Маунтпоинт /cache —
+      # верхнеуровневый путь, НЕ внутри /data (там ro-маунт БД — вложенный
+      # том докер не смонтирует: CI e2e «read-only file system»).
+      - weather-cache:/cache
+    # Поднять после app: чтение sessions возможно только при
+    # существующей схеме БД (создает app при первом старте).
+    depends_on:
+      - app
+    # Порты НЕ публикуются (design §1: наружу только nginx :10443, FR-65):
+    # nginx-маршрутизация — только /api/weather* (design §5).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8381/api/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # Sidecar-бэкап (задача 1.2; design §5): cron-цикл средствами python
   # (sqlite3 .backup + tar avatars), retention 14 дней. Релизный бэкап
   # deploy.sh (задача 1.4) вызывает ТОТ ЖЕ модуль — без дубля кода.
@@ -329,3 +374,8 @@ volumes:
     # (задача 1.4). ВНИМАНИЕ (наблюдение O1 ревью №1, задача 6.2): том
     # videos-data в бэкап-контур НЕ входит — вес видео; фиксируется
     # в протоколе приемки.
+  weather-cache:
+    # Кэш погоды (change weather-service, design §2/§4 — вне БД, вне
+    # репозитория): единственный RW-маунт сервиса weather, атомарная
+    # запись, TTL 60 мин. Переживает пересоздание контейнера. В бэкап-контур
+    # НЕ входит (данные воспроизводимы от провайдера за ≤60 мин).

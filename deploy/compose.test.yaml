@@ -215,6 +215,40 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Weather-сервис (change weather-service; design §2, паритет прода):
+  # FastAPI :8381, БД НЕТ — кэш-файл в томе weather-cache-test (изоляция
+  # от прода, NFR-10); SELECT sessions — ro wiki-test-data.
+  weather:
+    image: ${WEATHER_IMAGE:-ekotov-wiki/weather:test}
+    build:
+      context: ..
+      dockerfile: services/weather/Dockerfile
+    restart: unless-stopped
+    mem_limit: 128m
+    environment:
+      EKOTOV_WIKI_DB_PATH: /data/wiki.db
+      EKOTOV_WEATHER_CACHE_PATH: /cache/weather.json
+    volumes:
+      - wiki-test-data:/data:ro
+      # Маунтпоинт /cache — верхнеуровневый путь, НЕ внутри /data (там
+      # ro-маунт БД — вложенный том докер не смонтирует: CI e2e «read-only
+      # file system»).
+      - weather-cache-test:/cache
+    depends_on:
+      - app
+    # Порты НЕ публикуются (паритет прода; nginx — только /api/weather*).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8381/api/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # Sidecar-бэкап на стенде: цикл укорочен до 3600с (проверяемость на
   # стенде без суточного ожидания), retention тот же (14 дней). Каталог
   # бэкапов — bind проекта стенда (НЕ /var/backups хоста — изоляция NFR-10).
@@ -289,3 +323,7 @@ volumes:
   # проекта стенда (wiki-test_videos-test-data), изоляция от прода —
   # NFR-10; очистка — down -v (шапка).
   videos-test-data:
+  # Кэш погоды (change weather-service, design §2/§4) — том проекта
+  # стенда (wiki-test_weather-cache-test), изоляция от прода — NFR-10;
+  # очистка — down -v (шапка).
+  weather-cache-test:
