@@ -289,3 +289,22 @@ EnvironmentFile `/opt/ekotov-wiki/.env`). Условие применимост�
    Поиск на v1 работает из монолита (маршруты там возвращены в эпохе до 1.5 —
    если возвращаться на код ДО выреза search-роутеров; иначе поиск будет 404 —
    фиксировать как известное ограничение возврата).
+
+## 7. Сервис «Погода» (weather:8381, с релиза weather-1)
+
+### 7.1 Матрица
+- контейнер weather:8381, FastAPI 1 воркер, mem_limit 128m; БД НЕ имеет (единственное состояние — кэш-файл)
+- том weather-cache → /cache (chown 10001:10001 ДО старта — как videos-data; /data у weather — ro-БД, вкладывать томы внутрь нельзя, инцидент PR #207)
+- миграций НЕТ (MIGRATE_MODULE не трогается: app.migrate_wiki как обычно)
+- образ без ffmpeg (тоньше видео), секретов нет (Open-Meteo без ключа, User-Agent в env)
+
+### 7.2 Отказы
+- провайдер недоступен + есть кэш → 200 stale:true + баннер UI (самовосстановится)
+- пустой кэш + провайдер лежит → честный 503 weather_unavailable (UI «Повторить»)
+- контейнер убит → nginx @weather_down 503 JSON + Retry-After (мс), остальные разделы живы
+- nginx: только /api/weather* (weather-proxy.inc, $upstream_weather+resolver, intercept off); страница /weather — ядро (Jinja), деградации nginx для нее нет
+
+### 7.3 Деплой
+- WEATHER_IMAGE=ekotov-wiki/weather:${RELEASE_TAG} (в матрице deploy.sh с weather-1)
+- static_v бампится ПМ до диспетчеризации (R7)
+- проверка после: GET /api/weather 200 stale-флаг, файл /cache/weather.json на томе, страница /weather под логином

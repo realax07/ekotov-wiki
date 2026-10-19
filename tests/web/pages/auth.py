@@ -39,6 +39,8 @@ class Sidebar:
         # 1.5 video-hosting: 5-й пункт сайдбара «Видео» после «Галерея».
         self.gallery_link = page.get_by_role("link", name="Галерея")
         self.video_link = page.get_by_role("link", name="Видео")
+        # weather-service: 6-й пункт сайдбара «Погода» после «Видео».
+        self.weather_link = page.get_by_role("link", name="Погода")
         self.logout_button = page.get_by_role("button", name="Выйти")
 
     # --- локаторы-возвратники ---
