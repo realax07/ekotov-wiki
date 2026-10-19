@@ -1,3 +1,159 @@
 {
+  "_comment": [
+    "Доменная карта регресса (J54, решение Заказчика 2026-10-18 «регресс лучше",
+    "дробить по доменам/наборам»). Два уровня:",
+    "",
+    "1) Секция \"domains\" — проектная карта кейс-доменов (5 наборов кейсов:",
+    "   wiki, gallery, video, auth-search, tasks-board): TC-префиксы, паттерны",
+    "   тестов, прод-пути, r4-комментарии. Заполнена из фактической структуры",
+    "   tests/ и TC-ID (инвентаризация 2026-10-19). Это правило ведения",
+    "   «домен → паттерны тестов/TC-префиксы» и основа для будущего перехода",
+    "   на каталоги tests/<домен>/ (предусловие исполняемых правил — см. п.2).",
+    "",
+    "2) Секция \"rules\" (исполняемые движком flowctl regress правила",
+    "   «префикс диффа → каталог тестов») — СОЗНАТЕЛЬНО пуста. Гранулярность",
+    "   движка — каталоги, а кейс-домены физически перемешаны в tests/api и",
+    "   tests/web. Активная карта (rules не пуст) отключает свертку доменов",
+    "   (collapse off, J52-w1.3): смешанный дифф backend+frontend гоняется",
+    "   одним вызовом «pytest tests/api tests/web», а на нем падает сбор —",
+    "   голые «from conftest import» в tests/api (test_auth, test_auth_me,",
+    "   test_authme_r3, test_profile_r4) подхватывают tests/web/conftest.py",
+    "   (коллизия sys.modules['conftest'], BUG-video-001 / docstring db_hooks",
+    "   в tests/api/conftest.py; проверено 2026-10-19: 4 collection errors).",
+    "   До перевода тестов в кейс-доменные каталоги (или излечения bare-",
+    "   импортов) — правила дефолтные: backend/→tests/api, frontend/→tests/web,",
+    "   смешанные диффы сворачиваются в tests/ (проверено полным прогоном",
+    "   j52-j54-mirror regress-3: 598 passed)."
+  ],
+  "domains": {
+    "wiki": {
+      "tc_prefixes": ["TC-wiki"],
+      "test_patterns": [
+        "tests/api/test_wiki_api.py",
+        "tests/web/test_p15_wiki_page.py",
+        "tests/web/test_p15_wiki_editor.py",
+        "tests/web/test_p15_wiki_tree.py",
+        "tests/web/test_p15_wiki_history.py",
+        "tests/web/test_video_wiki_isolation_ui.py"
+      ],
+      "prod_paths": [
+        "backend/app/wiki.py",
+        "backend/app/pages.py",
+        "backend/app/migrate_wiki.py"
+      ],
+      "note": "r4+: изоляция wiki×video (test_video_wiki_isolation_ui) — общий с video; страницы /wiki/* — app (pages.py)."
+    },
+    "gallery": {
+      "tc_prefixes": ["TC-GAL"],
+      "test_patterns": [
+        "tests/api/test_qa21_gallery_api.py",
+        "tests/api/test_qa21_gallery_design.py",
+        "tests/api/test_qa21_gallery_infra.py",
+        "tests/web/test_qa21_gallery_ui.py",
+        "tests/web/test_p14_41_lightbox_swipe.py",
+        "tests/web/test_p12_gallery_rename_masonry_r8.py"
+      ],
+      "prod_paths": [
+        "services/images/",
+        "backend/app/migrate_gallery.py"
+      ],
+      "note": "qa21-контур (api/design/infra/ui) + lightbox (P14) + masonry/rename (r8); роутинг nginx: /api/images*, /images/."
+    },
+    "video": {
+      "tc_prefixes": ["TC-vid"],
+      "test_patterns": [
+        "tests/web/test_video_ui.py",
+        "tests/web/test_video_convert_ui.py",
+        "tests/web/test_video_rename_ui.py",
+        "tests/web/test_video_social_ui.py",
+        "tests/web/test_video_wiki_isolation_ui.py"
+      ],
+      "prod_paths": [
+        "services/video/",
+        "backend/app/migrate_video.py"
+      ],
+      "note": "video-hosting: UI-покрытие в tests/web (api-части в tests/api нет); роутинг nginx: /api/videos*, /videos/ (authcheck через /_video_auth)."
+    },
+    "auth-search": {
+      "tc_prefixes": [
+        "TC-auth", "TC-authme", "TC-passwd", "TC-users", "TC-ava",
+        "TC-profile", "TC-search", "TC-sugg", "TC-openapi"
+      ],
+      "test_patterns": [
+        "tests/api/test_auth.py",
+        "tests/api/test_auth_me.py",
+        "tests/api/test_authme_r3.py",
+        "tests/api/test_users_r4.py",
+        "tests/api/test_avatar_r4.py",
+        "tests/api/test_avatar_r5.py",
+        "tests/api/test_profile_r4.py",
+        "tests/api/test_search.py",
+        "tests/api/test_search_r4.py",
+        "tests/api/test_suggestions.py",
+        "tests/api/test_suggestions_gap.py",
+        "tests/api/test_suggestions_r6.py",
+        "tests/api/test_openapi_search_service.py",
+        "tests/web/test_auth_ui.py",
+        "tests/web/test_search_r4_ui.py",
+        "tests/web/test_search_suggestions_ui.py",
+        "tests/web/test_navigation_search_ui.py",
+        "tests/web/test_settings_profile_r4.py"
+      ],
+      "prod_paths": [
+        "backend/app/auth.py",
+        "backend/app/users.py",
+        "backend/app/avatar.py",
+        "backend/app/profile.py",
+        "backend/app/seed_users.py",
+        "services/search/"
+      ],
+      "note": "r4-хвосты (passwd/profile/avatar: test_gaps_r4, test_profile_r4) — отнесены сюда по TC-passwd/TC-profile; TC-openapi: test_openapi_search_service.py — search-контракт, test_openapi_r11.py — контракт ядра (tasks-board)."
+    },
+    "tasks-board": {
+      "tc_prefixes": [
+        "TC-tasks", "TC-board", "TC-cat", "TC-fast", "TC-fast2",
+        "TC-assign", "TC-assignu", "TC-dnd", "TC-cmt", "TC-migr",
+        "TC-san", "TC-vis", "TC-view", "TC-tip", "TC-sel", "TC-form",
+        "TC-set", "TC-arch", "TC-env"
+      ],
+      "test_patterns": [
+        "tests/api/test_tasks.py",
+        "tests/api/test_board.py",
+        "tests/api/test_categories.py",
+        "tests/api/test_fastline.py",
+        "tests/api/test_fast2.py",
+        "tests/api/test_tasks_assign_r4.py",
+        "tests/api/test_migration.py",
+        "tests/api/test_migration_r4.py",
+        "tests/api/test_archive.py",
+        "tests/api/test_sanitize.py",
+        "tests/api/test_navigation.py",
+        "tests/api/test_env.py",
+        "tests/api/test_openapi_r11.py",
+        "tests/web/test_board_tasks_ui.py",
+        "tests/web/test_board_assign_ui.py",
+        "tests/web/test_assignu_r4_ui.py",
+        "tests/web/test_r3_dnd_ui.py",
+        "tests/web/test_r3_vis_ui.py",
+        "tests/web/test_r3_selects_ui.py",
+        "tests/web/test_r3_formv3_ui.py",
+        "tests/web/test_r4_commentfix_ui.py",
+        "tests/web/test_view_modal_r4.py",
+        "tests/web/test_tooltip_r4.py",
+        "tests/web/test_fastline_ui.py",
+        "tests/web/test_settings_categories_ui.py",
+        "tests/web/test_bug013_attrs_padding.py"
+      ],
+      "prod_paths": [
+        "backend/app/tasks.py",
+        "backend/app/board.py",
+        "backend/app/categories.py",
+        "backend/app/comments.py",
+        "backend/app/migrate_categories.py",
+        "backend/app/migrate_r4.py"
+      ],
+      "note": "Ядро kanban (R1) + категории/settings (R2) + r4-хвосты (assign/visibility/comments) — в домене; паттерны списочные, пересечения (общие хелперы) не размежевываются."
+    }
+  },
   "rules": []
 }

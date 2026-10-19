@@ -16,6 +16,8 @@
 
 ## Доменный регресс, tests/api: xdist `-n 4` — безопасен
 
+> **Исключение (замер 2026-10-19, полный набор tests/api):** сьюты `fastline`/`fast2` держат глобальную fast-line стенда — на `-n 4` взаимные 409 «fast line occupied» (52 failed). Безопасен `-n 4` для доменных срезов без fastline-сьютов (board/tasks/categories/auth/search); полный доменный прогон tests/api — сериально, либо `-n 4` с обязательным `reset.sh` после.
+
 Выборка: `test_board, test_tasks, test_categories, test_auth, test_search,
 test_suggestions` (78 тестов), внешний стенд
 `EKOTOV_WIKI_BASE_URL=http://127.0.0.1:8080`.

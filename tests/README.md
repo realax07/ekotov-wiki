@@ -509,3 +509,19 @@ web Р5-зона (r5card + r5crop + settings_profile_r4) 33 passed.
   контуры impact §4: релизная дисциплина (задачи 4.3/4.4), смоук на проде.
 - EXIF на реальном тач-устройстве — ручной смоук (эмуляция — TC-r5crop-406,
   API — TC-ava-r5-107).
+
+---
+
+# Прогон tests/api — только полный контур
+
+tests/api требуют канонический контур (nginx:18443 → app:8080+search:8378+images:8379+video:8380) и 4 переменных окружения. На голом app:8080 — 52 фоновых фейла search-семейства; без AVATARS_DIR — 19 фейлов загрузок.
+
+```bash
+bash /tmp/vh9-stand/reset.sh
+source /home/openclaw/venvs/wiki/bin/activate
+export EKOTOV_WIKI_BASE_URL=http://127.0.0.1:18443
+export EKOTOV_WIKI_DB_PATH=/tmp/vh9-stand/app.db
+export EKOTOV_WIKI_AVATARS_DIR=/tmp/vh9-stand/avatars
+export EKOTOV_WIKI_IMAGES_DIR=/tmp/vh9-stand/images
+pytest tests/api -q
+```
