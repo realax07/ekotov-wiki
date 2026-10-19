@@ -39,7 +39,7 @@ set -euo pipefail
 
 # --- Параметры (переопределяются env) --------------------------------------
 RELEASE_TAG="${RELEASE_TAG:-}"                    # МЕТКА РЕЛИЗА: ekotov-wiki/<name>:<RELEASE_TAG>
-SERVICES="${SERVICES:-app frontend search images backup}"  # МАТРИЦА (design §6 + images с add-gallery-service) — менять осознанно
+SERVICES="${SERVICES:-app frontend search images backup weather}"  # МАТРИЦА (design §6 + images с add-gallery-service) — менять осознанно
 SRC_DIR="${SRC_DIR:-/opt/ekotov-wiki}"            # клона с целевым коммитом (контекст сборки)
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/ekotov-wiki}"
 COMPOSE_DIR="${COMPOSE_DIR:-${SRC_DIR}/deploy}"   # где deploy/.env с SECRET_KEY
@@ -62,6 +62,7 @@ FRONTEND_IMAGE="${FRONTEND_IMAGE:-ekotov-wiki/frontend:${RELEASE_TAG}}"
 SEARCH_IMAGE="${SEARCH_IMAGE:-ekotov-wiki/search:${RELEASE_TAG}}"
 BACKUP_IMAGE="${BACKUP_IMAGE:-ekotov-wiki/backup:${RELEASE_TAG}}"
 IMAGES_IMAGE="${IMAGES_IMAGE:-ekotov-wiki/images:${RELEASE_TAG}}"
+WEATHER_IMAGE="${WEATHER_IMAGE:-ekotov-wiki/weather:${RELEASE_TAG}}"
 
 # Карта сервис → Dockerfile (контекст сборки — корень клона; так же делают
 # compose-файлы). Нейминг compose-сервисов: frontend-образ носит сервис
@@ -73,6 +74,7 @@ dockerfile_for() {
     search)   echo "services/search/Dockerfile" ;;
     images)   echo "services/images/Dockerfile" ;;
     backup)   echo "services/backup/Dockerfile" ;;
+    weather)  echo "services/weather/Dockerfile" ;;
     *)        return 1 ;;
   esac
 }
@@ -83,6 +85,7 @@ image_for() {  # образ контейнера compose-сервиса
     nginx)    echo "${FRONTEND_IMAGE}" ;;
     search)   echo "${SEARCH_IMAGE}" ;;
     images)   echo "${IMAGES_IMAGE}" ;;
+    weather)  echo "${WEATHER_IMAGE}" ;;
     backup)   echo "${BACKUP_IMAGE}" ;;
     *)        return 1 ;;
   esac
