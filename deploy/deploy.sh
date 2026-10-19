@@ -25,7 +25,7 @@
 # wiki-pre-*/avatars-pre-*, sidecar-retention их не трогает) → build ВСЕХ
 # образы матрицы → one-shot миграция ЯДРА (СТРОГО до up; search/backup —
 # читатели, миграций не требуют — design §6) → up app → healthy →
-# up search backup → healthy → up nginx → healthy → смоук-матрица:
+# up search images backup [weather] → healthy → up nginx → healthy → смоук-матрица:
 # health app, health search, поиск через nginx (маршрутизация + X-Service:
 # search), статика (+ smoke_static.py), аватары, 502=0 (502>0 — FAIL),
 # «образы контейнеров = релизные теги» → docker image prune -f.
@@ -325,8 +325,10 @@ else
 fi
 
 # --- 5/8 Подъем матрицы ПОСЛЕДОВАТЕЛЬНО (design §6): app → healthy →
-#     search+backup → healthy → nginx ------------------------------------------
-# wait_healthy: compose healthcheck сервиса (ps --format Health).
+#     search+images+backup[+weather] → healthy → nginx --------------------------
+# P19: weather в матрице подъема — как images (J38): SERVICES содержит weather
+# → поднимается во второй волне с WEATHER_IMAGE. Матрица без weather (оверкрайд)
+# поднимается как раньше — шаг погодозависим от состава SERVICES, не хардкода.
 wait_healthy() { # $1 = compose-сервис, $2 = число попыток (x5s)
   local svc="$1" i st=""
   for i in $(seq 1 "${2:-12}"); do
@@ -337,16 +339,47 @@ wait_healthy() { # $1 = compose-сервис, $2 = число попыток (x5
   return 1
 }
 
-log "5/8 Up матрицы: app → healthy → search+backup → healthy → nginx"
-run env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" \
+# Волна 2 по матрице: search images backup + weather (только если в SERVICES).
+WAVE2="search images backup"
+case " ${SERVICES} " in *" weather "*) WAVE2="${WAVE2} weather" ;; esac
+
+# P19 тест-проверка ДО up (детерминированная, без контейнеров): отрендеренный
+# docker compose config обязан содержать каждый сервис матрицы с ОБРАЗОМ
+# РЕЛИЗНОГО ТЕГА (frontend матчится на compose-сервис nginx). :local/:test —
+# дефолты compose-файла, означающие «env до compose не дошел» — провал.
+_matrix_compose_config() {
+  local svc compose_svc expected actual_json
+  actual_json="$(env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" VIDEO_IMAGE="${VIDEO_IMAGE:-ekotov-wiki/video:${RELEASE_TAG}}" \
+    ${COMPOSE} config --format json 2>/dev/null)" || fail "docker compose config не отрезолвился — проверь ${COMPOSE_FILE}"
+  for svc in ${SERVICES}; do
+    case "${svc}" in frontend) compose_svc="nginx" ;; *) compose_svc="${svc}" ;; esac
+    expected="$(image_for "${svc}")"
+    echo "${actual_json}" | python3 -c '
+import json, sys
+cfg = json.load(sys.stdin)
+svc, expected = sys.argv[1], sys.argv[2]
+image = (cfg.get("services", {}).get(svc) or {}).get("image", "")
+if image != expected:
+    sys.exit(f"compose config: сервис {svc} резолвится в образ «{image}», ожидался релизный тег «{expected}»")
+' "${compose_svc}" "${expected}" || fail "compose config: матрица не соответствует релизным тегам (${svc} ≠ ${expected}; :local = env до compose не дошел)"
+    case "${expected}" in
+      *:local|*:local@*|*:latest|*:latest@*) fail "Образ ${svc} в compose config тегирован local/latest — ЗАПРЕЩЕНО (FR-72): ${expected}" ;;
+    esac
+  done
+}
+_matrix_compose_config
+ok "compose config: все сервисы матрицы резолвятся в релизные теги (weather=${WEATHER_IMAGE})"
+
+log "5/8 Up матрицы: app → healthy → ${WAVE2} → healthy → nginx"
+run env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" \
   ${COMPOSE} up -d app
 if [ "${DRY_RUN}" != "1" ]; then
   wait_healthy app 12 || fail "app не стал healthy за 60s: ${COMPOSE} ps; логи: docker compose logs app"
   ok "app healthy (${APP_IMAGE})"
 fi
 
-run env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" \
-  ${COMPOSE} up -d search images backup
+run env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" \
+  ${COMPOSE} up -d ${WAVE2}
 if [ "${DRY_RUN}" != "1" ]; then
   wait_healthy search 12 || fail "search не стал healthy за 60s: ${COMPOSE} ps; логи: docker compose logs search"
   ok "search healthy (${SEARCH_IMAGE})"
@@ -356,9 +389,16 @@ if [ "${DRY_RUN}" != "1" ]; then
   # backup: health по heartbeat (interval 60s, start_period 30s) — запас выше.
   wait_healthy backup 24 || fail "backup не стал healthy за 120s: ${COMPOSE} ps; логи: docker compose logs backup"
   ok "backup healthy (${BACKUP_IMAGE}) — sidecar поднят, релизный бэкап (шаг 2/8) остался в ${BACKUP_DIR}"
+  # P19: weather здоров только когда он в матрице (health-чек compose-сервиса).
+  case " ${SERVICES} " in
+    *" weather "*)
+      wait_healthy weather 12 || fail "weather не стал healthy за 60s: ${COMPOSE} ps; логи: docker compose logs weather"
+      ok "weather healthy (${WEATHER_IMAGE})"
+      ;;
+  esac
 fi
 
-run env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" \
+run env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" \
   ${COMPOSE} up -d nginx
 if [ "${DRY_RUN}" != "1" ]; then
   wait_healthy nginx 12 || fail "nginx не стал healthy за 60s: ${COMPOSE} ps; логи: docker compose logs nginx"
@@ -436,11 +476,15 @@ if [ "${NGINX_502}" != "0" ]; then
 fi
 ok "Логи nginx: 502 не обнаружено"
 
-# 6.8 Образы контейнеров = релизные теги матрицы (FR-72: latest запрещен)
+# 6.8 Образы контейнеров = релизные теги матрицы (FR-72: latest запрещен).
+# P19: weather в проверке — только когда он в матрице SERVICES (оверкрайд
+# без weather проверяет контейнеры, которые реально поднимал шаг 5/8).
 _matrix_images() {
   local svc expected actual
   actual="$(${COMPOSE} ps --format '{{.Service}} {{.Image}}')"
-  for svc in app nginx search images backup; do
+  MATRIX_CHECK="app nginx search images backup"
+  case " ${SERVICES} " in *" weather "*) MATRIX_CHECK="${MATRIX_CHECK} weather" ;; esac
+  for svc in ${MATRIX_CHECK}; do
     expected="$(image_for "${svc}")"
     echo "${actual}" | awk -v s="${svc}" '$1==s{print $2}' | grep -qx "${expected}" \
       || fail "Контейнер ${svc} работает на образе '$(echo "${actual}" | awk -v s="${svc}" '$1==s{print $2}')', ожидался релизный тег '${expected}'"
@@ -450,7 +494,9 @@ _matrix_images() {
   done
 }
 _matrix_images
-ok "Образы контейнеров = релизные теги: app=${APP_IMAGE} nginx=${FRONTEND_IMAGE} search=${SEARCH_IMAGE} backup=${BACKUP_IMAGE}"
+IMAGES_OK_NOTE="app=${APP_IMAGE} nginx=${FRONTEND_IMAGE} search=${SEARCH_IMAGE} backup=${BACKUP_IMAGE}"
+case " ${SERVICES} " in *" weather "*) IMAGES_OK_NOTE="${IMAGES_OK_NOTE} weather=${WEATHER_IMAGE}" ;; esac
+ok "Образы контейнеров = релизные теги: ${IMAGES_OK_NOTE}"
 
 # 6.9 Полный смоук статики E10 — против контейнерного nginx (статика в образе)
 if python3 "${SRC_DIR}/scripts/smoke_static.py" --repo "${SRC_DIR}" --base "${SMOKE_URL}" --insecure; then

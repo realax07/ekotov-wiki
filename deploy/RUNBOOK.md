@@ -306,5 +306,6 @@ EnvironmentFile `/opt/ekotov-wiki/.env`). Условие применимост�
 
 ### 7.3 Деплой
 - WEATHER_IMAGE=ekotov-wiki/weather:${RELEASE_TAG} (в матрице deploy.sh с weather-1)
+- P19: шаг 5/8 deploy.sh поднимает weather во второй волне (up -d search images backup weather, WEATHER_IMAGE в env) и проверяет по docker compose config, что weather резолвится в релизный тег (не :local); смоук 6.8 сверяет образ контейнера с тегом
 - static_v бампится ПМ до диспетчеризации (R7)
 - проверка после: GET /api/weather 200 stale-флаг, файл /cache/weather.json на томе, страница /weather под логином
