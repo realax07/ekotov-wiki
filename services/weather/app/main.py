@@ -10,7 +10,7 @@ docs/redoc выключены.
 
 Запуск: uvicorn app.main:app --port 8381 (из каталога services/weather/;
 env: EKOTOV_WIKI_DB_PATH, EKOTOV_WEATHER_CACHE_PATH, EKOTOV_WEATHER_USER_AGENT —
-дефолты /data/wiki.db, /data/cache/weather.json, ekotov-wiki-weather/1.0).
+дефолты /data/wiki.db, /cache/weather.json, ekotov-wiki-weather/1.0).
 """
 
 import os

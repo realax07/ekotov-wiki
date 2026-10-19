@@ -227,10 +227,13 @@ services:
     mem_limit: 128m
     environment:
       EKOTOV_WIKI_DB_PATH: /data/wiki.db
-      EKOTOV_WEATHER_CACHE_PATH: /data/cache/weather.json
+      EKOTOV_WEATHER_CACHE_PATH: /cache/weather.json
     volumes:
       - wiki-test-data:/data:ro
-      - weather-cache-test:/data/cache
+      # Маунтпоинт /cache — верхнеуровневый путь, НЕ внутри /data (там
+      # ro-маунт БД — вложенный том докер не смонтирует: CI e2e «read-only
+      # file system»).
+      - weather-cache-test:/cache
     depends_on:
       - app
     # Порты НЕ публикуются (паритет прода; nginx — только /api/weather*).

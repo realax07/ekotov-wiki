@@ -52,8 +52,9 @@ weather:8381  — FastAPI (uvicorn 1 воркер): GET /api/weather (JSON:
 CMD uvicorn 1 воркер). Отличия от video:
 
 1. **Никаких системных бинарей** (ffmpeg не нужен) — образ тоньше.
-2. **БД НЕТ**: RW-маунт только один — том `weather-cache:/data/cache`
-   (env `EKOTOV_WEATHER_CACHE_PATH`, дефолт `/data/cache/weather.json`).
+2. **БД НЕТ**: RW-маунт только один — том `weather-cache:/cache`
+   (env `EKOTOV_WEATHER_CACHE_PATH`, дефолт `/cache/weather.json`;
+   маунтпоинт `/cache` — верхнеуровневый путь вне `/data`, где ro-маунт БД).
    Тома данных, томов БД, миграций у пакета нет (граница PLAN).
 
 compose-сервис `weather` в `deploy/compose.yaml` (паритет video):
@@ -102,7 +103,7 @@ GET https://api.open-meteo.com/v1/forecast
 
 ## §4. Кэш: файл в томе weather-cache, TTL 60 мин
 
-- Файл `/data/cache/weather.json` (том `weather-cache`, named volume —
+- Файл `/cache/weather.json` (том `weather-cache`, named volume —
   переживает пересоздание): полезная нагрузка ответа + `fetched_at`.
 - **Атомарная запись:** tmp-файл + `os.replace` — читатели никогда не
   видят полуфайл.

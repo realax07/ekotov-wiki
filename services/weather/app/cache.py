@@ -1,8 +1,8 @@
 """Кэш weather-сервиса: файл в томе weather-cache, TTL 60 минут
 (change weather-service, design §4).
 
-- Файл — env EKOTOV_WEATHER_CACHE_PATH, дефолт /data/cache/weather.json
-  (compose: том weather-cache:/data/cache). Полезная нагрузка ответа
+- Файл — env EKOTOV_WEATHER_CACHE_PATH, дефолт /cache/weather.json
+  (compose: том weather-cache:/cache). Полезная нагрузка ответа
   (design §6 БЕЗ stale) + fetched_at.
 - Атомарная запись: tmp-файл + os.replace — читатели никогда не видят
   полуфайл; fsync перед replace (переживает пересоздание контейнера).
@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger("weather.cache")
 
-DEFAULT_CACHE_PATH = "/data/cache/weather.json"
+DEFAULT_CACHE_PATH = "/cache/weather.json"
 
 # TTL кэша (spec «Кэш 60 минут»).
 CACHE_TTL_SECONDS = 60 * 60

@@ -29,12 +29,15 @@ RUN python -m pip install --no-cache-dir \
 COPY services/weather/app/ /srv/app/
 
 # Данных в образе НЕТ: БД приходит томом wiki-data:/data:ro (только SELECT
-# sessions), кэш — томом weather-cache:/data/cache (RW — ЕДИНСТВЕННЫЙ
-# RW-маунт сервиса, design §2).
+# sessions), кэш — томом weather-cache:/cache (RW — ЕДИНСТВЕННЫЙ
+# RW-маунт сервиса, design §2). Маунтпоинт /cache — ВЕРХНЕУРОВНЕВЫЙ путь,
+# НЕ внутри /data: /data занят ro-маунтом БД, вложенный том внутрь ro-маунта
+# докер смонтировать не может (ошибка CI e2e «read-only file system»).
 
 # Запуск НЕ от root (uid 10001 — вне диапазона пользователей образа).
-# Том weather-cache приводится к владельцу при первом старте (пустой том
-# наследует владельца образа каталога /data/cache).
+# /cache создается владельцем 10001: пустой том weather-cache при первом
+# старте наследует владельца образа каталога /cache.
+RUN mkdir -p /cache && chown 10001:10001 /cache
 USER 10001
 
 WORKDIR /srv
@@ -54,5 +57,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 
 # 1 воркер — паритет search/images/video (VPS 3.9 GB; design §2). Путь кэша —
 # только из окружения (EKOTOV_WEATHER_CACHE_PATH — задает compose; дефолт
-# кода /data/cache/weather.json).
+# кода /cache/weather.json).
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8381", "--workers", "1", "--log-level", "warning"]
