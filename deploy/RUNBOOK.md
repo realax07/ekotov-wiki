@@ -85,12 +85,13 @@ git -C /home/openclaw/ekotov-wiki log --oneline -1
 | search | `ekotov-wiki/search:<tag>` | 8378 | 512m | том **:ro** | поиск+suggestions (роутеры как в монолите, контракт `contracts/openapi-search.json`) |
 | backup | `ekotov-wiki/backup:<tag>` | — | 64m | том :ro + bind `/var/backups/ekotov-wiki` (uid 10001) | sidecar-бэкапы, cron-цикл 86400s, retention 14 дней |
 | images | `ekotov-wiki/images:<tag>` | 8379 | 128m | том **rw** (БД) + images-data **rw** | галерея (add-gallery-service): upload/валидация JPEG/PNG/GIF/WebP ≤10МБ (magic-байты), превью Pillow ≤800px, реакции/комментарии; пишет ТОЛЬКО таблицы gallery; файлы — в images-data (design §2, FR-79) |
+| video | `ekotov-wiki/video:<tag>` | 8380 | 512m | том **rw** videos-data | видеохостинг (P11, video-1): upload ≤500МБ любой формат → ffmpeg-конвертация mp4+превью (фон-воркер, статусы uploaded/converting/ready/error), playback, комментарии/реакции/категории; пишет ТОЛЬКО таблицы video_*; ffmpeg статический В ОБРАЗЕ (pin johnvansickle 7.0.2 + SHA256; fallback BtbN n8.1 со своим SHA256 — дрейф версии ffmpeg в fallback) |
 
 Теги: только релизные `<RELEASE_TAG>`; **latest ЗАПРЕЩЕН** (FR-72, deploy.sh падает).
 `depends_on`: nginx → app (service_healthy); search/backup/images → app БЕЗ condition
 (читают/пишут БД независимо; на пустом томе search вернет 500 на запросах, `/api/health`
 при этом 200 — схему создает app при первом старте; images требует users — FK
-images.uploaded_by). Все сервисы работают под **uid 10001** — владелец данных томов
+images.uploaded_by; video требует users аналогично). Все сервисы работают под **uid 10001** — владелец данных томов
 и bind-каталогов обязан быть 10001:10001 (новый том/каталог от root = PermissionError
 на записи; фикс: `docker run --rm -v <том>:/data alpine chown -R 10001:10001 /data`).
 
@@ -132,6 +133,12 @@ connection-level, файл не трогает; PRAGMA WAL ядра НЕ при�
 MIGRATE_MODULE=app.migrate_rN при миграционных релизах). search/backup — читатели
 той же схемы, миграций не требуют. Миграция — только после репетиции на копии.
 
+- `location = /api/videos`, `location ^~ /api/videos/`, `location ^~ /videos/`
+  → video :8380 (api напрямую; файлы playback из тома videos-data) с
+  `auth_request /_video_auth` → video `/api/videos/authcheck` (NFR-36: доступ
+  только авторизованный); `error_page 502 503 504 → @videos_down` — управляемый
+  503 JSON + X-Service: video (stop video → wiki/search/login работают, §6).
+
 ## 3. Деплой (deploy/deploy.sh v3 — матрица)
 
 Запускает **Заказчик из-под root** из клона `/home/openclaw/ekotov-wiki` с целевым коммитом:
@@ -140,6 +147,8 @@ MIGRATE_MODULE=app.migrate_rN при миграционных релизах). s
 sudo -E DRY_RUN=1 RELEASE_TAG=<метка> bash deploy/deploy.sh   # ОБЯЗАТЕЛЬНЫЙ первый прогон
 sudo -E RELEASE_TAG=<метка> bash deploy/deploy.sh             # боевой
 # миграционный релиз: + MIGRATE_MODULE=app.migrate_rN
+# видео-релиз: app.migrate_wiki (по команде) + app.migrate_video ОТДЕЛЬНО
+# (deploy.sh про video-схему не знает): python -m app.migrate_video
 ```
 
 Матрица: `SERVICES="app frontend search backup"` (env-оверрайд — осознанно),
@@ -237,6 +246,10 @@ tar czf /backup/images-pre-<метка>-$(date +%F).tar.gz -C /data .`.
 | systemd-юнит вдруг ACTIVE | ручной старт поверх контейнерного прода — конфликт двух стеков на одной БД | `sudo systemctl stop ekotov-wiki`; юнит не disable |
 | после ребута VPS стек не поднялся | docker.service не в автозапуске | `sudo systemctl enable docker`; далее `restart: unless-stopped` поднимет сам |
 | диск растет после деплоев | dangling-образы | `docker image prune -f` (шаг deploy.sh) |
+| Видео = 503 (управляемый, X-Service: video) | деградация: video остановлен/недоступен; wiki/search/login работают | `docker compose -p ekotov-wiki-par start video`; смоук-критерий изоляции отказа |
+| Видео = 500 на пустом томе | схема video_* не создана | `python -m app.migrate_video` (идемпотентен) — схемы video создает МИГРАЦИЯ, не app |
+| nginx не поднимается после видео-релиза: «no such dir /data/videos» | каталог videos/ отсутствует в ro-маунте wiki-data (гэп deploy.sh при первом видео-релизе) | ДО up nginx: `mkdir /data/videos` в томе wiki-data (через app-контейнер) + `docker volume create videos-data` + chown 10001:10001; инцидент video-1 (простой ~3 мин) |
+| upload видео 502/422 у всех клиентов | лимит тела nginx | client_max_body_size 520m только в video-локациях (добавлено) |
 
 ## 7. Границы
 
