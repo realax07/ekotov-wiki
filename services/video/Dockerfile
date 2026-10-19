@@ -34,15 +34,42 @@ RUN python -m pip install --no-cache-dir \
 
 # --- Статические ffmpeg/ffprobe (design §2): pinned-релиз, «версия +
 # SHA256» зафиксированы здесь, checksum сверяется ДО распаковки
-# (install_ffmpeg.py — stdlib: в slim НЕТ curl, apt запрещен); fail fast:
-# недоступность источника или несовпадение checksum ломают сборку.
+# (install_ffmpeg.py — stdlib: в slim НЕТ curl и wget — проверено
+# `command -v` в python:3.12-slim, apt запрещен; поэтому curl-флаги
+# --retry/--retry-all-errors недоступны). Ретраи на двух уровнях:
+#   1) install_ffmpeg.py — 3 попытки с backoff 10/20/40 c и чисткой
+#      частичного файла (обрыв johnvansickle.com, Errno 104 в CI);
+#   2) здесь — shell-цикл 5 попыток x 10 c (семантика
+#      `curl --retry 5 --retry-delay 10 --retry-all-errors -fSL`).
+# Fail fast сохранен: исчерпание ретраев или несовпадение checksum
+# ломают сборку, тихой подмены источника нет.
 # Источник: https://johnvansickle.com/ffmpeg/releases/ (release 2024-08-24).
+# FALLBACK (10.2026, CI-флейк Errno 104): johnvansickle.com недоступен из CI
+# надолго → вторым источником отдается статическая сборка BtbN/FFmpeg-Builds
+# (github, linux64-gpl; ffmpeg+ffprobe в bin/ топ-каталога — extract в
+# install_ffmpeg.py понимает обе раскладки). Fallback включается ТОЛЬКО если
+# первичный источник недоступен целиком (исчерпаны все ретраи); несовпадение
+# checksum fallback НЕ маскирует (fail fast). Пины fallback: n8.1-сборка
+# (7.0.2 у BtbN нет), sha256 снят с файла 2026-10-19; BtbN перекатывает
+# ассеты «latest» — при дрейфе sha сборка честно сломается (fail fast),
+# обновить FFMPEG_FALLBACK_SHA256.
 COPY services/video/install_ffmpeg.py /tmp/install_ffmpeg.py
 RUN set -eux; \
     FFMPEG_VERSION="7.0.2"; \
     FFMPEG_SHA256="abda8d77ce8309141f83ab8edf0596834087c52467f6badf376a6a2a4c87cf67"; \
     FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-${FFMPEG_VERSION}-amd64-static.tar.xz"; \
-    python /tmp/install_ffmpeg.py "$FFMPEG_URL" "$FFMPEG_SHA256" "$FFMPEG_VERSION"; \
+    FFMPEG_FALLBACK_SHA256="e6520f7195aa2e841e61b36c7a93faaf588ece22c99006eb0fba01925060d3b9"; \
+    FFMPEG_FALLBACK_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-linux64-gpl-8.1.tar.xz"; \
+    attempt=1; max_attempts=5; \
+    until python /tmp/install_ffmpeg.py "$FFMPEG_URL" "$FFMPEG_SHA256" "$FFMPEG_VERSION" "$FFMPEG_FALLBACK_URL" "$FFMPEG_FALLBACK_SHA256"; do \
+        if [ "$attempt" -ge "$max_attempts" ]; then \
+            echo "FAIL: ffmpeg download failed after ${max_attempts} shell-level attempts" >&2; \
+            exit 1; \
+        fi; \
+        attempt=$((attempt + 1)); \
+        echo "shell-level retry ${attempt}/${max_attempts} in 10s..." >&2; \
+        sleep 10; \
+    done; \
     rm -f /tmp/install_ffmpeg.py; \
     /usr/local/bin/ffmpeg -version | head -1
 
