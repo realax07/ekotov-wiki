@@ -23,11 +23,13 @@ pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 
 def test_sidebar_all_pages_and_wiki_stub(logged_in_page, web_base_url):
-    """TC-UI-016: сайдбар (5 пунктов: Доска/Поиск/Wiki/Галерея/Видео + бейдж
-    todo) на всех страницах; Доска ↔ Поиск переключаются в обе стороны;
-    Wiki — раздел с деревом/тулбаром (add-wiki, прежняя «заглушка без
-    функций» устарела). 5-й пункт «Видео» — 1.5 video-hosting (дельта
-    specs/video-service, утвержденный мокап 0.2)."""
+    """TC-UI-016: сайдбар (6 пунктов: Доска/Поиск/Wiki/Галерея/Видео/Погода
+    + бейдж todo) на всех страницах; Доска ↔ Поиск переключаются в обе
+    стороны; Wiki — раздел с деревом/тулбаром (add-wiki, прежняя
+    «заглушка без функций» устарела). 5-й пункт «Видео» — 1.5
+    video-hosting (дельта specs/video-service, утвержденный мокап 0.2);
+    6-й пункт «Погода» — weather-service (дельта specs/weather-service,
+    пункт «Раздел «Погода» в сайдбаре», СТРОГО после «Видео»)."""
     page = logged_in_page
     sidebar = Sidebar(page)
     search = SearchPage(page)
@@ -40,8 +42,10 @@ def test_sidebar_all_pages_and_wiki_stub(logged_in_page, web_base_url):
         expect(sidebar.wiki_link).to_be_visible()
         expect(sidebar.gallery_link).to_be_visible()
         expect(sidebar.video_link).to_be_visible()
-        # Ровно 5 пунктов навигации (по образцу test_p12_nav_icons_favicon_r8).
-        expect(page.locator(".sidebar-nav .nav-item")).to_have_count(5)
+        expect(sidebar.weather_link).to_be_visible()
+        # Ровно 6 пунктов навигации (по образцу test_p12_nav_icons_favicon_r8):
+        # «Погода» добавлена weather-service 6-м пунктом, после «Видео».
+        expect(page.locator(".sidebar-nav .nav-item")).to_have_count(6)
         # Бейдж todo снят (решение Заказчика 2026-10-11, 4.5 add-wiki).
 
     # Доска → Поиск.
