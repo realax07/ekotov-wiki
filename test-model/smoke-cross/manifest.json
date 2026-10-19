@@ -1,3 +1,9 @@
 {
-  "suites": []
+  "suites": [
+    "tests/smoke_cross/test_smoke_health.py",
+    "tests/smoke_cross/test_smoke_auth_search.py",
+    "tests/smoke_cross/test_smoke_wiki.py",
+    "tests/smoke_cross/test_smoke_gallery.py",
+    "tests/smoke_cross/test_smoke_video.py"
+  ]
 }
