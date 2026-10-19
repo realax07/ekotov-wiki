@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import posixpath
 import re
 import subprocess
 import sys
@@ -386,35 +387,73 @@ def _plan_release(snapshot: dict, ctx: dict) -> list:
         f"Флоу 2/4: цель, строка «Флоу: N», зоны записи, критерий приемки)")]
 
 
+def _canon_rel_path(p: str) -> str:
+    """Канонизация относительного пути (MAJ-2 ревью BUG-AF-RECHECK): срез
+    ведущих '/' и './', схлопывание сегментов (a/./b/, a/x/../b → b).
+    Оставшийся '..' — путь мимо канона (энфорсер такие --path отвергает
+    раньше); здесь он просто не матчится с зонами (fail-closed)."""
+    q = p.replace("\\", "/")
+    while q.startswith("./"):
+        q = q[2:]
+    q = q.lstrip("/")
+    q = posixpath.normpath(q)
+    return "" if q == "." else q
+
+
 def product_paths(action: "ActionRequest") -> list[str]:
     """Пути запроса в продуктовых зонах (J46): backend/services/frontend/design.
 
-    Путь матчится по префиксу зоны (backend/app/x.py) или совпадает с ней
-    самой (backend) — тот же стиль, что protected-пути check_chore_task.
+    Путь канонизируется (_canon_rel_path) и матчится по префиксу зоны
+    (backend/app/x.py) или совпадает с ней самой (backend) — тот же стиль,
+    что protected-пути check_chore_task. 'backendx/evil' с зоной 'backend'
+    НЕ матчится; 'backend/' и 'backend/./x' матчится после нормализации
+    (MAJ-2 ревью BUG-AF-RECHECK).
     """
-    return [
-        p for p in (action.paths or ())
-        if any(p == pe.rstrip("/") or p.startswith(pe)
-               for pe in PRODUCT_DELTA_PREFIXES)
-    ]
+    out: list[str] = []
+    for p in (action.paths or ()):
+        c = _canon_rel_path(p)
+        if c and any(c == pe.rstrip("/") or c.startswith(pe)
+                     for pe in PRODUCT_DELTA_PREFIXES):
+            out.append(p)
+    return out
+
+
+ARCH_REVIEW_FILE_RE = re.compile(r"^review-(\d{3})-architecture\.md$", re.I)
 
 
 def architecture_review_verdict(repo: Path, change_id: str) -> tuple[bool, list[str]]:
     """(есть_верdict_approve, файлы) по test-model/reviews/<change>/ (J46).
 
     Вердикт парсится как для code_review (flow_check.parse_verdict, формат
-    «## Вердикт: …»); засчитывается только approve — «return» означает
-    доработку, ворота ее вердиктом не считает.
+    «## Вердикт: …»). Действует вердикт ПОСЛЕДНЕЙ итерации —
+    review-NNN-architecture с максимальным NNN (BUG-AF-RECHECK-003): поздний
+    return отменяет ранее approve; approve→return→approve — последняя.
+    return вердиктом не считается. Неоднозначность — файлы вне канонической
+    схемы review-NNN-architecture.md (номер итерации неопределим) или
+    несколько файлов с одинаковым максимальным NNN → (False, files) —
+    решает человек, молчаливой подмены старым approve нет.
     """
     rev_dir = Path(repo) / "test-model" / "reviews" / change_id
     if not rev_dir.is_dir():
         return False, []
     files = sorted(rev_dir.glob("review-*-architecture.md"))
+    if not files:
+        return False, []
+    parsed = []
     for rf in files:
-        text = rf.read_text(encoding="utf-8", errors="replace")
-        if flow_check.parse_verdict(text) == "approve":
-            return True, [str(f) for f in files]
-    return False, [str(f) for f in files]
+        m = ARCH_REVIEW_FILE_RE.match(rf.name)
+        if m is None:
+            # Неопределимый номер итерации — неоднозначность (не молчаливое
+            # «файла нет»): разрешение не рискуем
+            return False, [str(f) for f in files]
+        parsed.append((int(m.group(1)), rf))
+    max_rev = max(rev for rev, _ in parsed)
+    latest = [rf for rev, rf in parsed if rev == max_rev]
+    str_files = [str(f) for f in files]
+    if len(latest) > 1:
+        return False, str_files  # неоднозначность: одинаковый максимальный NNN
+    text = latest[0].read_text(encoding="utf-8", errors="replace")
+    return flow_check.parse_verdict(text) == "approve", str_files
 
 
 def _arch_review_gate(snapshot: dict, action: "ActionRequest", ctx: dict) -> list:
@@ -441,10 +480,12 @@ def _arch_review_gate(snapshot: dict, action: "ActionRequest", ctx: dict) -> lis
     if files:
         return [Finding(
             ARCH_REVIEW_MISSING,
-            f"architecture-ревью без вердикта approve (J46): "
+            f"architecture-ревью без вердикта approve актуальной итерации "
+            f"(J46; BUG-AF-RECHECK-003: вердикт review-NNN с максимальным "
+            f"номером решает, поздний return отменяет старый approve): "
             f"{', '.join(Path(f).name for f in files)} — нужен "
             f"«## Вердикт: approve» (формат agents/architect_agent.md); "
-            f"этап architecture_review — роль architect")]
+            f"этап architecture_review — роль архитектора")]
     return [Finding(
         ARCH_REVIEW_MISSING,
         f"architecture-ревью отсутствует: нет "
@@ -555,10 +596,15 @@ def _deps_findings(action: ActionRequest, ctx: dict) -> list:
                 f"задачи с зависимостями — строго последовательно; "
                 f"evidence: openspec/changes/<id>/tasks.md)"))
         elif not ev.get("review_approved"):
+            # MIN-4 ревью BUG-AF-RECHECK: причина «не покрыта» из warns
+            # парсера (нечитаемый/противоречивый вердикт, SELF_REVIEW) —
+            # в диагностике отказа, не молчаливый факт.
+            warn = ev.get("review_warning")
             out.append(Finding(
                 INVALID_GATE,
                 f"зависимость {d} закрыта без code-review approve (J10; "
-                f"evidence: code-reviews/<change-id>/review-*.md)"))
+                f"evidence: code-reviews/<change-id>/review-*.md)"
+                + (f"; диагностика: {warn}" if warn else "")))
     return out
 
 
@@ -1557,15 +1603,144 @@ def check_bug_fix(snapshot, action, ctx, flow):
 
 def check_emergency_stabilize(snapshot, action, ctx, flow):
     out: list = []
+    severity = incident_severity(action.incident_ref)
     if not action.incident_ref:
         out.append(Finding(
             MISSING_INPUT,
             "причина инцидента не зафиксирована (action.incident_ref) — "
             "emergency-действие обязано фиксировать причину (ТЗ 03 п.4)", True))
+    elif flow == 3 and severity is None:
+        # J48 (add-incident-protocol, D1/FR-4): инцидент без severity-префикса
+        # S1-/S2-/S3- — неклассифицирован. Это отсутствие входа классификации
+        # (DENY-вход), не UNKNOWN-факт: состав реакции выбирается классом (FR-1),
+        # ad hoc-реакция без классификации — дефект J48. При этом archival-
+        # семантика FR-3 неклассифицированному архивацию не разрешает (см.
+        # check_archive_flow3 — там severity перепарсивается независимо, I-2).
+        out.append(Finding(
+            MISSING_INPUT,
+            "инцидент неклассифицирован: incident_ref без severity-префикса "
+            "S1-/S2-/S3- (FR-1/FR-4; design D1) — классифицируй инцидент "
+            "(S1-…/S2-…/S3-…) до начала реакции"))
+    if severity:
+        # D1: разобранный severity доступен последующим check-функциям через
+        # ctx (контекст ОДНОГО check_action-вызова; между CLI-вызовами не
+        # переносится — ворота перепарсивают сами, I-2).
+        ctx["incident_severity"] = severity
     ctx.setdefault("extra_gates", []).append(
         "обязательный последующий PR-цикл: review + pr_validate (контракт §7 "
         "Флоу 3; хотфикс без PR не считается завершенным)")
     return out
+
+
+# ------------------------------------------- инцидент-протокол (J48, Флоу 3)
+# add-incident-protocol: severity внутри incident_ref (D1), хранилище
+# post-mortem (D4), этапы post_mortem/archive_change и ворота архивации
+# (D2/D3). Затрагивается ТОЛЬКО Флоу 3 (NFR-3: Флоу 1/2/4/5 не меняются).
+
+# I-1 ревью: severity-уровни — одним allowlist-множеством; новый уровень
+# (например S4) = одна правка + отдельный change-пакет (rules_change).
+SEVERITY_PREFIXES = ("S1", "S2", "S3")
+# MIN-1 ревью 4.1: regex ВЫВОДИТСЯ из тупла (захват группы для
+# incident_severity: m.group(1) → "S1"/"S2"/…), не дублируется литералом.
+SEVERITY_PREFIX_RE = re.compile(
+    "^(" + "|".join(re.escape(p) for p in SEVERITY_PREFIXES) + ")-")
+# D4: хранилище post-mortem — append-only, именование
+# <YYYY-MM-DD>-<incident_ref>.md; корреляция ворот — по вхождению incident_ref
+# в имя файла ПО ГРАНИЦАМ (начало имени или «-» … «.» или конец; MIN-2 ревью
+# 4.1: сырая подстрока удовлетворялась чужим файлом, ref "S1-prod" — файлом
+# "2026-10-15-S1-prod-down.md"; детерминированный файловый матч, NFR-1).
+INCIDENTS_DIR = "test-model/incidents"
+# D4: секции проверяются по ЗАГОЛОВКАМ (## …), не по вхождению в текст
+# (MIN-3 ревью 4.1: «root cause» в прозе не считается секцией).
+POST_MORTEM_SECTIONS = ("таймлайн", "root cause", "action items")
+
+
+def incident_severity(incident_ref: str | None) -> str | None:
+    """(D1): severity-префикс incident_ref ('S1'…'S3') или None — инцидент
+    неклассифицирован (префикса нет)."""
+    m = SEVERITY_PREFIX_RE.match(incident_ref or "")
+    return m.group(1) if m else None
+
+
+def _post_mortem_findings(snapshot, action, ctx: dict) -> list:
+    """Ворота post-mortem (D2/D4) — общая проверка check_post_mortem и
+    check_archive_flow3.
+
+    Требование I-2 ревью: severity перепарсивается из action.incident_ref
+    КАЖДЫЙ вызов — CLI-вызов архивации отдельный процесс, ctx от
+    emergency_stabilize не переносится; полагаться на ctx["incident_severity"]
+    (D1) здесь запрещено. S1/S2 без post-mortem в test-model/incidents/ (с
+    секциями таймлайн/root cause/action items) — DENY; S3 — протокол не
+    применяется (FR-1); неклассифицированный — DENY MISSING_INPUT.
+    """
+    ctx["checked"].add("incident.post_mortem")
+    severity = incident_severity(action.incident_ref)  # I-2: сам, не из ctx
+    if severity is None:
+        return [Finding(
+            MISSING_INPUT,
+            "инцидент неклассифицирован: incident_ref без severity-префикса "
+            "S1-/S2-/S3- (FR-4; design D1) — архивацию семантика FR-3 не "
+            "разрешает")]
+    if severity == "S3":
+        ctx["evidence"].add(f"{INCIDENTS_DIR}/ (S3: протокол не применяется)")
+        return []
+    repo = (snapshot.get("scope", {}) or {}).get("repo")
+    if not repo:
+        return [Finding(
+            AMBIGUOUS_STATE,
+            f"post-mortem: scope без repo — проверка {INCIDENTS_DIR}/ "
+            f"невозможна, UNKNOWN (design D4)", True)]
+    inc_dir = Path(repo) / INCIDENTS_DIR
+    ctx["evidence"].add(str(inc_dir))
+    ref = action.incident_ref
+    # MIN-2 ревью 4.1: матч по границам, не сырой подстрокой — чужой файл
+    # (ref "S1-prod" vs "2026-10-15-S1-prod-down.md") не засчитывается.
+    ref_re = re.compile(rf"(?:^|-){re.escape(ref)}(?:\.|$)")
+    matches = [p for p in sorted(inc_dir.glob("*.md")) if ref_re.search(p.name)] \
+        if inc_dir.is_dir() else []
+    if not matches:
+        return [Finding(
+            MISSING_INPUT,
+            f"post-mortem инцидента {ref} (severity {severity}) не найден в "
+            f"{INCIDENTS_DIR}/ — архивация Флоу 3 S1/S2 без post-mortem "
+            f"блокируется (FR-3; design D2/D4; именование "
+            f"<YYYY-MM-DD>-<incident_ref>.md)")]
+    text = matches[-1].read_text(encoding="utf-8", errors="replace")
+    # MIN-3 ревью 4.1: секции — по заголовкам ## (D4), регистронезависимо;
+    # упоминание в прозе секцией не считается.
+    missing = [s for s in POST_MORTEM_SECTIONS if not any(
+        re.match(rf"^#+\s*{re.escape(s)}", line, re.IGNORECASE)
+        for line in text.splitlines())]
+    if missing:
+        return [Finding(
+            INVALID_GATE,
+            f"post-mortem {matches[-1].name} без заголовков секций: "
+            f"{', '.join(missing)} "
+            f"— обязательны заголовки ## Таймлайн (timestamps initial "
+            f"response), ## Root cause, ## Action items (FR-3; design D4)")]
+    return []
+
+
+def check_post_mortem(snapshot, action, ctx, flow):
+    """Этап post_mortem (D3): производство артефакта после стабилизации и
+    закрытия PR-цикла, до архивации; роли dev/devops — участники реакции.
+    Проверяет тот же факт, что и ворота архивации, — наличие post-mortem
+    (дублирование на этапе и воротах — контракт 7: артефакт проверяется в
+    момент ворот независимо)."""
+    if flow != 3:
+        return []
+    return _post_mortem_findings(snapshot, action, ctx)
+
+
+def check_archive_flow3(snapshot, action, ctx, flow):
+    """Ворота архивации Флоу 3 (D2; образец — _hotfix_debt_findings):
+    flow==3-специфичная Finding-ветка. Флоу 3 S1/S2 без post-mortem в
+    test-model/incidents/ — DENY (ненулевой exit CLI, сценарий FR-3); S3 —
+    протокол не применяется; неклассифицированный incident_ref — DENY
+    MISSING_INPUT (архивацию не разрешает)."""
+    if flow != 3:
+        return []
+    return _post_mortem_findings(snapshot, action, ctx)
 
 
 def check_deploy_rollback(snapshot, action, ctx, flow):
@@ -1735,6 +1910,18 @@ STAGE_TABLE: dict[int, tuple[Stage, ...]] = {
                "branch protection (внеш.)"), check_merge_task),
         Stage("deploy_rollback", ("devops", "pm"), True,
               ("внешние полномочия (ТЗ 03 п.4)",), check_deploy_rollback),
+        # J48 (D3): post_mortem — этап производства артефакта (после
+        # стабилизации и закрытия PR-цикла, до архивации); роли dev/devops —
+        # участники реакции. severity-классификация — НЕ отдельный этап, а
+        # check на emergency_stabilize (D1).
+        Stage("post_mortem", ("dev", "devops"), False,
+              ("post-mortem в test-model/incidents/ (секции: таймлайн, root "
+               "cause, action items)",), check_post_mortem),
+        # J48 (D3): archive_change — этап ворот (D2); роли зеркалируют
+        # архивацию Флоу 1 (решение Заказчика 3.3 S7), новых ролей нет.
+        Stage("archive_change", ("sa", "dev_lead", "integrator"), False,
+              ("flow_transition ворота post-mortem (D2)",),
+              check_archive_flow3),
     ),
     4: (
         Stage("chore_task", ("dev",), False,
@@ -2008,13 +2195,26 @@ def _task_lines(tasks_text: str) -> dict[str, dict]:
 
 def _dep_evidence(repo: Path, change_id: str, deps: tuple) -> dict:
     """Evidence по зависимостям: чекбокс (flow_check.closed_dev_tasks) + approve
-    (flow_check.approved_review_tasks) — J10-логика, без дублирования парсеров."""
+    (flow_check.approved_review_tasks) — J10-логика, без дублирования парсеров.
+
+    MIN-4 ревью BUG-AF-RECHECK: warns парсера вердиктов пробрасываются в
+    evidence каждой зависимости (review_warning) — ворота выводят их в
+    диагностику отказа, вместо молчаливого «не покрыта».
+    """
     tasks_file = repo / "openspec" / "changes" / change_id / "tasks.md"
     text = ""
     if tasks_file.is_file():
         text = tasks_file.read_text(encoding="utf-8", errors="replace")
     closed = set(flow_check.closed_dev_tasks(text))
-    approved = flow_check.approved_review_tasks(repo, change_id)
+    review_warns: list[str] = []
+    approved = flow_check.approved_review_tasks(repo, change_id, review_warns)
+
+    def _dep_warn(d: str) -> str | None:
+        for w in review_warns:
+            if f"задача {d}:" in w:
+                return w
+        return None
+
     ev = {}
     for d in deps:
         ev[d] = {
@@ -2022,6 +2222,7 @@ def _dep_evidence(repo: Path, change_id: str, deps: tuple) -> dict:
             "review_approved": any(
                 d in re.findall(r"\d+(?:\.\d+)*", name) for name in approved
             ),
+            "review_warning": _dep_warn(d),
         }
     return ev
 
