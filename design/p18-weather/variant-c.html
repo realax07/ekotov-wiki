@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап P18 — «Погода», вариант C: компактный дашборд</title>
+<style>
+/* Мокап P18 вариант C — компактный дашборд: «сегодня» слева крупно (мета 3-в-ряд), 7 дней узкой строк-колонкой справа.
+   Токены и каркас сайдбара — дословно из frontend/static/css/app.css и
+   frontend/templates/base.html (V3 «Бумага», ОГР-8: без внешних зависимостей).
+   Дельта P18: пункт «Погода» в sidebar-nav (после «Видео», активный) —
+   inline-SVG иконка 16px в едином стиле эталонов. */
+
+:root {
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;
+  --p-clay-700: #93391f;
+  --p-clay-050: #f7e8e4;
+  --p-red-700: #9c3524;
+  --p-olive-700: #5f6f34;
+  --p-amber-700: #8a5a1e;
+  --p-blue-700: #33608c;
+  --p-blue-050: #eef2f6;
+  --p-blue-200: #c9d6e2;
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-text-on-accent: #fff;
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-bg-subtle: var(--p-paper-100);
+  --color-border-default: var(--p-paper-200);
+  --color-accent: var(--p-clay-600);
+  --color-accent-soft: var(--p-clay-050);
+  --space-05: 4px; --space-1: 8px; --space-2: 16px; --space-3: 24px; --space-4: 32px;
+  --radius-field: 6px; --radius-card: 10px;
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px; --font-size-label: 13px; --font-size-micro: 11px;
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+}
+
+
+* { box-sizing: border-box; }
+body.app-shell {
+  margin: 0; font-family: var(--font-family); font-size: var(--font-size-body);
+  color: var(--color-text-primary); background: var(--color-bg-page);
+  display: flex; min-height: 100vh;
+}
+.sidebar {
+  width: 200px; flex-shrink: 0; background: var(--p-ink-900);
+  color: var(--p-paper-050); display: flex; flex-direction: column;
+  justify-content: space-between; padding: var(--space-2) 0;
+  height: 100vh; position: sticky; top: 0; overflow-y: auto;
+}
+.sidebar-nav { display: flex; flex-direction: column; }
+.nav-item {
+  display: flex; align-items: center; gap: var(--space-1);
+  padding: 10px 20px; color: var(--p-paper-050);
+  text-decoration: none; opacity: 0.85;
+}
+.nav-item:hover { background: rgba(255, 253, 249, 0.08); opacity: 1; }
+.nav-item.active { background: var(--color-accent); opacity: 1; font-weight: bold; }
+.sidebar-footer { padding: 0 20px; }
+.logout-button {
+  width: 100%; padding: 8px; background: transparent; color: var(--p-paper-050);
+  border: 1px solid var(--p-ink-600); border-radius: var(--radius-field);
+  cursor: pointer; font: inherit; margin-top: var(--space-1);
+}
+.content { flex: 1; padding: var(--space-3); min-width: 0; }
+.content h1 {
+  font-family: var(--font-family-display); font-weight: 400;
+  font-size: 26px; margin: 0 0 var(--space-2);
+}
+
+
+.w-card {
+  background: var(--color-bg-surface); border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card); box-shadow: var(--shadow-soft);
+}
+.today-card { padding: var(--space-3); }
+.today-place { display: flex; align-items: baseline; gap: var(--space-2); margin-bottom: var(--space-1); }
+.today-city { font-family: var(--font-family-display); font-size: 20px; font-weight: 600; }
+.today-date { color: var(--color-text-secondary); font-size: var(--font-size-label); }
+.today-temp-row { display: flex; align-items: center; gap: var(--space-2); }
+.today-temp { font-family: var(--font-family-display); font-size: 56px; line-height: 1; color: var(--color-text-primary); }
+.today-icon { color: var(--p-blue-700); display: inline-flex; }
+.today-desc-text { margin: 0 0 var(--space-05); font-size: 16px; font-weight: 600; }
+.today-feels { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-body); }
+.today-meta {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-1);
+  margin: var(--space-3) 0 0; padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-default);
+}
+.meta-item dt { font-size: var(--font-size-micro); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.4px; }
+.meta-item dd { margin: 2px 0 0; font-size: 15px; font-weight: 600; }
+
+.dc-name { margin: 0 0 var(--space-05); font-weight: bold; font-size: var(--font-size-label); }
+.dc-icon { color: var(--p-blue-700); margin-bottom: var(--space-05); }
+.dc-desc { margin: 0 0 var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-micro); line-height: 1.35; }
+.dc-temps { margin: 0 0 var(--space-05); display: flex; align-items: baseline; gap: var(--space-1); }
+.dc-t { font-weight: bold; font-size: 18px; }
+.dc-n { color: var(--color-text-secondary); }
+.dc-pop { margin: 0 0 var(--space-05); font-size: var(--font-size-micro); color: var(--p-blue-700); }
+.dc-wind { margin: 0; font-size: var(--font-size-micro); color: var(--color-text-secondary); }
+.today-mark { border-left: 3px solid var(--color-accent); background: var(--color-bg-surface); }
+.today-mark .dc-name { color: var(--p-clay-700); }
+.page-sub { margin: 0 0 var(--space-3); color: var(--color-text-secondary); }
+.w-section-title {
+  font-family: var(--font-family-display); font-weight: 600;
+  font-size: 17px; margin: 0 0 var(--space-2);
+}
+.day-icon, .day-pop { display: inline-flex; align-items: center; }
+
+.dash {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  gap: var(--space-2); align-items: start;
+}
+.dash .today-meta { grid-template-columns: repeat(3, 1fr); row-gap: var(--space-2); }
+.week-panel { padding: var(--space-2); }
+.week-list { display: flex; flex-direction: column; }
+.day-item {
+  display: grid; grid-template-columns: 92px 24px 44px 1fr auto;
+  align-items: center; gap: var(--space-1);
+  padding: var(--space-1) 0; border-bottom: 1px solid var(--color-border-default);
+}
+.day-item:last-child { border-bottom: none; }
+.day-name { font-weight: 600; font-size: var(--font-size-label); }
+.day-icon { color: var(--p-blue-700); }
+.day-pop { font-size: var(--font-size-micro); color: var(--p-blue-700); justify-self: start; }
+.day-temps { font-size: var(--font-size-label); white-space: nowrap; }
+.day-temps b { font-size: 15px; }
+.day-wind { color: var(--color-text-secondary); font-size: var(--font-size-micro); white-space: nowrap; }
+
+</style>
+</head>
+<body class="app-shell">
+
+<aside class="sidebar" id="sidebar" aria-label="Разделы">
+  <nav class="sidebar-nav">
+    <a href="/board" class="nav-item">
+      <svg class="nav-icon" style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M3 9h18" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M9 9v12" fill="none" stroke="currentColor" stroke-width="2"/>
+      </svg>Доска</a>
+    <a href="/search" class="nav-item">
+      <svg class="nav-icon" style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M15.5 15.5l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>Поиск</a>
+    <a href="/wiki" class="nav-item">
+      <svg class="nav-icon" style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 19.5V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+      </svg>Wiki</a>
+    <a href="/gallery" class="nav-item">
+      <svg class="nav-icon" style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="9" cy="9.5" r="1.6" fill="currentColor"/>
+        <path d="M4.5 17.5l5-5.5 4 4.5 3-3 3 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>Галерея</a>
+    <a href="/video" class="nav-item">
+      <svg class="nav-icon" style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M10 9.2l5 2.8-5 2.8V9.2z" fill="currentColor"/>
+      </svg>Видео</a>
+    <a href="/weather" class="nav-item active" aria-current="page">
+      <svg class="nav-icon" style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="8.5" cy="8.5" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M8.5 2.5v1.6M2.5 8.5h1.6M4.4 4.4l1.1 1.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M10 20h7a3.2 3.2 0 0 0 .6-6.35 4.5 4.5 0 0 0-8.7-1.05A3.7 3.7 0 0 0 10 20z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+      </svg>Погода</a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="/settings" style="display:flex;align-items:center;gap:var(--space-1)" class="nav-item">
+      <svg class="nav-icon" style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="3.25" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M12 2.8v2.6M12 18.6v2.6M21.2 12h-2.6M5.4 12H2.8M18.5 5.5l-1.85 1.85M7.35 16.65L5.5 18.5M18.5 18.5l-1.85-1.85M7.35 7.35L5.5 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>Настройки</a>
+    <button type="button" class="logout-button">Выйти</button>
+  </div>
+</aside>
+
+<main class="content">
+
+<h1>Погода</h1>
+<p class="page-sub">Москва · прогноз на 7 дней</p>
+<div class="dash">
+
+<div class="today-card ">
+  <div class="today-main">
+    <div class="today-place">
+      <span class="today-city">Москва</span>
+      <span class="today-date">Сегодня, понедельник, 26 октября</span>
+    </div>
+    <div class="today-temp-row">
+      <div class="today-temp">+4°</div>
+      <div class="today-icon"><svg width="64" height="64" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="10" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.2v1.6M5.2 10H3.6M7 5.4l-1.1-1.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 18.5l-1 2.4M12 18.5l-1 2.4M16 18.5l-1 2.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <div class="today-desc">
+        <p class="today-desc-text">Пасмурно, дождь</p>
+        <p class="today-feels">Ощущается как <strong>+1°</strong></p>
+      </div>
+    </div>
+  </div>
+  <dl class="today-meta">
+    <div class="meta-item"><dt>Максимум</dt><dd>+5°</dd></div>
+    <div class="meta-item"><dt>Минимум</dt><dd>+1°</dd></div>
+    <div class="meta-item"><dt>Осадки</dt><dd>80&#8202;%</dd></div>
+    <div class="meta-item"><dt>Ветер</dt><dd>ЮЗ, 5 м/с</dd></div>
+    <div class="meta-item"><dt>Влажность</dt><dd>87&#8202;%</dd></div>
+    <div class="meta-item"><dt>Давление</dt><dd>738 мм рт.&nbsp;ст.</dd></div>
+  </dl>
+</div>
+  <section class="week-panel w-card" aria-label="Прогноз на 7 дней">
+    <h2 class="w-section-title">На 7 дней</h2>
+    <div class="week-list">
+      <div class="day-item">
+        <span class="day-name">Пн, 26.10</span>
+        <span class="day-icon"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="10" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.2v1.6M5.2 10H3.6M7 5.4l-1.1-1.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 18.5l-1 2.4M12 18.5l-1 2.4M16 18.5l-1 2.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+        <span class="day-pop">80%</span>
+        <span class="day-temps"><b>+4°</b> / 1°</span>
+        <span class="day-wind">ЮЗ, 5 м/с</span>
+      </div>
+  <div class="day-item">
+    <span class="day-name">Вт, 27.10</span>
+    <span class="day-icon" title="Пасмурно"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 18h9.2a3.4 3.4 0 0 0 .7-6.7 4.8 4.8 0 0 0-9.3-1.1A3.9 3.9 0 0 0 7.5 18z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+    <span class="day-pop">30%</span>
+    <span class="day-temps"><b>+5°</b> / 2°</span>
+    <span class="day-wind">З, 4 м/с</span>
+  </div>
+  <div class="day-item">
+    <span class="day-name">Ср, 28.10</span>
+    <span class="day-icon" title="Облачно"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 3v1.6M3 9h1.6M4.9 4.9l1.1 1.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M11 19.5h6.4a3 3 0 0 0 .6-5.95 4.2 4.2 0 0 0-8.1-.95A3.4 3.4 0 0 0 11 19.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+    <span class="day-pop">15%</span>
+    <span class="day-temps"><b>+7°</b> / 3°</span>
+    <span class="day-wind">ЮЗ, 3 м/с</span>
+  </div>
+  <div class="day-item">
+    <span class="day-name">Чт, 29.10</span>
+    <span class="day-icon" title="Небольшой дождь"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="10" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.2v1.6M5.2 10H3.6M7 5.4l-1.1-1.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 18.5l-1 2.4M12 18.5l-1 2.4M16 18.5l-1 2.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+    <span class="day-pop">55%</span>
+    <span class="day-temps"><b>+6°</b> / 2°</span>
+    <span class="day-wind">Ю, 6 м/с</span>
+  </div>
+  <div class="day-item">
+    <span class="day-name">Пт, 30.10</span>
+    <span class="day-icon" title="Пасмурно"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 18h9.2a3.4 3.4 0 0 0 .7-6.7 4.8 4.8 0 0 0-9.3-1.1A3.9 3.9 0 0 0 7.5 18z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+    <span class="day-pop">40%</span>
+    <span class="day-temps"><b>+4°</b> / 0°</span>
+    <span class="day-wind">СЗ, 5 м/с</span>
+  </div>
+  <div class="day-item">
+    <span class="day-name">Сб, 31.10</span>
+    <span class="day-icon" title="Облачно"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 3v1.6M3 9h1.6M4.9 4.9l1.1 1.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M11 19.5h6.4a3 3 0 0 0 .6-5.95 4.2 4.2 0 0 0-8.1-.95A3.4 3.4 0 0 0 11 19.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+    <span class="day-pop">20%</span>
+    <span class="day-temps"><b>+2°</b> / -1°</span>
+    <span class="day-wind">С, 3 м/с</span>
+  </div>
+  <div class="day-item">
+    <span class="day-name">Вс, 1.11</span>
+    <span class="day-icon" title="Мокрый снег"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 15h9.2a3.4 3.4 0 0 0 .7-6.7 4.8 4.8 0 0 0-9.3-1.1A3.9 3.9 0 0 0 7.5 15z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 18.2l-.9 2.2M12 18.2l-.9 2.2M16 18.2l-.9 2.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+    <span class="day-pop">65%</span>
+    <span class="day-temps"><b>+1°</b> / -2°</span>
+    <span class="day-wind">СВ, 4 м/с</span>
+  </div>
+    </div>
+  </section>
+</div>
+</main>
+</body>
+</html>
