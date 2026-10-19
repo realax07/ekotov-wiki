@@ -1,6 +1,7 @@
 # Design: weather-service
 
-Версия: r1 (2026-10-19). Источники: PLAN-p18-weather.md (ОВ-1…ОВ-4,
+Версия: r2 (2026-10-19; правки по ревью №1 — review-architecture.md,
+находки F1/F2/F3 + O1/O2). r1 (2026-10-19). Источники: PLAN-p18-weather.md (ОВ-1…ОВ-4,
 границы: без БД, без секретов, один город), утвержденный мокап
 `design/p18-weather/variant-a.html` (вариант A, выбор Заказчика
 2026-10-19; B/C — отклонены). Прецеденты: `services/video`
@@ -21,15 +22,18 @@ compose-паттерн), `services/images` (том вне БД).
 
 ```
 Браузер (owner/PE) ── https://…:10443 ── nginx [frontend]
-   ├── = /weather              → статика фронта (страница по мокапу A,
-   │                             auth_request §5; паритет /video-страниц)
-   ├── ^~ /api/weather/        → weather:8381 (API: weather/health/authcheck)
+   ├── ^~ /api/weather/        → weather:8381 (API)
    ├── = /api/weather          → weather:8381
    └── остальное               → как сейчас (app, search, images, video, …)
 
+Страница /weather nginx-локации НЕ требует — рендерится ядром app
+(Jinja-шелл из base.html, active_page='weather'; паритет /video, §7):
+маршрутизация страницы идет общим правилом ядра, аноним-редирект дает
+сессионный middleware ядра, static_v работает из коробки.
+
 weather:8381  — FastAPI (uvicorn 1 воркер): GET /api/weather (JSON:
-               today + 7 дней + fetched_at + stale), /api/health,
-               /api/weather/authcheck; БД НЕТ; кэш-файл в томе
+               today + 7 дней + fetched_at + stale), /api/health;
+               БД НЕТ; кэш-файл в томе
 ```
 
 - Наружу открыт только nginx :10443 (FR-65-преемственность) — `weather`
@@ -66,7 +70,8 @@ compose-сервис `weather` в `deploy/compose.yaml` (паритет video):
 GET https://api.open-meteo.com/v1/forecast
   ?latitude=55.7539&longitude=37.6208
   &timezone=Europe/Moscow&forecast_days=7
-  &current=temperature_2m,apparent_temperature,precipitation,
+  &wind_speed_unit=ms
+  &current=temperature_2m,apparent_temperature,
            weather_code,relative_humidity_2m,surface_pressure,
            wind_speed_10m,wind_direction_10m
   &daily=weather_code,temperature_2m_max,temperature_2m_min,
@@ -83,11 +88,17 @@ GET https://api.open-meteo.com/v1/forecast
 - **Валидация ответа:** проверяется схема-минимум (current + daily
   массивы нужной длины); невалидный/неполный JSON = ошибка провайдера,
   кэш НЕ затирается (spec «Битый ответ…»).
-- **Преобразования:** давление гПа → мм рт. ст. (×0.750062, округление
-  до целого); направление ветра в градусах → русские румбы
-  (С/СВ/В/ЮВ/Ю/ЮЗ/З/СЗ); WMO weather_code → русские описания и иконки
-  (статическая таблица в коде; осадки — probability_max, %; карточка
-  «Сегодня» берет max/min из daily[0] — согласованность с прогнозом).
+- **Преобразования:** ветер приходит из провайдера УЖЕ в м/с — в запрос
+  включен `wind_speed_unit=ms` (у Open-Meteo дефолт — км/ч; конверсия
+  в коде не нужна, ревью №1 F2); давление гПа → мм рт. ст.
+  (×0.750062, округление до целого); направление ветра в градусах →
+  русские румбы (С/СВ/В/ЮВ/Ю/ЮЗ/З/СЗ); WMO weather_code → русские
+  описания и иконки (статическая таблица в коде). Карточка «Сегодня»
+  берет max/min из daily[0] — согласованность с прогнозом; **осадки
+  карточки «Сегодня» — вероятность (%) из `daily[0].
+  precipitation_probability_max`** (в `current` поле `precipitation`
+  НЕ запрашивается — это мм осадков, карточкой не используется;
+  ревью №1 F2).
 
 ## §4. Кэш: файл в томе weather-cache, TTL 60 мин
 
@@ -105,44 +116,70 @@ GET https://api.open-meteo.com/v1/forecast
      `{"error": "weather_unavailable"}` (UI — честное сообщение,
      кэш-файл не создается).
 - Кэш общий для всех пользователей (не персональный) — состояние только
-  в файле, в памяти ничего авторитетного.
+  в файле, в памяти ничего авторитетного. Обновление кэша при истекшем
+  TTL — под `asyncio.Lock`: два одновременных запроса инициируют одно
+  обновление (второй дожидается и получает свежий результат) —
+  двойных вызовов провайдера нет (ревью №1 O1).
+- Невозможность ЗАПИСАТЬ кэш (том переполнен/ro) ответ не меняет:
+  запись сбоит — фиксируется в логе, пользователю отдается полученное
+  от провайдера как при успехе (кэш-файл остается прежним) —
+  (ревью №1 O2).
 - «Мягкое» обновление: истекший кэш НЕ блокирует ответ — при отказе
   провайдера пользователь всегда получает максимум доступного (spec
   «Недоступность провайдера…»).
 
-## §5. nginx: auth_request по образцу video (§5 дизайна video)
+## §5. nginx: только API-семейство /api/weather* (прод-паттерн видео)
 
-Обе локации за valid сессией; проверка — subrequest к самому `weather`
-(прецедент: video проверяет свою отдачу своим authcheck):
+Страница `/weather` рендерится ядром (§7) — nginx-локации для нее НЕТ
+и auth_request не нужен вовсе (ревью №1 F1/F3). nginx обслуживает
+только API-семейство; как на API-локациях video (`= /api/videos`,
+`^~ /api/videos/` в проде), auth_request НЕ применяется — сессию
+проверяет сессионный middleware сервиса (401 JSON), без двойной
+валидации subrequest'ом:
 
 ```
-location = /weather {
-    auth_request /_weather_auth;          # subrequest → weather:8381
-    error_page 401 = @login_redirect;     # страницы: редирект на /login
-    error_page 502 503 504 = @weather_down;
-    # статика страницы по мокапу A (поставка static_v-бампом)
+location = /api/weather {
+    include snippets/weather-proxy.inc;   # паттерн videos-proxy.inc
 }
 location ^~ /api/weather/ {
-    auth_request /_weather_auth;
-    error_page 401 = @weather_api_401;    # JSON 401, не редирект
-    error_page 502 503 504 = @weather_down;
-    resolver 127.0.0.11 valid=10s;        # анти-stale-DNS (паритет video)
-    proxy_pass http://weather:8381;
-}
-location = /_weather_auth {
-    internal;
-    proxy_pass http://weather:8381/api/weather/authcheck;  # 200/401 по cookie
-    proxy_pass_request_body off;
-    proxy_set_header Content-Length "";
+    include snippets/weather-proxy.inc;
 }
 ```
 
-Контракт шва nginx↔weather: `/api/weather/authcheck` — exempt от JSON
-401-обвязки, 200 при валидной сессии, 401 иначе (O(мс), без внешних
-вызовов). Отказ subrequest (weather down) → `@weather_down` 503
-(JSON + Retry-After), не голый 500. Сессионный middleware сервиса —
+`snippets/weather-proxy.inc` (по образцу `videos-proxy.inc`, уроки
+прод-инсов видео перенесены):
+
+```
+set $upstream_weather http://weather:8381;
+# Переменная + resolver server-блока (127.0.0.11 valid=10s, паритет
+# video/search/images): proxy_pass статическим именем резолвится один
+# раз на старте — без переменной nginx не стартует без контейнера
+# weather и держит мертвый IP после пересоздания; с переменной —
+# переразрешение на запросах, старт nginx без weather безопасен
+# (анти-stale-DNS).
+proxy_next_upstream error timeout;
+# intercept_errors ВЫКЛЮЧЕН (отличие от video, ревью №1 F1-в): сервис
+# СА отвечает управляемым 503 weather_unavailable (spec «Пустой кэш…»)
+# — он должен дойти до клиента без подмены. nginx-ский 502 (соединение
+# отвергнуто — контейнер остановлен) ошибкой error_page ловится и без
+# intercept: error_page генерируется самим nginx, не upstream'ом.
+proxy_intercept_errors off;
+error_page 502 504 = @weather_down;       # быстрый управляемый 503 JSON+Retry-After
+proxy_http_version 1.1;
+proxy_set_header Host              $host;
+proxy_set_header X-Real-IP         $remote_addr;
+proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_pass $upstream_weather;
+```
+
+Контракт шва nginx↔weather: authcheck-эндпоинта у сервиса НЕТ —
+auth_request в пакете не используется нигде (по прод-паттерну видео
+он был бы нужен только там, где nginx сам отдает контент; с рендером
+страницы ядром таких мест нет). Сессионный middleware сервиса —
 паритет images/video (только чтение своей сессии, без права писать в
-sessions).
+sessions); @weather_down — по паттерну @videos_down (JSON +
+Retry-After).
 
 ## §6. API-контракт (шов фронт↔weather)
 
@@ -167,22 +204,35 @@ sessions).
 ```
 
 - `days` — ровно 7 элементов, включая сегодня (days[0] ↔ today).
-- Ошибки: 401 (аноним), 503 `weather_unavailable` (нет кэша + провайдер
-  недоступен), 503 от nginx при down контейнера.
+- `today.precipitation` — **вероятность осадков (%)**, берется из
+  `daily[0].precipitation_probability_max` (поле `current.precipitation`
+  провайдера — мм осадков — в запрос не входит; ревью №1 F2). `speed` —
+  м/с (запрашивается `wind_speed_unit=ms`).
+- Ошибки: 401 (аноним — от сессионного middleware сервиса), 503
+  `weather_unavailable` (нет кэша + провайдер недоступен — ответ
+  сервиса проходит через nginx без подмены, intercept off), 503 от
+  nginx при down контейнера (@weather_down).
 - `/api/health` — 200 без бизнес-логики (шаблон healthcheck video).
 
-## §7. Фронт: страница /weather по мокапу A, static_v
+## §7. Фронт: страница /weather — Jinja-рендер ядра (паритет /video)
 
-- Статическая страница по `variant-a.html` (токены V3 «Бумага», inline
-  SVG-иконки, без CDN): каркас сайдбара — дословно из
-  `frontend/templates/base.html`; пункт «Погода» после «Видео».
+- Страница рендерится **ядром app** (ревью №1 F3, принят вариант
+  архитектора): Jinja-шаблон в `frontend/templates`, расширяющий
+  `base.html` (каркас сайдбара наследуется — второй копии шаблона нет,
+  синхронизация не нужна), `active_page='weather'` (активное состояние
+  пункта сайдбара работает из base.html — ревью №1 O4), статика — через
+  `static_v` (Jinja-глобал ядра — кеш-бастинг из коробки, релизный
+  бамп 5.1 инвалидирует страницу как и весь стек). Вид — по мокапу A
+  (`variant-a.html`; токены V3 «Бумага», inline SVG-иконки, без CDN);
+  пункт «Погода» в sidebar-nav после «Видео» (правка base.html в ядре).
+- Роут + middleware: аноним получает редирект на `/login` штатным
+  сессионным middleware ядра (паритет /video — бесплатно, без
+  auth_request/nginx).
 - Загрузка данных: fetch `/api/weather` (cookie сессии — same-origin);
   состояния: **загрузка** (индикатор), **данные** (карточки),
   **устаревшие** (баннер «данные устарели, обновлено …» + карточки),
   **ошибка** (сообщение «не удалось получить данные погоды» + кнопка
-  «Повторить» — честная ошибка, без заглушек).
-- Поставка статикой фронта через static_v-бамп (обязанность ПМ — волна
-  деплоя; паритет процесса видео/галереи). Никакого JS-фреймворка.
+  «Повторить» — честная ошибка, без заглушек). Никакого JS-фреймворка.
 
 ## §8. Альтернативы (отклоненные)
 
@@ -193,4 +243,3 @@ sessions).
 | Выбор города параметром API/конфига | граница PLAN — один город; параметризация — продуктовое решение на будущее |
 | Проксирование Open-Meteo напрямую из фронтенда | ломает ОВ-1 (аноним получил бы данные), CORS, таймауты/кэш не контролируются — данные только через weather:8381 |
 | Другой провайдер (Яндекс/OpenWeather) | требует ключ/секрет — граница PLAN (Open-Meteo без ключа, решение 2026-10-19) |
-| Отдача страницы /weather из ядра app:8377 | страница полностью статична — статика фронта дешевле и не грузит ядро (отличие от /video, где ядро уже рендерит shell) |
