@@ -1,0 +1,9 @@
+{
+  "review-001.md": ["P16", "P19"],
+  "verdict": "return",
+  "scope": "chore",
+  "branch": "chore/p16-p19-infra",
+  "reviewed_commit": "f1b2297",
+  "majors": ["M1 curl -s health false-positive", "M2 gate stderr swallowed / DRY_RUN needs .env", "M3 nginx 0.0.0.0 bind"],
+  "blockers": []
+}
