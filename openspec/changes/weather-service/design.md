@@ -75,7 +75,7 @@ GET https://api.open-meteo.com/v1/forecast
            weather_code,relative_humidity_2m,surface_pressure,
            wind_speed_10m,wind_direction_10m
   &daily=weather_code,temperature_2m_max,temperature_2m_min,
-         precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_max
+         precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant
 ```
 
 - Координаты/город в конфиг и API НЕ выносятся (граница PLAN) —
