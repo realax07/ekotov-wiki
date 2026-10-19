@@ -239,7 +239,7 @@ def test_provider_request_fixed_params(monkeypatch):
     assert set(params["daily"].split(",")) == {
         "weather_code", "temperature_2m_max", "temperature_2m_min",
         "precipitation_probability_max", "wind_speed_10m_max",
-        "wind_direction_10m_max",
+        "wind_direction_10m_dominant",
     }
     assert request.headers["User-Agent"] == "ekotov-wiki-tests-UA/1.0"
 

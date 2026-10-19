@@ -45,7 +45,8 @@ CURRENT_FIELDS = (
 )
 DAILY_FIELDS = (
     "weather_code,temperature_2m_max,temperature_2m_min,"
-    "precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_max"
+    "precipitation_probability_max,wind_speed_10m_max,"
+    "wind_direction_10m_dominant"
 )
 
 # Таймауты и повтор (design §3: суммарный потолок ~11 с).
@@ -58,6 +59,15 @@ HPA_TO_MMHG = 0.750062
 
 # Дефолт User-Agent (env EKOTOV_WEATHER_USER_AGENT переопределяет).
 DEFAULT_USER_AGENT = "ekotov-wiki-weather/1.0 (https://ekotov-wiki)"
+
+# ЭСКАЛАЦИЯ E1 (dev-волна 3, live-проверка на стенде): design §3/спека
+# фиксируют daily-поле «wind_direction_10m_max» — У реального Open-Meteo
+# такого поля НЕТ (проверено живым запросом 2026-10-19: 400 «Cannot
+# initialize ForecastVariableDaily from invalid String value
+# wind_direction_10m_max»); направление максимального/дневного ветра
+# провайдер отдает как wind_direction_10m_dominant. В запрос включено
+# рабочее поле wind_direction_10m_dominant (семантика та же — румб
+# дневного ветра); дельту design/spec на правку термина — ПМ/архитектору.
 
 # Часовой пояс данных — Москва, фиксированный UTC+3 (без перехода на
 # летнее время); zoneinfo не нужен — offset зашит (design §3).
@@ -131,7 +141,7 @@ def normalize(raw: dict) -> dict:
     {fetched_at, today, days[7]} — без ключа stale (его ставит routes:
     он отражает СОСТОЯНИЕ кэша, а не данные провайдера)."""
 
-    def day_fields(code, t_max, t_min, pop, ws_max, wd_max) -> dict:
+    def day_fields(code, t_max, t_min, pop, ws_max, wd) -> dict:
         description, _ = describe(code)
         return {
             "code": None if code is None else int(code),
@@ -140,7 +150,7 @@ def normalize(raw: dict) -> dict:
             "temp_min": _round1(_num(t_min)),
             # Осадки — ВЕРОЯТНОСТЬ (%) из daily (ревью №1 F2).
             "precipitation": None if pop is None else _round1(_num(pop)),
-            "wind": {"dir": rumb(wd_max), "speed": _round1(_num(ws_max))},
+            "wind": {"dir": rumb(wd), "speed": _round1(_num(ws_max))},
         }
 
     current = raw["current"]
@@ -152,7 +162,7 @@ def normalize(raw: dict) -> dict:
         daily["temperature_2m_min"][0],
         daily["precipitation_probability_max"][0],
         daily["wind_speed_10m_max"][0],
-        daily["wind_direction_10m_max"][0],
+        daily["wind_direction_10m_dominant"][0],  # E1: dominant, см. шапку
     )
     # Карточка «Сегодня» — текущая температура/ощущается/влажность/давление
     # из current; max/min и осадки — уже из daily[0] (согласованность с
@@ -172,7 +182,7 @@ def normalize(raw: dict) -> dict:
             daily["temperature_2m_min"][i],
             daily["precipitation_probability_max"][i],
             daily["wind_speed_10m_max"][i],
-            daily["wind_direction_10m_max"][i],
+            daily["wind_direction_10m_dominant"][i],  # E1: dominant
         )
         | {"date": daily["time"][i]}
         for i in range(len(daily["time"]))

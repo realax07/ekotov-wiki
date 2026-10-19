@@ -46,7 +46,7 @@ def provider_raw(payload_id: int = 1) -> dict:
             "temperature_2m_min": [1.0, 2.0, 3.0, 2.0, 0.0, -1.0, -2.0],
             "precipitation_probability_max": [80, 30, 15, 55, 40, 20, 65],
             "wind_speed_10m_max": [5.0, 4.0, 3.0, 6.0, 5.0, 3.0, 4.0],
-            "wind_direction_10m_max": [225, 270, 225, 180, 315, 0, 45],
+            "wind_direction_10m_dominant": [225, 270, 225, 180, 315, 0, 45],
         },
     }
 
