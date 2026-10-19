@@ -1,0 +1,394 @@
+{# Страница «Погода» — change weather-service, tasks.md 3.3 (design §0, §7).
+   Вид — СТРОГО по утвержденному мокапу A (design/p18-weather/variant-a.html,
+   выбор Заказчика 2026-10-19; B/C не реализуются): карточка «сегодня»
+   сверху (крупная температура + описание + «ощущается как», 8 метрик —
+   meta-строка max/min/осадки/ветер/влажность/давление), секция
+   «Прогноз на неделю» — 7 карточек 4-в-ряд (день/ночь, осадки %, ветер),
+   первая — с меткой today-mark.
+   Рендер — ядром (ревью №1 F3): extends base.html, active_page='weather'
+   (активный пункт сайдбара — из base.html, ревью №1 O4), static_v
+   из коробки. Каркас сайдбара НЕ дублируется (второй копии шаблона нет).
+   Данные — fetch('/api/weather') (контракт design §6: fetched_at, stale,
+   today, days[7]; осадки — вероятность % из daily[0], ветер уже м/с).
+   Состояния (design §7): загрузка / данные / устаревшие (баннер с
+   временем обновления + карточки) / ошибка («не удалось получить данные
+   погоды» + «Повторить» — честная ошибка, без заглушек). Деградация
+   метрики (null в API) — прочерк «—», карточка цела.
+   Стили и скрипт — в этом шаблоне (паттерн video.html: app.css не
+   трогается), токены V3 «Бумага» дословно из мокапа A, иконки inline-SVG,
+   внешних библиотек/CDN НЕТ (ОГР-8). Даты/время — из данных API
+   (Europe/Moscow), от таймзоны браузера не зависят (парсинг строки
+   без Date-локализации). #}
+{% extends "base.html" %}
+{% block title %}Погода — ekotov-wiki{% endblock %}
+{% block content %}
+<style>
+/* ===== Токены V3 «Бумага» — снимок мокапа A (design/p18-weather/
+   variant-a.html; дословно) ===== */
+.weather-page {
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;
+  --p-clay-700: #93391f;
+  --p-clay-050: #f7e8e4;
+  --p-red-700: #9c3524;
+  --p-red-050: #f8ecea;
+  --p-amber-700: #8a5a1e;
+  --p-amber-050: #f4ecdf;
+  --p-blue-700: #33608c;
+  --p-blue-050: #eef2f6;
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-bg-subtle: var(--p-paper-100);
+  --color-border-default: var(--p-paper-200);
+  --color-accent: var(--p-clay-600);
+  --color-accent-soft: var(--p-clay-050);
+  --space-05: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --radius-field: 6px;
+  --radius-card: 10px;
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-size-body: 14px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+}
+.weather-page h1 {
+  font-family: var(--font-family-display);
+  font-weight: 400;
+  font-size: 26px;
+  margin: 0 0 var(--space-2);
+}
+.weather-page .page-sub {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+}
+.weather-page .w-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+}
+/* ===== Карточка «Сегодня» (мокап A) ===== */
+.weather-page .today-card { padding: var(--space-3); }
+.weather-page .today-place {
+  display: flex; align-items: baseline; gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+.weather-page .today-city {
+  font-family: var(--font-family-display); font-size: 20px; font-weight: 600;
+}
+.weather-page .today-date {
+  color: var(--color-text-secondary); font-size: var(--font-size-label);
+}
+.weather-page .today-temp-row {
+  display: flex; align-items: center; gap: var(--space-2);
+}
+.weather-page .today-temp {
+  font-family: var(--font-family-display); font-size: 56px; line-height: 1;
+  color: var(--color-text-primary);
+}
+.weather-page .today-icon { color: var(--p-blue-700); display: inline-flex; }
+.weather-page .today-desc-text {
+  margin: 0 0 var(--space-05); font-size: 16px; font-weight: 600;
+}
+.weather-page .today-feels {
+  margin: 0; color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+}
+.weather-page .today-meta {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-1);
+  margin: var(--space-3) 0 0; padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-default);
+}
+.weather-page .meta-item dt {
+  font-size: var(--font-size-micro); color: var(--color-text-secondary);
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+.weather-page .meta-item dd { margin: 2px 0 0; font-size: 15px; font-weight: 600; }
+/* ===== Секция «Прогноз на неделю» — 7 карточек 4-в-ряд (мокап A) ===== */
+.weather-page .w-section-title {
+  font-family: var(--font-family-display); font-weight: 600;
+  font-size: 17px; margin: 0 0 var(--space-2);
+}
+.weather-page .days-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2);
+}
+.weather-page .day-card { padding: var(--space-2); }
+.weather-page .dc-name {
+  margin: 0 0 var(--space-05); font-weight: bold;
+  font-size: var(--font-size-label);
+}
+.weather-page .dc-icon { color: var(--p-blue-700); margin-bottom: var(--space-05); }
+.weather-page .dc-desc {
+  margin: 0 0 var(--space-1); color: var(--color-text-secondary);
+  font-size: var(--font-size-micro); line-height: 1.35;
+}
+.weather-page .dc-temps {
+  margin: 0 0 var(--space-05); display: flex; align-items: baseline;
+  gap: var(--space-1);
+}
+.weather-page .dc-t { font-weight: bold; font-size: 18px; }
+.weather-page .dc-n { color: var(--color-text-secondary); }
+.weather-page .dc-pop {
+  margin: 0 0 var(--space-05); font-size: var(--font-size-micro);
+  color: var(--p-blue-700);
+}
+.weather-page .dc-wind {
+  margin: 0; font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+}
+.weather-page .today-mark {
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-bg-surface);
+}
+.weather-page .today-mark .dc-name { color: var(--p-clay-700); }
+/* ===== Состояния (design §7): загрузка / устаревшие / ошибка ===== */
+.weather-page .state-loading {
+  color: var(--color-text-secondary); padding: var(--space-3) 0;
+}
+.weather-page .state-error {
+  background: var(--p-red-050); border: 1px solid var(--p-red-700);
+  border-radius: var(--radius-card); padding: var(--space-3);
+  color: var(--p-red-700); max-width: 480px;
+}
+.weather-page .state-error p { margin: 0 0 var(--space-2); font-weight: 600; }
+.weather-page .state-error .weather-retry {
+  padding: 8px 16px; background: var(--color-accent); color: #fff;
+  border: none; border-radius: var(--radius-field); cursor: pointer;
+  font: inherit;
+}
+.weather-page .state-error .weather-retry:hover { background: var(--p-clay-700); }
+.weather-page .state-error .weather-retry:focus-visible {
+  outline: none; box-shadow: var(--focus-ring);
+}
+.weather-page .stale-banner {
+  background: var(--p-amber-050); border: 1px solid var(--p-amber-700);
+  border-radius: var(--radius-card); padding: var(--space-1) var(--space-2);
+  color: var(--p-amber-700); margin-bottom: var(--space-2);
+  font-size: var(--font-size-label);
+}
+.weather-page .hidden { display: none; }
+{# 1.1 add-responsive-mobile (паритет сеток галереи): ≤880px — 2 колонки. #}
+@media (max-width: 880px) {
+  .weather-page .days-grid { grid-template-columns: repeat(2, 1fr); }
+  .weather-page .today-meta { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+
+<div class="weather-page">
+  <h1>Погода</h1>
+  <p class="page-sub">Москва · прогноз на 7 дней</p>
+
+  {# Состояние «загрузка» (design §7): индикатор на время fetch. #}
+  <p id="weather-loading" class="state-loading">Загрузка…</p>
+
+  {# Состояние «ошибка» (спец. Requirement «Пустой кэш и недоступный
+     провайдер — честная ошибка UI»): сообщение + «Повторить». #}
+  <div id="weather-error" class="state-error hidden">
+    <p>Не удалось получить данные погоды</p>
+    <button type="button" id="weather-retry" class="weather-retry">Повторить</button>
+  </div>
+
+  {# Состояние «устаревшие» (Requirement «Недоступность провайдера — кэш
+     с флагом устаревания»): баннер «данные устарели» + карточки. #}
+  <div id="weather-stale-banner" class="stale-banner hidden" role="status">
+    Данные устарели · обновлено <span id="weather-stale-time"></span>
+  </div>
+
+  {# Состояние «данные»: карточка «Сегодня» + сетка 7 дней. #}
+  <section id="weather-data" class="hidden" aria-live="polite">
+    <article class="today-card w-card">
+      <div class="today-main">
+        <div class="today-place">
+          <span class="today-city">Москва</span>
+          <span class="today-date" id="weather-today-date"></span>
+        </div>
+        <div class="today-temp-row">
+          <div class="today-temp" id="weather-temp"></div>
+          <div class="today-icon" id="weather-icon"></div>
+          <div class="today-desc">
+            <p class="today-desc-text" id="weather-desc"></p>
+            <p class="today-feels">Ощущается как <strong id="weather-feels"></strong></p>
+          </div>
+        </div>
+      </div>
+      <dl class="today-meta">
+        <div class="meta-item"><dt>Максимум</dt><dd id="weather-tmax"></dd></div>
+        <div class="meta-item"><dt>Минимум</dt><dd id="weather-tmin"></dd></div>
+        <div class="meta-item"><dt>Осадки</dt><dd id="weather-pop"></dd></div>
+        <div class="meta-item"><dt>Ветер</dt><dd id="weather-wind"></dd></div>
+        <div class="meta-item"><dt>Влажность</dt><dd id="weather-humidity"></dd></div>
+        <div class="meta-item"><dt>Давление</dt><dd id="weather-pressure"></dd></div>
+      </dl>
+    </article>
+    <h2 class="w-section-title" style="margin-top:var(--space-3)">Прогноз на неделю</h2>
+    <div class="days-grid" id="weather-days"></div>
+  </section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var el = function (id) { return document.getElementById(id); };
+  var loading = el('weather-loading');
+  var errorBox = el('weather-error');
+  var staleBanner = el('weather-stale-banner');
+  var dataBox = el('weather-data');
+
+  /* WMO code → ключ иконки (карта фронта; описание приходит из API).
+     Ключи — {sun, sun-cloud, cloud, fog, rain, snow, storm}. */
+  function iconKey(code) {
+    if (code === null || code === undefined) return 'cloud';
+    if (code === 0) return 'sun';
+    if (code === 1 || code === 2) return 'sun-cloud';
+    if (code === 3) return 'cloud';
+    if (code === 45 || code === 48) return 'fog';
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
+    if (code >= 95) return 'storm';
+    return 'cloud';
+  }
+
+  /* Inline-SVG иконки — в едином стиле мокапа A (stroke currentColor). */
+  var ICONS = {
+    'sun': '<svg width="64" height="64" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.2v1.8M12 19v1.8M20.8 12H19M5 12H3.2M18.4 5.6l-1.3 1.3M6.9 17.1l-1.3 1.3M18.4 18.4l-1.3-1.3M6.9 6.9L5.6 5.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    'sun-cloud': '<svg width="64" height="64" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 3v1.6M3 9h1.6M4.9 4.9l1.1 1.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M11 19.5h6.4a3 3 0 0 0 .6-5.95 4.2 4.2 0 0 0-8.1-.95A3.4 3.4 0 0 0 11 19.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+    'cloud': '<svg width="64" height="64" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 18h9.2a3.4 3.4 0 0 0 .7-6.7 4.8 4.8 0 0 0-9.3-1.1A3.9 3.9 0 0 0 7.5 18z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+    'fog': '<svg width="64" height="64" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 13h9.2a3.4 3.4 0 0 0 .7-6.7 4.8 4.8 0 0 0-9.3-1.1A3.9 3.9 0 0 0 7.5 13z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M4 16.5h16M6 19.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    'rain': '<svg width="64" height="64" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 14h9.2a3.4 3.4 0 0 0 .7-6.7 4.8 4.8 0 0 0-9.3-1.1A3.9 3.9 0 0 0 7.5 14z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 17l-1 2.4M12 17l-1 2.4M16 17l-1 2.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    'snow': '<svg width="64" height="64" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 14h9.2a3.4 3.4 0 0 0 .7-6.7 4.8 4.8 0 0 0-9.3-1.1A3.9 3.9 0 0 0 7.5 14z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 17.2l-.9 2.2M12 17.2l-.9 2.2M16 17.2l-.9 2.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    'storm': '<svg width="64" height="64" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 13h9.2a3.4 3.4 0 0 0 .7-6.7 4.8 4.8 0 0 0-9.3-1.1A3.9 3.9 0 0 0 7.5 13z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12.5 14.5l-2.5 4h3l-2 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  };
+
+  /* Деградация метрики (design §7): null → прочерк «—», карточка целa. */
+  function temp(value) {
+    if (value === null || value === undefined) return '—';
+    var rounded = Math.round(value);
+    return (rounded > 0 ? '+' : '') + rounded + '°';
+  }
+  function orDash(value) {
+    return (value === null || value === undefined) ? '—' : String(value);
+  }
+  function wind(windValue) {
+    if (!windValue || windValue.dir === null || windValue.speed === null) return '—';
+    return windValue.dir + ', ' + Math.round(windValue.speed) + ' м/с';
+  }
+  function pressure(value) {
+    return (value === null || value === undefined) ? '—' : value + ' мм рт. ст.';
+  }
+  function precip(value) {
+    return (value === null || value === undefined) ? '—' : value + '\u2009%';
+  }
+
+  /* Даты — Moscow-local строки из API; парсим БЕЗ new Date(строка) и
+     без toLocaleString — от таймзоны браузера не зависим (Scenario
+     «Локальное время Москвы в данных»). */
+  var WEEKDAYS_SHORT = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+  var WEEKDAYS_FULL = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+  var MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+  function parseIsoDate(dateStr) {
+    var parts = dateStr.split('-');
+    return new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2]));
+  }
+  function dayCard(dateStr) {
+    var d = parseIsoDate(dateStr);
+    return WEEKDAYS_SHORT[d.getUTCDay()] + ', ' + d.getUTCDate() + '.' + String(d.getUTCMonth() + 1).padStart(2, '0');
+  }
+  function todayLine(dateStr) {
+    var d = parseIsoDate(dateStr);
+    return 'Сегодня, ' + WEEKDAYS_FULL[d.getUTCDay()] + ', ' + d.getUTCDate() + ' ' + MONTHS_GEN[d.getUTCMonth()];
+  }
+  /* fetched_at — ISO с +03:00: показываем московское время как есть. */
+  function mskTime(fetchedAt) {
+    return fetchedAt.slice(8, 10) + '.' + fetchedAt.slice(5, 7) + '.' + fetchedAt.slice(0, 4) +
+      ', ' + fetchedAt.slice(11, 16) + ' МСК';
+  }
+
+  function setState(state) {
+    loading.classList.toggle('hidden', state !== 'loading');
+    errorBox.classList.toggle('hidden', state !== 'error');
+    dataBox.classList.toggle('hidden', state !== 'data');
+    if (state !== 'data') staleBanner.classList.add('hidden');
+  }
+
+  function renderDay(day, isToday) {
+    var card = document.createElement('article');
+    card.className = 'day-card w-card' + (isToday ? ' today-mark' : '');
+    card.innerHTML =
+      '<p class="dc-name"></p>' +
+      '<div class="dc-icon">' + ICONS[iconKey(day.code)].replace('width="64" height="64"', 'width="28" height="28"') + '</div>' +
+      '<p class="dc-desc"></p>' +
+      '<p class="dc-temps"><span class="dc-t"></span><span class="dc-n"></span></p>' +
+      '<p class="dc-pop"></p>' +
+      '<p class="dc-wind"></p>';
+    card.querySelector('.dc-name').textContent = dayCard(day.date);
+    card.querySelector('.dc-desc').textContent = orDash(day.description);
+    card.querySelector('.dc-t').textContent = temp(day.temp_max);
+    card.querySelector('.dc-n').textContent = temp(day.temp_min);
+    card.querySelector('.dc-pop').textContent = 'Осадки: ' + orDash(day.precipitation) + '%';
+    card.querySelector('.dc-wind').textContent = wind(day.wind);
+    return card;
+  }
+
+  function render(data) {
+    var today = data.today;
+    el('weather-today-date').textContent = todayLine(data.days[0].date);
+    el('weather-temp').textContent = temp(today.temperature);
+    el('weather-icon').innerHTML = ICONS[iconKey(today.code)];
+    el('weather-desc').textContent = orDash(today.description);
+    el('weather-feels').textContent = temp(today.apparent);
+    el('weather-tmax').textContent = temp(today.temp_max);
+    el('weather-tmin').textContent = temp(today.temp_min);
+    el('weather-pop').textContent = precip(today.precipitation);
+    el('weather-wind').textContent = wind(today.wind);
+    el('weather-humidity').textContent =
+      today.humidity === null || today.humidity === undefined ? '—' : Math.round(today.humidity) + '\u2009%';
+    el('weather-pressure').textContent = pressure(today.pressure_mmhg);
+
+    var grid = el('weather-days');
+    grid.innerHTML = '';
+    data.days.forEach(function (day, index) {
+      grid.appendChild(renderDay(day, index === 0));
+    });
+
+    staleBanner.classList.toggle('hidden', !data.stale);
+    if (data.stale) {
+      el('weather-stale-time').textContent = mskTime(data.fetched_at);
+    }
+    setState('data');
+  }
+
+  function load() {
+    setState('loading');
+    fetch('/api/weather', { headers: { 'Accept': 'application/json' } })
+      .then(function (response) {
+        if (response.status === 401) {
+          /* Сессия истекла — штатный редирект на вход (паритет ядра). */
+          window.location.href = '/login';
+          return null;
+        }
+        if (!response.ok) { throw new Error('weather ' + response.status); }
+        return response.json();
+      })
+      .then(function (data) { if (data) render(data); })
+      .catch(function () { setState('error'); });
+  }
+
+  el('weather-retry').addEventListener('click', load);
+  load();
+})();
+</script>
+{% endblock %}

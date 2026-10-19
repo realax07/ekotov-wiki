@@ -187,3 +187,30 @@ def video_page(request: Request):
     return templates.TemplateResponse(
         request=request, name="video.html", context={"active_page": "video"}
     )
+
+
+@router.get("/weather")
+def weather_page(request: Request):
+    """Страница «Погода» (change weather-service, tasks.md 3.3; дельта
+    specs/weather-service — Requirements «Раздел «Погода» в сайдбаре и
+    страница сервиса», «Карточка «Сегодня» с 8 метриками», «Прогноз на
+    7 дней», «Вид интерфейса по утвержденному мокапу A»): карточка
+    «Сегодня» (8 метрик), сетка 7 дней (день/ночь, осадки %, ветер) —
+    вид СТРОГО по утвержденному мокапу A (design/p18-weather/
+    variant-a.html; B/C не реализуются). Рендер — ядром (ревью №1 F3:
+    nginx-локации для страницы НЕТ, паритет /video); каркас сайдбара
+    наследуется от base.html (active_page='weather' — активный пункт
+    из base.html, ревью №1 O4), статика через static_v из коробки.
+    Данные — fetch('/api/weather') сервиса weather (design §6) из
+    inline-скрипта этого шаблона (стили и JS — в шаблоне, паттерн
+    video.html: pages.py/base.html не трогаются сверх сайдбара; БЕЗ
+    CDN/внешних библиотек — ОГР-8). Состояния UI (design §7): загрузка
+    (индикатор), данные (карточки), устаревшие (баннер + карточки),
+    ошибка (честное сообщение + «Повторить»). Деградация метрики —
+    прочерк «—» (null в API). Без сессии — редирект на /login
+    middleware'ом (sdd.md §3.6, дельта specs/weather-service,
+    Scenario «Неавторизованный — редирект на login») — здесь не
+    дублируется, как у остальных страниц."""
+    return templates.TemplateResponse(
+        request=request, name="weather.html", context={"active_page": "weather"}
+    )
