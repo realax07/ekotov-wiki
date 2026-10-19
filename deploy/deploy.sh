@@ -12,6 +12,9 @@
 #   sudo RELEASE_TAG=<метка> bash deploy/deploy.sh
 # Dry-run (ничего не меняет — ОБЯЗАТЕЛЕН до первой боевой выкатки):
 #   DRY_RUN=1 RELEASE_TAG=<метка> bash deploy/deploy.sh
+#   ВАЖНО: гейту compose config нужен deploy/.env (SECRET_KEY и пр.) — compose
+#   рендерит env из него даже в dry-run; без .env dry-run упадет на гейте
+#   (stderr compose попадет в сообщение об ошибке — причину видно сразу).
 # Тестовый стенд (тот же скрипт, другой compose-файл/порт):
 #   DRY_RUN=1 COMPOSE_FILE=deploy/compose.test.yaml PROJECT=wiki-test \
 #   SMOKE_URL=https://127.0.0.1:8443 RELEASE_TAG=<метка> bash deploy/deploy.sh
@@ -348,9 +351,15 @@ case " ${SERVICES} " in *" weather "*) WAVE2="${WAVE2} weather" ;; esac
 # РЕЛИЗНОГО ТЕГА (frontend матчится на compose-сервис nginx). :local/:test —
 # дефолты compose-файла, означающие «env до compose не дошел» — провал.
 _matrix_compose_config() {
-  local svc compose_svc expected actual_json
+  local svc compose_svc expected actual_json stderr_file
+  # M2 (review-001): stderr compose НЕ глотаем — реальная причина (нет
+  # deploy/.env с SECRET_KEY, битый compose-файл) попадает в fail, а не теряется.
+  stderr_file="$(mktemp)" || fail "mktemp недоступен — гейт compose config не выполнить"
   actual_json="$(env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" VIDEO_IMAGE="${VIDEO_IMAGE:-ekotov-wiki/video:${RELEASE_TAG}}" \
-    ${COMPOSE} config --format json 2>/dev/null)" || fail "docker compose config не отрезолвился — проверь ${COMPOSE_FILE}"
+    ${COMPOSE} config --format json 2>"${stderr_file}")" \
+    || fail "docker compose config не отрезолвился (compose-файл: ${COMPOSE_FILE}) — stderr compose:
+$(cat "${stderr_file}")"
+  rm -f "${stderr_file}"
   for svc in ${SERVICES}; do
     case "${svc}" in frontend) compose_svc="nginx" ;; *) compose_svc="${svc}" ;; esac
     expected="$(image_for "${svc}")"

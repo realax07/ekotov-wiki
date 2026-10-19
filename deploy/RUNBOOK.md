@@ -145,6 +145,8 @@ MIGRATE_MODULE=app.migrate_rN при миграционных релизах). s
 
 ```bash
 sudo -E DRY_RUN=1 RELEASE_TAG=<метка> bash deploy/deploy.sh   # ОБЯЗАТЕЛЬНЫЙ первый прогон
+# (dry-run требует deploy/.env с SECRET_KEY — гейт compose config рендерит env
+# из него; без .env упадет на гейте, stderr compose будет в сообщении)
 sudo -E RELEASE_TAG=<метка> bash deploy/deploy.sh             # боевой
 # миграционный релиз: + MIGRATE_MODULE=app.migrate_rN
 # видео-релиз: app.migrate_wiki (по команде) + app.migrate_video ОТДЕЛЬНО

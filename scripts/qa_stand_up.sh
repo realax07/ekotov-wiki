@@ -65,16 +65,26 @@ EOF
 }
 
 stop_all() {
-  local f p
+  local f p want
+  # m4 (review-001): pid-файл удаляем ПОСЛЕ kill (иначе stale-файл переживает
+  # stop и повторный stop/up стреляет kill по переиспользованному pid); kill
+  # только СВОЕМУ процессу — /proc/$p/cmdline сверяем с ожидаемым портом
+  # (uvicorn) / nginx-конфом (nginx).
   for f in app search images video weather; do
-    if [ -f "${STAND_DIR}/${f}.pid" ]; then
-      p="$(cat "${STAND_DIR}/${f}.pid" 2>/dev/null || true)"
-      [ -n "${p}" ] && kill "${p}" 2>/dev/null || true
+    [ -f "${STAND_DIR}/${f}.pid" ] || continue
+    p="$(cat "${STAND_DIR}/${f}.pid" 2>/dev/null || true)"
+    want="$(services_spec | awk -v n="${f}" '$1==n{print $2}')"
+    if [ -n "${p}" ] && tr '\0' ' ' < "/proc/${p}/cmdline" 2>/dev/null | grep -q -- "--port ${want}"; then
+      kill "${p}" 2>/dev/null || true
     fi
+    rm -f "${STAND_DIR}/${f}.pid"
   done
   if [ -f "${STAND_DIR}/nginx.pid" ]; then
     p="$(cat "${STAND_DIR}/nginx.pid" 2>/dev/null || true)"
-    [ -n "${p}" ] && kill "${p}" 2>/dev/null || true
+    if [ -n "${p}" ] && tr '\0' ' ' < "/proc/${p}/cmdline" 2>/dev/null | grep -q "nginx.*${STAND_DIR}/nginx.conf"; then
+      kill "${p}" 2>/dev/null || true
+    fi
+    rm -f "${STAND_DIR}/nginx.pid"
   fi
   sleep 2
   # Добить осиротевшие процессы портов контура (анкер $: cmdline кончается
@@ -90,14 +100,17 @@ stop_all() {
 render_nginx_conf() {
   [ -f "${REPO}/${QA_STAND_CONF}" ] || fail "Нет шаблона ${REPO}/${QA_STAND_CONF}"
   command -v nginx >/dev/null || fail "Нет nginx в PATH"
+  # m5 (review-001): & и | в значении экранируем — sed-делемитер | не должен
+  # порезать/сломать подстановку путей REPO/STAND_DIR с спецсимволами.
+  sed_escape() { printf '%s' "${1}" | sed -e 's/[&|\\]/\\&/g'; }
   sed -e "s|@APP_PORT@|${APP_PORT}|g" \
       -e "s|@SEARCH_PORT@|${SEARCH_PORT}|g" \
       -e "s|@IMAGES_PORT@|${IMAGES_PORT}|g" \
       -e "s|@VIDEO_PORT@|${VIDEO_PORT}|g" \
       -e "s|@WEATHER_PORT@|${WEATHER_PORT}|g" \
       -e "s|@NGINX_PORT@|${NGINX_PORT}|g" \
-      -e "s|@STAND_DIR@|${STAND_DIR}|g" \
-      -e "s|@REPO@|${REPO}|g" \
+      -e "s|@STAND_DIR@|$(sed_escape "${STAND_DIR}")|g" \
+      -e "s|@REPO@|$(sed_escape "${REPO}")|g" \
       "${REPO}/${QA_STAND_CONF}" > "${STAND_DIR}/nginx.conf"
   nginx -t -c "${STAND_DIR}/nginx.conf" >/dev/null 2>&1 || {
     nginx -t -c "${STAND_DIR}/nginx.conf"; fail "Рендер nginx-конфа не прошел nginx -t"; }
@@ -142,9 +155,12 @@ start_all() {
 }
 
 wait_health() { # $1=url $2=секунды-бюджет
-  local i
+  local i code
   for i in $(seq 1 "${2:-15}"); do
-    curl -s -m 3 -o /dev/null "${1}" && return 0
+    # M1 (review-001): -f + сверка кода 200 — ЛЮБОЙ HTTP-ответ здоровьем не
+    # считается (чужой/стейл nginx с мертвыми бэкендами отвечает 502 — это FAIL).
+    code="$(curl -sf -m 3 -o /dev/null -w '%{http_code}' "${1}" 2>/dev/null || true)"
+    [ "${code}" = "200" ] && return 0
     sleep 1
   done
   return 1
@@ -185,9 +201,9 @@ print(seed_user('owner', 'Product manager', 'QaOwner_Pass_1!'))
 print(seed_user('wife', 'Product engineer', 'QaWife_Pass_2!'))
 " && \
     DB_PATH="${STAND_DIR}/app.db" SECRET_KEY="${SECRET_KEY}" "${PY}" -m app.migrate_r4 && \
-    DB_PATH="${STAND_DIR}/app.db" "${PY}" -c "
-import sqlite3
-conn = sqlite3.connect('${STAND_DIR}/app.db')
+    DB_PATH="${STAND_DIR}/app.db" STAND_DIR="${STAND_DIR}" "${PY}" -c "
+import os, sqlite3
+conn = sqlite3.connect(os.path.join(os.environ['STAND_DIR'], 'app.db'))
 conn.executemany('INSERT INTO image_categories (name) VALUES (?)', [('Дом',), ('Работа',), ('Личное',)])
 conn.commit(); conn.close()
 print('categories seeded')
