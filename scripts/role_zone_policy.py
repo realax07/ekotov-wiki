@@ -23,11 +23,15 @@ from __future__ import annotations
 
 import session_check as sc
 
+# Digest вычисляется sha256 по таблице «Зона записи (только она)»
+# agents/README.md (строка-заголовок «| Агент | Режим | …» до последней
+# строки-ряда включительно, join "\n", без завершающего перевода строки,
+# UTF-8) в указанном коммите.
 POLICY_TABLE_DIGEST = (
-    "agents/README.md@85bba56:таблица-записи (роль→зона), sha256 "
-    "19e6c41e607b0a2a37b62af8e6ef0f40843e899ff93a39850e6422bf2e13fcda"
+    "agents/README.md@8d5db6d:таблица-записи (роль→зона), sha256 "
+    "8cf9cababb28c8b82b6ae931d482c55c9906a89ef8f9fa3491fbe0e4da6e3b3c"
 )
-POLICY_TABLE_DATE = "2026-10-02"
+POLICY_TABLE_DATE = "2026-10-17"
 POLICY_VERSION = f"{POLICY_TABLE_DIGEST}; дата: {POLICY_TABLE_DATE}"
 POLICY_SOURCE = "agents/README.md"
 
@@ -43,33 +47,34 @@ ROLE_ZONE_POLICY: dict[str, tuple[str, ...]] = {
     ),
     "sa": (
         "openspec/changes/*/proposal.md",
-        # решение Заказчика 2026-10-05 (дословно: «Расширяем (обе репы учти)»):
-        # requirements.md/research.md — выходы роли SA (sa_agent.md), зона ранее
-        # давала честный OUT_OF_ZONE (эскалация E1, REPORT-0.1 add-netdata-monitoring)
+        # решение Заказчика 2026-10-05 (ekotov-wiki, дословно: «Расширяем (обе
+        # репы учти)»): requirements.md/research.md — выходы роли SA
+        # (sa_agent.md); прецедент OUT_OF_ZONE — R7 add-netdata-monitoring E1
         "openspec/changes/*/requirements.md",
         "openspec/changes/*/research.md",
         "openspec/changes/*/specs/**",
         "openspec/changes/*/design.md",
         "openspec/changes/*/tasks.md",
         "sdd.md",
-        # проектная адаптация (wiki): контракты продукта + генерирующие скрипты
-        "contracts/**",
-        "scripts/export_openapi*.py",
     ),
     "dev": (
         "openspec/changes/*/tasks.md",
-        # проектная адаптация (wiki): реальная структура монорепо
+        # проектная адаптация (wiki, из ekotov-wiki@8cdd0af/462e017 — эталон
+        # синхронизирован оттуда, директива двусторонней синхронизации
+        # 2026-10-03): реальная структура монорепо + инфра-зона
         "backend/**",
         "frontend/**",
         "e2e/**",
         "services/**",
-        "tests/**",
         "scripts/**",
+        "contracts/**",
         # решение Заказчика 2026-10-04 (диалог, дословно: «Расширить зону
         # dev на deploy/**»): инфра-задачи микросервисного релиза (deploy.sh
         # v3 и последующие) исполняет роль dev — devops не входит в dev_task
         # графа Флоу 1 (WRONG_ROLE), а devops-зона не покрывает код задачи.
         "deploy/**",
+        "src/**",
+        "tests/**",
         "test-model/bugs/*",
         "feature/*",
     ),
@@ -97,6 +102,13 @@ ROLE_ZONE_POLICY: dict[str, tuple[str, ...]] = {
     ),
     "qa_regression_analyst": (
         "test-model/regression/manifest.md",
+    ),
+    # J51.4 (review-003 #2): роль regress_runner — таблица agents/README.md,
+    # дословно: «только `test-model/regress/<change-id>/`» (артефакты самих
+    # прогонов пишет flowctl regress; glob-заголовок <change-id> → '*',
+    # содержимое каталога — '/*/**', по образцу зоны qa_author).
+    "regress_runner": (
+        "test-model/regress/*/**",
     ),
     "architect": (
         "architecture/**",

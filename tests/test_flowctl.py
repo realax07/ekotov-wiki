@@ -100,7 +100,7 @@ def make_repo(tmp_path: Path, *, change_id: str = "add-widget",
     write(repo, "PLAN-add-widget.md",
           "# PLAN-add-widget\n\n**Флоу: 1** (fixture)\n")
     # Проектная адаптация путей (wiki): зона dev здесь — tests/**, а не
-    # фабричная src/** (role_zone_policy: agents/README.md@85bba56).
+    # фабричная src/** (role_zone_policy: agents/README.md@8d5db6d).
     write(repo, "tests/widget.py", "X = 1\n")
     commit_all(repo)
     return repo
