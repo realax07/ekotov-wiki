@@ -17,13 +17,26 @@ import sys
 
 import pytest
 
+# Плагин pytest-base-url тянет conftest-овский base_url (поллинг живого
+# стенда) — санитайзеру стенд не нужен: перекрываем no-op'ом
+# (паттерн test_wiki_api.py / test_comments_author_r8.py).
+@pytest.fixture(scope="session", autouse=True)
+def _verify_url():
+    yield
+
 # backend/app в sys.path (из корня репозитория — тесты api живут там;
 # env-заглушки не нужны: app.sanitize ничего из конфига не читает).
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "backend")
 )
 
-from app.sanitize import sanitize_html  # noqa: E402
+from app.sanitize import (  # noqa: E402
+    DATA_BLOCK_VALUES,
+    DATA_BLOCK_PART_VALUES,
+    DATA_LANG_VALUES,
+    MAX_BLOCK_DEPTH,
+    sanitize_html,
+)
 
 
 # --------------------------------------------------------------------------
@@ -218,3 +231,213 @@ def test_img_width_negative_and_injection_stripped():
 def test_empty_and_none_like_input():
     """TC-san-016: пустая строка — пустой выход."""
     assert sanitize_html("") == ""
+
+
+# --------------------------------------------------------------------------
+# P12 rich-блоки (design.md §1–§2, tasks.md 1.2; словарь — §1)
+# --------------------------------------------------------------------------
+
+
+SPOILER_HTML = (
+    '<div data-block="spoiler" data-title="Скрытые детали">'
+    '<div data-block-part="body"><p>тело спойлера</p></div></div>'
+)
+CODE_HTML = (
+    '<div data-block="code" data-lang="python">'
+    "<pre><code>def f():\n    return 1 &lt; 2</code></pre></div>"
+)
+TABS_HTML = (
+    '<div data-block="tabs">'
+    '<div data-block-part="tab" data-title="Обзор"><p>первая</p></div>'
+    '<div data-block-part="tab" data-title="Детали"><p>вторая</p></div>'
+    "</div>"
+)
+
+
+@pytest.mark.parametrize("fragment", [SPOILER_HTML, CODE_HTML, TABS_HTML])
+def test_rich_valid_blocks_pass_byte_identical(fragment):
+    """TC-san-019: валидные блоки (спойлер, код, табы) проходят санитайзер
+    байт-в-байт (design.md §1–§2)."""
+    assert sanitize_html(fragment) == fragment
+
+
+def test_rich_invalid_data_block_value_stripped():
+    """TC-san-020: data-block вне словаря — атрибут снят, блок деградирует
+    в контент, текст сохранен (NFR-39, сценарий «Подмена значений»)."""
+    out = sanitize_html('<div data-block="evil" data-lang="javascript">текст</div>')
+    assert "data-block" not in out and "data-lang" not in out
+    assert out == "<div>текст</div>"
+
+
+def test_rich_invalid_data_part_and_lang_stripped():
+    """TC-san-021: data-block-part/data-lang вне словаря — атрибуты сняты,
+    остальное проходит."""
+    out = sanitize_html('<div data-block-part="evil" data-lang="cobol">x</div>')
+    assert out == "<div>x</div>"
+    # валидные значения при этом живут
+    ok = sanitize_html('<div data-block="code" data-lang="sql"><pre><code>1</code></pre></div>')
+    assert 'data-block="code"' in ok and 'data-lang="sql"' in ok
+
+
+def test_rich_depth_limit_six_unwrapped():
+    """TC-san-022: 6 вложенных спойлеров — первые 5 остаются блоками,
+    шестой разворачивается: содержимое сохранено, виджета нет (NFR-39)."""
+    inner = '<div data-block="spoiler"><div data-block-part="body">глубина</div></div>'
+    src = '<div data-block="spoiler"><div data-block-part="body">' * 5 + inner + "</div></div>" * 5
+    out = sanitize_html(src)
+    assert out.count('data-block="spoiler"') == 5
+    assert "глубина" in out
+    # идемпотентность: повторный прогон не меняет
+    assert sanitize_html(out) == out
+
+
+def test_rich_depth_five_passes():
+    """TC-san-023: ровно 5 уровней — лимит соблюден, все блоки на месте."""
+    inner = '<div data-block="spoiler"><div data-block-part="body">дно</div></div>'
+    src = '<div data-block="spoiler"><div data-block-part="body">' * 4 + inner + "</div></div>" * 4
+    out = sanitize_html(src)
+    assert out.count('data-block="spoiler"') == 5
+    assert "дно" in out
+
+
+def test_rich_script_inside_spoiler_removed_with_content():
+    """TC-san-024: script внутри спойлера вырезается С СОДЕРЖИМЫМ; onclick
+    на шапке снимается; спойлер остается (NFR-39/NFR-31)."""
+    src = (
+        '<div data-block="spoiler" data-title="T" onclick="evil()">'
+        '<div data-block-part="body"><script>alert(1)</script><p>ok</p>'
+        '<img src="/i.png" onerror="x()"></div></div>'
+    )
+    out = sanitize_html(src)
+    assert "script" not in out and "alert" not in out
+    assert "onclick" not in out and "onerror" not in out and "evil" not in out
+    assert '<div data-block="spoiler" data-title="T">' in out and "<p>ok</p>" in out
+
+
+def test_rich_javascript_link_inside_block_cut():
+    """TC-san-025: URL-фильтр работает внутри блоков (javascript:-ссылка
+    в теле спойлера — атрибут вырезан)."""
+    src = (
+        '<div data-block="spoiler"><div data-block-part="body">'
+        '<a href="javascript:alert(1)">тыкни</a></div></div>'
+    )
+    out = sanitize_html(src)
+    assert "javascript" not in out and "alert" not in out
+    assert "тыкни" in out
+
+
+def test_rich_table_in_table_unwrapped_text_kept():
+    """TC-san-026: таблица в ячейке разворачивается целиком — структурные
+    теги вложенной таблицы не эмитятся, текст ячеек сохранен, ячейки
+    разделены <br> (design.md §2, находка F3, paste-путь)."""
+    src = (
+        "<table><tbody><tr><td>внешняя"
+        "<table><tbody><tr><td>a</td><td>b</td></tr>"
+        "<tr><td>c</td></tr></tbody></table>"
+        "</td><td>y</td></tr></tbody></table>"
+    )
+    out = sanitize_html(src)
+    assert out == "<table><tbody><tr><td>внешняя<br>a<br>b<br>c</td><td>y</td></tr></tbody></table>"
+    # идемпотентность
+    assert sanitize_html(out) == out
+
+
+def test_rich_table_in_table_keeps_only_one_table():
+    """TC-san-027: вложенных table-тегов в выходе нет вовсе."""
+    src = "<table><tr><td><table><tr><td>x</td></tr></table></td></tr></table>"
+    out = sanitize_html(src)
+    assert out.count("<table>") == 1 and out.count("x") == 1
+
+
+def test_rich_spoiler_in_cell_survives():
+    """TC-san-028: спойлер в ячейке таблицы (разрешено матрицей §6) —
+    проходит целиком."""
+    src = (
+        "<table><tbody><tr><td>"
+        '<div data-block="spoiler" data-title="Список">'
+        '<div data-block-part="body">текст</div></div>'
+        "</td></tr></tbody></table>"
+    )
+    assert sanitize_html(src) == src
+
+
+def test_rich_tags_inside_code_block_unwrapped():
+    """TC-san-029: внутри код-блока разрешены только pre/code и текст —
+    прочие теги разворачиваются, текст сохранен (design.md §2)."""
+    src = (
+        '<div data-block="code" data-lang="plain"><pre><code>'
+        "<b>жирный</b><span>спан</span>простой</code></pre></div>"
+    )
+    out = sanitize_html(src)
+    assert "<b>" not in out and "<span>" not in out
+    assert "жирныйспанпростой" in out
+    assert '<div data-block="code" data-lang="plain"><pre><code>' in out
+
+
+def test_rich_block_inside_code_block_unwrapped():
+    """TC-san-030: любой блок внутри код-блока невозможен (матрица §6):
+    div[data-block] внутри кода разворачивается, текст остается."""
+    src = (
+        '<div data-block="code" data-lang="plain"><pre><code>'
+        '<div data-block="spoiler"><div data-block-part="body">x</div></div>'
+        "</code></pre></div>"
+    )
+    out = sanitize_html(src)
+    assert out == (
+        '<div data-block="code" data-lang="plain"><pre><code>x</code></pre></div>'
+    )
+
+
+def test_rich_data_title_escaped():
+    """TC-san-031: data-title с разметкой/кавычками экранируется при эмите
+    (design.md §1: «произвольный текст, экранируется»)."""
+    src = '<div data-block="spoiler" data-title="a&quot;b <i>c</i>"><div data-block-part="body">t</div></div>'
+    out = sanitize_html(src)
+    assert "<i>" not in out and 'data-title="a&quot;b &lt;i&gt;c&lt;/i&gt;"' in out
+
+
+def test_rich_page_without_blocks_byte_identical():
+    """TC-san-032: страница без блоков проходит байт-в-байт (design.md §2).
+    Фикстура — уже-санитизированный документ из разметки тулбара
+    (свойство идемпотентности санитайзера; O3 ревью №1: рукописный HTML
+    «старого контента» не есть сохраненная страница)."""
+    doc = (
+        "<h1>Регламент</h1><p>Тесто <b>плотное</b>.</p>"
+        "<ul><li>мука</li></ul>"
+        "<blockquote>Совет</blockquote>"
+        "<pre><code>mix(a)</code></pre>"
+        '<p><a href="https://example.com" title="источник">Ссылка</a> и '
+        '<img src="/images/3" alt="фото" width="480"></p>'
+        '<table><thead><tr><th colspan="2">Шапка</th></tr></thead>'
+        "<tbody><tr><td>Мука</td><td>1 кг</td></tr></tbody></table>"
+        "<div>блок</div><span>фрагмент</span>"
+    )
+    assert sanitize_html(doc) == doc
+
+
+def test_rich_dictionary_matches_js_model():
+    """TC-san-033: словарь sanitize.py согласован с frontend/static/js/wiki/
+    rich/model.js (design.md §1 — «константа продублирована в JS-модулях
+    с тестом согласования»)."""
+    import re
+
+    model_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..", "..", "frontend", "static", "js", "wiki", "rich", "model.js",
+    )
+    with open(model_path, encoding="utf-8") as fh:
+        source = fh.read()
+
+    def js_strings(array_name: str) -> set[str]:
+        match = re.search(
+            r"var " + array_name + r"\s*=\s*\[([^;\]]*)\]", source
+        )
+        assert match, f"массив {array_name} не найден в model.js"
+        return set(re.findall(r"'([^']+)'", match.group(1)))
+
+    assert js_strings("BLOCK_VALUES") == set(DATA_BLOCK_VALUES)
+    assert js_strings("BLOCK_PART_VALUES") == set(DATA_BLOCK_PART_VALUES)
+    assert js_strings("LANG_VALUES") == set(DATA_LANG_VALUES)
+    # лимиты глубины и вкладок — те же числа
+    assert f"var MAX_BLOCK_DEPTH = {MAX_BLOCK_DEPTH};" in source
+    assert re.search(r"var TAB_LIMIT\s*=\s*8;", source)

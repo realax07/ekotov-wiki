@@ -41,7 +41,11 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # rename), J (masonry) — вся кешируемая статика доски/поиска/галереи/профиля
 # обновлена; favicon меняет URL через бамп маркера в base.html+login.html
 # (data:URI не принимает ?v= — проверено в Chromium, BUG-010/design §3).
-templates.env.globals["static_v"] = "weather-1"
+# p12-rich-dev1 — промежуточный бамп dev-волн 3–5 p12-rich-tools (impact.md
+# §Статика, урок R7 video-1.1): КАЖДЫЙ dev-PR, трогающий frontend/static/**,
+# несет идемпотентный бамп (гейт IR-03 считает дифф накопительно main...HEAD).
+# Волна 6.3 — финальный бамп маркером `p12-rich-1` (PM, вне этого диффа).
+templates.env.globals["static_v"] = "p12-rich-dev1"
 
 
 @router.get("/login")
