@@ -1688,3 +1688,128 @@
     }
   }
 }
+
+/* =====================================================================
+ * P23 «Фастлайн» (openspec/changes/p23-fastline; мокапы v2-*.png,
+ * вариант A). Зона НАД канбаном: подложка --p-blue-050, рамка
+ * --p-blue-200, серифная шапка FASTLINE без счетчика (ОВ-2); 3
+ * столбца-этапа (.fastline-column — свой класс и data-fastline-stage,
+ * селекторы канбана [data-status] не задеты). Токены app.css, без
+ * внешних зависимостей (ОГР-8).
+ * ===================================================================== */
+.fastline {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-card);
+}
+.fastline-a {
+  background: var(--p-blue-050);
+  border: 1px solid var(--p-blue-200);
+}
+.fastline-head {
+  display: flex; align-items: baseline; gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+}
+.fastline-title {
+  margin: 0;
+  font-family: var(--font-family-display);
+  font-size: 18px; font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--p-blue-700);
+}
+.fastline-note {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  margin-left: auto;
+}
+.fastline-board { display: flex; gap: var(--space-2); align-items: flex-start; }
+
+/* Столбцы зоны — поверхность карточки (контраст с подложкой v2-мокапа). */
+.fastline-column {
+  flex: 1; min-width: 220px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--p-blue-200);
+  border-radius: var(--radius-card);
+  padding: var(--space-1) 12px;
+  box-shadow: var(--shadow-soft);
+}
+.fastline-column-done { background: var(--color-bg-subtle); }
+
+/* Пустые столбцы зоны БЕЗ подсказок (ОВ-3, v2-empty): ни пунктира, ни
+ * «Пока пусто…» (класс board-column-empty в зоне не ставится — cards.js);
+ * высоту пустого столбца держит контейнер карточек (v2: 72px). */
+.fastline .board-column-empty { display: none; }
+.fastline .board-column-cards { min-height: 72px; }
+
+/* Кнопка «+ Fast-задача» (v2-empty: активна с голубой рамкой);
+ * disabled при занятой зоне (v2-blocked) — состояние ставит cards.js. */
+.fastline-add {
+  font: inherit; font-size: var(--font-size-label); font-weight: 700;
+  cursor: pointer; padding: 3px 12px;
+  border-radius: 999px; border: 1px solid var(--p-blue-700);
+  background: var(--color-bg-surface); color: var(--p-blue-700);
+}
+.fastline-add:disabled {
+  cursor: not-allowed;
+  border-color: var(--p-blue-200);
+  background: var(--color-bg-surface);
+  color: var(--p-ink-600);
+  opacity: 0.75;
+}
+
+/* Чип-запрет «В фастлайне уже есть задача — выполните текущую»
+ * (v2-blocked): пилюля в error-цветах сайта. Тот же класс — причина у
+ * чекбокса fast в edit-форме (гейт 2.5, #task-is-fast-gate). */
+.fastline-blocked-hint {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--font-size-micro); font-weight: 700;
+  color: var(--p-red-700); background: var(--p-red-050);
+  border: 1px solid var(--p-red-700);
+  border-radius: 999px; padding: 2px 10px;
+}
+.fastline-blocked-hint svg { flex-shrink: 0; display: block; }
+
+/* Приемник зоны — ГОЛУБОЙ пунктир (ОВ-4, v2-dnd-move); канбан остается
+ * терракотовым (.preset-v .board-column.drop-target выше — на зону не
+ * действует: preset-v живет на #board). Класс ставит cards.js. */
+.fastline-column.drop-target {
+  background: var(--p-blue-050);
+  outline: 2px dashed var(--p-blue-700);
+  outline-offset: -4px;
+}
+
+/* Запрещенный drop (v2-dnd-blocked; Э2: пустая зона — тоже): красный
+ * пунктир + знак запрета, cursor not-allowed. Класс ставит cards.js на
+ * dragover обычной карты над столбцом зоны; preventDefault НЕТ — drop
+ * и POST невозможны. */
+.fastline-column.drop-forbidden {
+  background: var(--p-red-050);
+  outline: 2px dashed var(--p-red-700);
+  outline-offset: -4px;
+  position: relative;
+  cursor: not-allowed;
+}
+.drop-forbidden-badge {
+  position: absolute; inset: 0;
+  display: none;
+  align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.fastline-column.drop-forbidden .drop-forbidden-badge { display: flex; }
+
+/* Разделитель зоны и канбана (v2-empty). */
+.board-sep {
+  border: none;
+  border-top: 1px solid var(--color-border-default);
+  margin: 0 0 var(--space-2);
+}
+
+/* Мобильная укладка (design §6): столбцы зоны — стек той же сеткой,
+ * что канбан ≤480px; поведение блокировок идентично desktop. */
+@media (max-width: 480px) {
+  .fastline { padding: var(--space-1); }
+  .fastline-head { flex-wrap: wrap; }
+  .fastline-note { margin-left: 0; }
+  .fastline-board { flex-wrap: wrap; }
+  .fastline-column { min-width: 0; width: 100%; }
+}

@@ -36,7 +36,14 @@ class BoardPage:
         return self.page.get_by_role("article").filter(has_text=title)
 
     def card_in_column(self, status: str, title: str):
-        return self.column(status).get_by_role("article").filter(has_text=title)
+        """Карточка в столбце статуса. P23: fast-задача живет в столбце
+        зоны FASTLINE (data-fastline-stage, те же три этапа = status,
+        design §2) — локатор покрывает оба контейнера; для обычной
+        задачи совпадение одно (канбан), для fast — одно (зона)."""
+        return self.page.locator(
+            f'[data-status="{status}"], '
+            f'#fastline [data-fastline-stage="{status}"]'
+        ).get_by_role("article").filter(has_text=title)
 
     def heading(self):
         return self.page.get_by_role("heading", name="Доска", exact=True)

@@ -51,7 +51,9 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # p12-rich-2 — багфикс с прода (Флоу 2): dblclick-переименование вкладок
 # (div role=tab, детерминированный close, Escape=отмена), спойлер ВСЕГДА
 # свернут по умолчанию (edit и view, раскрытие — только клик).
-templates.env.globals["static_v"] = "p12-rich-2"
+# p23-fastline-1 — P23 «Фастлайн»: зона FASTLINE над канбаном (board.html/
+# board.css/cards.js/state.js/task-form.js/api.js).
+templates.env.globals["static_v"] = "p23-fastline-1"
 
 
 @router.get("/login")

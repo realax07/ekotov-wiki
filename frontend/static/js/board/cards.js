@@ -44,7 +44,7 @@
 
 import { el, showBoardError, hideError } from "./dom.js";
 import { api } from "./api.js";
-import { COLUMNS } from "./state.js";
+import { COLUMNS, FASTLINE_STAGES, boardState, isFastTask } from "./state.js";
 import { createPriorityIcon, priorityLabel } from "./priority-icons.js";
 import { attachCardTooltip } from "./card-tooltip.js";
 
@@ -208,16 +208,25 @@ export function renderCard(task) {
 
 export function renderBoard(data) {
   var columns = data.columns || {};
+  /* P23: разделение задач по is_fast (design §3) — fast ТОЛЬКО в столбцы
+   * зоны FASTLINE, обычные ТОЛЬКО в канбан; ответ и сортировка GET
+   * /api/board не меняются. Слот зоны «1 задача»: инвариант считает
+   * только АКТИВНУЮ fast (todo/in_progress, design §2) — выполненная в
+   * «Выполнено» зоны слот не занимает (кнопка активна, чип скрыт). */
+  var fastlineBusy = false;
   COLUMNS.forEach(function (status) {
     var container = document.querySelector(
-      '.board-column[data-status="' + status + '"] [data-cards]'
+      '#board .board-column[data-status="' + status + '"] [data-cards]'
     );
     container.textContent = "";
     /* 2.1 add-ui-polish-r8 (FR-87): подсветка fast line — только на
      * плитке (.task-card-fast в renderCard); класс столбца has-fast
-     * больше не ставится — окраска столбца убрана. */
+     * больше не ставится — окраска столбца убрана. P23: fast-карты
+     * в канбан не попадают вовсе. */
     (columns[status] || []).forEach(function (task) {
-      container.appendChild(renderCard(task));
+      if (!isFastTask(task)) {
+        container.appendChild(renderCard(task));
+      }
     });
     /* 3.1 (FR-32): оформленный пустой state пустого столбца —
      * пунктирная зона (board.css), текст дает CSS (::before). */
@@ -226,6 +235,36 @@ export function renderBoard(data) {
     column.classList.toggle("board-column-empty", isEmpty);
     container.hidden = false;
   });
+  /* P23: зона FASTLINE — этап = status (design §2). Пустые столбцы зоны
+   * отображаются ПОЛНОСТЬЮ и БЕЗ подсказок (ОВ-3): board-column-empty
+   * в зоне не ставится, вид дает CSS (min-height контейнера). */
+  FASTLINE_STAGES.forEach(function (status) {
+    var container = document.querySelector(
+      '#fastline .fastline-column[data-fastline-stage="' + status + '"] [data-cards]'
+    );
+    container.textContent = "";
+    (columns[status] || []).forEach(function (task) {
+      if (isFastTask(task)) {
+        container.appendChild(renderCard(task));
+        if (status !== "done") {
+          fastlineBusy = true;
+        }
+      }
+    });
+  });
+  /* Гейты доступности (design §4.1): состояние из последнего GET
+   * /api/board — кнопка «+ Fast-задача» (disabled + чип при занятой
+   * зоне, v2-blocked) и boardState.fastlineBusy для чекбокса
+   * edit-формы (task-form.js 2.5). */
+  boardState.fastlineBusy = fastlineBusy;
+  var addButton = document.getElementById("fastline-add-button");
+  if (addButton) {
+    addButton.disabled = fastlineBusy;
+  }
+  var chip = document.getElementById("fastline-blocked-hint");
+  if (chip) {
+    chip.hidden = !fastlineBusy;
+  }
   /* Столбец «Выполнено» (sdd r5 §3.3) — реальный список задач: done
    * сегодня по МСК; автоархивация — на сервере (GET /api/board).
    * done_note прежней редакции больше не существует. */
@@ -236,22 +275,43 @@ export function refreshBoard() {
   api("/api/board", {}, showBoardError, renderBoard);
 }
 
-/* --- 2.1/2.2 (FR-31, Д-6): HTML5 DnD --- */
+/* --- 2.1/2.2 (FR-31, Д-6) + P23: HTML5 DnD канбана и зоны FASTLINE --- */
 
-/* Столбец-приемник по status-атрибуту; null — вне зон. */
-function columnByStatus(status) {
-  return document.querySelector(
-    '.board-column[data-status="' + status + '"]'
-  );
+/* P23: зона события по столбцу — #fastline (столбцы .fastline-column,
+ * этап в data-fastline-stage) или #board (канбан, data-status). null —
+ * событие вне зон-приемников. */
+function dropTargetInfo(column) {
+  if (!column) {
+    return null;
+  }
+  if (column.closest("#fastline")) {
+    return { zone: "fastline", status: column.dataset.fastlineStage, column: column };
+  }
+  if (column.closest("#board")) {
+    return { zone: "kanban", status: column.dataset.status, column: column };
+  }
+  return null;
+}
+
+function eventColumn(event) {
+  return event.target.closest(".board-column, .fastline-column");
+}
+
+/* Направление разрешено? (design §5, ОВ-4): fast-карта перемещается
+ * ТОЛЬКО между столбцами зоны (голубой приемник), обычная — только по
+ * канбану (терракота). DnD не назначает is_fast (move не меняет его —
+ * Э2): обычная задача в зоне не окажется ни в каком направлении. */
+function dropAllowed(info) {
+  return dnd.fast ? info.zone === "fastline" : info.zone === "kanban";
 }
 
 function clearDropHighlight() {
-  COLUMNS.forEach(function (status) {
-    var column = columnByStatus(status);
-    if (column) {
+  document
+    .querySelectorAll(".drop-target, .drop-forbidden")
+    .forEach(function (column) {
       column.classList.remove("drop-target");
-    }
-  });
+      column.classList.remove("drop-forbidden");
+    });
 }
 
 /* Перевод задачи в столбец (тот же POST /api/tasks/{id}/move, что и
@@ -301,10 +361,15 @@ function onDragStart(event) {
     event.preventDefault();
     return;
   }
-  var column = card.closest(".board-column");
+  var info = dropTargetInfo(
+    card.closest(".board-column, .fastline-column")
+  );
   dnd = {
     taskId: Number(card.dataset.taskId),
-    fromStatus: column ? column.dataset.status : null,
+    fromStatus: info ? info.status : null,
+    /* P23: направление задает признак fast-карты (dataset ставит
+     * renderCard), не зона-источник — карточка и есть «что тащим». */
+    fast: card.dataset.fast === "true",
   };
   /* Пресет В: перетаскиваемая карточка — drag-ghost (клон к курсору
    * рисует браузер, визуал — CSS-класс; оригинал исчезает с места). */
@@ -317,8 +382,19 @@ function onDragStart(event) {
 }
 
 function onDragOver(event) {
-  var column = event.target.closest(".board-column");
-  if (!dnd || !column) {
+  var info = dropTargetInfo(eventColumn(event));
+  if (!dnd || !info) {
+    return;
+  }
+  if (!dropAllowed(info)) {
+    /* P23 (v2-dnd-blocked, Э2): обычная карта над столбцом зоны —
+     * красный пунктир + знак запрета (cursor not-allowed дает CSS);
+     * preventDefault НЕТ — drop не сработает и POST не уйдет.
+     * fast-карта над канбаном — без подсветки: канбан не-приемник. */
+    clearDropHighlight();
+    if (info.zone === "fastline") {
+      info.column.classList.add("drop-forbidden");
+    }
     return;
   }
   /* Без preventDefault браузер не даст drop над столбцом. */
@@ -331,11 +407,11 @@ function onDragOver(event) {
    * класс на одном и том же элементе — подсветка удерживалась лишь
    * на последнем столбце COLUMNS). */
   clearDropHighlight();
-  column.classList.add("drop-target");
+  info.column.classList.add("drop-target");
 }
 
 function onDragLeave(event) {
-  var column = event.target.closest(".board-column");
+  var column = eventColumn(event);
   if (!dnd || !column) {
     return;
   }
@@ -344,16 +420,22 @@ function onDragLeave(event) {
   var to = event.relatedTarget;
   if (!to || !column.contains(to)) {
     column.classList.remove("drop-target");
+    column.classList.remove("drop-forbidden");
   }
 }
 
 function onDrop(event) {
-  var column = event.target.closest(".board-column");
-  if (!dnd || !column) {
+  var info = dropTargetInfo(eventColumn(event));
+  if (!dnd || !info) {
     return; /* Вне зон-приемников: статус не отправляется. */
   }
+  if (!dropAllowed(info)) {
+    /* P23: запрещенное направление (канбан→зона, зона→канбан) —
+     * запрос НЕ отправляется (v2-dnd-blocked; Э2). */
+    return;
+  }
   event.preventDefault();
-  var targetStatus = column.dataset.status;
+  var targetStatus = info.status;
   var taskId = dnd.taskId;
   var fromStatus = dnd.fromStatus;
   clearDropHighlight();
@@ -362,6 +444,9 @@ function onDrop(event) {
     /* «Перенос» в свой столбец — no-op без запроса. */
     return;
   }
+  /* O1 (ревью №1): ровно один POST move на один drop — dnd обнулен ДО
+   * moveTask (повторный drop/dragend в этой сессии — ранний return),
+   * dragInProgress не пускает новый dragstart до ответа сервера. */
   dragInProgress = true;
   moveTask(taskId, targetStatus);
 }
@@ -374,13 +459,18 @@ function onDragEnd(event) {
   clearDropHighlight();
 }
 
-/* Регистрация обработчиков DnD на контейнере доски (делегирование —
+/* Регистрация обработчиков DnD на контейнерах обеих зон (делегирование —
  * переживает перерисовки renderBoard). Вызывает board-init.js. */
 export function initCardDragAndDrop() {
-  var board = document.getElementById("board");
-  board.addEventListener("dragstart", onDragStart);
-  board.addEventListener("dragover", onDragOver);
-  board.addEventListener("dragleave", onDragLeave);
-  board.addEventListener("drop", onDrop);
-  board.addEventListener("dragend", onDragEnd);
+  ["board", "fastline"].forEach(function (zoneId) {
+    var zone = document.getElementById(zoneId);
+    if (!zone) {
+      return;
+    }
+    zone.addEventListener("dragstart", onDragStart);
+    zone.addEventListener("dragover", onDragOver);
+    zone.addEventListener("dragleave", onDragLeave);
+    zone.addEventListener("drop", onDrop);
+    zone.addEventListener("dragend", onDragEnd);
+  });
 }

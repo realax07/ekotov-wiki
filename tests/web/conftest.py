@@ -471,5 +471,11 @@ def move_via_card_select(page, title: str, status: str) -> None:
     page.get_by_role("button", name="Редактировать").click()
     expect(page.locator("#task-form-overlay")).to_be_visible()
     page.get_by_label("Столбец").select_option(status)
-    column = page.locator(f'[data-status="{status}"]')
+    # P23: fast-задача после перевода оказывается в столбце ЗОНЫ
+    # (data-fastline-stage, те же этапы = status) — локатор покрывает
+    # оба контейнера; для обычной задачи совпадение одно (канбан).
+    column = page.locator(
+        f'[data-status="{status}"], '
+        f'#fastline [data-fastline-stage="{status}"]'
+    )
     expect(column.get_by_role("article").filter(has_text=title)).to_be_visible()

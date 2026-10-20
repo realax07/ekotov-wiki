@@ -392,6 +392,14 @@ function handleSubmitError(message, response, body) {
   } else {
     showFormError("task-form-error", message);
   }
+  /* P23 (2.3, O2 ревью №1): 409 «fast line occupied» — гонка вкладок:
+   * кнопка/чекбокс могли быть активны на устаревшем GET /api/board.
+   * Сообщение (текст чипа, api.js) видно у формы, доска перерисовывается
+   * из серверного состояния — чип/гейт встают по факту, занявшая слот
+   * задача видна в зоне. */
+  if (response && response.status === 409) {
+    refreshBoard();
+  }
 }
 
 import {
@@ -437,6 +445,11 @@ function fillTaskForm(task) {
    * (в редактировании fast-задача открывается с заблокированным
    * приоритетом high; сброс состояния предыдущего открытия — тоже здесь). */
   setPriorityLock(!!task.is_fast);
+  /* P23 (2.5): гейт чекбокса сбрасывается при каждом заполнении формы;
+   * openEditForm применяет его ПОСЛЕ fillTaskForm по состоянию зоны
+   * (boardState.fastlineBusy) и признаку задачи. */
+  document.getElementById(IS_FAST_FIELD_ID).disabled = false;
+  document.getElementById("task-is-fast-gate").hidden = true;
   /* 4.1 (DEF-005): визуальные зоны — иконка приоритета и чипы тегов —
    * перерисовываются под заполненные значения (в т.ч. при очистке). */
   renderPriorityPillIcon();
@@ -686,6 +699,23 @@ export function openCreateForm() {
   document.getElementById("task-title").focus();
 }
 
+/* --- P23 (2.1, design §4.1): кнопка «+ Fast-задача» в шапке зоны ---
+ * Открывает форму создания с ПРЕДОТМЕЧЕННЫМ fast (приоритет high и
+ * блокировка поля — существующий priority-lock UI 4.3); создание кладет
+ * карточку в «Ожидает» зоны. Гейт доступности (disabled + чип при
+ * занятой зоне) — cards.js renderBoard из последнего GET /api/board;
+ * здесь только действие: форма та же, POST /api/tasks с is_fast=true,
+ * 409 при гонке закрывает общий путь (handleSubmitError). */
+function openFastCreateForm() {
+  openCreateForm();
+  document.getElementById(IS_FAST_FIELD_ID).checked = true;
+  setPriorityLock(true);
+}
+
+document
+  .getElementById("fastline-add-button")
+  .addEventListener("click", openFastCreateForm);
+
 export function openEditForm(task) {
   boardState.currentTaskId = task.id;
   /* review add-ui-polish-r8 #49 (blocker): синхронно с fillTaskForm —
@@ -707,6 +737,14 @@ export function openEditForm(task) {
    * деталей). */
   document.getElementById("task-move-select").value = task.status;
   fillTaskForm(task);
+  /* P23 (2.5, design §4.2): гейт чекбокса fast — третий путь вставки.
+   * При занятой зоне чекбокс ОБЫЧНОЙ задачи disabled с причиной чипа
+   * (включение стало бы 409 — не даем стрелять); на самой fast-задаче
+   * чекбокс доступен всегда (выключение освобождает слот, повторное
+   * включение идемпотентно — серверный exclude_task_id). */
+  var editGate = !task.is_fast && boardState.fastlineBusy;
+  document.getElementById(IS_FAST_FIELD_ID).disabled = editGate;
+  document.getElementById("task-is-fast-gate").hidden = !editGate;
   /* r6 4.2 (FR-61): БАЗОВЫЙ снимок полей — сразу после fillTaskForm;
    * loadCategoryOptions (ниже) в своем колбэке обновит снимок значением
    * категории задачи (select пока пуст — иначе открытие на задачу с
