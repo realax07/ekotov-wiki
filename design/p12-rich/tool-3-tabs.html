@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап P12-3 — Табуляция: вкладки внутри страницы</title>
+<link rel="stylesheet" href="p12-base.css">
+<style>
+/* --- P12-3 Табуляция -------------------------------------------------
+   Блочный виджет-контейнер с N вкладками; переключение работает и в
+   мокапе (минимальный JS внизу страницы). Активная вкладка подсвечена
+   терракотовой чертой + поверхность карточки. --------------------------*/
+.tabswidget {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  margin: 0 0 var(--space-2);
+  overflow: hidden;
+}
+.tabbar {
+  display: flex; align-items: center; gap: 2px;
+  padding: var(--space-05) var(--space-1) 0;
+  background: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.tab {
+  position: relative;
+  display: inline-flex; align-items: center; gap: var(--space-05);
+  padding: 6px var(--space-1);
+  font: inherit; font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  background: transparent; border: none; cursor: pointer;
+  border-radius: var(--radius-field) var(--radius-field) 0 0;
+}
+.tab:hover { color: var(--color-accent-hover); background: rgba(255, 253, 249, 0.7); }
+.tab.active {
+  color: var(--p-clay-700); font-weight: 600;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default); border-bottom: 1px solid var(--color-bg-surface);
+  margin-bottom: -1px;
+}
+.tab.active::after {
+  content: ""; position: absolute; left: var(--space-05); right: var(--space-05); bottom: -1px;
+  height: 2px; background: var(--color-accent);
+}
+.tab .tab-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 3px;
+  font-size: 10px; line-height: 1; color: var(--color-text-secondary);
+}
+.tab .tab-close:hover { background: var(--p-clay-050); color: var(--p-red-700); }
+/* вкладка в режиме переименования */
+.tab-rename {
+  font: inherit; font-size: var(--font-size-label);
+  width: 110px; padding: 0 var(--space-05);
+  border: 1px solid var(--color-accent); border-radius: var(--space-05);
+  background: var(--color-bg-page); color: var(--color-text-primary);
+  box-shadow: var(--focus-ring);
+}
+.tab-add {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; margin-left: var(--space-05);
+  font: inherit; font-size: 14px; line-height: 1;
+  color: var(--color-text-secondary);
+  background: transparent; border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-field); cursor: pointer;
+}
+.tab-add:hover { color: var(--color-accent-hover); border-color: var(--color-accent); }
+.tab-panes {}
+.tab-pane { padding: var(--space-1) var(--space-2) var(--space-2); }
+.tab-pane[hidden] { display: none; }
+.tab-pane p { margin: 0 0 var(--space-1); }
+.tab-pane p:last-child { margin-bottom: 0; }
+/* edit: contenteditable-зона активной вкладки */
+.editor-area .tabswidget.focused { outline: 1px dashed var(--color-accent); outline-offset: 3px; }
+.tab-edit-hint {
+  font-size: var(--font-size-micro); color: var(--color-text-secondary); font-style: italic;
+  border: 1px dashed var(--color-border-default); border-radius: var(--space-05);
+  padding: 2px var(--space-1); display: inline-block;
+}
+</style>
+</head>
+<body class="app-shell">
+<aside class="sidebar">
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M9 9v12" fill="none" stroke="currentColor" stroke-width="2"/></svg>Доска</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="11" r="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M21 17l-5-5-4 4-3-3-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Галерея</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>Видео</a>
+    <a class="nav-item active" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Вики</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" stroke="currentColor" stroke-width="2"/></svg>Настройки</a>
+  </nav>
+  <div class="sidebar-footer"><button class="logout-button">Выйти</button></div>
+</aside>
+<main class="content">
+  <h1>Мокап P12-3 — Табуляция</h1>
+  <p class="mock-sub">Виджет-контейнер с вкладками: переключение работает прямо в мокапе (кликните по вкладке). Переименование — двойной клик по вкладке, удаление — × на вкладке, добавление — «+».</p>
+
+  <!-- ================== РЕЖИМ РЕДАКТИРОВАНИЯ ================== -->
+  <section class="state-block" id="edit">
+    <span class="state-label edit">Режим редактирования</span>
+    <div class="editor-card">
+      <div class="toolbar">
+        <div class="tb-group">
+          <button class="tb-btn" title="Вкладки" aria-pressed="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M7 9v11" fill="none" stroke="currentColor" stroke-width="2"/></svg><span class="tb-heading">Вкладки</span></button>
+        </div>
+      </div>
+      <div class="editor-area">
+        <div class="tabswidget focused" data-tabs>
+          <div class="tabbar" role="tablist">
+            <button class="tab active" role="tab" data-pane="e1">Обзор</button>
+            <span class="tab" role="tab"><input class="tab-rename" value="Логи" aria-label="Переименование вкладки"></span>
+            <button class="tab" role="tab" data-pane="e3">Чек-лист<span class="tab-close" title="Удалить вкладку">×</span></button>
+            <button class="tab" role="tab" data-pane="e4">Мониторинг<span class="tab-close" title="Удалить вкладку">×</span></button>
+            <button class="tab-add" title="Добавить вкладку">+</button>
+          </div>
+          <div class="tab-panes">
+            <div class="tab-pane" data-pane-id="e1">
+              <p>Активная вкладка — зона редактирования. Пишем обычный текст, вставляем те же блоки: спойлер, код, таблицу.</p>
+              <span class="tab-edit-hint">contenteditable: текст вкладки «Обзор»…</span>
+            </div>
+            <div class="tab-pane" data-pane-id="e3" hidden>
+              <p>Вкладка «Чек-лист»: контент свой у каждой вкладки.</p>
+            </div>
+            <div class="tab-pane" data-pane-id="e4" hidden>
+              <p>Вкладка «Мониторинг»: контент свой у каждой вкладки.</p>
+            </div>
+          </div>
+        </div>
+        <p class="note">Вторая вкладка в режиме переименования (двойной клик по названию). «×» виден при наведении на неактивную вкладку — здесь показан постоянно; последнюю вкладку удалить нельзя.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================== РЕНДЕР ================== -->
+  <section class="state-block" id="view">
+    <span class="state-label">Отрендеренный вид</span>
+    <div class="article-card">
+      <h2 class="article-title">Инцидент №182</h2>
+      <div class="article-body">
+        <div class="tabswidget" data-tabs>
+          <div class="tabbar" role="tablist">
+            <button class="tab active" role="tab" data-pane="v1">Обзор</button>
+            <button class="tab" role="tab" data-pane="v2">Логи</button>
+            <button class="tab" role="tab" data-pane="v3">Чек-лист</button>
+            <button class="tab" role="tab" data-pane="v4">Мониторинг</button>
+          </div>
+          <div class="tab-panes">
+            <div class="tab-pane" data-pane-id="v1">
+              <p><strong>14:32</strong> — рост 5xx на <code>/api/v2/orders</code>. Причина: исчерпан пул соединений к Postgres.</p>
+              <p><strong>14:40</strong> — пул расширен до 60, ошибки ушли. Постмортем — до пятницы.</p>
+            </div>
+            <div class="tab-pane" data-pane-id="v2" hidden>
+              <p>Подборка логов: <code>app-2026-10-19.log</code>, строки 4100–4380.</p>
+            </div>
+            <div class="tab-pane" data-pane-id="v3" hidden>
+              <p>☐ Алерт на пул соединений&#8195;☐ Обновить runbook&#8195;☐ Нагрузочный тест</p>
+            </div>
+            <div class="tab-pane" data-pane-id="v4" hidden>
+              <p>Графики: connections, 5xx rate — ссылки на дашборд Netdata.</p>
+            </div>
+          </div>
+        </div>
+        <p>Вне виджета статья продолжается обычным текстом.</p>
+      </div>
+    </div>
+    <p class="note">В рендере нет «+», «×» и рамок фокуса — только переключение вкладок. Активная вкладка: поверхность карточки + терракотовая черта снизу.</p>
+  </section>
+</main>
+<script>
+/* Переключение вкладок в мокапе — чтобы заказчик пощупал поведение */
+document.querySelectorAll('[data-tabs]').forEach(function (w) {
+  w.addEventListener('click', function (e) {
+    var tab = e.target.closest('.tab');
+    if (!tab || tab.querySelector('.tab-rename') || !tab.dataset.pane) return;
+    var bar = w.querySelector('.tabbar');
+    bar.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+    tab.classList.add('active');
+    w.querySelectorAll('.tab-pane').forEach(function (p) {
+      p.hidden = p.getAttribute('data-pane-id') !== tab.dataset.pane;
+    });
+  });
+});
+</script>
+</body>
+</html>

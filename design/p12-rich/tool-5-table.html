@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап P12-5 — Таблица: контекстные кнопки строк и столбцов</title>
+<link rel="stylesheet" href="p12-base.css">
+<style>
+/* --- P12-5 Таблица ----------------------------------------------------
+   Панель управления появляется КОНТЕКСТНО при фокусе в таблице:
+   «+»/«−» по краям строк (справа) и столбцов (в шапке сверху).
+   Целевой столбец/строка вставки подсвечиваются терракотовым тинтом. ---*/
+.tblwrap { position: relative; margin: 0 0 var(--space-2); }
+.editor-area table, .demo-table table {
+  width: 100%; border-collapse: collapse; font-size: var(--font-size-label); margin: 0;
+}
+.demo-table th, .demo-table td,
+.editor-area .demo-table th, .editor-area .demo-table td {
+  border: 1px solid var(--color-border-default);
+  padding: var(--space-05) var(--space-1);
+  text-align: left; vertical-align: top; line-height: 1.5;
+}
+.demo-table th { background: var(--color-bg-subtle); font-weight: 600; }
+.demo-table tbody tr:nth-child(even) td { background: var(--color-bg-page); }
+
+/* редакторская таблица: ячейки contenteditable, фокус — кольцо */
+.editor-area .demo-table td:focus, .editor-area .demo-table th:focus {
+  outline: none; background: var(--color-accent-soft);
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+/* подсветка целевого столбца вставки */
+.demo-table .col-target { background: var(--p-blue-050) !important; }
+
+/* контекстные кнопки: маленькие квадраты 22×22 у краев */
+.ctx-btn {
+  position: absolute; z-index: 2;
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font: inherit; font-size: 13px; line-height: 1;
+  color: var(--p-clay-700); background: var(--color-bg-surface);
+  border: 1px solid var(--color-accent); border-radius: var(--space-05);
+  cursor: pointer; box-shadow: var(--shadow-soft); padding: 0;
+}
+.ctx-btn:hover { background: var(--color-accent-soft); }
+.ctx-btn.minus { color: var(--color-text-secondary); border-color: var(--color-border-default); }
+.ctx-btn.minus:hover { color: var(--p-red-700); border-color: var(--p-red-700); background: var(--p-clay-050); }
+/* кнопки столбцов — над шапкой, по центру целевого столбца */
+/* кнопки строк — справа за краем таблицы, по центру целевой строки */
+/* подпись при наведении */
+.ctx-tip {
+  position: absolute; white-space: nowrap;
+  font-size: var(--font-size-micro); color: var(--p-clay-700);
+  background: var(--color-accent-soft); border: 1px solid var(--color-accent);
+  border-radius: var(--space-05); padding: 1px var(--space-05);
+}
+/* панель-подсказка при фокусе таблицы (edit) */
+.tbl-hintbar {
+  display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap;
+  font-size: var(--font-size-micro); color: var(--color-text-secondary);
+  background: var(--color-bg-subtle); border-top: 1px solid var(--color-border-default);
+  padding: var(--space-05) var(--space-1);
+}
+.tbl-hintbar kbd {
+  font: inherit; font-size: var(--font-size-micro);
+  border: 1px solid var(--color-border-default); border-bottom-width: 2px;
+  border-radius: var(--space-05); padding: 0 var(--space-05);
+  background: var(--color-bg-surface);
+}
+</style>
+</head>
+<body class="app-shell">
+<aside class="sidebar">
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M9 9v12" fill="none" stroke="currentColor" stroke-width="2"/></svg>Доска</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="11" r="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M21 17l-5-5-4 4-3-3-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Галерея</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>Видео</a>
+    <a class="nav-item active" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Вики</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" stroke="currentColor" stroke-width="2"/></svg>Настройки</a>
+  </nav>
+  <div class="sidebar-footer"><button class="logout-button">Выйти</button></div>
+</aside>
+<main class="content">
+  <h1>Мокап P12-5 — Таблица</h1>
+  <p class="mock-sub">Панель управления появляется контекстно при фокусе в таблице: «+/−» по краям столбцов (над шапкой) и строк (справа). Вставка — рядом с текущим столбцом/строкой, удаление — за край.</p>
+
+  <!-- ================== РЕЖИМ РЕДАКТИРОВАНИЯ ================== -->
+  <section class="state-block" id="edit">
+    <span class="state-label edit">Режим редактирования</span>
+    <div class="editor-card">
+      <div class="toolbar">
+        <div class="tb-group">
+          <button class="tb-btn" title="Таблица" aria-pressed="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16" fill="none" stroke="currentColor" stroke-width="2"/></svg><span class="tb-heading">Таблица</span></button>
+        </div>
+      </div>
+      <div class="editor-area">
+        <div class="tblwrap">
+          <!-- кнопки столбцов: над шапкой, слева от целевого столбца «Ответственный» -->
+          <button class="ctx-btn" style="left:280px;top:-30px" title="Добавить столбец слева">+</button>
+          <button class="ctx-btn minus" style="left:306px;top:-30px" title="Удалить столбец">−</button>
+          <span class="ctx-tip" style="left:336px;top:-26px">столбец → сюда</span>
+          <button class="ctx-btn" style="right:-30px;top:-30px" title="Добавить столбец справа">+</button>
+
+          <table class="demo-table">
+            <thead>
+              <tr>
+                <th>Этап</th><th class="col-target">Ответственный</th><th>Срок</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Бэкап</td><td>Смирнов</td><td>пн</td></tr>
+              <tr>
+                <td>Миграция</td>
+                <!-- фокус в ячейке: курсор внутри таблицы -->
+                <td style="background:var(--color-accent-soft);box-shadow:inset 0 0 0 2px var(--color-accent)">Кузнецов</td>
+                <td>вт</td>
+              </tr>
+              <tr><td>Проверка</td><td>Иванова</td><td>ср</td></tr>
+            </tbody>
+          </table>
+
+          <!-- кнопки строк: справа за краем; − удаляет «Миграция», + вставляет под ней -->
+          <button class="ctx-btn" style="right:-30px;top:79px" title="Добавить строку ниже">+</button>
+          <button class="ctx-btn minus" style="right:-30px;top:51px" title="Удалить строку">−</button>
+          <button class="ctx-btn" style="right:-30px;bottom:-11px" title="Добавить строку в конец">+</button>
+        </div>
+      </div>
+      <div class="tbl-hintbar">
+        <span>Фокус в ячейке «Кузнецов»: столбец вставится перед «Ответственный», строка — под «Миграция».</span>
+        <span><kbd>Tab</kbd> следующая ячейка · <kbd>Enter</kbd> — перенос строки внутри ячейки · удаление последней строки/столбца запрещено</span>
+      </div>
+    </div>
+    <p class="note">«+» и «−» живут за краями таблицы (над шапкой и справа) и видны только пока курсор внутри таблицы. Голубой тинт — столбец, перед которым встанет новый; терракотовое кольцо — фокус ячейки.</p>
+  </section>
+
+  <!-- ================== РЕНДЕР ================== -->
+  <section class="state-block" id="view">
+    <span class="state-label">Отрендеренный вид</span>
+    <div class="article-card">
+      <h2 class="article-title">План миграции</h2>
+      <div class="article-body">
+        <table>
+          <thead><tr><th>Этап</th><th>Ответственный</th><th>Срок</th></tr></thead>
+          <tbody>
+            <tr><td>Бэкап</td><td>Смирнов</td><td>пн</td></tr>
+            <tr><td>Миграция</td><td>Кузнецов</td><td>вт</td></tr>
+            <tr><td>Проверка</td><td>Иванова</td><td>ср</td></tr>
+          </tbody>
+        </table>
+        <p>Таблица после добавления строки «Откат» и столбца «Статус» — рендер без каких-либо контекстных кнопок.</p>
+      </div>
+    </div>
+    <p class="note">Рендер — существующие стили .article-body table: зебра по четным строкам, th на paper-100. Никаких следов редакторской обвязки.</p>
+  </section>
+</main>
+</body>
+</html>

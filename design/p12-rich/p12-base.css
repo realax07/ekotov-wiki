@@ -1,0 +1,182 @@
+/* =====================================================================
+   Мокапы P12 «Rich-редактор» — общая база (токены V3 «Бумага»).
+   Токены и каркас сайдбара — дословно из frontend/static/css/app.css и
+   frontend/templates/base.html; стили тулбара/статьи — из
+   frontend/static/css/wiki.css (эталон: design/p18-weather/).
+   ОГР-8: без внешних зависимостей — только file:// + этот css рядом.
+   ===================================================================== */
+
+:root {
+  --p-paper-050: #faf7f2;
+  --p-paper-100: #f3ede4;
+  --p-paper-200: #e9e1d4;
+  --p-ink-900: #3d3630;
+  --p-ink-600: #6b6158;
+  --p-clay-600: #a8432c;
+  --p-clay-700: #93391f;
+  --p-clay-050: #f7e8e4;
+  --p-red-700: #9c3524;
+  --p-olive-700: #5f6f34;
+  --p-amber-700: #8a5a1e;
+  --p-blue-700: #33608c;
+  --p-blue-050: #eef2f6;
+  --p-blue-200: #c9d6e2;
+  --color-text-primary: var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-600);
+  --color-text-on-accent: #fff;
+  --color-bg-page: var(--p-paper-050);
+  --color-bg-surface: #fffdf9;
+  --color-bg-subtle: var(--p-paper-100);
+  --color-border-default: var(--p-paper-200);
+  --color-accent: var(--p-clay-600);
+  --color-accent-hover: var(--p-clay-700);
+  --color-accent-soft: var(--p-clay-050);
+  --space-05: 4px; --space-1: 8px; --space-2: 16px; --space-3: 24px; --space-4: 32px;
+  --radius-field: 6px; --radius-card: 10px;
+  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-family-display: Georgia, 'Times New Roman', serif;
+  --font-family-mono: ui-monospace, 'Cascadia Mono', 'Courier New', monospace;
+  --font-size-body: 14px; --font-size-label: 13px; --font-size-micro: 11px;
+  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+}
+
+* { box-sizing: border-box; }
+body.app-shell {
+  margin: 0; font-family: var(--font-family); font-size: var(--font-size-body);
+  color: var(--color-text-primary); background: var(--color-bg-page);
+  display: flex; min-height: 100vh;
+}
+
+/* --- Сайдбар (base.html) --- */
+.sidebar {
+  width: 200px; flex-shrink: 0; background: var(--p-ink-900);
+  color: var(--p-paper-050); display: flex; flex-direction: column;
+  justify-content: space-between; padding: var(--space-2) 0;
+  min-height: 100vh; position: sticky; top: 0;
+}
+.sidebar-nav { display: flex; flex-direction: column; }
+.nav-item {
+  display: flex; align-items: center; gap: var(--space-1);
+  padding: 10px 20px; color: var(--p-paper-050);
+  text-decoration: none; opacity: 0.85;
+}
+.nav-item:hover { background: rgba(255, 253, 249, 0.08); opacity: 1; }
+.nav-item.active { background: var(--color-accent); opacity: 1; font-weight: bold; }
+.sidebar-footer { padding: 0 20px; }
+.logout-button {
+  width: 100%; padding: 8px; background: transparent; color: var(--p-paper-050);
+  border: 1px solid var(--p-ink-600); border-radius: var(--radius-field);
+  cursor: pointer; font: inherit; margin-top: var(--space-1);
+}
+.nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* --- Контентная колонка --- */
+.content { flex: 1; padding: var(--space-3); min-width: 0; max-width: 1240px; }
+.content > h1 {
+  font-family: var(--font-family-display); font-weight: 400;
+  font-size: 26px; margin: 0 0 var(--space-1);
+}
+.mock-sub { margin: 0 0 var(--space-3); color: var(--color-text-secondary); }
+
+/* --- Рамки состояний мокапа: «Режим редактирования» / «Рендер» --- */
+.state-block { margin: 0 0 var(--space-3); }
+.state-label {
+  display: inline-flex; align-items: center; gap: var(--space-05);
+  font-size: var(--font-size-micro); font-weight: bold; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--p-ink-600);
+  background: var(--color-bg-subtle); border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field); padding: 2px var(--space-1);
+  margin: 0 0 var(--space-1);
+}
+.state-label.edit { color: var(--p-clay-700); background: var(--color-accent-soft); border-color: var(--p-clay-600); }
+.note {
+  font-size: var(--font-size-micro); color: var(--color-text-secondary);
+  margin: var(--space-05) 0 0;
+}
+
+/* --- Карточка редактора + тулбар (wiki.css, шов 3.3) --- */
+.editor-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+.toolbar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-05);
+  padding: var(--space-05) var(--space-1);
+  background: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.tb-group { display: flex; align-items: center; gap: 2px; }
+.tb-sep { width: 1px; height: 20px; background: var(--color-border-default); margin: 0 var(--space-1); }
+.tb-btn {
+  min-width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-05);
+  padding: 0 var(--space-05);
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--radius-field);
+  color: var(--color-text-primary); cursor: pointer; font: inherit;
+}
+.tb-btn svg { width: 16px; height: 16px; pointer-events: none; }
+.tb-btn:hover { background: var(--color-bg-surface); border-color: var(--color-border-default); color: var(--color-accent-hover); }
+.tb-btn[aria-pressed='true'] {
+  background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent-hover);
+}
+.tb-heading { width: auto; padding: 0 var(--space-1); font-family: var(--font-family-display); font-size: 13px; font-weight: 600; }
+
+/* --- Рабочая область contenteditable (wiki.css) --- */
+.editor-area { padding: var(--space-3); outline: none; line-height: 1.65; }
+.editor-area p { margin: 0 0 var(--space-2); }
+
+/* --- Отрендеренная статья (wiki.css .article-body) --- */
+.article-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-3);
+}
+.article-title {
+  font-family: var(--font-family-display); font-weight: 400; font-size: 22px;
+  margin: 0 0 var(--space-2);
+}
+.article-body { line-height: 1.65; }
+.article-body h1, .article-body h2, .article-body h3 {
+  font-family: var(--font-family-display); font-weight: 600; margin: var(--space-2) 0 var(--space-1);
+}
+.article-body h1 { font-size: 22px; }
+.article-body h2 { font-size: 18px; }
+.article-body h3 { font-size: 16px; }
+.article-body p { margin: 0 0 var(--space-2); }
+.article-body pre {
+  margin: 0 0 var(--space-2); padding: var(--space-2);
+  background: var(--p-ink-900); color: var(--p-paper-050);
+  border-radius: var(--radius-field); overflow-x: auto; line-height: 1.6;
+}
+.article-body code {
+  font-family: var(--font-family-mono); font-size: 12px;
+  background: var(--color-bg-subtle); padding: 1px 5px; border-radius: var(--space-05);
+}
+.article-body pre code { background: transparent; padding: 0; }
+.article-body table {
+  width: 100%; border-collapse: collapse; margin: 0 0 var(--space-2);
+  font-size: var(--font-size-label);
+}
+.article-body th, .article-body td {
+  border: 1px solid var(--color-border-default);
+  padding: var(--space-05) var(--space-1);
+  text-align: left; vertical-align: top; line-height: 1.5;
+}
+.article-body th { background: var(--color-bg-subtle); font-weight: 600; }
+.article-body tbody tr:nth-child(even) td { background: var(--color-bg-page); }
+
+/* --- Аннотации do / dont --- */
+.flag {
+  display: inline-flex; align-items: center; gap: var(--space-05);
+  font-size: var(--font-size-micro); font-weight: bold;
+  border-radius: var(--radius-field); padding: 2px var(--space-1);
+}
+.flag.do { color: var(--p-olive-700); background: #eef0e4; }
+.flag.dont { color: var(--p-red-700); background: var(--p-clay-050); }
