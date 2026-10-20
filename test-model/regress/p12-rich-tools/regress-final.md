@@ -1,17 +1,17 @@
 # Regress p12-rich-tools — regress-final.md
 
 - change: p12-rich-tools
-- run: 2 (перегон финала на финальном head; прогон №1 — adbd485, продукт идентичен: различия только test-model/** и static_v-строка)
-- date: 2026-10-20T16:56:01+00:00
-- commit: 9d452acb06c496c6c3d27fc99749a3a28a2cd7a8
+- run: 3 (перегон финала после ffmpeg-фикса Dockerfile 79f9770 — источник BtbN датированный autobuild-2026-10-19; video-образ пересобран, контейнер поднимается, ffmpeg/ffprobe n8.1.3-18-g46d899d7a0-20261019 рабочие; продукт-дифф от прогона №2 — только Dockerfile)
+- date: 2026-10-20T17:40:40+00:00
+- commit: 79f97706f70c22f7e6dbc3262585f08c5e485335
 - worktree: /home/openclaw/ekotov-wiki-worktrees/p12-final
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 800.4s
+- duration: 824.4s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
-- changed files: 71
-- changed files: 71
+- changed files: 72
+- changed files: 72
   - backend/app/pages.py
   - backend/app/sanitize.py
   - code-reviews/chore-p12-dev/review-001.md
@@ -33,6 +33,7 @@
   - openspec/changes/p12-rich-tools/specs/p12-rich-tools/spec.md
   - openspec/changes/p12-rich-tools/specs/wiki/spec.md
   - openspec/changes/p12-rich-tools/tasks.md
+  - services/video/Dockerfile
   - test-model/approved/p12-rich-tools/APPROVAL.md
   - test-model/approved/p12-rich-tools/README.md
   - test-model/approved/p12-rich-tools/TC-rich-001.md
@@ -61,8 +62,7 @@
   - test-model/approved/p12-rich-tools/TC-rich-024.md
   - test-model/approved/p12-rich-tools/TC-rich-025.md
   - test-model/approved/p12-rich-tools/TC-rich-026.md
-  - test-model/approved/p12-rich-tools/TC-rich-027.md
-  - … и еще 21
+  - … и еще 22
 - suites: tests
 - pytest exit code: 0
 
@@ -118,5 +118,5 @@ tests/web/test_weather_ui.py:35
     pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-663 passed, 12 skipped, 2 xfailed, 78 warnings in 798.67s (0:13:18)
+663 passed, 12 skipped, 2 xfailed, 78 warnings in 823.37s (0:13:43)
 ```
