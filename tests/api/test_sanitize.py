@@ -388,6 +388,82 @@ def test_rich_block_inside_code_block_unwrapped():
     )
 
 
+def test_rich_code_br_becomes_newline_not_merged():
+    """F-1 (review-001, blocker): Enter в код-блоке редактора дает <br>
+    внутри <code>; санитайзер эмитит текстовый \\n — строки кода НЕ
+    сливаются в «line1line2» (инвариант design §1 «текст кода
+    сохраняется», FR-119). Дискриминатор: до фикса тест падал."""
+    src = (
+        '<div data-block="code" data-lang="python"><pre><code>'
+        "line1<br>line2</code></pre></div>"
+    )
+    out = sanitize_html(src)
+    assert out == (
+        '<div data-block="code" data-lang="python">'
+        "<pre><code>line1\nline2</code></pre></div>"
+    )
+    assert "line1line2" not in out
+
+
+def test_rich_code_multiline_br_roundtrip_idempotent():
+    """F-1: уже-санитизированный многострочный код (с \\n) проходит
+    байт-в-байт (идемпотентность санитайзера на сохранении)."""
+    doc = (
+        '<div data-block="code" data-lang="python">'
+        "<pre><code>def f():\n    return 1\n\n\nx = 2</code></pre></div>"
+    )
+    assert sanitize_html(doc) == doc
+
+
+def test_rich_code_trailing_br_keeps_trailing_newline():
+    """F-1: br в КОНЦЕ непустого кода (Enter в конце строки) — хвостовой
+    \\n сохраняется; гуттер статьи считает строки корректно."""
+    src = (
+        '<div data-block="code" data-lang="plain"><pre><code>'
+        "line1<br></code></pre></div>"
+    )
+    assert sanitize_html(src) == (
+        '<div data-block="code" data-lang="plain">'
+        "<pre><code>line1\n</code></pre></div>"
+    )
+
+
+def test_rich_code_empty_block_br_anchor_stays_empty():
+    """F-1, обратная сторона: ПУСТОЙ код-блок с br-якорем каретки
+    (newCodeblockHtml) сохраняется пустым — якорные br не превращаются в
+    мусорные \\n в БД (прежнее поведение до F-1 не деградировало)."""
+    src = (
+        '<div data-block="code" data-lang="python"><pre><code>'
+        "<br></code></pre></div>"
+    )
+    assert sanitize_html(src) == (
+        '<div data-block="code" data-lang="python"><pre><code></code></pre></div>'
+    )
+
+
+def test_rich_br_outside_code_context_untouched():
+    """F-1, изоляция: br ВНЕ код-блока (абзац, ячейка таблицы, тело
+    спойлера) проходит как <br> — \\n-подстановка только в code-контексте."""
+    assert sanitize_html("<p>a<br>b</p>") == "<p>a<br>b</p>"
+    assert (
+        sanitize_html("<table><tbody><tr><td>один<br>два</td></tr></tbody></table>")
+        == "<table><tbody><tr><td>один<br>два</td></tr></tbody></table>"
+    )
+    src = (
+        '<div data-block="spoiler" data-title="t">'
+        '<div data-block-part="body"><p>ok<br>fine</p></div></div>'
+    )
+    assert sanitize_html(src) == src
+
+
+def test_sanitize_unclosed_tag_closed_cleanly():
+    """Регресс санитайзера (попутно F-раунду): разрешенный тег, не
+    закрытый до конца входа, дозакрывается ЧИСТЫМ закрывающим тегом —
+    repr кортежа стека («</('p', None)>») в выходе невозможен."""
+    assert sanitize_html("<p>hello") == "<p>hello</p>"
+    assert sanitize_html("<b>x") == "<b>x</b>"
+
+
 def test_rich_data_title_escaped():
     """TC-san-031: data-title с разметкой/кавычками экранируется при эмите
     (design.md §1: «произвольный текст, экранируется»)."""

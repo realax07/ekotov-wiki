@@ -46,7 +46,7 @@ function syncGutter(block) {
   var code = block.querySelector('pre > code');
   var gutter = block.querySelector('.codeblock-nums');
   if (code && gutter) {
-    var replacement = buildGutter(code);
+    var replacement = buildGutter(code, block); // F-2: block — вторым аргументом
     gutter.textContent = replacement.textContent;
   }
 }
@@ -173,6 +173,31 @@ function enhance(block, editable) {
   block.appendChild(gutter);
 }
 
+/* F-1 (review-001): br внутри code (Enter в Chromium) — перенос строки
+ * КОДА. Заменяем br на текстовый «\n» ДО сериализации: иначе гуттер считает
+ * строки по textContent (br невидим), а канал «редактор показал ≠
+ * сохранилось» держится только на санитайзере. br-якорь каретки ПУСТОГО
+ * кода (data-caret из newCodeblockHtml) удаляется — это мусор, не перенос.
+ * Возвращает true, если DOM менялся. */
+function normalizeNewlines(code) {
+  var brs = code.querySelectorAll('br');
+  if (!brs.length) return false;
+  if (!code.textContent) {
+    // пустой код: якорные br не трогаем (санитайзер отсечет их \n)
+    return false;
+  }
+  var changed = false;
+  Array.prototype.forEach.call(brs, function (br) {
+    if (br.getAttribute('data-caret') !== null) {
+      br.parentNode.removeChild(br);
+    } else {
+      br.parentNode.replaceChild(document.createTextNode('\n'), br);
+    }
+    changed = true;
+  });
+  return changed;
+}
+
 /* Нормализация кода после ввода (вызывается делегированным input-слушателем
  * области — input-события в contenteditable таргетятся в editing host,
  * до pre/block они не доезжают). Chromium-квирк: ввод на границе ПУСТОГО
@@ -188,17 +213,16 @@ export function normalizeCodeInput(block) {
     code.insertBefore(pre.firstChild, null);
     moved = true;
   }
+  var newlined = normalizeNewlines(code);
   if (moved) {
-    syncGutter(block);
     var selection = window.getSelection();
     var range = document.createRange();
     range.selectNodeContents(code);
     range.collapse(false); // в конец кода
     selection.removeAllRanges();
     selection.addRange(range);
-  } else {
-    syncGutter(block);
   }
+  syncGutter(block);
 }
 
 export function enhanceEditor(block) {
@@ -210,14 +234,16 @@ export function activateView(block) {
   applyHighlight(block); // подсветка только при отображении (§1/§5)
 }
 
-/* Разметка нового блока для вставки в позицию курсора. <br> в пустом
- * code — каретка-якорь: Chromium пишет текст на границе ПУСТОГО inline-
- * элемента в родительский pre; с br каретка встает внутрь code.
- * Санитайзер br внутри код-блока вырезает — в БД текст без мусора. */
+/* Разметка нового блока для вставки в позицию курсора. <br data-caret>
+ * в пустом code — каретка-якорь: Chromium пишет текст на границе ПУСТОГО
+ * inline-элемента в родительский pre; с br каретка встает внутрь code.
+ * Якорь помечен data-caret: normalizeCodeInput удаляет его при первом
+ * вводе текста (мусор, не перенос — F-1), санитайзер пустой блок с
+ * якорем сохраняет пустым. */
 export function newCodeblockHtml() {
   return (
     '<div data-block="code" data-lang="python"><pre><code>' +
-    '<br></code></pre></div><p><br></p>'
+    '<br data-caret="1"></code></pre></div><p><br></p>'
   );
 }
 

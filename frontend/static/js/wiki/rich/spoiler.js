@@ -45,8 +45,10 @@ export function ensureBody(spoiler) {
   return body;
 }
 
-/* Шапка: head — служебный (data-editor). titleText — текущее название. */
-function buildHead(spoiler, titleText, withHint) {
+/* Шапка: head — служебный (data-editor). titleText — текущее название.
+ * editable — rename-ветка только в редакторе: в статье клик по названию
+ * = toggle (F-3, review-001; ОВ-1 «кликабельна ВСЯ шапка»). */
+function buildHead(spoiler, titleText, withHint, editable) {
   var head = editorEl('div', 'spoiler-head');
   head.appendChild(caretIcon());
   var title = el('span', 'spoiler-title', titleText || DEFAULT_SPOILER_TITLE);
@@ -58,7 +60,7 @@ function buildHead(spoiler, titleText, withHint) {
   }
   head.addEventListener('click', function (event) {
     if (head.querySelector('.spoiler-title-input')) return; // идет rename
-    if (event.target.closest('.spoiler-title')) {
+    if (editable && event.target.closest('.spoiler-title')) {
       startRename(spoiler, head, title);
       return;
     }
@@ -77,6 +79,7 @@ export function toggleSpoiler(spoiler) {
  * в data-title (spec FR-118). */
 export function startRename(spoiler, head, titleSpan) {
   if (head.querySelector('.spoiler-title-input')) return;
+  if (!titleSpan || titleSpan.parentNode !== head) return; // гонка commit
   var current = spoiler.getAttribute(TITLE_ATTR) || DEFAULT_SPOILER_TITLE;
   var input = editorEl('input', 'spoiler-title-input');
   input.type = 'text';
@@ -86,18 +89,24 @@ export function startRename(spoiler, head, titleSpan) {
   input.focus();
   input.select();
 
+  function restore() {
+    /* Единственная точка возврата названия (гонка Escape/blur: commit
+       после restore больше не делает replaceChild — pageerror-класс
+       «Failed to execute 'replaceChild'» снят) */
+    if (input.parentNode === head) head.replaceChild(titleSpan, input);
+  }
   function commit() {
     var value = input.value.trim() || current;
     spoiler.setAttribute(TITLE_ATTR, value);
     titleSpan.textContent = value;
-    if (input.parentNode === head) head.replaceChild(titleSpan, input);
+    restore();
   }
   input.addEventListener('keydown', function (event) {
     if (event.key === 'Enter') {
       event.preventDefault();
       commit();
     } else if (event.key === 'Escape') {
-      if (input.parentNode === head) head.replaceChild(titleSpan, input);
+      restore();
     }
   });
   input.addEventListener('blur', commit);
@@ -112,6 +121,7 @@ function enhance(spoiler, options) {
   var head = buildHead(
     spoiler,
     spoiler.getAttribute(TITLE_ATTR),
+    !!options.editable,
     !!options.editable
   );
   spoiler.insertBefore(head, spoiler.firstChild);

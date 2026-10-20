@@ -1987,16 +1987,40 @@ td .spoiler, th .spoiler { margin: 0; } /* страховка на контен�
 }
 
 /* --- Контекстная панель таблицы (мокап tool-5, ОВ-4) ------------------ */
+/* Компоновка по мокапу (design-check #5): панель — прозрачный оверлей
+   размером с таблицу; кластеры кнопок живут за краями таблицы:
+   столбцовые — над шапкой у границы целевого столбца, строковые — справа
+   за краем у целевой строки, «Удалить таблицу» + подсказка — под таблицей. */
 .editor-area { position: relative; } /* якорь позиционирования панели */
 .tbl-panel {
   position: absolute;
   z-index: 4;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  /* оверлей не перехватывает клики по ячейкам — активны только кнопки */
+  pointer-events: none;
+}
+.tbl-panel[hidden] { display: none; }
+.tbl-col-ops,
+.tbl-row-ops,
+.tbl-foot-ops {
+  position: absolute;
   display: flex;
   align-items: center;
   gap: var(--space-05);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+.tbl-col-ops { top: -26px; } /* над шапкой; left — у границы целевого столбца */
+.tbl-row-ops { left: 100%; margin-left: var(--space-2); flex-direction: column; }
+.tbl-foot-ops {
+  top: 100%;
+  left: 0;
+  margin-top: var(--space-2);
   padding: 2px var(--space-05);
   background: var(--color-bg-surface);
-  border: 1px solid var(--color-accent);
+  border: 1px solid var(--color-border-default);
   border-radius: var(--radius-field);
   box-shadow: var(--shadow-soft);
 }

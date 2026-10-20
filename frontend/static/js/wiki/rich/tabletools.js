@@ -133,11 +133,18 @@ var OPS = {
   }
 };
 
-/* Панель: собирается один раз, показывается у активной таблицы. */
+/* Панель: собирается один раз, показывается у активной таблицы.
+ * Компоновка по мокапу tool-5 (design-check #5): панель — прозрачный
+ * оверлей размером с таблицу; кластер столбцовых кнопок — НАД ШАПКОЙ у
+ * границы целевого столбца, строковых — СПРАВА ЗА КРАЕМ таблицы (у
+ * целевой строки), удаление таблицы + подсказка — строкой ПОД таблицей. */
 function buildPanel(area, hide, show) {
   var panel = editorEl('div', PANEL_CLASS);
   panel.setAttribute('role', 'toolbar');
   panel.setAttribute('aria-label', 'Управление таблицей');
+  var colCluster = editorEl('span', 'tbl-col-ops');
+  var rowCluster = editorEl('span', 'tbl-row-ops');
+  var footCluster = editorEl('span', 'tbl-foot-ops');
 
   function op(name, label, title) {
     var button = el('button', 'ctx-btn', label);
@@ -172,12 +179,17 @@ function buildPanel(area, hide, show) {
 
   var delRowBtn = op('delRow', '−', 'Удалить строку');
   var delColBtn = op('delCol', '−', 'Удалить столбец');
-  panel.appendChild(op('addRow', '+', 'Добавить строку ниже'));
-  panel.appendChild(delRowBtn);
-  panel.appendChild(op('addCol', '+', 'Добавить столбец справа'));
-  panel.appendChild(delColBtn);
+  /* столбцы: «+» слева от границы целевого столбца, «−» справа (мокап) */
+  colCluster.appendChild(op('addCol', '+', 'Добавить столбец справа'));
+  colCluster.appendChild(delColBtn);
+  /* строки: «−» на уровне целевой строки, «+» под ней (мокап) */
+  rowCluster.appendChild(delRowBtn);
+  rowCluster.appendChild(op('addRow', '+', 'Добавить строку ниже'));
+  panel.appendChild(colCluster);
+  panel.appendChild(rowCluster);
 
-  /* Отдельная кнопка удаления таблицы (ОВ-4) — не «−» у краев. */
+  /* Отдельная кнопка удаления таблицы (ОВ-4) — не «−» у краев; подсказка
+     (мокап: строка-подсказка под таблицей) — в том же нижнем кластере. */
   var removeTable = el('button', 'ctx-btn ctx-remove', 'Удалить таблицу');
   removeTable.type = 'button';
   removeTable.title = 'Удалить таблицу целиком';
@@ -197,10 +209,8 @@ function buildPanel(area, hide, show) {
     hide();
     area.focus();
   });
-  panel.appendChild(removeTable);
-
-  /* Подсказка (мокап: строка-подсказка под таблицей). */
-  panel.appendChild(
+  footCluster.appendChild(removeTable);
+  footCluster.appendChild(
     el(
       'span',
       'tbl-hint',
@@ -208,6 +218,7 @@ function buildPanel(area, hide, show) {
         'последнюю строку/столбец удалить нельзя'
     )
   );
+  panel.appendChild(footCluster);
 
   /* disabled «−» на последней строке/столбце (spec FR-122); aria-label
      синхронизируется с подсказкой — доступное имя = текущее состояние. */
@@ -259,7 +270,13 @@ function bindCellKeys(area) {
       }
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      document.execCommand('insertHTML', false, '<br>');
+      /* design-check #1: execCommand('insertHTML','<br>') в Chromium в
+         конце ячейки ставит br ПОСЛЕ последующего ввода
+         («строка-одинстрока-два<br>», перенос «висит» в конце), а ручная
+         вставка br в range ломается тем же квирком набора (каретка после
+         хвостового br «лечится» ДО текста). insertLineBreak — штатная
+         команда вставки переноса: проба дала ровно «один<br>два». */
+      document.execCommand('insertLineBreak');
     }
   });
 }
@@ -286,11 +303,26 @@ export function install(area) {
       return;
     }
     panel.hidden = false;
-    /* Позиционирование над таблицей (мокап: панель у целевого столбца). */
+    /* Панель-оверлей накрывает таблицу (позиционирование кластеров —
+       по мокапу tool-5: столбцы у границы целевого столбца над шапкой,
+       строки за правым краем у целевой строки). */
     var areaRect = area.getBoundingClientRect();
     var tableRect = table.getBoundingClientRect();
-    panel.style.left = Math.max(0, tableRect.left - areaRect.left) + 'px';
-    panel.style.top = Math.max(0, tableRect.top - areaRect.top - 34) + 'px';
+    panel.style.left = tableRect.left - areaRect.left + 'px';
+    panel.style.top = tableRect.top - areaRect.top + 'px';
+    panel.style.width = tableRect.width + 'px';
+    panel.style.height = tableRect.height + 'px';
+    if (cell) {
+      var cellRect = cell.getBoundingClientRect();
+      var colOps = panel.querySelector('.tbl-col-ops');
+      var rowOps = panel.querySelector('.tbl-row-ops');
+      if (colOps) {
+        colOps.style.left = cellRect.left - tableRect.left - 26 + 'px';
+      }
+      if (rowOps) {
+        rowOps.style.top = cellRect.top - tableRect.top - 2 + 'px';
+      }
+    }
     panel.refresh(table, cell);
   }
 

@@ -329,6 +329,25 @@ import {
     document.execCommand('insertHTML', false, html);
   }
 
+  /* design-check #6 (матрица §6: в код-блоке — НЕТ): блоковые вставки при
+   * каретке внутри код-блока запрещены — санитайзер в code-контексте
+   * разворачивает все, кроме pre/code, и получилось бы «редактор показал
+   * ≠ сохранилось». Вставка просто не выполняется. */
+  function caretInCodeBlock() {
+    var selection = window.getSelection();
+    if (!selection || !selection.anchorNode || !state.area) return false;
+    var node = selection.anchorNode;
+    var element = node.nodeType === 1 ? node : node.parentNode;
+    if (!element || !element.closest) return false;
+    var block = element.closest('[data-block="code"]');
+    return !!(block && state.area.contains(block));
+  }
+
+  function insertBlockGuarded(runInsert) {
+    if (caretInCodeBlock()) return;
+    runInsert();
+  }
+
   /* ------------------------------------------------------------------ */
   /* Масштаб изображения (возврат живой приемки 2026-10-11, как в        */
   /* Confluence): пресеты — решение PM в рамках возврата.                */
@@ -507,10 +526,14 @@ import {
       group([
         toolbarButton('Ссылка', ICONS.link, null, openLinkDialog, { stateful: false }),
         toolbarButton('Таблица', ICONS.table, null, function () {
-          focusAreaAndRun(insertTable3x3);
+          insertBlockGuarded(function () {
+            focusAreaAndRun(insertTable3x3);
+          });
         }, { stateful: false }),
         toolbarButton('Изображение', ICONS.image, 'tb-media', function () {
-          focusAreaAndRun(openImageDialog);
+          insertBlockGuarded(function () {
+            focusAreaAndRun(openImageDialog);
+          });
         }, { stateful: false })
       ])
     );
@@ -528,24 +551,30 @@ import {
     toolbar.appendChild(
       group([
         toolbarButton('Спойлер', spoilerButtonIcon(), 'tb-media', function () {
-          focusAreaAndRun(function () {
-            document.execCommand('insertHTML', false, newSpoilerHtml());
-            var inserted = focusInsertedBody(state.area);
-            if (inserted) enhanceSpoilers(inserted); // шапка/inline-контролы
+          insertBlockGuarded(function () {
+            focusAreaAndRun(function () {
+              document.execCommand('insertHTML', false, newSpoilerHtml());
+              var inserted = focusInsertedBody(state.area);
+              if (inserted) enhanceSpoilers(inserted); // шапка/inline-контролы
+            });
           });
         }, { stateful: false }),
         toolbarButton('Блок кода', ICONS.code, 'tb-media', function () {
-          focusAreaAndRun(function () {
-            document.execCommand('insertHTML', false, newCodeblockHtml());
-            var inserted = focusInsertedCode(state.area);
-            if (inserted) enhanceCodeblocks(inserted);
+          insertBlockGuarded(function () {
+            focusAreaAndRun(function () {
+              document.execCommand('insertHTML', false, newCodeblockHtml());
+              var inserted = focusInsertedCode(state.area);
+              if (inserted) enhanceCodeblocks(inserted);
+            });
           });
         }, { stateful: false }),
         toolbarButton('Табуляция', tabsButtonIcon(), 'tb-media', function () {
-          focusAreaAndRun(function () {
-            document.execCommand('insertHTML', false, newTabsHtml());
-            var inserted = focusInsertedTabs(state.area);
-            if (inserted) enhanceTabs(inserted);
+          insertBlockGuarded(function () {
+            focusAreaAndRun(function () {
+              document.execCommand('insertHTML', false, newTabsHtml());
+              var inserted = focusInsertedTabs(state.area);
+              if (inserted) enhanceTabs(inserted);
+            });
           });
         }, { stateful: false })
       ])

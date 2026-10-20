@@ -44,8 +44,11 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # p12-rich-dev1 — промежуточный бамп dev-волн 3–5 p12-rich-tools (impact.md
 # §Статика, урок R7 video-1.1): КАЖДЫЙ dev-PR, трогающий frontend/static/**,
 # несет идемпотентный бамп (гейт IR-03 считает дифф накопительно main...HEAD).
+# p12-rich-dev2 — фикс-раунд по ревью (review-001 F-1…F-3 + design-check):
+# санитайзер br→\n в коде, normalizeCodeInput, гейт rename спойлера,
+# Enter в ячейке, компоновка панели таблицы, гейт вставок в код-блок.
 # Волна 6.3 — финальный бамп маркером `p12-rich-1` (PM, вне этого диффа).
-templates.env.globals["static_v"] = "p12-rich-dev1"
+templates.env.globals["static_v"] = "p12-rich-dev2"
 
 
 @router.get("/login")

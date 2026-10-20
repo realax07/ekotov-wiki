@@ -26,7 +26,12 @@ XSS-векторы, undo-тест F4):
     test_undo_after_heading_toggle (F4: execCommand — undo-стек жив)
   Таблица (FR-122):
     test_table_add_remove_row_col_last_disabled_delete_whole
-    test_table_tab_navigation_enter_br
+    test_table_tab_navigation_enter_br (усилен: дискриминатор design-check #1)
+  Фикс-раунд (review-001 F-1…F-3 + design-check #1/#5/#6):
+    test_code_enter_multiline_saved_with_newline_gutter (F-1+F-2, live-проба БД)
+    test_spoiler_title_click_in_view_toggles_not_renames (F-3)
+    test_insert_blocks_gated_inside_codeblock (design-check #6)
+    test_table_panel_layout_follows_target (design-check #5)
   Деградация/безопасность (NFR-39):
     test_matrix_view_activation_unknown_block_degrades
     test_xss_vectors_inside_blocks_not_executed
@@ -687,14 +692,180 @@ def test_table_tab_navigation_enter_br(editor_page, wiki_api, web_base_url):
     cells = editor.area.locator("tbody tr").nth(0).locator("td")
     expect(cells).to_have_count(3)  # новой строки таблицы не появилось
     expect(cells.nth(1)).to_contain_text("вторая")
+    # ДИСКРИМИНАТОР design-check #1: перенос строго МЕЖДУ строками.
+    # Дефект execCommand('insertHTML') давал «втораятретья строка<br>»
+    # (br хвостовой, текст слит) — этот assert до фикса падал.
+    cell_html = cells.nth(1).evaluate("el => el.innerHTML")
+    assert "вторая<br>третья строка" in cell_html, cell_html
 
     editor.title_input.fill("Таблица навигация")
     editor.save_button().click()
     page.wait_for_url(re.compile(r"/wiki/\d+$"))
+    page_id = int(page.url.rstrip("/").rsplit("/", 1)[1])
     article_cell = page.locator(".article-body tbody tr").nth(0).locator("td").nth(1)
     expect(article_cell.locator("br")).to_have_count(1)
     expect(article_cell).to_contain_text("вторая")
     expect(article_cell).to_contain_text("третья строка")
+    # и В БД перенос между строками, не слитый текст с хвостовым br
+    saved = wiki_api.content_of(page_id)
+    assert "вторая<br>третья строка" in saved, saved
+    assert "втораятретья" not in saved
+
+
+# ---------------------------------------------------------------------------
+# Фикс-раунд: F-1/F-2 review-001, F-3, design-check #1/#5/#6
+# ---------------------------------------------------------------------------
+
+
+def test_code_enter_multiline_saved_with_newline_gutter(
+    editor_page, wiki_api, page_errors, web_base_url
+):
+    """F-1+F-2 (review-001): две строки кода через Enter → в БД ровно один
+    \\n (текст НЕ слипается «line1line2»), гуттер в редакторе показывает
+    «1 2», pageerror = 0. Дискриминатор обоих дефектов: до фикса в БД
+    было «line1line2», гуттер оставался «1», на каждый ввод — TypeError
+    buildGutter (11 pageerror). Живая проба: сохранение → проверка БД."""
+    page = editor_page
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
+    editor.area.click()
+    editor.toolbar_button("Блок кода").click()
+    block = editor.area.locator(".codeblock")
+    expect(block).to_have_count(1)
+
+    page.keyboard.type("line1")
+    page.keyboard.press("Enter")
+    page.keyboard.type("line2")
+
+    # F-2: гуттер пересчитался — две строки
+    assert block.locator(".codeblock-nums").evaluate("el => el.textContent") == "1\n2"
+    # F-1 (редактор): br уже нормализован в текстовый \n
+    code_html = block.locator("code").evaluate("el => el.innerHTML")
+    assert "<br" not in code_html, code_html
+
+    editor.title_input.fill("Многострочный код")
+    editor.save_button().click()
+    page.wait_for_url(re.compile(r"/wiki/\d+$"))
+    page_id = int(page.url.rstrip("/").rsplit("/", 1)[1])
+
+    # F-1 (БД): ровно один \n между строками, слития нет, br в коде нет
+    saved = wiki_api.content_of(page_id)
+    assert "line1\nline2" in saved, saved
+    assert "line1line2" not in saved
+    code_in_db = saved.split("<code>")[1].split("</code>")[0]
+    assert "<br" not in code_in_db and code_in_db == "line1\nline2"
+
+    # в статье: нумерация 1..2, обе строки видны, ошибок JS нет
+    article_block = page.locator(".article-body .codeblock")
+    expect(article_block.locator(".codeblock-nums")).to_have_text("1\n2")
+    expect(article_block.locator("code")).to_contain_text("line2")
+    assert page_errors == []
+
+
+def test_spoiler_title_click_in_view_toggles_not_renames(
+    editor_page, wiki_api, page_errors, web_base_url
+):
+    """F-3 (review-001): в СТАТЬЕ клик по названию спойлера = toggle
+    (ОВ-1 «кликабельна ВСЯ шапка»), инлайн-rename НЕ открывается —
+    input в view невозможен, фиктивного «редактирования» data-title нет.
+    Дискриминатор: до фикса клик по названию открывал input."""
+    page_id = wiki_api.create(
+        "Спойлер в статье",
+        '<div data-block="spoiler" data-title="Секреты">'
+        '<div data-block-part="body"><p>тело спойлера</p></div></div>',
+    )
+    page = editor_page
+    page.goto(f"{web_base_url}/wiki/{page_id}")
+    spoiler = page.locator(".article-body .spoiler")
+    expect(spoiler).to_have_class(re.compile("open"))
+
+    spoiler.locator(".spoiler-title").click()
+    expect(spoiler).to_have_class(re.compile("closed"))  # toggle, не rename
+    assert spoiler.locator(".spoiler-title-input").count() == 0
+    spoiler.locator(".spoiler-title").click()
+    expect(spoiler.locator(".spoiler-body")).to_contain_text("тело спойлера")
+    assert page_errors == []
+
+
+def test_insert_blocks_gated_inside_codeblock(
+    editor_page, wiki_api, page_errors, web_base_url
+):
+    """design-check #6 (матрица §6: в код-блоке — НЕТ): при каретке внутри
+    код-блока кнопки блоковых вставок (спойлер/табы/таблица) НЕ вставляют —
+    расхождение «редактор показал ≠ сохранилось» невозможно. Дискриминатор:
+    до фикса спойлер вставлялся внутрь кода."""
+    page = editor_page
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
+    editor.area.click()
+    page.keyboard.type("До кода")
+    editor.toolbar_button("Блок кода").click()
+    block = editor.area.locator(".codeblock")
+    expect(block).to_have_count(1)
+    page.keyboard.type("x = 1")  # каретка внутри code
+
+    editor.toolbar_button("Спойлер").click()
+    editor.toolbar_button("Табуляция").click()
+    editor.toolbar_button("Таблица").click()
+
+    expect(editor.area.locator('[data-block="spoiler"]')).to_have_count(0)
+    expect(editor.area.locator(".tabswidget")).to_have_count(0)
+    expect(editor.area.locator("table")).to_have_count(0)
+    expect(block).to_have_count(1)
+
+    editor.title_input.fill("Гейт вставок в код")
+    editor.save_button().click()
+    page.wait_for_url(re.compile(r"/wiki/\d+$"))
+    page_id = int(page.url.rstrip("/").rsplit("/", 1)[1])
+    saved = wiki_api.content_of(page_id)
+    assert 'data-block="spoiler"' not in saved
+    assert "tabswidget" not in saved and "<table" not in saved
+    assert "x = 1" in saved
+    assert page_errors == []
+
+
+def test_table_panel_layout_follows_target(editor_page, web_base_url):
+    """design-check #5 (мокап tool-5): столбцовые «+»/«−» — НАД шапкой у
+    границы целевого столбца, строковые — СПРАВА ЗА КРАЕМ таблицы,
+    «Удалить таблицу» + подсказка — под таблицей. Дискриминатор прежней
+    однострочной панели, позиционируемой по таблице целиком."""
+    page = editor_page
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
+    editor.area.click()
+    editor.toolbar_button("Таблица").click()
+    cell = editor.area.locator("tbody tr").nth(0).locator("td").nth(1)
+    cell.click()
+    panel = editor.area.locator(".tbl-panel")
+    expect(panel).to_be_visible()
+
+    pos = page.evaluate(
+        """() => {
+          const area = document.querySelector('.editor-area');
+          const cell = area.querySelectorAll('tbody td')[1];
+          const col = area.querySelector('.tbl-col-ops');
+          const row = area.querySelector('.tbl-row-ops');
+          const foot = area.querySelector('.tbl-foot-ops');
+          const table = area.querySelector('table');
+          const cr = col.getBoundingClientRect();
+          const cellr = cell.getBoundingClientRect();
+          const rr = row.getBoundingClientRect();
+          const tr = table.getBoundingClientRect();
+          const fr = foot.getBoundingClientRect();
+          return {
+            colDx: cellr.left - cr.left,      // кластер у ЛЕВОЙ границы столбца
+            colAbove: cellr.top - cr.bottom,  // НАД таблицей (не пересекает)
+            rowRight: rr.left - tr.right,     // за правым краем таблицы
+            rowTopDx: Math.abs(rr.top - cellr.top), // на уровне целевой строки
+            footBelow: fr.top - tr.bottom     // под таблицей
+          };
+        }"""
+    )
+    assert abs(pos["colDx"] - 26) < 16, pos
+    assert pos["colAbove"] > 0, pos
+    assert pos["rowRight"] > 0, pos
+    assert pos["rowTopDx"] < 30, pos
+    assert pos["footBelow"] > 0, pos
 
 
 # ---------------------------------------------------------------------------

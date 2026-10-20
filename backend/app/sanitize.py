@@ -170,6 +170,7 @@ class _Sanitizer(HTMLParser):
         self._skip_depth = 0
         self._block_depth = 0
         self._code_depth = 0
+        self._code_out_start = 0  # позиция выхода внутри открытого код-блока
         self._nested_table = 0
         self._nt_cells_seen = 0  # ячеек вложенной таблицы уже начато
 
@@ -198,7 +199,14 @@ class _Sanitizer(HTMLParser):
 
         # Код-блок: разрешены только pre/code и текст (design.md §2).
         if self._code_depth > 0 and tag not in ("pre", "code"):
-            return  # unwrap — текст останется, разметка кода смывается
+            if tag == "br":
+                # F-1 (review-001): Enter в код-блоке редактора дает <br>
+                # внутри <code>; прежний unwrap-канал стирал его — строки
+                # сливались в «line1line2» (потеря контента rich-v1-класса).
+                # В code-контексте br — перенос строки КОДА: эмитим текстовый
+                # \n (вне код-блока br проходит как есть).
+                self._out.append("\n")
+            return  # прочая разметка unwrap — текст останется
 
         # Вложенная таблица: структурные теги не эмитятся, текст ячеек
         # сохраняется, ячейки разделяются <br> (design.md §2, находка F3).
@@ -239,6 +247,11 @@ class _Sanitizer(HTMLParser):
                     self._block_depth += 1
                 if is_code_block:
                     self._code_depth += 1
+                    if self._code_depth == 1:
+                        # запомнить позицию выхода блока — для отсечения
+                        # мусорных \n от br-якорей ПУСТОГО код-блока (см.
+                        # _trim_empty_code_newlines)
+                        self._code_out_start = len(self._out)
         # Прочие запрещенные теги — unwrap: сам тег не эмитится,
         # содержимое обрабатывается дальше как обычно.
 
@@ -269,6 +282,8 @@ class _Sanitizer(HTMLParser):
                     self._block_depth -= 1
                 if role == "code":
                     self._code_depth -= 1
+                    if self._code_depth == 0:
+                        self._trim_empty_code_newlines()
                 if open_tag == tag:
                     break
 
@@ -287,6 +302,8 @@ class _Sanitizer(HTMLParser):
                 self._block_depth -= 1
             if role == "code":
                 self._code_depth -= 1
+                if self._code_depth == 0:
+                    self._trim_empty_code_newlines()
 
     # -- данные и сущности -----------------------------------------------
 
@@ -296,6 +313,18 @@ class _Sanitizer(HTMLParser):
         self._out.append(_html.escape(data, quote=False))
 
     # -- блоки --------------------------------------------------------------
+
+    def _trim_empty_code_newlines(self) -> None:
+        """Пустой код-блок: br-якорь каретки редактора (newCodeblockHtml)
+        после br→\\n-нормализации дает в блоке только «\\n» без текста.
+        Отсекаем такие \\n — в БД пустой блок остается пустым (прежнее
+        поведение до F-1); блок с реальным текстом не трогаем."""
+        tail = self._out[self._code_out_start :]
+        has_text = any(chunk != "\n" and not chunk.startswith("<") for chunk in tail)
+        if not has_text:
+            self._out = self._out[: self._code_out_start] + [
+                chunk for chunk in tail if chunk != "\n"
+            ]
 
     @staticmethod
     def _block_type(attrs: list[tuple[str, str | None]]) -> str | None:
@@ -335,7 +364,14 @@ class _Sanitizer(HTMLParser):
         # Незакрытые к концу входа разрешенные теги дозакрываются —
         # на выходе сбалансированная разметка.
         while self._stack:
-            self._out.append(f"</{self._stack.pop()}>")
+            open_tag, role = self._stack.pop()
+            self._out.append(f"</{open_tag}>")
+            if role == "block":
+                self._block_depth -= 1
+            if role == "code":
+                self._code_depth -= 1
+                if self._code_depth == 0:
+                    self._trim_empty_code_newlines()
         return "".join(self._out)
 
 
