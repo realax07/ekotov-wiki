@@ -99,3 +99,31 @@
 - tests/web/test_p12_rich_qa.py — 38 e2e-тестов (id кейса в имени)
 - tests/api/test_p12_rich_qa_api.py — 10 api-тестов
 - Прогон: `EKOTOV_WIKI_BASE_URL=http://127.0.0.1:18446 EKOTOV_WIKI_DB_PATH=/tmp/qa-stand-p12rich/app.db pytest tests/web/test_p12_rich_qa.py tests/api/test_p12_rich_qa_api.py` → **48 passed, 2 failed** (только D1/D2)
+
+## Верификация фиксов (ре-прогон D1/D2 после fix-раунда dev)
+
+- **Дата:** 2026-10-20 · **Стенд:** /tmp/qa-stand-p12rich поднят с кодом фикса — ветка chore/p12-rich-dev, HEAD **8bbbcce** (static_v p12-rich-dev3, nginx :18446; проверено: отдаваемый spoiler.js содержит «Escape — отмена… первый исход финален», tabletools/editor — гейт caretInTableCell + forbidden).
+- **Изменения сьюта (эта ветка, [test]):** web::040 — добавлен смоук коммита по Enter («Финал-Enter» → title, input закрыт); web::041 — гейт проверяется как `expect(кнопка «Таблица»).to_be_disabled()` + `title="В ячейке таблица запрещена"` (click по disabled упал бы по таймауту Playwright) + `td table = 0`, добавлен смоук вставки таблицы ВНЕ ячейки (кнопка enabled, title «Таблица», вторая таблица вставляется, затем undo). Paste-часть web::041 и api-сьют — без изменений.
+
+### Вердикты
+
+| Дефект | Кейс | Вердикт | Факт |
+|---|---|---|---|
+| **D1** | TC-rich-040 (web::040) | **PASS — фикс подтвержден** | Escape отменяет: title остался «Спойлер», input закрыт; blur коммитит («Финал»); гонка Escape→blur детерминирована: title = «Финал» (значение до правки), inputs = 0, **pageerror 0** — детерминизм подтвержден 4 прогонами подряд (4/4 PASS, включая 3 повторных); в статье rename не открывается; GET: ровно один `data-title="Финал"` |
+| **D2** | TC-rich-041 (web::041 + api::041) | **PASS — фикс подтвержден** | Кнопка «Таблица» при каретке в ячейке **disabled**, title = «В ячейке таблица запрещена»; `td table` count = 0; paste-путь без регресса: вложенная table unwrap целиком, `<td>A1<br>B1</td>`, `<table>` ×1, повторное сохранение идемпотентно (api-сьют 10/10) |
+
+### Смоук-регресс вокруг фикса
+
+- Rename спойлера **коммит по Enter** — работает («Финал-Enter» → title обновлен, input закрыт; фикс D1 не задел коммит-путь).
+- Rename **коммит по blur** — работает («Финал», в том же прогоне, что и проверка отмены).
+- **Вставка таблицы вне ячейки** — работает: кнопка enabled (title «Таблица»), клик вставляет таблицу (count 1→2), undo откатывает; `td table` = 0 после всего сценария.
+
+### Финальные счетчики (итог по 41 кейсу)
+
+| Итог | Значение |
+|---|---|
+| **PASS** | **41** (34 Must + 7 Should) |
+| **FAIL** | **0** (D1, D2 закрыты фикс-раундом 8bbbcce) |
+| **BLOCKED** | **0** |
+
+Прогон: `EKOTOV_WIKI_BASE_URL=http://127.0.0.1:18446 EKOTOV_WIKI_DB_PATH=/tmp/qa-stand-p12rich/app.db pytest tests/web/test_p12_rich_qa.py tests/api/test_p12_rich_qa_api.py` → **50 passed** (web 40 + api 10, 91 c); web::040 дополнительно 3× повторно — PASS.

@@ -1728,6 +1728,20 @@ def test_tc_rich_040_spoiler_rename_gate_editor_only(editor_page, qa, page_error
     editor.area.locator(".spoiler-body").click()
     expect(spoiler.locator(".spoiler-title")).to_have_text("Финал")
 
+    # смоук: коммит по Enter не сломан фикс-раундом (rename «Финал-Enter»)
+    spoiler.locator(".spoiler-title").click()
+    expect(inp).to_be_visible()
+    inp.fill("Финал-Enter")
+    inp.press("Enter")
+    expect(spoiler.locator(".spoiler-title")).to_have_text("Финал-Enter")
+    assert spoiler.locator(".spoiler-title-input").count() == 0
+    # вернуть «Финал» для дальнейших шагов
+    spoiler.locator(".spoiler-title").click()
+    expect(inp).to_be_visible()
+    inp.fill("Финал")
+    inp.press("Enter")
+    expect(spoiler.locator(".spoiler-title")).to_have_text("Финал")
+
     # гонка Escape → сразу blur: значение до правки («Финал») сохранено
     spoiler.locator(".spoiler-title").click()
     expect(inp).to_be_visible()
@@ -1786,23 +1800,41 @@ def test_tc_rich_041_table_in_table_gated_and_unwrapped(editor_page, qa, page_er
     editor.open_create(web_base_url)
     editor.area.click()
     editor.toolbar_button("Таблица").click()
+    expect(editor.area.locator("table")).to_have_count(1)
+    table_btn = editor.toolbar_button("Таблица")
     cell = editor.area.locator("tbody tr").nth(0).locator("td").nth(0)
     cell.click()
-    editor.toolbar_button("Таблица").click()
+    # Фикс D2: кнопка DISABLED с подсказкой — click по disabled упал бы по
+    # таймауту Playwright, поэтому проверяем состояние, а не действие.
+    expect(table_btn).to_be_disabled()
+    assert table_btn.get_attribute("title") == "В ячейке таблица запрещена"
     page.wait_for_timeout(200)
     gate_inserted = editor.area.locator("td table").count()  # спека: 0 (гейт)
-    if gate_inserted:
-        # убрать вставленное (undo) и продолжить сбор фактов paste-пути
-        for _ in range(5):
-            page.keyboard.press("Control+Z")
-            if editor.area.locator("td table").count() == 0:
-                break
-        if editor.area.locator("td table").count():
-            editor.title_input.fill("QA-041 черновик")
-            editor.save_button().click()
-            page.wait_for_url(re.compile(r"/wiki/\d+$"))
-            editor.open_edit(web_base_url, int(page.url.rstrip("/").rsplit("/", 1)[1]))
-    # (вердикт по гейту — в конце теста, чтобы собрать факты и paste-пути)
+    expect(editor.area.locator("td table")).to_have_count(0)
+
+    # смоук: каретка вне таблицы — кнопка снова доступна, вставка РАБОТАЕТ
+    page.evaluate(
+        """() => {
+          const area = document.querySelector('.editor-area');
+          const range = document.createRange();
+          range.selectNodeContents(area);
+          range.collapse(false);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }"""
+    )
+    expect(table_btn).to_be_enabled()
+    expect(table_btn).to_have_attribute("title", "Таблица")
+    table_btn.click()
+    expect(editor.area.locator("table")).to_have_count(2)
+    # убрать смоук-таблицу — дальше paste-путь на чистом черновике
+    for _ in range(5):
+        page.keyboard.press("Control+Z")
+        if editor.area.locator("table").count() == 1:
+            break
+    expect(editor.area.locator("table")).to_have_count(1)
+    expect(editor.area.locator("td table")).to_have_count(0)
 
     # paste-путь
     pid = qa.make(
