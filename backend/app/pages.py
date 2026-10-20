@@ -48,7 +48,10 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # санитайзер br→\n в коде, normalizeCodeInput, гейт rename спойлера,
 # Enter в ячейке, компоновка панели таблицы, гейт вставок в код-блок.
 # Волна 6.3 — финальный бамп маркером `p12-rich-1` (PM, вне этого диффа).
-templates.env.globals["static_v"] = "p12-rich-1"
+# p12-rich-2 — багфикс с прода (Флоу 2): dblclick-переименование вкладок
+# (div role=tab, детерминированный close, Escape=отмена), спойлер ВСЕГДА
+# свернут по умолчанию (edit и view, раскрытие — только клик).
+templates.env.globals["static_v"] = "p12-rich-2"
 
 
 @router.get("/login")

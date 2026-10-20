@@ -12,7 +12,12 @@
  *   первая (§1);
  * - лимит 8 вкладок (ОВ-2), переполнение таб-бара — горизонтальный скролл
  *   (ОВ-3); последнюю вкладку удалить нельзя (× нет на единственной);
- * - переименование — двойной клик по вкладке (input внутри, focus-ring);
+ * - переименование — двойной клик по вкладке в РЕЖИМЕ РЕДАКТИРОВАНИЯ
+ *   (инлайн-input как у спойлера F-3; в статье вкладки не переименовываются
+ *   вообще — только переключаются); tab-элемент — div role=tab (не button):
+ *   input внутри button не получает фокус в части браузеров — дефект
+ *   «переименовать нельзя» (багфикс p12-rich-2); Escape = отмена,
+ *   единственная точка завершения (паттерн QA D1 спойлера);
  * - содержимое вкладок — независимые зоны с любым контентом (в т.ч.
  *   другие блоки, §6); сохранение дерево не перестраивает (урок rich-v1).
  */
@@ -47,7 +52,7 @@ function activatePane(block, panes, buttons, index) {
   });
 }
 
-function makeRename(pane, button, block, refresh) {
+function makeRename(pane, button, block) {
   function startRename() {
     if (button.querySelector('.tab-rename')) return;
     var closeSpan = button.querySelector('.tab-close');
@@ -59,25 +64,39 @@ function makeRename(pane, button, block, refresh) {
     button.appendChild(input);
     input.focus();
     input.select();
-    function commit() {
-      var value = input.value.trim() || DEFAULT_TAB_TITLE + ' ' + (
-        tabPanes(block).indexOf(pane) + 1
-      );
-      pane.setAttribute(TITLE_ATTR, value);
+
+    /* Единственная точка завершения переименования (паттерн QA D1
+     * спойлера): первый close() финален, повторный (blur после Escape)
+     * — no-op. Escape = ОТМЕНА: data-title не меняется, «×» возвращается
+     * (до фикса blur после Escape коммитил введенный текст и терял «×»). */
+    var finished = false;
+    function close(commit) {
+      if (finished) return;
+      finished = true;
+      var value;
+      if (commit) {
+        value = input.value.trim() || DEFAULT_TAB_TITLE + ' ' + (
+          tabPanes(block).indexOf(pane) + 1
+        );
+        pane.setAttribute(TITLE_ATTR, value);
+      } else {
+        value = paneTitle(pane);
+      }
       /* текст + крестик «×»: textContent затер бы служебный span */
       button.textContent = value;
       if (closeSpan) button.appendChild(closeSpan);
-      if (refresh) refresh();
     }
     input.addEventListener('keydown', function (event) {
       if (event.key === 'Enter') {
         event.preventDefault();
-        commit();
+        close(true);
       } else if (event.key === 'Escape') {
-        button.textContent = paneTitle(pane);
+        close(false);
       }
     });
-    input.addEventListener('blur', commit);
+    input.addEventListener('blur', function () {
+      close(true);
+    });
   }
   return startRename;
 }
@@ -108,9 +127,12 @@ function buildTabBar(block, editable) {
     var panes = tabPanes(block);
     buttons = [];
     panes.forEach(function (pane, index) {
-      var button = el('button', 'tab');
-      button.type = 'button';
+      /* div role=tab (НЕ button): input внутри <button> не получает фокус
+       * в части браузеров — переименование «не работает» (p12-rich-2).
+       * Стили — по классу .tab, смена тега разметку не меняет. */
+      var button = el('div', 'tab');
       button.setAttribute('role', 'tab');
+      button.tabIndex = 0;
       button.setAttribute('aria-selected', 'false');
       button.textContent = paneTitle(pane);
       if (editable) {
@@ -127,13 +149,29 @@ function buildTabBar(block, editable) {
         button.appendChild(close);
         button.addEventListener('dblclick', makeRename(pane, button, block));
         button.addEventListener('click', function () {
-          activatePane(block, panes, buttons, index);
+          activatePane(block, tabPanes(block), buttons, index);
+          /* Каретка — в активированную панель (в редакторе): раньше переносил
+           * побочный эффект фокуса button, после div role=tab делаем явно,
+           * иначе ввод после переключения вкладки идет мимо (p12-rich-2). */
+          var paneNow = tabPanes(block)[index];
+          if (paneNow) placeCaretStart(paneNow);
         });
       } else {
         button.addEventListener('click', function () {
-          activatePane(block, panes, buttons, index);
+          activatePane(block, tabPanes(block), buttons, index);
         });
       }
+      /* Клавиатурная активация (у div нет нативной кнопочной): Enter/Space.
+       * Во время rename event.target — input, не переключаем. */
+      button.addEventListener('keydown', function (event) {
+        if (event.target.closest('.tab-rename')) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          activatePane(block, tabPanes(block), buttons, index);
+          var paneNow = tabPanes(block)[index];
+          if (paneNow) placeCaretStart(paneNow);
+        }
+      });
       /* В обоих режимах индекс вкладки фиксируется на момент сборки:
        * в редакторе rebuild пересобирает кнопки после добавления/удаления. */
       buttons.push(button);
