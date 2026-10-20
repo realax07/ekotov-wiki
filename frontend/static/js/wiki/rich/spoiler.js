@@ -6,7 +6,9 @@
  * Инварианты:
  * - шапка (шеврон + название + подсказка) — служебный узел data-editor:
  *   в сохраняемый контент не попадает; toggle-состояние (open/closed)
- *   тоже не сохраняется — при открытии спойлер развернут (§1);
+ *   тоже не сохраняется — отсутствие атрибута раскрытия = закрыт:
+ *   новый/вставленный спойлер ВСЕГДА свернут (и в редакторе, и в
+ *   статье); раскрытие — только клик пользователя (багфикс p12-rich-2);
  * - клик по ВСЕЙ шапке сворачивает/разворачивает (ОВ-1); клик по названию
  *   в редакторе — инлайн-переименование (input с focus-ring);
  * - в ячейке таблицы — компактный класс (closest('td,th') при активации,
@@ -17,7 +19,7 @@
 
 import {
   el, editorEl, blockParts, cellContext, placeCaretStart,
-  TITLE_ATTR, PART_ATTR, DEFAULT_SPOILER_TITLE
+  TITLE_ATTR, PART_ATTR, BLOCK_ATTR, DEFAULT_SPOILER_TITLE
 } from './model.js';
 
 /* Статический SVG шеврона (мокап; не данные пользователя — innerHTML безопасен). */
@@ -120,7 +122,9 @@ export function startRename(spoiler, head, titleSpan) {
 /* Общая активация (edit и view): классы виджета, шапка, тело, компакт. */
 function enhance(spoiler, options) {
   if (spoiler.classList.contains('rich-active')) return;
-  spoiler.classList.add('rich-active', 'spoiler', 'open');
+  /* Всегда СВЕРНУТ по умолчанию (edit и view): раскрытие — только клик
+   * по шапке; состояние в контент не пишется (багфикс p12-rich-2). */
+  spoiler.classList.add('rich-active', 'spoiler', 'closed');
   if (cellContext(spoiler)) spoiler.classList.add('rich-compact');
   var body = ensureBody(spoiler);
   var head = buildHead(
@@ -155,13 +159,19 @@ export function newSpoilerHtml() {
   );
 }
 
-/* После insertHTML: найти вставленный спойлер и вернуть его тело
- * (фокус — в зону содержимого, design.md §3). */
+/* После insertHTML: найти вставленный спойлер (он СВЕРНУТ — дефолт) и
+ * поставить каретку в абзац ЗА ним: в скрытое тело каретка невозможна,
+ * раскрытие — только клик по шапке. Fallback — тело (совместимость). */
 export function focusInsertedBody(area) {
   var blocks = area.querySelectorAll('[data-block="spoiler"]');
   var spoiler = blocks[blocks.length - 1];
   if (!spoiler) return null;
   var body = ensureBody(spoiler);
-  placeCaretStart(body);
+  var after = spoiler.nextElementSibling;
+  if (after && !after.hasAttribute(BLOCK_ATTR)) {
+    placeCaretStart(after);
+  } else {
+    placeCaretStart(body);
+  }
   return spoiler;
 }

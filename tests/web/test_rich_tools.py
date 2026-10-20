@@ -35,6 +35,10 @@ XSS-векторы, undo-тест F4):
   Фикс-раунд QA №1 (D1/D2):
     test_spoiler_rename_escape_cancels_blur_race_deterministic (D1: Escape=отмена)
     test_table_insert_gated_in_cell_button_disabled (D2: ячейка×таблица=НЕТ)
+  Фикс-раунд p12-rich-2 (багфикс с прода):
+    test_spoiler_new_closed_by_default_edit_and_view (спойлер ВСЕГДА свернут)
+    test_tabs_rename_escape_cancels_x_restored (Escape=отмена, «×» жив)
+    test_tabs_dblclick_gated_by_editable_view_switch_only (F-3-гейт табов)
   Деградация/безопасность (NFR-39):
     test_matrix_view_activation_unknown_block_degrades
     test_xss_vectors_inside_blocks_not_executed
@@ -137,8 +141,9 @@ def page_errors(page):
 
 
 def test_spoiler_insert_rename_toggle_save(editor_page, page_errors, web_base_url):
-    """Спойлер: вставка кнопкой, инлайн-переименование, toggle по всей шапке,
-    сохранение → в статье спойлер с названием и зоной содержимого."""
+    """Спойлер: вставка кнопкой (СВЕРНУТ — дефолт p12-rich-2),
+    инлайн-переименование, раскрытие кликом, сохранение → в статье спойлер
+    закрыт до клика пользователя."""
     page = editor_page
     editor = WikiEditor(page)
     editor.open_create(web_base_url)
@@ -147,7 +152,13 @@ def test_spoiler_insert_rename_toggle_save(editor_page, page_errors, web_base_ur
 
     spoiler = editor.area.locator('.spoiler')
     expect(spoiler).to_have_count(1)
+    # вставленный спойлер ВСЕГДА свернут (багфикс p12-rich-2)
+    expect(spoiler).to_have_class(re.compile("closed"))
     expect(spoiler.locator(".spoiler-title")).to_have_text("Спойлер")
+
+    # раскрытие — только клик пользователя
+    spoiler.locator(".spoiler-caret").click()
+    expect(spoiler).to_have_class(re.compile("open"))
 
     # инлайн-переименование: клик по названию → input → «Скрытые детали»
     spoiler.locator(".spoiler-title").click()
@@ -178,25 +189,30 @@ def test_spoiler_insert_rename_toggle_save(editor_page, page_errors, web_base_ur
     article_spoiler = body.locator(".spoiler")
     expect(article_spoiler).to_have_count(1)
     expect(article_spoiler.locator(".spoiler-title")).to_have_text("Скрытые детали")
-    # в рендере спойлер развернут (состояние не сохраняется, §1)
-    expect(article_spoiler).to_have_class(re.compile("open"))
-    expect(article_spoiler.locator(".spoiler-body")).to_contain_text("Тело спойлера")
+    # в рендере спойлер ТОЖЕ свернут (раскрытие — только клик, p12-rich-2)
+    expect(article_spoiler).to_have_class(re.compile("closed"))
+    expect(article_spoiler.locator(".spoiler-body")).to_be_hidden()
     # toggle в статье: вся шапка кликабельна (ОВ-1)
     article_spoiler.locator(".spoiler-head").click()
-    expect(article_spoiler).to_have_class(re.compile("closed"))
-    article_spoiler.locator(".spoiler-head").click()
+    expect(article_spoiler).to_have_class(re.compile("open"))
     expect(article_spoiler.locator(".spoiler-body")).to_contain_text("Тело спойлера")
+    article_spoiler.locator(".spoiler-head").click()
+    expect(article_spoiler).to_have_class(re.compile("closed"))
 
 
 def test_spoiler_collapsed_keeps_content_roundtrip(editor_page, wiki_api, web_base_url):
     """Свернутый в редакторе спойлер сохраняет содержимое: в БД тело есть,
-    при открытии статьи спойлер развернут (§1, сценарий FR-118)."""
+    при открытии статьи спойлер закрыт до клика (p12-rich-2, FR-118)."""
     page = editor_page
     editor = WikiEditor(page)
     editor.open_create(web_base_url)
     editor.area.click()
     editor.toolbar_button("Спойлер").click()
     spoiler = editor.area.locator(".spoiler")
+    expect(spoiler).to_have_class(re.compile("closed"))
+    spoiler.locator(".spoiler-caret").click()  # раскрыть кликом
+    expect(spoiler).to_have_class(re.compile("open"))
+    spoiler.locator(".spoiler-body").click()
     page.keyboard.type("Секретное содержимое")
     spoiler.locator(".spoiler-caret").click()
     expect(spoiler).to_have_class(re.compile("closed"))
@@ -211,7 +227,8 @@ def test_spoiler_collapsed_keeps_content_roundtrip(editor_page, wiki_api, web_ba
 
     page.goto(f"{web_base_url}/wiki/{page_id}")
     article_spoiler = page.locator(".article-body .spoiler")
-    expect(article_spoiler).to_have_class(re.compile("open"))  # развернут
+    expect(article_spoiler).to_have_class(re.compile("closed"))  # закрыт
+    article_spoiler.locator(".spoiler-head").click()  # раскрыл пользователь
     expect(article_spoiler.locator(".spoiler-body")).to_contain_text(
         "Секретное содержимое"
     )
@@ -232,6 +249,10 @@ def test_spoiler_in_table_cell_compact(editor_page, wiki_api, web_base_url):
     spoiler = editor.area.locator("td .spoiler")
     expect(spoiler).to_have_count(1)
     expect(spoiler).to_have_class(re.compile("rich-compact"))  # компакт (мокап)
+    expect(spoiler).to_have_class(re.compile("closed"))  # дефолт p12-rich-2
+    spoiler.locator(".spoiler-caret").click()  # раскрыть кликом
+    expect(spoiler).to_have_class(re.compile("open"))
+    spoiler.locator(".spoiler-body").click()
     page.keyboard.type("В ячейке")
 
     editor.title_input.fill("Спойлер в ячейке")
@@ -240,8 +261,7 @@ def test_spoiler_in_table_cell_compact(editor_page, wiki_api, web_base_url):
     body = page.locator(".article-body")
     cell_spoiler = body.locator("td .spoiler")
     expect(cell_spoiler).to_have_count(1)
-    cell_spoiler.locator(".spoiler-head").click()
-    expect(cell_spoiler).to_have_class(re.compile("closed"))
+    expect(cell_spoiler).to_have_class(re.compile("closed"))  # закрыт в статье
     cell_spoiler.locator(".spoiler-head").click()
     expect(cell_spoiler.locator(".spoiler-body")).to_contain_text("В ячейке")
 
@@ -255,10 +275,18 @@ def test_spoiler_in_spoiler_independent(editor_page, wiki_api, web_base_url):
     editor.area.click()
     editor.toolbar_button("Спойлер").click()
     outer = editor.area.locator(".spoiler").nth(0)
+    expect(outer).to_have_class(re.compile("closed"))
+    outer.locator(".spoiler-caret").click()  # раскрыть внешний кликом
+    expect(outer).to_have_class(re.compile("open"))
+    outer.locator(".spoiler-body").click()
     page.keyboard.type("Внешнее тело")
     editor.toolbar_button("Спойлер").click()  # каретка в body внешнего
     inner = outer.locator(".spoiler")
     expect(inner).to_have_count(1)
+    expect(inner).to_have_class(re.compile("closed"))  # внутренний тоже свернут
+    inner.locator(".spoiler-caret").click()  # раскрыть внутренний кликом
+    expect(inner).to_have_class(re.compile("open"))
+    inner.locator(".spoiler-body").click()
     page.keyboard.type("Внутреннее тело")
 
     # независимые состояния: внутренний свернут — внешний развернут
@@ -272,6 +300,9 @@ def test_spoiler_in_spoiler_independent(editor_page, wiki_api, web_base_url):
     body = page.locator(".article-body")
     nested = body.locator(".spoiler .spoiler")
     expect(nested).to_have_count(1)
+    # оба закрыты в статье (дефолт) — раскрывает пользователь
+    body.locator(".spoiler").first.locator("> .spoiler-head").click()
+    nested.locator("> .spoiler-head").click()
     expect(nested.locator(".spoiler-body")).to_contain_text("Внутреннее тело")
     # сворачивание внешнего скрывает внутренний целиком
     body.locator(".spoiler").first.locator("> .spoiler-head").click()
@@ -372,6 +403,8 @@ def test_code_inside_spoiler(editor_page, wiki_api, web_base_url):
     page = editor_page
     page.goto(f"{web_base_url}/wiki/{page_id}")
     spoiler = page.locator(".article-body .spoiler")
+    expect(spoiler).to_have_class(re.compile("closed"))  # дефолт p12-rich-2
+    spoiler.locator(".spoiler-head").click()  # раскрыл пользователь
     code_block = spoiler.locator(".codeblock")
     expect(code_block.locator(".tok-kw").first).to_be_visible()
     spoiler.locator(".spoiler-head").click()
@@ -780,12 +813,14 @@ def test_spoiler_title_click_in_view_toggles_not_renames(
     page = editor_page
     page.goto(f"{web_base_url}/wiki/{page_id}")
     spoiler = page.locator(".article-body .spoiler")
-    expect(spoiler).to_have_class(re.compile("open"))
+    expect(spoiler).to_have_class(re.compile("closed"))  # дефолт p12-rich-2
 
     spoiler.locator(".spoiler-title").click()
-    expect(spoiler).to_have_class(re.compile("closed"))  # toggle, не rename
+    expect(spoiler).to_have_class(re.compile("open"))  # toggle, не rename
     assert spoiler.locator(".spoiler-title-input").count() == 0
     spoiler.locator(".spoiler-title").click()
+    expect(spoiler).to_have_class(re.compile("closed"))
+    spoiler.locator(".spoiler-head").click()
     expect(spoiler.locator(".spoiler-body")).to_contain_text("тело спойлера")
     assert page_errors == []
 
@@ -824,7 +859,9 @@ def test_spoiler_rename_escape_cancels_blur_race_deterministic(
     expect(name_input).to_have_count(0)
     page.wait_for_timeout(200)
     expect(spoiler.locator(".spoiler-title")).to_have_text("Спойлер")
-    # без Escape blur по-прежнему коммитит
+    # без Escape blur по-прежнему коммитит (спойлер раскрыт — тело кликабельно)
+    spoiler.locator(".spoiler-caret").click()
+    expect(spoiler).to_have_class(re.compile("open"))
     spoiler.locator(".spoiler-title").click()
     name_input = spoiler.locator(".spoiler-title-input")
     expect(name_input).to_be_visible()
@@ -970,6 +1007,157 @@ def test_table_panel_layout_follows_target(editor_page, web_base_url):
     assert pos["rowRight"] > 0, pos
     assert pos["rowTopDx"] < 30, pos
     assert pos["footBelow"] > 0, pos
+
+
+# ---------------------------------------------------------------------------
+# Фикс-раунд p12-rich-2 (багфикс с прода)
+# ---------------------------------------------------------------------------
+
+
+def test_spoiler_new_closed_by_default_edit_and_view(
+    editor_page, wiki_api, page_errors, web_base_url
+):
+    """p12-rich-2 (дефект №2 «спойлер всегда закрыт по умолчанию»): новый
+    спойлер рождается СВЕРНУТЫМ в редакторе при вставке; в статье закрыт;
+    состояние раскрытия — ТОЛЬКО клик пользователя; при сохранении
+    отсутствие атрибута раскрытия = закрыт (в БД класса open/closed нет).
+    Дискриминатор: до фикса вставленный спойлер был развернут (class open)."""
+    page = editor_page
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
+    editor.area.click()
+    editor.toolbar_button("Спойлер").click()
+    spoiler = editor.area.locator(".spoiler")
+    expect(spoiler).to_have_count(1)
+    # в редакторе при вставке: closed, тело скрыто, open-класса нет
+    expect(spoiler).to_have_class(re.compile("closed"))
+    assert "open" not in (spoiler.get_attribute("class") or "")
+    expect(spoiler.locator(".spoiler-body")).to_be_hidden()
+
+    # раскрытие — только клик пользователя; повторный клик сворачивает
+    spoiler.locator(".spoiler-head").click()
+    expect(spoiler).to_have_class(re.compile("open"))
+    spoiler.locator(".spoiler-head").click()
+    expect(spoiler).to_have_class(re.compile("closed"))
+
+    # сохранение: в БД нет ни open, ни closed — отсутствие атрибута = закрыт
+    editor.title_input.fill("Спойлер закрыт по умолчанию")
+    editor.save_button().click()
+    page.wait_for_url(re.compile(r"/wiki/\d+$"))
+    page_id = int(page.url.rstrip("/").rsplit("/", 1)[1])
+    saved = wiki_api.content_of(page_id)
+    assert 'data-block="spoiler"' in saved
+    assert "open" not in saved and "closed" not in saved
+
+    # в статье закрыт, раскрывается кликом по шапке
+    page.goto(f"{web_base_url}/wiki/{page_id}")
+    article_spoiler = page.locator(".article-body .spoiler")
+    expect(article_spoiler).to_have_class(re.compile("closed"))
+    expect(article_spoiler.locator(".spoiler-body")).to_be_hidden()
+    article_spoiler.locator(".spoiler-head").click()
+    expect(article_spoiler).to_have_class(re.compile("open"))
+    assert page_errors == []
+
+
+def test_tabs_rename_escape_cancels_x_restored(
+    editor_page, wiki_api, page_errors, web_base_url
+):
+    """p12-rich-2 (дефект №1, часть A): dblclick-переименование вкладки
+    в редакторе — инлайн-input как у спойлера; Enter коммитит в data-title;
+    Escape = ОТМЕНА (детерминированный close, паттерн QA D1: blur после
+    Escape не коммитит), «×» после отмены жив. Дискриминаторы до фикса:
+    Escape коммитил введенный текст в data-title и терял «×» вкладки."""
+    page = editor_page
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
+    editor.area.click()
+    editor.toolbar_button("Табуляция").click()
+    widget = editor.area.locator(".tabswidget")
+    expect(widget.locator(".tab")).to_have_count(2)
+
+    # dblclick → инлайн-input с текущим названием
+    tab = widget.locator(".tab").nth(0)
+    tab.dblclick()
+    rename = widget.locator(".tab-rename")
+    expect(rename).to_be_visible()
+    assert rename.input_value() == "Вкладка 1"
+    # реальный ввод с клавиатуры (не fill): фокус во input (div role=tab)
+    rename.fill("")
+    page.keyboard.type("Обзор")
+    rename.press("Enter")
+    expect(tab).to_contain_text("Обзор")
+
+    # Escape — отмена: название исходное, input закрыт, «×» на месте
+    tab.dblclick()
+    rename = widget.locator(".tab-rename")
+    expect(rename).to_be_visible()
+    rename.fill("Мусор")
+    rename.press("Escape")
+    expect(widget.locator(".tab-rename")).to_have_count(0)
+    page.wait_for_timeout(200)  # гонка Escape→blur: blur не коммитит
+    expect(tab).to_contain_text("Обзор")
+    assert "Мусор" not in tab.inner_text()
+    expect(tab.locator(".tab-close")).to_have_count(1)  # «×» вернулся
+
+    # blur без Escape по-прежнему коммитит
+    tab.dblclick()
+    rename = widget.locator(".tab-rename")
+    expect(rename).to_be_visible()
+    rename.fill("Детали")
+    widget.locator(".tab-pane").nth(0).click()
+    expect(tab).to_contain_text("Детали")
+
+    # пустое значение при коммите → дефолт «Вкладка N»
+    tab.dblclick()
+    rename = widget.locator(".tab-rename")
+    expect(rename).to_be_visible()
+    rename.fill("   ")
+    rename.press("Enter")
+    expect(tab).to_contain_text("Вкладка 1")
+
+    # финальный коммит (пустое значение → дефолт) вернул «Вкладка 1»:
+    # в БД именно дефолт, промежуточные значения не просочились
+    editor.title_input.fill("Табы rename")
+    editor.save_button().click()
+    page.wait_for_url(re.compile(r"/wiki/\d+$"))
+    page_id = int(page.url.rstrip("/").rsplit("/", 1)[1])
+    saved = wiki_api.content_of(page_id)
+    assert 'data-title="Вкладка 1"' in saved
+    assert "Мусор" not in saved
+    assert "Обзор" not in saved and "Детали" not in saved
+    assert page_errors == []
+
+
+def test_tabs_dblclick_gated_by_editable_view_switch_only(
+    editor_page, wiki_api, page_errors, web_base_url
+):
+    """p12-rich-2 (дефект №1, часть B, гейт по editable как у спойлера F-3):
+    в СТАТЬЕ dblclick по вкладке НЕ открывает инлайн-input — вкладки только
+    переключаются; rename-инпут в view невозможен. Дискриминатор: до фикса
+    в статье dblclick открывал input (или rename был сломан везде)."""
+    page_id = wiki_api.create(
+        "Табы в статье",
+        '<div data-block="tabs">'
+        '<div data-block-part="tab" data-title="Обзор"><p>первая</p></div>'
+        '<div data-block-part="tab" data-title="Детали"><p>вторая</p></div>'
+        "</div>",
+    )
+    page = editor_page
+    page.goto(f"{web_base_url}/wiki/{page_id}")
+    widget = page.locator(".article-body .tabswidget")
+    expect(widget.locator(".tab")).to_have_count(2)
+
+    # dblclick в статье — rename НЕ открывается, вкладка переключается
+    widget.locator(".tab").nth(1).dblclick()
+    assert widget.locator(".tab-rename").count() == 0
+    expect(widget.locator(".tab").nth(1)).to_have_class(re.compile("active"))
+    expect(widget.locator(".tab-pane").nth(1)).to_contain_text("вторая")
+
+    # переключение обратно кликом
+    widget.locator(".tab").nth(0).click()
+    expect(widget.locator(".tab-pane").nth(0)).to_contain_text("первая")
+    expect(widget.locator(".tab-pane").nth(1)).to_be_hidden()
+    assert page_errors == []
 
 
 # ---------------------------------------------------------------------------
