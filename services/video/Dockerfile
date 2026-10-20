@@ -50,17 +50,18 @@ RUN python -m pip install --no-cache-dir \
 # install_ffmpeg.py понимает обе раскладки). Fallback включается ТОЛЬКО если
 # первичный источник недоступен целиком (исчерпаны все ретраи); несовпадение
 # checksum fallback НЕ маскирует (fail fast). Пины fallback: n8.1-сборка
-# (7.0.2 у BtbN нет), sha256 снят с файла 2026-10-19 (пин e6520f71 прожил
-# несколько часов: BtbN перекатил «latest» в тот же день, CI честно сломался,
-# пин обновлен на 6f8133b2); дрейф будет повторяться — кандидаты: dated
-# autobuild-релиз BtbN (иммутабельные ассеты) вместо latest.
+# (7.0.2 у BtbN нет), sha256 снят с иммутабельного датированного релиза (пины latest
+# дрейфовали трижды за сутки — 6f8133b2 прожил часы; решение 2026-10-20:
+# датированный autobuild-релиз, ассеты которого НЕ перекатываются).
+# Пины: URL+sha256 в RUNBOOK и здесь меняются ТОЛЬКО сознательной сменой
+# релиза (новый sha снимается с файла вручную).
 COPY services/video/install_ffmpeg.py /tmp/install_ffmpeg.py
 RUN set -eux; \
     FFMPEG_VERSION="7.0.2"; \
     FFMPEG_SHA256="abda8d77ce8309141f83ab8edf0596834087c52467f6badf376a6a2a4c87cf67"; \
     FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-${FFMPEG_VERSION}-amd64-static.tar.xz"; \
-    FFMPEG_FALLBACK_SHA256="6f8133b2414d115da4c843f33f7370523e00b78b8c49dec9fdb2f58eaa5e0a3a"; \
-    FFMPEG_FALLBACK_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-linux64-gpl-8.1.tar.xz"; \
+    FFMPEG_FALLBACK_SHA256="cc546852e535193e6d30a1f18cb90daa84e8ff320ceac6c6f5b514a1fba67079"; \
+    FFMPEG_FALLBACK_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-10-19-13-06/ffmpeg-n8.1.3-18-g46d899d7a0-linux64-gpl-8.1.tar.xz"; \
     attempt=1; max_attempts=5; \
     until python /tmp/install_ffmpeg.py "$FFMPEG_URL" "$FFMPEG_SHA256" "$FFMPEG_VERSION" "$FFMPEG_FALLBACK_URL" "$FFMPEG_FALLBACK_SHA256"; do \
         if [ "$attempt" -ge "$max_attempts" ]; then \
