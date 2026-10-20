@@ -39,6 +39,35 @@
 
 "use strict";
 
+/* P12 rich-блоки (design.md §4): активация статьи — делегированные
+ * слушатели и инициализация по [data-block], подсветка кода (§5).
+ * Неизвестный data-block пропускается; ошибка одного блока не роняет
+ * остальные (per-block try/catch — деградация NFR-39). ОГР-8: вся
+ * активация — локальной статикой, без внешних запросов. */
+
+import { activateView as activateSpoiler } from "./rich/spoiler.js";
+import { activateView as activateCodeblock } from "./rich/codeblock.js";
+import { activateView as activateTabs } from "./rich/tabs.js";
+
+function activateRichContent(body) {
+  body.querySelectorAll("[data-block]").forEach(function (block) {
+    try {
+      var type = block.getAttribute("data-block");
+      if (type === "spoiler") {
+        activateSpoiler(block);
+      } else if (type === "code") {
+        activateCodeblock(block);
+      } else if (type === "tabs") {
+        activateTabs(block);
+      }
+      /* неизвестный data-block — контент виден как обычный HTML (NFR-39) */
+    } catch (error) {
+      /* деградация одного блока не роняет остальные (NFR-39) */
+    }
+  });
+}
+
+
 /* Короткие месяцы для «Обновлено 2 окт 2026, 14:32» (мокап, без «г.»). */
 var MONTHS_SHORT = [
   "янв", "фев", "мар", "апр", "май", "июн",
@@ -368,6 +397,10 @@ function renderArticle(container, page) {
 
   container.replaceChildren(head, article);
   container.dataset.loaded = "true";
+
+  /* P12: активация rich-блоков (спойлеры, табы, подсветка кода) — один
+   * проход по [data-block], per-block try/catch (design.md §4). */
+  activateRichContent(body);
 
   enrichMeta(meta, page);
 }

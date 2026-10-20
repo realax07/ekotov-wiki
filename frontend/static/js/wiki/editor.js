@@ -33,8 +33,60 @@
  * ничего не вставляется).
  */
 
+/* Rich-инструменты P12 (design.md §3): импорты модулей ES-модулем editor.js.
+ * Блоковые кнопки тулбара только вставляют блок; контекст — inline-панели
+ * внутри блоков; тулбар один (урок rich-v1 «конфликт toolbar»). */
+
+import { serializeArea } from './rich/model.js';
+import {
+  enhanceEditor as enhanceSpoilers,
+  newSpoilerHtml,
+  focusInsertedBody
+} from './rich/spoiler.js';
+import {
+  enhanceEditor as enhanceCodeblocks,
+  normalizeCodeInput,
+  newCodeblockHtml,
+  focusInsertedCode
+} from './rich/codeblock.js';
+import {
+  enhanceEditor as enhanceTabs,
+  newTabsHtml,
+  focusInsertedTabs
+} from './rich/tabs.js';
+import { install as installTableTools } from './rich/tabletools.js';
+import {
+  toggleHeading,
+  installBackspace
+} from './rich/headings.js';
+
 (function () {
   'use strict';
+
+  function spoilerButtonIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 12h18" stroke="currentColor" stroke-width="2"/><path d="M7 8.5l2 2-2 2" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+  }
+
+  function tabsButtonIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M7 9v11" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+  }
+
+  /* Rich-блоки редактируемой области: шапки/таб-бары/панели + inline-контролы.
+   * Вызывается после загрузки контента (edit) — per-block try/catch: ошибка
+   * одного блока не роняет остальные (деградация NFR-39). */
+  function enhanceRichBlocks(area) {
+    area.querySelectorAll('[data-block]').forEach(function (block) {
+      try {
+        var type = block.getAttribute('data-block');
+        if (type === 'spoiler') enhanceSpoilers(block);
+        else if (type === 'code') enhanceCodeblocks(block);
+        else if (type === 'tabs') enhanceTabs(block);
+        /* неизвестный data-block — пропускается, контент виден (NFR-39) */
+      } catch (err) {
+        /* деградация: блок остается обычным контентом */
+      }
+    });
+  }
 
   /* ------------------------------------------------------------------ */
   /* Состояние модуля                                                    */
@@ -210,9 +262,12 @@
   }
 
   function headingButton(label, text) {
+    /* P12 FR-121: H1/H2/H3 — toggle через headings.js (повторный клик
+     * снимает формат, замена уровня через execCommand — undo-стек жив,
+     * находка F4). */
     var button = toolbarButton(label, null, 'tb-heading', function () {
       focusAreaAndRun(function () {
-        document.execCommand('formatBlock', false, '<' + text.toLowerCase() + '>');
+        toggleHeading(state.area, text.toLowerCase());
       });
       updateToolbarStates();
     });
@@ -272,6 +327,42 @@
     var row = '<tr><td><br></td><td><br></td><td><br></td></tr>';
     var html = '<table>' + th + '<tbody>' + row + row + '</tbody></table><p><br></p>';
     document.execCommand('insertHTML', false, html);
+  }
+
+  /* design-check #6 (матрица §6: в код-блоке — НЕТ): блоковые вставки при
+   * каретке внутри код-блока запрещены — санитайзер в code-контексте
+   * разворачивает все, кроме pre/code, и получилось бы «редактор показал
+   * ≠ сохранилось». Вставка просто не выполняется. */
+  function caretInCodeBlock() {
+    var selection = window.getSelection();
+    if (!selection || !selection.anchorNode || !state.area) return false;
+    var node = selection.anchorNode;
+    var element = node.nodeType === 1 ? node : node.parentNode;
+    if (!element || !element.closest) return false;
+    var block = element.closest('[data-block="code"]');
+    return !!(block && state.area.contains(block));
+  }
+
+  /* QA D2 (матрица design §6: ячейка×таблица = НЕТ): каретка внутри
+   * ячейки таблицы — та же запретная зона для ВСТАВКИ ТАБЛИЦЫ, что
+   * код-блок выше: санитайзер при сохранении unwrap'ит вложенную
+   * таблицу целиком — иначе «редактор показал ≠ сохранилось». */
+  function caretInTableCell() {
+    var selection = window.getSelection();
+    if (!selection || !selection.anchorNode || !state.area) return false;
+    var node = selection.anchorNode;
+    var element = node.nodeType === 1 ? node : node.parentNode;
+    if (!element || !element.closest) return false;
+    var cell = element.closest('td,th');
+    return !!(cell && state.area.contains(cell));
+  }
+
+  /* forbidden — дополнительный контекстный запрет для КОНКРЕТНОЙ кнопки
+   * (Таблица × ячейка; код-блок запрещает все блоковые вставки). */
+  function insertBlockGuarded(runInsert, forbidden) {
+    if (caretInCodeBlock()) return;
+    if (typeof forbidden === 'function' && forbidden()) return;
+    runInsert();
   }
 
   /* ------------------------------------------------------------------ */
@@ -452,10 +543,14 @@
       group([
         toolbarButton('Ссылка', ICONS.link, null, openLinkDialog, { stateful: false }),
         toolbarButton('Таблица', ICONS.table, null, function () {
-          focusAreaAndRun(insertTable3x3);
+          insertBlockGuarded(function () {
+            focusAreaAndRun(insertTable3x3);
+          }, caretInTableCell);
         }, { stateful: false }),
         toolbarButton('Изображение', ICONS.image, 'tb-media', function () {
-          focusAreaAndRun(openImageDialog);
+          insertBlockGuarded(function () {
+            focusAreaAndRun(openImageDialog);
+          });
         }, { stateful: false })
       ])
     );
@@ -465,6 +560,50 @@
     if (mediaButton) {
       mediaButton.appendChild(document.createTextNode('Изображение'));
     }
+    /* Rich-инструменты P12 (spec wiki: «Тулбар содержит инструменты
+       rich-контента»): блоковые кнопки только вставляют блок в позицию
+       курсора + фокус в зону содержимого; контекстные контролы —
+       inline-панели внутри блоков, новых рядов тулбара нет (§3). */
+    toolbar.appendChild(sep());
+    toolbar.appendChild(
+      group([
+        toolbarButton('Спойлер', spoilerButtonIcon(), 'tb-media', function () {
+          insertBlockGuarded(function () {
+            focusAreaAndRun(function () {
+              document.execCommand('insertHTML', false, newSpoilerHtml());
+              var inserted = focusInsertedBody(state.area);
+              if (inserted) enhanceSpoilers(inserted); // шапка/inline-контролы
+            });
+          });
+        }, { stateful: false }),
+        toolbarButton('Блок кода', ICONS.code, 'tb-media', function () {
+          insertBlockGuarded(function () {
+            focusAreaAndRun(function () {
+              document.execCommand('insertHTML', false, newCodeblockHtml());
+              var inserted = focusInsertedCode(state.area);
+              if (inserted) enhanceCodeblocks(inserted);
+            });
+          });
+        }, { stateful: false }),
+        toolbarButton('Табуляция', tabsButtonIcon(), 'tb-media', function () {
+          insertBlockGuarded(function () {
+            focusAreaAndRun(function () {
+              document.execCommand('insertHTML', false, newTabsHtml());
+              var inserted = focusInsertedTabs(state.area);
+              if (inserted) enhanceTabs(inserted);
+            });
+          });
+        }, { stateful: false })
+      ])
+    );
+    var richLabels = { 'Спойлер': 'Спойлер', 'Блок кода': 'Код', 'Табуляция': 'Вкладки' };
+    Object.keys(richLabels).forEach(function (label) {
+      var button = state.toolbarButtons[label];
+      if (button) {
+        var text = el('span', 'tb-heading', richLabels[label]);
+        button.appendChild(text);
+      }
+    });
     toolbar.appendChild(sep());
     toolbar.appendChild(
       group([
@@ -577,6 +716,8 @@
     if (button) button.setAttribute('aria-pressed', pressed ? 'true' : 'false');
   }
 
+  var TABLE_IN_CELL_HINT = 'В ячейке таблица запрещена';
+
   function updateToolbarStates() {
     var selection = window.getSelection();
     if (!selection || !state.area) return;
@@ -594,6 +735,15 @@
       }
       setPressed(label, value);
     });
+    /* Матрица design §6 (ячейка×таблица = НЕТ; QA D2): «Таблица»
+       недоступна при каретке в ячейке — disabled + подсказка в title
+       (паттерн disabled-кнопок панели таблицы tabletools.js). */
+    var tableButton = state.toolbarButtons['Таблица'];
+    if (tableButton) {
+      var inCell = caretInTableCell();
+      tableButton.disabled = inCell;
+      tableButton.title = inCell ? TABLE_IN_CELL_HINT : 'Таблица';
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -1163,7 +1313,9 @@
       return;
     }
     state.errorBox.hidden = true;
-    var content = state.area.innerHTML;
+    /* Сериализация «как есть» минус служебные узлы (design.md §3, F1):
+       сохраняемое ≡ DOM минус data-editor-узлы; контент не перестраивается. */
+    var content = serializeArea(state.area);
 
     var request;
     if (state.mode === 'edit') {
@@ -1252,6 +1404,17 @@
     buildImageDialog();
     buildImgScaleEditorDialog();
     bindAreaImageScale(state.area);
+    /* P12: контекстная панель таблицы (FR-122) + Backspace в пустом H
+       (ОВ-5); rich-блоки загруженного контента активируются после GET. */
+    installTableTools(state.area);
+    installBackspace(state.area);
+    /* Нормализация ввода в код-блоках (Chromium-квирк границы inline code):
+       input-события таргетятся в editing host — слушаем на области. */
+    state.area.addEventListener('input', function () {
+      state.area.querySelectorAll('[data-block="code"]').forEach(function (b) {
+        normalizeCodeInput(b);
+      });
+    });
     markActiveContent();
 
     document.addEventListener('selectionchange', updateToolbarStates);
@@ -1267,8 +1430,11 @@
           state.titleInput.value = page.title;
           heading.textContent = 'Редактирование: ' + page.title;
           document.title = 'Редактирование: ' + page.title + ' · ekotov-wiki';
-          /* Контент сервером уже санитизирован на записи (design §4) */
+          /* Контент сервером уже санитизирован на записи (design §4);
+             rich-блоки (P12) наращиваются шапками/таб-барами — служебные
+             узлы data-editor вырезаются при сериализации (§3). */
           state.area.innerHTML = page.content || '';
+          enhanceRichBlocks(state.area);
           fillParentSelect([], function () {
             if (page.parent_id) {
               var option = state.parentSelect.querySelector(

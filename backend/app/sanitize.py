@@ -51,7 +51,54 @@ ALLOWED_ATTRS: dict[str, tuple[str, ...]] = {
     "img": ("src", "alt", "width"),
     "td": ("colspan", "rowspan"),
     "th": ("colspan", "rowspan"),
+    # P12 rich-блоки (design.md §1–§2): словарь data-атрибутов div'ов.
+    # Значения валидируются по словарю (_safe_block_attr), невалидное
+    # значение → атрибут снимается → блок деградирует в контент (NFR-39).
+    "div": ("data-block", "data-block-part", "data-title", "data-lang"),
 }
+
+# ---------------------------------------------------------------------
+# P12 rich-блоки: словарь блоков (design.md §1 — единственный источник
+# истины; продублирован в frontend/static/js/wiki/rich/model.js, тест
+# согласования — tests/api/test_sanitize.py).
+# ---------------------------------------------------------------------
+
+# div[data-block] — тип rich-блока.
+DATA_BLOCK_VALUES = frozenset({"spoiler", "code", "tabs"})
+# div[data-block-part] — часть блока (тело спойлера / вкладка табов).
+DATA_BLOCK_PART_VALUES = frozenset({"body", "tab"})
+# div[data-lang] — язык код-блока.
+DATA_LANG_VALUES = frozenset({"python", "js", "bash", "json", "sql", "plain"})
+
+# data-атрибуты div'ов, проходящие whitelist (значения — по словарям выше;
+# data-title — произвольный текст, экранируется при эмите).
+BLOCK_DATA_ATTRS: tuple[str, ...] = (
+    "data-block",
+    "data-block-part",
+    "data-title",
+    "data-lang",
+)
+
+# Глубина вложенности блоков (design.md §2/§6): div[data-block] глубже —
+# unwrap (содержимое остается, виджет не строится).
+MAX_BLOCK_DEPTH = 5
+
+# Структурные теги таблицы (для запрета table-in-table, design.md §2/F3).
+_TABLE_TAGS = frozenset({"table", "thead", "tbody", "tr", "td", "th"})
+
+
+def _safe_block_attr(name: str, value: str | None) -> str | None:
+    """Валидация значений data-атрибутов блоков (design.md §2). None —
+    атрибут снять (блок деградирует в контент, NFR-39)."""
+    if value is None:
+        return None
+    if name == "data-block":
+        return value if value in DATA_BLOCK_VALUES else None
+    if name == "data-block-part":
+        return value if value in DATA_BLOCK_PART_VALUES else None
+    if name == "data-lang":
+        return value if value in DATA_LANG_VALUES else None
+    return value  # data-title — произвольный текст (экранируется при эмите)
 
 # img[width]: только целое число (возврат живой приемки 2026-10-11 —
 # масштаб изображений). Все, что не целое (дробное, отрицательное, мусор),
@@ -101,14 +148,40 @@ def _safe_url(value: str | None, is_img: bool) -> str | None:
 
 
 class _Sanitizer(HTMLParser):
-    """Потоковый фильтр: rebuild разрешенных тегов, unwrap прочих."""
+    """Потоковый фильтр: rebuild разрешенных тегов, unwrap прочих.
+
+    Контексты (P12, design.md §2):
+    - ``_block_depth`` — счетчик открытых div[data-block]; глубина больше
+      MAX_BLOCK_DEPTH → блок-div разворачивается (содержимое остается);
+    - ``_code_depth`` — внутри div[data-block="code"] разрешены только
+      pre/code и текст (остальные теги unwrap'ятся);
+    - ``_nested_table`` — таблица внутри td/th целиком разворачивается:
+      структурные теги table/thead/tbody/tr/td/th не эмитятся, текст
+      ячеек сохраняется, ячейки разделяются <br> (запрет table-in-table).
+    """
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self._out: list[str] = []
-        self._stack: list[str] = []  # открытые разрешенные теги
+        # Открытые разрешенные теги: (тег, роль) — роль: None | 'block'
+        # (div[data-block]) | 'code' (код-блок); параллельно закрывается.
+        self._stack: list[tuple[str, str | None]] = []
         self._skip_tag: str | None = None  # активный script/style
         self._skip_depth = 0
+        self._block_depth = 0
+        self._code_depth = 0
+        self._code_out_start = 0  # позиция выхода внутри открытого код-блока
+        self._nested_table = 0
+        self._nt_cells_seen = 0  # ячеек вложенной таблицы уже начато
+
+    # -- контексты ---------------------------------------------------------
+
+    def _inside_cell(self) -> bool:
+        """Открыт ли сейчас td/th (для запрета table-in-table)."""
+        return any(tag in ("td", "th") for tag, _role in self._stack)
+
+    def _in_nested_table(self) -> bool:
+        return self._nested_table > 0
 
     # -- теги ------------------------------------------------------------
 
@@ -123,10 +196,62 @@ class _Sanitizer(HTMLParser):
             self._skip_tag = tag
             self._skip_depth = 1
             return
+
+        # Код-блок: разрешены только pre/code и текст (design.md §2).
+        if self._code_depth > 0 and tag not in ("pre", "code"):
+            if tag == "br":
+                # F-1 (review-001): Enter в код-блоке редактора дает <br>
+                # внутри <code>; прежний unwrap-канал стирал его — строки
+                # сливались в «line1line2» (потеря контента rich-v1-класса).
+                # В code-контексте br — перенос строки КОДА: эмитим текстовый
+                # \n (вне код-блока br проходит как есть).
+                self._out.append("\n")
+            return  # прочая разметка unwrap — текст останется
+
+        # Вложенная таблица: структурные теги не эмитятся, текст ячеек
+        # сохраняется, ячейки разделяются <br> (design.md §2, находка F3).
+        if self._in_nested_table():
+            if tag == "table":
+                self._nested_table += 1
+                return
+            if tag in _TABLE_TAGS:
+                if tag in ("td", "th"):
+                    if self._nt_cells_seen:
+                        self._out.append("<br>")
+                    self._nt_cells_seen += 1
+                return
+        elif tag == "table" and self._inside_cell():
+            # Перед содержимым вложенной таблицы, идущим после текста
+            # ячейки, — разделитель <br> (текст ячейки не слипается).
+            if self._out and not self._out[-1].endswith(">"):
+                self._out.append("<br>")
+            self._nested_table += 1
+            self._nt_cells_seen = 0
+            return
+
         if tag in ALLOWED_TAGS:
+            is_block_div = False
+            is_code_block = False
+            if tag == "div" and self._has_block_type(attrs):
+                # Глубина блоков: лимит MAX_BLOCK_DEPTH, глубже — unwrap
+                # (design.md §2/§6).
+                if self._block_depth >= MAX_BLOCK_DEPTH:
+                    return
+                is_block_div = True
+                is_code_block = self._block_type(attrs) == "code"
             self._out.append(self._render_start(tag, attrs))
             if tag not in VOID_TAGS:
-                self._stack.append(tag)
+                role = "code" if is_code_block else ("block" if is_block_div else None)
+                self._stack.append((tag, role))
+                if is_block_div:
+                    self._block_depth += 1
+                if is_code_block:
+                    self._code_depth += 1
+                    if self._code_depth == 1:
+                        # запомнить позицию выхода блока — для отсечения
+                        # мусорных \n от br-якорей ПУСТОГО код-блока (см.
+                        # _trim_empty_code_newlines)
+                        self._code_out_start = len(self._out)
         # Прочие запрещенные теги — unwrap: сам тег не эмитится,
         # содержимое обрабатывается дальше как обычно.
 
@@ -137,26 +262,48 @@ class _Sanitizer(HTMLParser):
                 if self._skip_depth <= 0:
                     self._skip_tag = None
             return
+
+        # Конец вложенной таблицы: структурные теги не эмитятся (см.
+        # handle_starttag — table-in-table режется, design.md §2).
+        if self._in_nested_table() and tag in _TABLE_TAGS:
+            if tag == "table":
+                self._nested_table -= 1
+            return
+
         # Закрываем только реально открытые разрешенные теги; закрывающий
         # тег без открывающего — игнорируется (висячие </b> не эмитятся).
-        if tag in ALLOWED_TAGS and tag not in VOID_TAGS and tag in self._stack:
+        if tag in ALLOWED_TAGS and tag not in VOID_TAGS:
+            if not any(open_tag == tag for open_tag, _role in self._stack):
+                return
             while self._stack:
-                top = self._stack.pop()
-                self._out.append(f"</{top}>")
-                if top == tag:
+                open_tag, role = self._stack.pop()
+                self._out.append(f"</{open_tag}>")
+                if role == "block":
+                    self._block_depth -= 1
+                if role == "code":
+                    self._code_depth -= 1
+                    if self._code_depth == 0:
+                        self._trim_empty_code_newlines()
+                if open_tag == tag:
                     break
 
     def handle_startendtag(self, tag, attrs):
         """Самозакрытый синтаксис <tag/>: для void — один тег, для прочих —
         открытая+закрытая пара (в HTML </b> после <b/> обязателен)."""
-        if self._skip_tag is not None:
-            return
         if tag in DROP_CONTENT_TAGS:
             return  # <script/> — содержимого нет, режется целиком
-        if tag in ALLOWED_TAGS:
-            self._out.append(self._render_start(tag, attrs))
-            if tag not in VOID_TAGS:
-                self._out.append(f"</{tag}>")
+        before = len(self._stack)
+        self.handle_starttag(tag, attrs)
+        if len(self._stack) > before:
+            # starttag открыл тег — закрываем его здесь же
+            open_tag, role = self._stack.pop()
+            self._out.append(f"</{open_tag}>")
+            if role == "block":
+                self._block_depth -= 1
+            if role == "code":
+                self._code_depth -= 1
+                if self._code_depth == 0:
+                    self._trim_empty_code_newlines()
 
     # -- данные и сущности -----------------------------------------------
 
@@ -164,6 +311,30 @@ class _Sanitizer(HTMLParser):
         if self._skip_tag is not None:
             return  # содержимое script/style не проходит
         self._out.append(_html.escape(data, quote=False))
+
+    # -- блоки --------------------------------------------------------------
+
+    def _trim_empty_code_newlines(self) -> None:
+        """Пустой код-блок: br-якорь каретки редактора (newCodeblockHtml)
+        после br→\\n-нормализации дает в блоке только «\\n» без текста.
+        Отсекаем такие \\n — в БД пустой блок остается пустым (прежнее
+        поведение до F-1); блок с реальным текстом не трогаем."""
+        tail = self._out[self._code_out_start :]
+        has_text = any(chunk != "\n" and not chunk.startswith("<") for chunk in tail)
+        if not has_text:
+            self._out = self._out[: self._code_out_start] + [
+                chunk for chunk in tail if chunk != "\n"
+            ]
+
+    @staticmethod
+    def _block_type(attrs: list[tuple[str, str | None]]) -> str | None:
+        for name, value in attrs:
+            if name == "data-block":
+                return _safe_block_attr(name, value)
+        return None
+
+    def _has_block_type(self, attrs: list[tuple[str, str | None]]) -> bool:
+        return self._block_type(attrs) is not None
 
     # -- сборка ------------------------------------------------------------
 
@@ -173,6 +344,10 @@ class _Sanitizer(HTMLParser):
         for name, value in attrs:
             if name not in allowed:
                 continue  # on*, style, class, id и прочие — снимаются
+            if name in BLOCK_DATA_ATTRS:
+                value = _safe_block_attr(name, value)
+                if value is None:
+                    continue  # невалидное значение словаря — атрибут снят
             if name in ("href", "src"):
                 value = _safe_url(value, is_img=(tag == "img"))
                 if value is None:
@@ -189,7 +364,14 @@ class _Sanitizer(HTMLParser):
         # Незакрытые к концу входа разрешенные теги дозакрываются —
         # на выходе сбалансированная разметка.
         while self._stack:
-            self._out.append(f"</{self._stack.pop()}>")
+            open_tag, role = self._stack.pop()
+            self._out.append(f"</{open_tag}>")
+            if role == "block":
+                self._block_depth -= 1
+            if role == "code":
+                self._code_depth -= 1
+                if self._code_depth == 0:
+                    self._trim_empty_code_newlines()
         return "".join(self._out)
 
 

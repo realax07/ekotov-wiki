@@ -1686,3 +1686,382 @@ nav.wiki-breadcrumb {
     min-height: 44px;
   }
 }
+
+/* =====================================================================
+   P12 rich-контент (change p12-rich-tools, design.md §3–§6; мокапы
+   design/p12-rich/tool-1..5-*.png). Стили блоков в редакторе
+   (.editor-area) и в статье (.article-body) — общие классы: узлы
+   создает JS (rich/*.js), в контенте хранятся только data-атрибуты.
+   Токены V3 «Бумага» дословно (app.css). ОГР-8: без внешних ресурсов.
+   ===================================================================== */
+
+/* --- Спойлер (мокап tool-1: терракотовая черта 3px, шеврон) ---------- */
+.spoiler {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-field);
+  margin: 0 0 var(--space-2);
+}
+.spoiler-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-05);
+  padding: 6px var(--space-1);
+  cursor: pointer;
+  user-select: none;
+}
+.spoiler-caret {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent);
+  border-radius: var(--space-05);
+}
+.spoiler-caret svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 120ms ease;
+}
+.spoiler.open .spoiler-caret svg { transform: rotate(90deg); }
+.spoiler-title { font-weight: 600; font-size: var(--font-size-label); }
+.spoiler-title-hint {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  font-weight: 400;
+  margin-left: auto;
+  padding-left: var(--space-1);
+}
+.spoiler-body { padding: 0 var(--space-2) var(--space-2) var(--space-3); }
+.spoiler-body > :last-child { margin-bottom: 0; }
+.spoiler.closed .spoiler-body { display: none; }
+/* инлайн-переименование: input с focus-ring (мокап) */
+.spoiler-title-input {
+  font: inherit;
+  font-weight: 600;
+  font-size: var(--font-size-label);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--space-05);
+  padding: 0 var(--space-05);
+  min-width: 220px;
+  box-shadow: var(--focus-ring);
+}
+/* компактный вариант в ячейке таблицы (класс ставит JS по closest('td,th')) */
+.spoiler.rich-compact { margin: 0; }
+.spoiler.rich-compact .spoiler-body { padding-right: 0; padding-bottom: var(--space-1); }
+.spoiler.rich-compact .spoiler-title { font-size: var(--font-size-micro); }
+td .spoiler, th .spoiler { margin: 0; } /* страховка на контенте без активации */
+/* фокус на виджете в редакторе: пунктирная терракотовая рамка */
+.editor-area .spoiler.focused,
+.editor-area .spoiler:focus-within {
+  outline: 1px dashed var(--color-accent);
+  outline-offset: 3px;
+}
+
+/* --- Блок кода (мокап tool-2: фон ink-900, шапка #4a423a) ------------- */
+.codeblock {
+  background: var(--p-ink-900);
+  border: 1px solid #2b2621;
+  border-radius: var(--radius-field);
+  box-shadow: var(--shadow-soft);
+  margin: 0 0 var(--space-2);
+  overflow: hidden;
+}
+.codeblock-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 5px var(--space-1);
+  background: #4a423a;
+  border-bottom: 2px solid var(--color-accent);
+}
+.codeblock-lang {
+  font: inherit;
+  font-size: var(--font-size-micro);
+  color: var(--p-paper-050);
+  background: var(--p-ink-900);
+  border: 1px solid var(--p-ink-600);
+  border-radius: var(--space-05);
+  padding: 2px var(--space-05);
+  cursor: pointer;
+}
+.lang-menu {
+  position: absolute;
+  z-index: 3;
+  margin-top: 2px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  box-shadow: 0 4px 12px rgba(61, 54, 48, 0.18);
+  padding: var(--space-05);
+  min-width: 120px;
+}
+.lang-menu .lang-opt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-1);
+  border-radius: var(--space-05);
+  font-size: var(--font-size-label);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+.lang-menu .lang-opt:hover,
+.lang-menu .lang-opt.sel {
+  background: var(--color-accent-soft);
+  color: var(--p-clay-700);
+}
+.lang-menu .lang-opt .chk { color: var(--color-accent); font-weight: bold; }
+.copy-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+  font: inherit;
+  font-size: var(--font-size-micro);
+  color: var(--p-paper-050);
+  background: transparent;
+  border: 1px solid var(--p-ink-600);
+  border-radius: var(--space-05);
+  padding: 2px var(--space-1);
+  cursor: pointer;
+}
+.copy-btn:hover { border-color: var(--p-paper-050); }
+.copy-btn.ok { color: #b8c98a; border-color: #b8c98a; }
+/* нумерация строк (ОВ-2): гуттер — абсолютный data-editor-сиблинг pre
+   (top выставляет JS по высоте шапки; pre смещен left-маржином) */
+.codeblock { position: relative; }
+.codeblock-nums {
+  position: absolute;
+  left: 0;
+  width: 40px;
+  padding: var(--space-1) var(--space-05) var(--space-1) 0;
+  text-align: right;
+  font-family: ui-monospace, 'Cascadia Mono', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--p-ink-600);
+  background: #332d27;
+  white-space: pre;
+  user-select: none;
+}
+.codeblock pre {
+  margin: 0 0 0 40px;
+  padding: var(--space-1) var(--space-2);
+  overflow-x: auto;
+  line-height: 1.6;
+  background: transparent;
+}
+.codeblock code,
+.codeblock .article-body code {
+  font-family: ui-monospace, 'Cascadia Mono', 'Courier New', monospace;
+  font-size: 12px;
+  background: transparent;
+  padding: 0;
+  color: var(--p-paper-050);
+}
+.editor-area .codeblock pre { color: var(--p-paper-050); }
+.editor-area .codeblock pre code { color: var(--p-paper-050); }
+/* подсветка — приглушенная «бумажная» палитра на черном (мокап) */
+.tok-kw  { color: #e0916b; }                    /* ключевые — терракота light */
+.tok-str { color: #b8c98a; }                    /* строки — олива light */
+.tok-com { color: #8d8378; font-style: italic; } /* комментарии */
+.tok-num { color: #d8b477; }                    /* числа — amber light */
+.tok-fn  { color: #9db8d4; }                    /* функции — blue light */
+.tok-dec { color: #d8a0b4; }                    /* декораторы/директивы */
+.editor-area .codeblock:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* --- Табуляция (мокап tool-3: вкладки в стиле тулбара) ---------------- */
+.tabswidget {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  margin: 0 0 var(--space-2);
+  overflow: hidden;
+}
+.tabbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-05) var(--space-1) 0;
+  background: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border-default);
+  overflow-x: auto; /* переполнение — горизонтальный СКРОЛЛ (ОВ-3) */
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-05);
+  padding: 6px var(--space-1);
+  font: inherit;
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-field) var(--radius-field) 0 0;
+  flex-shrink: 0;
+}
+.tab:hover { color: var(--color-accent-hover); background: rgba(255, 253, 249, 0.7); }
+.tab.active {
+  color: var(--p-clay-700);
+  font-weight: 600;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-bottom: 1px solid var(--color-bg-surface);
+  margin-bottom: -1px;
+}
+.tab.active::after {
+  content: "";
+  position: absolute;
+  left: var(--space-05);
+  right: var(--space-05);
+  bottom: -1px;
+  height: 2px;
+  background: var(--color-accent);
+}
+.tab .tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  visibility: hidden; /* «×» виден на hover неактивной (мокап) */
+}
+.tab:hover .tab-close { visibility: visible; }
+.tab.active .tab-close { display: none; } /* активную «×» не показываем */
+.tab:only-of-type .tab-close { display: none; } /* последнюю не удалить */
+.tab .tab-close:hover { background: var(--p-clay-050); color: var(--p-red-700); }
+.tab-rename {
+  font: inherit;
+  font-size: var(--font-size-label);
+  width: 110px;
+  padding: 0 var(--space-05);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--space-05);
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+  box-shadow: var(--focus-ring);
+}
+.tab-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: var(--space-05);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-field);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.tab-add:hover { color: var(--color-accent-hover); border-color: var(--color-accent); }
+.tab-add:disabled { opacity: 0.4; cursor: not-allowed; }
+.tab-pane { padding: var(--space-1) var(--space-2) var(--space-2); }
+.tab-pane[hidden] { display: none; }
+.tab-pane > :last-child { margin-bottom: 0; }
+.editor-area .tabswidget:focus-within {
+  outline: 1px dashed var(--color-accent);
+  outline-offset: 3px;
+}
+
+/* --- Контекстная панель таблицы (мокап tool-5, ОВ-4) ------------------ */
+/* Компоновка по мокапу (design-check #5): панель — прозрачный оверлей
+   размером с таблицу; кластеры кнопок живут за краями таблицы:
+   столбцовые — над шапкой у границы целевого столбца, строковые — справа
+   за краем у целевой строки, «Удалить таблицу» + подсказка — под таблицей. */
+.editor-area { position: relative; } /* якорь позиционирования панели */
+.tbl-panel {
+  position: absolute;
+  z-index: 4;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  /* оверлей не перехватывает клики по ячейкам — активны только кнопки */
+  pointer-events: none;
+}
+.tbl-panel[hidden] { display: none; }
+.tbl-col-ops,
+.tbl-row-ops,
+.tbl-foot-ops {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: var(--space-05);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+.tbl-col-ops { top: -26px; } /* над шапкой; left — у границы целевого столбца */
+.tbl-row-ops { left: 100%; margin-left: var(--space-2); flex-direction: column; }
+.tbl-foot-ops {
+  top: 100%;
+  left: 0;
+  margin-top: var(--space-2);
+  padding: 2px var(--space-05);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  box-shadow: var(--shadow-soft);
+}
+.tbl-panel .ctx-btn {
+  min-width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--p-clay-700);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--space-05);
+  cursor: pointer;
+  padding: 0 var(--space-05);
+}
+.tbl-panel .ctx-btn:hover { background: var(--color-accent-soft); }
+.tbl-panel .ctx-btn:disabled {
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-default);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.tbl-panel .ctx-remove {
+  color: var(--p-red-700);
+  border-color: var(--p-red-700);
+}
+.tbl-panel .ctx-remove:hover { background: var(--p-clay-050); }
+.tbl-panel .tbl-hint {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  padding-left: var(--space-05);
+}
+/* целевой столбец вставки — голубой тинт (мокап tool-5) */
+.editor-area .col-target { background: var(--p-blue-050) !important; }
+/* фокус ячейки — терракотовое inset-кольцо (мокап) */
+.editor-area table td:focus,
+.editor-area table th:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
