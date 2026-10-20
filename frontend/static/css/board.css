@@ -1796,6 +1796,18 @@
   pointer-events: none;
 }
 .fastline-column.drop-forbidden .drop-forbidden-badge { display: flex; }
+/* Цвета SVG-знака запрета — токенами (F-3 review-001): презентационные
+ * атрибуты var() не принимают, fill/stroke заданы CSS-свойствами.
+ * --color-bg-surface = бумажный фон круга, --p-red-700 = красный (ОГР-8). */
+.drop-forbidden-badge circle {
+  fill: var(--color-bg-surface);
+  stroke: var(--p-red-700);
+  stroke-width: 2;
+}
+.drop-forbidden-badge path {
+  stroke: var(--p-red-700);
+  stroke-width: 2;
+}
 
 /* Разделитель зоны и канбана (v2-empty). */
 .board-sep {

@@ -303,6 +303,8 @@ def test_dnd_fast_within_zone_single_move_post(
 
 # --------------------------------------------------------------------------
 # TC-p23-106 — «обычная задача не вставляется в зону DnD» (Must; 3.3, Э2)
+# Две ветки: занятая зона (F-2 review-001, исходный кейс) и ПУСТАЯ зона —
+# запрет по зоне независимо от занятости (dropAllowed не читает busy).
 # --------------------------------------------------------------------------
 def test_dnd_normal_card_to_fastline_forbidden(
     board_page, web_base_url, web_owner_session, web_cleanup_created
@@ -338,6 +340,49 @@ def test_dnd_normal_card_to_fastline_forbidden(
     assert move_requests == [], f"POST move ушел в запрещенную зону: {move_requests}"
     expect(_column(page, "todo").get_by_role("article").filter(
         has_text="QAT-p23-обычная-dnd"
+    )).to_be_visible()
+    assert web_owner_session.get(
+        f"{web_base_url}/api/tasks/{regular_id}"
+    ).json()["status"] == "todo"
+
+
+def test_dnd_normal_card_to_empty_fastline_forbidden(
+    board_page, web_base_url, web_owner_session, web_cleanup_created
+):
+    """Ветка ПУСТОЙ зоны TC-p23-106 (Э2): без fast-precondition — drag
+    обычной карты на столбец пустой зоны тоже не-приемник: красный
+    пунктир (drop-forbidden), drop-target нет, POST move НЕ отправляется,
+    карточка остается в канбане (запрет по ЗОНЕ, не по занятости)."""
+    page = board_page
+    regular = web_owner_session.post(
+        f"{web_base_url}/api/tasks", json={"title": "QAT-p23-обычная-пусто"}
+    )
+    assert regular.status_code == 201, regular.text
+    regular_id = regular.json()["id"]
+    web_cleanup_created(regular_id)
+    page.reload()
+    _wait_board(page)
+
+    # Зона пуста: карточек в столбцах зоны нет, кнопка активна
+    # (занятости нет — запрет все равно действует).
+    assert page.locator("#fastline .fastline-column article").count() == 0
+    expect(page.locator("#fastline-add-button")).to_be_enabled()
+
+    move_requests = []
+    page.on(
+        "request",
+        lambda r: move_requests.append(r.url)
+        if "/api/tasks/" in r.url and r.url.endswith("/move") and r.method == "POST"
+        else None,
+    )
+
+    card = _card(page, "QAT-p23-обычная-пусто")
+    result = dnd_dispatch(page, card, _fast_column(page, "todo"))
+    assert "drop-forbidden" in result["targetClass"], result
+    assert "drop-target" not in result["targetClass"], result
+    assert move_requests == [], f"POST move ушел в пустую зону: {move_requests}"
+    expect(_column(page, "todo").get_by_role("article").filter(
+        has_text="QAT-p23-обычная-пусто"
     )).to_be_visible()
     assert web_owner_session.get(
         f"{web_base_url}/api/tasks/{regular_id}"
