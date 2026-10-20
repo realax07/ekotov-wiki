@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап P12-1 — Спойлер: режим редактирования и рендер</title>
+<link rel="stylesheet" href="p12-base.css">
+<style>
+/* --- P12-1 Спойлер ---------------------------------------------------
+   Спойлер — блочный виджет, вставляется в строку текста И в ячейку
+   таблицы. Шапка = кнопка сворачивания + переименовываемый заголовок
+   (клик по названию — инлайн-редактирование), внутри — зона для текста.
+   Стиль: карточка поверхности, терракотовый левый акцент (как
+   blockquote в wiki.css) — «родной» для сайта паттерн. -----------------*/
+
+/* виджет (общее для edit/view) */
+.spoiler {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-field);
+  margin: 0 0 var(--space-2);
+}
+.spoiler-head {
+  display: flex; align-items: center; gap: var(--space-05);
+  padding: 6px var(--space-1); cursor: pointer; user-select: none;
+}
+.spoiler-caret {
+  flex-shrink: 0; width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--color-accent); border-radius: var(--space-05);
+}
+.spoiler-caret svg { width: 14px; height: 14px; transition: transform 120ms ease; }
+.spoiler.open .spoiler-caret svg { transform: rotate(90deg); }
+.spoiler-title { font-weight: 600; font-size: var(--font-size-label); }
+.spoiler-title-hint {
+  font-size: var(--font-size-micro); color: var(--color-text-secondary);
+  font-weight: 400; margin-left: auto; padding-left: var(--space-1);
+}
+.spoiler-body { padding: 0 var(--space-2) var(--space-2) var(--space-3); }
+.spoiler-body p { margin: 0; }
+.spoiler.closed .spoiler-body { display: none; }
+
+/* --- edit-состояния --- */
+/* фокус на виджете: пунктирная терракотовая рамка вокруг всего блока */
+.editor-area .spoiler.focused { outline: 1px dashed var(--color-accent); outline-offset: 3px; }
+/* инлайн-редактирование заголовка: клик по названию превращает его в input */
+.spoiler-title-input {
+  font: inherit; font-weight: 600; font-size: var(--font-size-label);
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--space-05);
+  padding: 0 var(--space-05); min-width: 220px;
+  box-shadow: var(--focus-ring);
+}
+/* зона для текста внутри развернутого пустого спойлера */
+.spoiler-placeholder { color: var(--color-text-secondary); font-style: italic; }
+/* спойлер внутри ячейки таблицы: компактный, без внешних отступов */
+td .spoiler { margin: 0; }
+td .spoiler-body { padding-right: 0; padding-bottom: var(--space-1); }
+td .spoiler-title { font-size: var(--font-size-micro); }
+/* таблица внутри редактора — те же границы, что в .article-body */
+.editor-area table {
+  width: 100%; border-collapse: collapse; margin: 0 0 var(--space-2);
+  font-size: var(--font-size-label);
+}
+.editor-area th, .editor-area td {
+  border: 1px solid var(--color-border-default);
+  padding: var(--space-05) var(--space-1);
+  text-align: left; vertical-align: top; line-height: 1.5;
+}
+.editor-area th { background: var(--color-bg-subtle); font-weight: 600; }
+.editor-area tbody tr:nth-child(even) td { background: var(--color-bg-page); }
+</style>
+</head>
+<body class="app-shell">
+<aside class="sidebar">
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M9 9v12" fill="none" stroke="currentColor" stroke-width="2"/></svg>Доска</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="11" r="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M21 17l-5-5-4 4-3-3-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Галерея</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>Видео</a>
+    <a class="nav-item active" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Вики</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" stroke="currentColor" stroke-width="2"/></svg>Настройки</a>
+  </nav>
+  <div class="sidebar-footer"><button class="logout-button">Выйти</button></div>
+</aside>
+<main class="content">
+  <h1>Мокап P12-1 — Спойлер</h1>
+  <p class="mock-sub">Блочный виджет: клик по шапке — свернуть/развернуть, клик по названию — инлайн-редактирование заголовка. Вставляется в текст и внутрь ячейки таблицы.</p>
+
+  <!-- ================== РЕЖИМ РЕДАКТИРОВАНИЯ ================== -->
+  <section class="state-block" id="edit">
+    <span class="state-label edit">Режим редактирования</span>
+    <div class="editor-card">
+      <div class="toolbar">
+        <div class="tb-group">
+          <button class="tb-btn" title="Жирный"><svg viewBox="0 0 24 24"><path d="M7 4h6a4 4 0 0 1 0 8H7zM7 12h7a4 4 0 0 1 0 8H7z" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+          <button class="tb-btn" title="Курсив"><svg viewBox="0 0 24 24"><path d="M10 4h8M6 20h8M14 4l-4 16" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+          <button class="tb-btn" title="Спойлер" aria-pressed="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 12h18" stroke="currentColor" stroke-width="2"/><path d="M7 8.5l2 2-2 2" fill="none" stroke="currentColor" stroke-width="2"/></svg><span class="tb-heading">Спойлер</span></button>
+        </div>
+      </div>
+      <div class="editor-area">
+        <p>Обычный абзац перед виджетом. Курсор стоит после текста — спойлер вставится сюда.</p>
+
+        <!-- развернутый, заголовок в инлайн-редактировании -->
+        <div class="spoiler open focused">
+          <div class="spoiler-head">
+            <span class="spoiler-caret"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.5"/></svg></span>
+            <span class="spoiler-title-input">Причина аварии</span>
+            <span class="spoiler-title-hint">клик по названию — переименовать</span>
+          </div>
+          <div class="spoiler-body">
+            <p class="spoiler-placeholder">Текст спойлера…</p>
+          </div>
+        </div>
+
+        <!-- развернутый с текстом -->
+        <div class="spoiler open">
+          <div class="spoiler-head">
+            <span class="spoiler-caret"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.5"/></svg></span>
+            <span class="spoiler-title">Порядок отката</span>
+            <span class="spoiler-title-hint">клик по шапке сворачивает</span>
+          </div>
+          <div class="spoiler-body">
+            <p>1. Остановить воркеры. 2. <code>alembic downgrade -1</code>. 3. Поднять предыдущий образ.</p>
+          </div>
+        </div>
+
+        <!-- свернутый -->
+        <div class="spoiler closed">
+          <div class="spoiler-head">
+            <span class="spoiler-caret"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.5"/></svg></span>
+            <span class="spoiler-title">Контакты дежурных</span>
+          </div>
+        </div>
+
+        <!-- спойлер внутри ячейки таблицы -->
+        <table>
+          <thead><tr><th>Этап</th><th>Комментарий</th></tr></thead>
+          <tbody>
+            <tr><td>Миграция БД</td><td>
+              <div class="spoiler closed">
+                <div class="spoiler-head">
+                  <span class="spoiler-caret"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.5"/></svg></span>
+                  <span class="spoiler-title">Список блокировок</span>
+                </div>
+              </div>
+            </td></tr>
+            <tr><td>Деплой</td><td>Без даунтайма, два пода.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="note">Пунктирная терракотовая рамка — фокус на виджете. Развернутый/свернутый — состояние клика по шапке; в таблице виджет компактнее (без внешних отступов).</p>
+  </section>
+
+  <!-- ================== РЕНДЕР ================== -->
+  <section class="state-block" id="view">
+    <span class="state-label">Отрендеренный вид</span>
+    <div class="article-card">
+      <h2 class="article-title">Регламент релиза</h2>
+      <div class="article-body">
+        <p>Перед выкаткой убедиться, что бэкап свежий.</p>
+        <div class="spoiler open">
+          <div class="spoiler-head">
+            <span class="spoiler-caret"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.5"/></svg></span>
+            <span class="spoiler-title">Порядок отката</span>
+          </div>
+          <div class="spoiler-body">
+            <p>1. Остановить воркеры. 2. <code>alembic downgrade -1</code>. 3. Поднять предыдущий образ.</p>
+          </div>
+        </div>
+        <div class="spoiler closed">
+          <div class="spoiler-head">
+            <span class="spoiler-caret"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.5"/></svg></span>
+            <span class="spoiler-title">Контакты дежурных</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">В рендере нет подсказок и рамок фокуса: шапка — кликабельна (свернуть/развернуть), название — обычный текст.</p>
+  </section>
+</main>
+</body>
+</html>

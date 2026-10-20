@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап P12-4 — H-заголовки: toggle do/dont и clear-состояние</title>
+<link rel="stylesheet" href="p12-base.css">
+<style>
+/* --- P12-4 H-заголовки -----------------------------------------------
+   Исправление: H1/H2/H3 в тулбаре — toggle. Повторное нажатие кнопки
+   СНИМАЕТ форматирование (возврат к обычному параграфу).
+   Ниже три прогона: DO (снятие), DONT (текущее поведение — не так),
+   CLEAR (текст после снятия — обычный абзаф). --------------------------*/
+.demo-row {
+  display: grid; grid-template-columns: 200px minmax(0, 1fr);
+  gap: var(--space-2); align-items: start;
+  margin: 0 0 var(--space-3);
+}
+.demo-side { display: flex; flex-direction: column; gap: var(--space-05); }
+.demo-side .flag { align-self: flex-start; }
+.demo-side p { margin: 0; font-size: var(--font-size-micro); color: var(--color-text-secondary); line-height: 1.5; }
+.demo-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  overflow: hidden;
+}
+.demo-card .toolbar { padding: var(--space-05) var(--space-1); }
+/* индикатор позиции курсора: мигающая каретка перед текстом */
+.caret {
+  display: inline-block; width: 0; height: 1.1em;
+  border-right: 2px solid var(--color-accent);
+  vertical-align: text-bottom; margin-right: 1px;
+}
+.demo-body { padding: var(--space-1) var(--space-2) var(--space-2); line-height: 1.65; }
+.demo-body p { margin: 0; }
+.demo-body h2 { font-family: var(--font-family-display); font-size: 18px; font-weight: 600; margin: 0; }
+/* «до» в dont: обе кнопки нажаты одновременно — некорректное состояние */
+.tb-btn.conflict { border-color: var(--p-red-700); background: var(--p-clay-050); color: var(--p-red-700); }
+.arrow-next { align-self: center; justify-self: center; color: var(--color-text-secondary); font-size: 18px; }
+.seq { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
+.seq .demo-card { flex: 1; min-width: 0; }
+</style>
+</head>
+<body class="app-shell">
+<aside class="sidebar">
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M9 9v12" fill="none" stroke="currentColor" stroke-width="2"/></svg>Доска</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="11" r="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M21 17l-5-5-4 4-3-3-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Галерея</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>Видео</a>
+    <a class="nav-item active" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Вики</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" stroke="currentColor" stroke-width="2"/></svg>Настройки</a>
+  </nav>
+  <div class="sidebar-footer"><button class="logout-button">Выйти</button></div>
+</aside>
+<main class="content">
+  <h1>Мокап P12-4 — H-заголовки как toggle</h1>
+  <p class="mock-sub">Исправление: кнопки H1/H2/H3 работают как переключатель. Повторное нажатие активной кнопки СНИМАЕТ форматирование — текст возвращается в обычный абзац. Клик по другой H-кнопке — замена уровня (H2 → H3).</p>
+
+  <!-- ================== РЕЖИМ РЕДАКТИРОВАНИЯ: прогоны toggle ================== -->
+  <section class="state-block" id="edit">
+
+    <div class="demo-row">
+      <div class="demo-side">
+        <span class="flag do">✓ DO — повторное нажатие снимает</span>
+        <p>Курсор в заголовке H2: кнопка нажата (aria-pressed). Второй клик по H2 → формат снято, текст стал абзацем. Кнопка отжалась.</p>
+      </div>
+      <div class="seq">
+        <div class="demo-card">
+          <div class="toolbar">
+            <div class="tb-group">
+              <button class="tb-btn tb-heading" aria-pressed="false">H1</button>
+              <button class="tb-btn tb-heading" aria-pressed="true" style="background:var(--color-accent-soft);border-color:var(--color-accent);color:var(--color-accent-hover)">H2</button>
+              <button class="tb-btn tb-heading" aria-pressed="false">H3</button>
+            </div>
+            <span class="tb-sep"></span>
+            <span class="note" style="margin:0">← нажата: курсор в H2</span>
+          </div>
+          <div class="demo-body"><h2><span class="caret"></span>План миграции</h2></div>
+        </div>
+        <span class="arrow-next">2-й клик по H2 →</span>
+        <div class="demo-card">
+          <div class="toolbar">
+            <div class="tb-group">
+              <button class="tb-btn tb-heading" aria-pressed="false">H1</button>
+              <button class="tb-btn tb-heading" aria-pressed="false">H2</button>
+              <button class="tb-btn tb-heading" aria-pressed="false">H3</button>
+            </div>
+            <span class="tb-sep"></span>
+            <span class="note" style="margin:0">← все отжаты</span>
+          </div>
+          <div class="demo-body"><p><span class="caret"></span>План миграции</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-side">
+        <span class="flag dont">✗ DON'T — текущее поведение</span>
+        <p>Сегодня повторный клик ничего не снимает, а повторное применение H2 поверх H1 делает заголовок «дважды заголовком». После исправления таких состояний не возникает.</p>
+      </div>
+      <div class="seq">
+        <div class="demo-card">
+          <div class="toolbar">
+            <div class="tb-group">
+              <button class="tb-btn tb-heading conflict" aria-pressed="true">H1</button>
+              <button class="tb-btn tb-heading conflict" aria-pressed="true">H2</button>
+              <button class="tb-btn tb-heading" aria-pressed="false">H3</button>
+            </div>
+            <span class="tb-sep"></span>
+            <span class="note" style="margin:0;color:var(--p-red-700)">← конфликт: H1 и H2 нажаты одновременно</span>
+          </div>
+          <div class="demo-body">
+            <h1 style="font-size:22px;font-family:var(--font-family-display);font-weight:600;margin:0"><span style="display:inline-block;border:1px dashed var(--p-red-700);border-radius:4px;padding:0 2px"><span class="caret"></span>План миграции</span></h1>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-side">
+        <span class="flag do">✓ CLEAR-состояние</span>
+        <p>Текст после снятия — обычный абзац 14px, без остаточных стилей (отступов, размера, Georgia). Кнопки H1/H2/H3 все отжаты.</p>
+      </div>
+      <div class="demo-card">
+        <div class="toolbar">
+          <div class="tb-group">
+            <button class="tb-btn tb-heading" aria-pressed="false">H1</button>
+            <button class="tb-btn tb-heading" aria-pressed="false">H2</button>
+            <button class="tb-btn tb-heading" aria-pressed="false">H3</button>
+            <span class="tb-sep"></span>
+            <button class="tb-btn" title="Жирный"><svg viewBox="0 0 24 24"><path d="M7 4h6a4 4 0 0 1 0 8H7zM7 12h7a4 4 0 0 1 0 8H7z" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+            <button class="tb-btn" title="Курсив"><svg viewBox="0 0 24 24"><path d="M10 4h8M6 20h8M14 4l-4 16" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+          </div>
+        </div>
+        <div class="demo-body">
+          <p><span class="caret"></span>План миграции</p>
+          <p style="font-size:var(--font-size-micro);color:var(--color-text-secondary)">— текст не потерялся, стал обычным абзацем</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================== РЕНДЕР ================== -->
+  <section class="state-block" id="view">
+    <span class="state-label">Отрендеренный вид</span>
+    <div class="article-card">
+      <div class="article-body">
+        <h1>План миграции</h1>
+        <p>Обычный абзац после заголовка H1: заголовок в рендере — просто h1/h2/h3 статьи, без редакторских рамок.</p>
+        <h2>Этап 1 — подготовка</h2>
+        <p>Заголовок уровня H2. Иерархия уровней сохраняется как есть в тексте.</p>
+        <h3>Проверки</h3>
+        <p>Заголовок уровня H3 — самый мелкий.</p>
+      </div>
+    </div>
+    <p class="note">В рендере h1/h2/h3 — существующие стили .article-body (Georgia, 22/18/16px). Исправление касается только поведения тулбара в редакторе.</p>
+  </section>
+</main>
+</body>
+</html>

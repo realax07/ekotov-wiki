@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап P12-2 — Блок кода: подсветка, выбор языка, копирование</title>
+<link rel="stylesheet" href="p12-base.css">
+<style>
+/* --- P12-2 Блок кода -------------------------------------------------
+   Черный блок (как .article-body pre — --p-ink-900) с шапкой-панелью:
+   слева выбор языка (select), справа кнопка «Копировать».
+   Рамка: 1px черная + мягкая тень + тонкая терракотовая линия под
+   шапкой — «красивая рамка» в стиле сайта. -----------------------------*/
+.codeblock {
+  background: var(--p-ink-900);
+  border: 1px solid #2b2621;
+  border-radius: var(--radius-field);
+  box-shadow: var(--shadow-soft);
+  margin: 0 0 var(--space-2);
+  overflow: hidden;
+}
+.codeblock-head {
+  display: flex; align-items: center; gap: var(--space-1);
+  padding: 5px var(--space-1);
+  background: #4a423a;
+  border-bottom: 2px solid var(--color-accent);
+}
+.codeblock-lang {
+  font: inherit; font-size: var(--font-size-micro);
+  color: var(--p-paper-050);
+  background: var(--p-ink-900);
+  border: 1px solid var(--p-ink-600);
+  border-radius: var(--space-05);
+  padding: 2px var(--space-05);
+}
+/* открытый дропдаун выбора языка (edit-состояние) */
+.lang-menu {
+  position: absolute; z-index: 2; margin-top: 2px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  box-shadow: 0 4px 12px rgba(61, 54, 48, 0.18);
+  padding: var(--space-05); min-width: 120px;
+}
+.lang-menu .lang-opt {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--space-2);
+  padding: 4px var(--space-1); border-radius: var(--space-05);
+  font-size: var(--font-size-label); color: var(--color-text-primary); cursor: pointer;
+}
+.lang-menu .lang-opt:hover, .lang-menu .lang-opt.sel { background: var(--color-accent-soft); color: var(--p-clay-700); }
+.lang-menu .lang-opt .chk { color: var(--color-accent); font-weight: bold; }
+.copy-btn {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: var(--space-05);
+  font: inherit; font-size: var(--font-size-micro);
+  color: var(--p-paper-050); background: transparent;
+  border: 1px solid var(--p-ink-600); border-radius: var(--space-05);
+  padding: 2px var(--space-1); cursor: pointer;
+}
+.copy-btn:hover { border-color: var(--p-paper-050); }
+.copy-btn svg { width: 12px; height: 12px; }
+.copy-btn.ok { color: #b8c98a; border-color: #b8c98a; }
+
+.codeblock pre {
+  margin: 0; padding: var(--space-1) var(--space-2);
+  overflow-x: auto; line-height: 1.6;
+}
+.codeblock code {
+  font-family: var(--font-family-mono); font-size: 12px;
+  background: transparent; padding: 0; color: var(--p-paper-050);
+}
+/* подсветка синтаксиса — приглушенная «бумажная» палитра на черном */
+.tok-kw  { color: #e0916b; }  /* ключевые слова — терракота light */
+.tok-str { color: #b8c98a; }  /* строки — оливковый light */
+.tok-com { color: #8d8378; font-style: italic; } /* комментарии */
+.tok-num { color: #d8b477; }  /* числа — amber light */
+.tok-fn  { color: #9db8d4; }  /* имена функций — blue light */
+.tok-dec { color: #d8a0b4; }  /* декораторы/директивы */
+
+/* edit: сфокусированный блок */
+.editor-area .codeblock.focused { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+</style>
+</head>
+<body class="app-shell">
+<aside class="sidebar">
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M9 9v12" fill="none" stroke="currentColor" stroke-width="2"/></svg>Доска</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="11" r="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M21 17l-5-5-4 4-3-3-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Галерея</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>Видео</a>
+    <a class="nav-item active" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Вики</a>
+    <a class="nav-item" href="#"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" stroke="currentColor" stroke-width="2"/></svg>Настройки</a>
+  </nav>
+  <div class="sidebar-footer"><button class="logout-button">Выйти</button></div>
+</aside>
+<main class="content">
+  <h1>Мокап P12-2 — Блок кода</h1>
+  <p class="mock-sub">Черный блок с шапкой: выбор языка слева, «Копировать» справа. Подсветка синтаксиса python / js / bash.</p>
+
+  <!-- ================== РЕЖИМ РЕДАКТИРОВАНИЯ ================== -->
+  <section class="state-block" id="edit">
+    <span class="state-label edit">Режим редактирования</span>
+    <div class="editor-card">
+      <div class="toolbar">
+        <div class="tb-group">
+          <button class="tb-btn" title="Блок кода" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M8 6l-5 6 5 6M16 6l5 6-5 6" fill="none" stroke="currentColor" stroke-width="2"/></svg><span class="tb-heading">Код</span></button>
+        </div>
+      </div>
+      <div class="editor-area">
+        <p>Скрипт очистки очереди:</p>
+
+        <!-- фокус на блоке + открытый выбор языка -->
+        <div class="codeblock focused" style="position:relative">
+          <div class="codeblock-head">
+            <span style="position:relative">
+              <button class="codeblock-lang">python ▾</button>
+              <div class="lang-menu">
+                <div class="lang-opt sel"><span>python</span><span class="chk">✓</span></div>
+                <div class="lang-opt"><span>javascript</span></div>
+                <div class="lang-opt"><span>bash</span></div>
+                <div class="lang-opt"><span>json</span></div>
+                <div class="lang-opt"><span>sql</span></div>
+                <div class="lang-opt"><span>plain text</span></div>
+              </div>
+            </span>
+            <button class="copy-btn"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="2"/></svg>Копировать</button>
+          </div>
+<pre><code><span class="tok-dec">@dataclass</span>
+<span class="tok-kw">class</span> <span class="tok-fn">Task</span>:
+    queue: <span class="tok-fn">str</span> = <span class="tok-str">"cleanup"</span>
+    retries: <span class="tok-fn">int</span> = <span class="tok-num">3</span>  <span class="tok-com"># максимум попыток</span>
+
+<span class="tok-kw">def</span> <span class="tok-fn">purge</span>(tasks):
+    <span class="tok-kw">for</span> t <span class="tok-kw">in</span> tasks:
+        t.retries -= <span class="tok-num">1</span>
+    <span class="tok-kw">return</span> <span class="tok-kw">len</span>(tasks)</code></pre>
+        </div>
+        <p class="note">Пунктир терракотой — фокус блока в редакторе; выбор языка — дропдаун со списком; «Копировать» — всегда видна (в рендере тоже).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================== РЕНДЕР ================== -->
+  <section class="state-block" id="view">
+    <span class="state-label">Отрендеренный вид</span>
+    <div class="article-card">
+      <h2 class="article-title">Скрипты обслуживания</h2>
+      <div class="article-body">
+
+        <p><strong>python</strong> — очистка очереди:</p>
+        <div class="codeblock">
+          <div class="codeblock-head">
+            <span class="codeblock-lang">python</span>
+            <button class="copy-btn"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="2"/></svg>Копировать</button>
+          </div>
+<pre><code><span class="tok-dec">@dataclass</span>
+<span class="tok-kw">class</span> <span class="tok-fn">Task</span>:
+    queue: <span class="tok-fn">str</span> = <span class="tok-str">"cleanup"</span>
+    retries: <span class="tok-fn">int</span> = <span class="tok-num">3</span>  <span class="tok-com"># максимум попыток</span></code></pre>
+        </div>
+
+        <p><strong>javascript</strong> — вставка виджета:</p>
+        <div class="codeblock">
+          <div class="codeblock-head">
+            <span class="codeblock-lang">javascript</span>
+            <button class="copy-btn ok">✓ Скопировано</button>
+          </div>
+<pre><code><span class="tok-kw">const</span> res = <span class="tok-kw">await</span> <span class="tok-fn">fetch</span>(<span class="tok-str">"/api/wiki/42"</span>);
+<span class="tok-kw">if</span> (res.ok) {
+  <span class="tok-fn">render</span>(<span class="tok-kw">await</span> res.<span class="tok-fn">json</span>());  <span class="tok-com">// вставка в DOM</span>
+}</code></pre>
+        </div>
+
+        <p><strong>bash</strong> — деплой:</p>
+        <div class="codeblock">
+          <div class="codeblock-head">
+            <span class="codeblock-lang">bash</span>
+            <button class="copy-btn"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="2"/></svg>Копировать</button>
+          </div>
+<pre><code><span class="tok-com"># выкатить релиз на стенд</span>
+<span class="tok-fn">cd</span> /srv/app &amp;&amp; git pull origin main
+docker compose up -d --build
+curl -fsS http://localhost:8080/healthz</code></pre>
+        </div>
+      </div>
+    </div>
+    <p class="note">Кнопка «Копировать» после клика на 1,5 с меняется на «✓ Скопировано» (терракотовый текст не нужен — успех оливковым light). Код — моно 12px, как <code>.article-body pre</code>.</p>
+  </section>
+</main>
+</body>
+</html>
