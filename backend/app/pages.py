@@ -48,7 +48,7 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # санитайзер br→\n в коде, normalizeCodeInput, гейт rename спойлера,
 # Enter в ячейке, компоновка панели таблицы, гейт вставок в код-блок.
 # Волна 6.3 — финальный бамп маркером `p12-rich-1` (PM, вне этого диффа).
-templates.env.globals["static_v"] = "p12-rich-dev2"
+templates.env.globals["static_v"] = "p12-rich-dev3"
 
 
 @router.get("/login")

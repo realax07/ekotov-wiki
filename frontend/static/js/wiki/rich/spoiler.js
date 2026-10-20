@@ -76,7 +76,7 @@ export function toggleSpoiler(spoiler) {
 }
 
 /* Инлайн-переименование: клик по названию → input; Enter/blur — фиксация
- * в data-title (spec FR-118). */
+ * в data-title, Escape — отмена (спека ОВ; QA D1: первый исход финален). */
 export function startRename(spoiler, head, titleSpan) {
   if (head.querySelector('.spoiler-title-input')) return;
   if (!titleSpan || titleSpan.parentNode !== head) return; // гонка commit
@@ -89,27 +89,32 @@ export function startRename(spoiler, head, titleSpan) {
   input.focus();
   input.select();
 
-  function restore() {
-    /* Единственная точка возврата названия (гонка Escape/blur: commit
-       после restore больше не делает replaceChild — pageerror-класс
-       «Failed to execute 'replaceChild'» снят) */
-    if (input.parentNode === head) head.replaceChild(titleSpan, input);
-  }
-  function commit() {
-    var value = input.value.trim() || current;
+  /* Единственная точка завершения переименования (QA D1): первый вызов
+   * close() закрывает rename, повторный (blur после Escape и т.п.) —
+   * no-op. Гонка Escape→blur детерминирована: Escape → close(false)
+   * возвращает исходное название, последующий blur не коммитит и не
+   * делает второй replaceChild (pageerror «Failed to execute
+   * 'replaceChild'» снят). */
+  var closed = false;
+  function close(commit) {
+    if (closed) return;
+    closed = true;
+    var value = commit ? input.value.trim() || current : current;
     spoiler.setAttribute(TITLE_ATTR, value);
     titleSpan.textContent = value;
-    restore();
+    if (input.parentNode === head) head.replaceChild(titleSpan, input);
   }
   input.addEventListener('keydown', function (event) {
     if (event.key === 'Enter') {
       event.preventDefault();
-      commit();
+      close(true);
     } else if (event.key === 'Escape') {
-      restore();
+      close(false);
     }
   });
-  input.addEventListener('blur', commit);
+  input.addEventListener('blur', function () {
+    close(true);
+  });
 }
 
 /* Общая активация (edit и view): классы виджета, шапка, тело, компакт. */

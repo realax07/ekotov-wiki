@@ -343,8 +343,25 @@ import {
     return !!(block && state.area.contains(block));
   }
 
-  function insertBlockGuarded(runInsert) {
+  /* QA D2 (матрица design §6: ячейка×таблица = НЕТ): каретка внутри
+   * ячейки таблицы — та же запретная зона для ВСТАВКИ ТАБЛИЦЫ, что
+   * код-блок выше: санитайзер при сохранении unwrap'ит вложенную
+   * таблицу целиком — иначе «редактор показал ≠ сохранилось». */
+  function caretInTableCell() {
+    var selection = window.getSelection();
+    if (!selection || !selection.anchorNode || !state.area) return false;
+    var node = selection.anchorNode;
+    var element = node.nodeType === 1 ? node : node.parentNode;
+    if (!element || !element.closest) return false;
+    var cell = element.closest('td,th');
+    return !!(cell && state.area.contains(cell));
+  }
+
+  /* forbidden — дополнительный контекстный запрет для КОНКРЕТНОЙ кнопки
+   * (Таблица × ячейка; код-блок запрещает все блоковые вставки). */
+  function insertBlockGuarded(runInsert, forbidden) {
     if (caretInCodeBlock()) return;
+    if (typeof forbidden === 'function' && forbidden()) return;
     runInsert();
   }
 
@@ -528,7 +545,7 @@ import {
         toolbarButton('Таблица', ICONS.table, null, function () {
           insertBlockGuarded(function () {
             focusAreaAndRun(insertTable3x3);
-          });
+          }, caretInTableCell);
         }, { stateful: false }),
         toolbarButton('Изображение', ICONS.image, 'tb-media', function () {
           insertBlockGuarded(function () {
@@ -699,6 +716,8 @@ import {
     if (button) button.setAttribute('aria-pressed', pressed ? 'true' : 'false');
   }
 
+  var TABLE_IN_CELL_HINT = 'В ячейке таблица запрещена';
+
   function updateToolbarStates() {
     var selection = window.getSelection();
     if (!selection || !state.area) return;
@@ -716,6 +735,15 @@ import {
       }
       setPressed(label, value);
     });
+    /* Матрица design §6 (ячейка×таблица = НЕТ; QA D2): «Таблица»
+       недоступна при каретке в ячейке — disabled + подсказка в title
+       (паттерн disabled-кнопок панели таблицы tabletools.js). */
+    var tableButton = state.toolbarButtons['Таблица'];
+    if (tableButton) {
+      var inCell = caretInTableCell();
+      tableButton.disabled = inCell;
+      tableButton.title = inCell ? TABLE_IN_CELL_HINT : 'Таблица';
+    }
   }
 
   /* ------------------------------------------------------------------ */

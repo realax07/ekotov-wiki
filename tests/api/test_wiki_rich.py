@@ -256,3 +256,25 @@ def test_xss_vectors_inside_blocks_neutralized(client):
     assert "script" not in content and "alert" not in content
     assert "onclick" not in content and "javascript" not in content
     assert 'data-block="spoiler"' in content and "<p>ок</p>" in content
+
+
+def test_table_in_table_paste_unwrapped_idempotent(client):
+    """QA D2, paste-путь (TC-rich-041/api::041): вложенная таблица при
+    сохранении unwrap'ится санитайзером целиком (тексты обеих ячеек
+    слипаются в одну — `<td>A1<br>B1</td>`), повторный PUT идемпотентен.
+    Гейт в редакторе (editor.js, ячейка×таблица = НЕТ) закрывает только
+    ВСТАВКУ — здесь проверен серверный путь «редактор не покажет то,
+    что не сохранится»."""
+    nested = (
+        "<table><tbody><tr><td>"
+        "<table><tbody><tr><td>A1</td><td>B1</td></tr></tbody></table>"
+        "</td></tr></tbody></table>"
+    )
+    page = _create(client, "Таблица в таблице paste", content=nested)
+    first = client.get(f"/api/wiki/pages/{page['id']}").json()["content"]
+    assert first.count("<table>") == 1
+    assert "<td>A1<br>B1</td>" in first
+    resp = client.put(f"/api/wiki/pages/{page['id']}", json={"content": first})
+    assert resp.status_code == 200, resp.text
+    second = client.get(f"/api/wiki/pages/{page['id']}").json()["content"]
+    assert second == first

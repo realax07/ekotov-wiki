@@ -32,6 +32,9 @@ XSS-векторы, undo-тест F4):
     test_spoiler_title_click_in_view_toggles_not_renames (F-3)
     test_insert_blocks_gated_inside_codeblock (design-check #6)
     test_table_panel_layout_follows_target (design-check #5)
+  Фикс-раунд QA №1 (D1/D2):
+    test_spoiler_rename_escape_cancels_blur_race_deterministic (D1: Escape=отмена)
+    test_table_insert_gated_in_cell_button_disabled (D2: ячейка×таблица=НЕТ)
   Деградация/безопасность (NFR-39):
     test_matrix_view_activation_unknown_block_degrades
     test_xss_vectors_inside_blocks_not_executed
@@ -784,6 +787,107 @@ def test_spoiler_title_click_in_view_toggles_not_renames(
     assert spoiler.locator(".spoiler-title-input").count() == 0
     spoiler.locator(".spoiler-title").click()
     expect(spoiler.locator(".spoiler-body")).to_contain_text("тело спойлера")
+    assert page_errors == []
+
+
+def test_spoiler_rename_escape_cancels_blur_race_deterministic(
+    editor_page, wiki_api, page_errors, web_base_url
+):
+    """QA D1 (TC-rich-040): Escape в инлайн-rename отменяет правку —
+    название остается исходным, input закрыт; гонка Escape→blur
+    детерминирована (blur после отмены НЕ коммитит), pageerror
+    replaceChild нет. Дискриминатор: до фикса Escape коммитил
+    («Черновик» вместо «Спойлер») + 4 pageerror в гонке."""
+    page = editor_page
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
+    editor.area.click()
+    editor.toolbar_button("Спойлер").click()
+    spoiler = editor.area.locator(".spoiler")
+    expect(spoiler.locator(".spoiler-title")).to_have_text("Спойлер")
+
+    # Escape — отмена: исходное название, input закрыт
+    spoiler.locator(".spoiler-title").click()
+    name_input = spoiler.locator(".spoiler-title-input")
+    expect(name_input).to_be_visible()
+    name_input.fill("Черновик")
+    name_input.press("Escape")
+    expect(spoiler.locator(".spoiler-title")).to_have_text("Спойлер")
+    expect(name_input).to_have_count(0)
+
+    # гонка Escape → blur: blur после отмены — no-op (первый исход финален)
+    spoiler.locator(".spoiler-title").click()
+    name_input = spoiler.locator(".spoiler-title-input")
+    expect(name_input).to_be_visible()
+    name_input.fill("Гонка")
+    name_input.press("Escape")
+    expect(name_input).to_have_count(0)
+    page.wait_for_timeout(200)
+    expect(spoiler.locator(".spoiler-title")).to_have_text("Спойлер")
+    # без Escape blur по-прежнему коммитит
+    spoiler.locator(".spoiler-title").click()
+    name_input = spoiler.locator(".spoiler-title-input")
+    expect(name_input).to_be_visible()
+    name_input.fill("Финал")
+    spoiler.locator(".spoiler-body").click()
+    expect(spoiler.locator(".spoiler-title")).to_have_text("Финал")
+
+    editor.title_input.fill("Escape отменяет rename")
+    editor.save_button().click()
+    page.wait_for_url(re.compile(r"/wiki/\d+$"))
+    page_id = int(page.url.rstrip("/").rsplit("/", 1)[1])
+    saved = wiki_api.content_of(page_id)
+    assert 'data-title="Финал"' in saved
+    assert "Черновик" not in saved and "Гонка" not in saved
+    assert page_errors == []
+
+
+def test_table_insert_gated_in_cell_button_disabled(
+    editor_page, wiki_api, page_errors, web_base_url
+):
+    """QA D2 (TC-rich-041, матрица design §6: ячейка×таблица = НЕТ):
+    при каретке в ячейке кнопка «Таблица» недоступна (disabled + подсказка
+    «В ячейке таблица запрещена») — вложенной таблицы в DOM нет; вне
+    таблицы кнопка снова доступна. Paste-путь прикрыт санитайзером:
+    test_sanitize.py::test_rich_table_in_table_* + api-тест идемпотентности."""
+    page = editor_page
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
+    editor.area.click()
+    editor.toolbar_button("Таблица").click()
+    expect(editor.area.locator("table")).to_have_count(1)
+    table_btn = editor.toolbar_button("Таблица")
+    expect(table_btn).to_be_enabled()
+
+    cell = editor.area.locator("tbody tr").nth(0).locator("td").nth(0)
+    cell.click()
+    expect(table_btn).to_be_disabled()
+    assert table_btn.get_attribute("title") == "В ячейке таблица запрещена"
+    # disabled-кнопку кликнуть нельзя — вложенной таблицы не появляется
+    expect(editor.area.locator("td table")).to_have_count(0)
+
+    # каретка покидает таблицу (клик ниже перекрыт панелью — ставим каретку
+    # в конец области программно, паттерн QA-сьюта) — кнопка снова доступна
+    page.evaluate(
+        """() => {
+          const area = document.querySelector('.editor-area');
+          const range = document.createRange();
+          range.selectNodeContents(area);
+          range.collapse(false);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }"""
+    )
+    expect(table_btn).to_be_enabled()
+    expect(table_btn).to_have_attribute("title", "Таблица")
+
+    editor.title_input.fill("Гейт таблицы в ячейке")
+    editor.save_button().click()
+    page.wait_for_url(re.compile(r"/wiki/\d+$"))
+    page_id = int(page.url.rstrip("/").rsplit("/", 1)[1])
+    saved = wiki_api.content_of(page_id)
+    assert saved.count("<table>") == 1  # только внешняя
     assert page_errors == []
 
 
