@@ -53,7 +53,7 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # свернут по умолчанию (edit и view, раскрытие — только клик).
 # p23-fastline-1 — P23 «Фастлайн»: зона FASTLINE над канбаном (board.html/
 # board.css/cards.js/state.js/task-form.js/api.js).
-templates.env.globals["static_v"] = "p23-fastline-1"
+templates.env.globals["static_v"] = "p23-fastline-2"
 
 
 @router.get("/login")

@@ -1816,12 +1816,46 @@
   margin: 0 0 var(--space-2);
 }
 
-/* Мобильная укладка (design §6): столбцы зоны — стек той же сеткой,
- * что канбан ≤480px; поведение блокировок идентично desktop. */
+/* Мобильная укладка (BUG p23-mobile, рапорт Заказчика с прода: «все
+ * поехало» — прежний стек шириной 100%/103px ломал карточки; требование:
+ * «идентично с основным бордом»). Паттерн — ТОТ ЖЕ, что у канбана
+ * ≤480px выше (P14): зона — свайп-контейнер со scroll-snap; колонка —
+ * 82vw с превью края следующей (мокап 03); скроллбар скрыт; safe-area
+ * снизу (NFR-25); страница вне зоны по X не скроллит (overflow-x:
+ * hidden на .content/main — правило ≤480px-ветки канбана). Шапка,
+ * кнопка и чип — wrap; поведение блокировок (disabled + чип) и
+ * DnD-состояния (drop-target/drop-forbidden — классы ставит cards.js)
+ * идентичны desktop. Быстрое «Выполнено» — тач-путь переноса карточки,
+ * как в канбане (правило .task-quick-done ≤480px-ветки выше). */
 @media (max-width: 480px) {
   .fastline { padding: var(--space-1); }
   .fastline-head { flex-wrap: wrap; }
   .fastline-note { margin-left: 0; }
-  .fastline-board { flex-wrap: wrap; }
-  .fastline-column { min-width: 0; width: 100%; }
+
+  /* Свайп-контейнер зоны — дословно паттерн .board ≤480px (см. выше). */
+  .fastline-board {
+    flex-wrap: nowrap;
+    gap: var(--space-1);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    padding: 0 0 calc(var(--space-1) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .fastline-board::-webkit-scrollbar { display: none; }
+
+  /* Колонка зоны — 82vw как .board-column (превью края следующей);
+   * snap по левому краю; desktop-минимум 220px снят. */
+  .fastline-column {
+    flex: 0 0 82vw;
+    min-width: 0;
+    scroll-snap-align: start;
+  }
+
+  /* «+ Fast-задача» — тач-таргет ≥44px (NFR-23, P14-стандарт; на
+   * desktop пилюля без изменений — NFR-29). */
+  .fastline-add {
+    min-height: 44px;
+    padding: 3px 16px;
+  }
 }
