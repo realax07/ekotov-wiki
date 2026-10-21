@@ -21,15 +21,17 @@ renderBoard синхронна (один JS-таск), поэтому атома
 
 # Одноразовый dragstart: карточка и ее столбец-источник читаются свежим
 # querySelector в том же таске, где возбуждается событие.
+# P23: карточка может лежать и в столбце зоны FASTLINE (.fastline-column,
+# этап в data-fastline-stage) — статус-источник берется из обоих форматов.
 _DRAGSTART_JS = """
 (data) => {
   const card = document.querySelector(
     'article[data-task-id="' + data.taskId + '"]'
   );
   if (!card) { return { error: "card not found" }; }
-  const column = card.closest(".board-column");
+  const column = card.closest(".board-column, .fastline-column");
   if (!column) { return { error: "card not in a column" }; }
-  const fromStatus = column.dataset.status;
+  const fromStatus = column.dataset.status || column.dataset.fastlineStage;
   window.__qaDnD = {
     dt: new DataTransfer(),
     taskId: data.taskId,

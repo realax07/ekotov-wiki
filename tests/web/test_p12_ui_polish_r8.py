@@ -474,10 +474,9 @@ def test_fastline_edit_full_toggle_regular_to_fast_409_and_off(
 ):
     """TC-UIP-111 (CHK-P12-28/29, FR-89): в редактировании regular-задачи
     .fast-row виден и снят; включение — priority high и заблокирован,
-    после сохранения is_fast=true/high в API; вторая fast при занятой
-    линии — форма показывает «fast line занята», введенные данные
-    сохранены, вторая fast не переключена; выключение разблокирует
-    приоритет и сохраняет выбранный."""
+    после сохранения is_fast=true/high в API; при занятой линии чекбокс
+    fast у обычной задачи disabled с причиной чипа (гейт P23 2.5),
+    выключение разблокирует приоритет и сохраняет выбранный."""
     page = board_page
     board = BoardPage(page)
     form = TaskForm(page)
@@ -531,9 +530,12 @@ def test_fastline_edit_full_toggle_regular_to_fast_409_and_off(
     got3 = web_owner_session.get(f"{web_base_url}/api/tasks/{regular_id}").json()
     assert got3["is_fast"] is False and got3["priority"] == "medium", got3
 
-    # Шаг 2/4 (409-путь): fast-задача занимает линию; вторая regular при
-    # включении fast — форма открыта, сообщение «fast line занята»,
-    # введенные данные сохранены, вторая fast не переключена.
+    # Шаг 2/4 (P23 2.5, гейт edit-формы): fast-задача занимает линию;
+    # при редактировании ОБЫЧНОЙ задачи чекбокс fast disabled с причиной
+    # чипа (включение стало бы 409 — не даем стрелять); заголовок-правка
+    # на месте, вторая fast НЕ переключена. Серверный 409-путь (гонка
+    # вкладок, устаревший GET) покрыт test_board_fastline.py
+    # (TC-p23-108) — там кнопка/чекбокс еще активны на устаревшей доске.
     fast = web_owner_session.post(
         f"{web_base_url}/api/tasks",
         json={"title": "QAT-f89-fast", "priority": "high", "is_fast": True},
@@ -552,13 +554,11 @@ def test_fastline_edit_full_toggle_regular_to_fast_409_and_off(
     board.wait_loaded()
     _open_edit("QAT-f89-second")
     form.title_input.fill("QAT-f89-second-правка")
-    form.fast_line_label().check()
+    # Гейт: чекбокс fast недоступен, причина — чип-запрет зоны.
+    expect(form.fast_line_label()).to_be_disabled()
+    expect(page.locator("#task-is-fast-gate")).to_be_visible()
     form.save_button().click()
-    expect(page.get_by_text("fast line занята")).to_be_visible()
-    expect(form.overlay).to_be_visible()
-    assert form.title_input.input_value() == "QAT-f89-second-правка"
-    assert form.fast_line_label().is_checked()
-    form.cancel_button().click()
     expect(form.overlay).to_be_hidden()
     got2 = web_owner_session.get(f"{web_base_url}/api/tasks/{second_id}").json()
     assert got2["is_fast"] is False, got2  # вторая fast НЕ переключена
+    assert got2["title"] == "QAT-f89-second-правка", got2

@@ -41,6 +41,46 @@
 {% block content %}
 <h1 class="page-title">Доска</h1>
 <p><button type="button" id="create-task-button" class="btn btn-primary">Создать задачу</button></p>
+{# P23 «Фастлайн» (openspec/changes/p23-fastline; мокапы design/p23-fastline/
+   v2-*.png, вариант A): зона НАД канбаном — подложка --p-blue-050, рамка
+   --p-blue-200, серифная шапка FASTLINE БЕЗ счетчика (ОВ-2); 3 столбца-этапа
+   (Ожидает/В работе/Выполнено) — этап зоны = существующий status (design §2,
+   БЕЗ fastline_stage), поэтому столбцы зоны НЕсут свой класс .fastline-column
+   и атрибут data-fastline-stage (НЕ data-status: селекторы канбана
+   [data-status] всех существующих сьютов остаются однозначными). Fast-задачи
+   рендерит cards.js ТОЛЬКО в зону (разделение по is_fast); пустые столбцы —
+   без подсказок (ОВ-3). Кнопка «+ Fast-задача»: гейт (disabled + чип при
+   занятой зоне) ставит cards.js из последнего GET /api/board; действие —
+   task-form.js. #}
+<section class="fastline fastline-a" id="fastline" aria-label="Фастлайн">
+  <header class="fastline-head">
+    <h2 class="fastline-title">FASTLINE</h2>
+    <button type="button" id="fastline-add-button" class="fastline-add">+ Fast-задача</button>
+    <span id="fastline-blocked-hint" class="fastline-blocked-hint" hidden>
+      <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M5.8 5.8l12.4 12.4" stroke="currentColor" stroke-width="2.5"/></svg>
+      В фастлайне уже есть задача — выполните текущую
+    </span>
+    <span class="fastline-note">одна задача за раз — 3 столбца = этапы одной fast-задачи</span>
+  </header>
+  <div class="fastline-board">
+    <section class="fastline-column" id="fastline-todo" data-fastline-stage="todo">
+      <h2 class="board-column-title">Ожидает</h2>
+      <div class="board-column-cards" data-cards></div>
+      <span class="drop-forbidden-badge" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="9.5" class="drop-forbidden-badge-circle"/><path d="M5.8 5.8l12.4 12.4" class="drop-forbidden-badge-slash"/></svg></span>
+    </section>
+    <section class="fastline-column" id="fastline-in_progress" data-fastline-stage="in_progress">
+      <h2 class="board-column-title">В работе</h2>
+      <div class="board-column-cards" data-cards></div>
+      <span class="drop-forbidden-badge" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="9.5" class="drop-forbidden-badge-circle"/><path d="M5.8 5.8l12.4 12.4" class="drop-forbidden-badge-slash"/></svg></span>
+    </section>
+    <section class="fastline-column fastline-column-done" id="fastline-done" data-fastline-stage="done">
+      <h2 class="board-column-title">Выполнено</h2>
+      <div class="board-column-cards" data-cards></div>
+      <span class="drop-forbidden-badge" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="9.5" class="drop-forbidden-badge-circle"/><path d="M5.8 5.8l12.4 12.4" class="drop-forbidden-badge-slash"/></svg></span>
+    </section>
+  </div>
+</section>
+<hr class="board-sep">
 <div id="board" class="board preset-v" data-loaded="false">
   <section class="board-column" id="column-todo" data-status="todo">
     <h2 class="board-column-title">Ожидает</h2>
@@ -175,6 +215,13 @@
       <label class="task-form-checkbox">
         <input type="checkbox" id="task-is-fast" name="is_fast"> fast line
       </label>
+      {# P23 (2.5, design §4.2): причина гейта чекбокса fast в edit-форме —
+         третий путь вставки закрыт при занятой зоне (включение было бы 409 —
+         не даем стрелять). Тот же класс чипа, что у зоны; ставит task-form.js. #}
+      <span id="task-is-fast-gate" class="fastline-blocked-hint" hidden>
+        <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M5.8 5.8l12.4 12.4" stroke="currentColor" stroke-width="2.5"/></svg>
+        В фастлайне уже есть задача — выполните текущую
+      </span>
     </div>
     {# r6 3.1 (FR-63, ОВ-4, ОГР-28; эталон design/tag-combobox-v3.html
        «Единая зона действий задачи»): ЕДИНАЯ зона действий внизу формы —

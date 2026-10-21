@@ -60,13 +60,16 @@ export function handleApiError(response, body, onError) {
     );
     return;
   }
-  /* 409 «fast line occupied» (sdd §3.2) — человекочитаемое сообщение
-   * рядом с чекбоксом fast (5.2, FR-3): форма остается открытой,
-   * задача НЕ создается, пользователь может снять флаг или отменить. */
+  /* 409 «fast line occupied» (sdd §3.2) — человекочитаемое сообщение;
+   * P23 (2.3): текст переформулирован под чип-запрет зоны FASTLINE
+   * (мокап v2-blocked) — тот же текст у чипа зоны, у гейта чекбокса
+   * edit-формы и в ошибках формы/DnD. Форма остается открытой, задача
+   * НЕ создается; доска перерисовывается (task-form.js handleSubmitError,
+   * cards.js moveTask). */
   if (response.status === 409) {
     onError(
       body && body.error === "fast line occupied"
-        ? "fast line занята"
+        ? "В фастлайне уже есть задача — выполните текущую"
         : "Ошибка запроса (HTTP 409).",
       response,
       body

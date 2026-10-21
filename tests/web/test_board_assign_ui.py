@@ -35,6 +35,7 @@ import pytest
 from playwright.sync_api import expect
 
 from tests.web.conftest import create_task_via_ui
+from tests.web.pages.board import BoardPage
 
 pytestmark = [pytest.mark.web, pytest.mark.must]
 
@@ -119,10 +120,11 @@ def test_card_users_line_all_columns(
     page.reload()
     expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
 
+    # P23: fast-карточка (done, is_fast) лежит в столбце ЗОНЫ
+    # (data-fastline-stage) — локатор покрывает оба контейнера.
+    board = BoardPage(page)
     for title, status in (("QAT-u-todo", "todo"), ("QAT-u-done", "done")):
-        card = page.locator(f'[data-status="{status}"]').get_by_role("article").filter(
-            has_text=title
-        )
+        card = board.card_in_column(status, title)
         line = _users_line(card)
         expect(line).to_be_visible()
         expect(line.locator(".task-card-assigned")).to_have_text(WIFE_LOGIN)

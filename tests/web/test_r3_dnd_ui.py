@@ -27,13 +27,23 @@ pytestmark = [pytest.mark.web, pytest.mark.must]
 
 BOARD_JS = "frontend/static/js/board/board-init.js"
 
+# P23 (tasks 4.4): fast-карты живут в столбцах ЗОНЫ FASTLINE (этап =
+# data-fastline-stage), канбан — только обычные задачи.
+FASTLINE_BUSY_TEXT = "В фастлайне уже есть задача — выполните текущую"
+
 
 def _card(page, title: str):
     return page.get_by_role("article").filter(has_text=title)
 
 
 def _column(page, status: str):
-    return page.locator(f'.board-column[data-status="{status}"]')
+    return page.locator(f'#board .board-column[data-status="{status}"]')
+
+
+def _fast_column(page, status: str):
+    return page.locator(
+        f'#fastline .fastline-column[data-fastline-stage="{status}"]'
+    )
 
 
 def _wait_board(page) -> None:
@@ -142,9 +152,11 @@ def test_dnd_drop_outside_column_returns_card(
 def test_dnd_fast_line_occupied_409_error_and_return(
     board_page, web_base_url, web_owner_session, web_cleanup_created
 ):
-    """TC-dnd-103: drop fast-карточки из «Выполнено» в «Ожидает» при занятой
-    fast line: ответ 409 {"error": "fast line occupied"}; #board-error
-    видим; плитка возвращена в done; активная fast-задача ровно одна (Д-6)."""
+    """TC-dnd-103: drop выполненной fast-карты из «Выполнено» ЗОНЫ в
+    «Ожидает» зоны при занятом слоте: ответ 409 {"error": "fast line
+    occupied"}; #board-error видим (текст чипа зоны, P23 2.3); плитка
+    возвращена в «Выполнено» зоны; ровно один POST move на drop (O1);
+    активная fast-задача ровно одна (Д-6)."""
     page = board_page
     # Порядок учета инварианта ≤1 (Д-6): пока линия свободна создаем
     # «QAT-fast-возврат», переводим в done (линия снова свободна) —
@@ -176,23 +188,26 @@ def test_dnd_fast_line_occupied_409_error_and_return(
         else None,
     )
 
+    # P23: выполненная fast-карта — в «Выполнено» ЗОНЫ (не канбана).
     card = _card(page, "QAT-fast-возврат")
-    expect(_column(page, "done").get_by_role("article").filter(
+    expect(_fast_column(page, "done").get_by_role("article").filter(
         has_text="QAT-fast-возврат"
     )).to_be_visible()
-    result = dnd_dispatch(page, card, _column(page, "todo"))
+    result = dnd_dispatch(page, card, _fast_column(page, "todo"))
     assert "drop-target" in result["targetClass"], result
 
-    # Шаг 4: ошибка видима; шаг 2: ответ 409 с телом из кейса.
+    # Шаг 4: ошибка видима (текст чипа зоны); шаг 2: ответ 409, РОВНО
+    # ОДИН POST move на drop (O1 — двойной dragend/fire квирк HTML5 DnD).
     error = page.locator("#board-error")
     expect(error).to_be_visible()
-    assert error.inner_text().strip() == "fast line занята", error.inner_text()
+    assert error.inner_text().strip() == FASTLINE_BUSY_TEXT, error.inner_text()
+    assert len(responses) == 1, responses
+    assert responses[0][0] == 409, responses
 
-    # Шаг 5: плитка возвращена в «Выполнено» (перерисовка из сервера).
-    expect(_column(page, "done").get_by_role("article").filter(
+    # Шаг 5: плитка возвращена в «Выполнено» зоны (перерисовка из сервера).
+    expect(_fast_column(page, "done").get_by_role("article").filter(
         has_text="QAT-fast-возврат"
     )).to_be_visible()
-    assert responses and responses[0][0] == 409, responses
 
     # Шаг 6: в активных статусах ровно одна fast-задача (инвариант Д-6).
     body = web_owner_session.get(f"{web_base_url}/api/board").json()
@@ -359,12 +374,13 @@ def test_dnd_success_after_409_hides_board_error(
     web_cleanup_created(int(cleanup_card.get_attribute("data-task-id")))
     _wait_board(page)
 
-    # Шаг 1: 409 по шагам TC-dnd-103.
+    # Шаг 1: 409 по шагам TC-dnd-103 — выполненная fast-карта в «Выполнено»
+    # ЗОНЫ, drag назад в «Ожидает» зоны при занятом слоте (P23, tasks 4.4).
     fast_card = _card(page, "QAT-fast-возврат")
-    expect(_column(page, "done").get_by_role("article").filter(
+    expect(_fast_column(page, "done").get_by_role("article").filter(
         has_text="QAT-fast-возврат"
     )).to_be_visible()
-    dnd_dispatch(page, fast_card, _column(page, "todo"))
+    dnd_dispatch(page, fast_card, _fast_column(page, "todo"))
     expect(page.locator("#board-error")).to_be_visible()
 
     # Шаг 2: успешный DnD «QAT-dnd-очистка» → «В работе».
