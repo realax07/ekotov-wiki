@@ -1,14 +1,13 @@
 # Regress p23-fastline — regress-final.md
 
 - change: p23-fastline
-- run: p23-fastline-2 mobile (полный сериал на head 9a30b23 после мобильной волны: фикс board.css <=480px + web-тесты test_p23_fastline_mobile_ui.py + амендмент спеки; desktop не менялся — покрыт desktop-сьютами полного сериала; 679 passed / 12 skipped / 2 xfailed)
-- date: 2026-10-21T05:56:32+00:00
-- commit: 9a30b23f84f695f58d38173bbc0a19cc1713e92e
+- run: p23-fastline-2 final (финальный перегон на head 92a21c1 после static_v-бампа p23-fastline-2; полный сериал, канонический контур nginx:18443, свежая БД reset стенда; 679 passed / 12 skipped / 2 xfailed, pytest exit 0; контрольный прогон mobile-сьюта test_p23_fastline_mobile_ui 4/4 PASSED; desktop не менялся — покрыт desktop-сьютами сериала; дельта head vs 9a30b23 — только TC-маркеры rule 6 и static_v бамп)
+- date: 2026-10-21T06:49:26+00:00
+- commit: 92a21c1c2b2b84aa7bee05b533e2cba08fa0ca8b
 - worktree: /tmp/wt-p23mob
 - verdict: PASS
 - tier: domain (эшелон 1: доменный regress)
-- duration: 848.0s
-- note: прогон 1 на этом head был FAIL (TC-GAL-106) — инфраструктурный ложный фейл второго контура (env-дефолты теста EKOTOV_WIKI_IMAGES_PORT/EKOTOV_WIKI_CORE_URL били в чужой стенд на дефолтных портах 8379/8080); изоляция с полным env зеленая, контур сброшен (свежая БД), перегон с полным env — PASS. Не продуктовый баг и не флейк диффа.
+- duration: 883.8s
 - diff source: git diff main...HEAD
 - domain map: project map test-model/regress-domains.json задана, правил нет — применен дефолт
 - changed files: 55
@@ -119,5 +118,5 @@ tests/web/test_weather_ui.py:35
     pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-679 passed, 12 skipped, 2 xfailed, 81 warnings in 845.72s (0:14:05)
+679 passed, 12 skipped, 2 xfailed, 81 warnings in 882.46s (0:14:42)
 ```
