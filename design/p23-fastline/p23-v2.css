@@ -1,0 +1,59 @@
+/* =====================================================================
+   Мокапы P23 v2 — НОВОЕ ограничение: в фастлайне ТОЛЬКО 1 задача
+   одновременно (до выполнения). Дополнительные состояния поверх
+   p23-base.css (вариант A утверждён — генерим только его):
+   - счетчик убран (в HTML нет .fastline-count);
+   - пустое состояние — полная зона без подсказок в столбцах;
+   - занято / блокировка второй fast-задачи (disabled-кнопка + чип-запрет);
+   - запрет DnD в занятый фастлайн (drop-forbidden, красный пунктир).
+   ===================================================================== */
+
+/* Пустой столбец фастлайна: чуть выше, чтобы зона читалась как зона */
+.fastline .fastline-empty-col { min-height: 72px; }
+
+/* Заметка состояния в шапке (не счетчик — текстовый статус) */
+.fastline-note b { color: var(--p-blue-700); }
+
+/* --- Кнопка добавления fast-задачи в состоянии «занято» ---
+   Пилюля в стиле кнопок сайта, но disabled: приглушена,
+   курсор not-allowed. Живых действий за ней нет. */
+.fastline-add {
+  font: inherit; font-size: var(--font-size-label); font-weight: 700;
+  cursor: pointer; padding: 3px 12px;
+  border-radius: 999px; border: 1px solid var(--p-blue-700);
+  background: var(--color-bg-surface); color: var(--p-blue-700);
+}
+.fastline-add:disabled {
+  cursor: not-allowed;
+  border-color: var(--p-blue-200);
+  background: var(--color-bg-surface);
+  color: var(--p-ink-600);
+  opacity: 0.75;
+}
+
+/* --- Чип-запрет «В фастлайне уже есть задача» ---
+   Стиль сайта: пилюля-бейдж в error-цветах (как .task-priority-badge). */
+.fastline-blocked-hint {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--font-size-micro); font-weight: 700;
+  color: var(--p-red-700); background: var(--p-red-050);
+  border: 1px solid var(--p-red-700);
+  border-radius: 999px; padding: 2px 10px;
+}
+.fastline-blocked-hint svg { flex-shrink: 0; display: block; }
+
+/* --- Запрещенный drop-target в фастлайне (занято) ---
+   Фастлайн-приемник голубой ТОЛЬКО когда вставка разрешена (фастлайн
+   пуст). В состоянии «занято» колонка отвечает красным пунктиром
+   и знаком запрета — вставка второй задачи невозможна. */
+.fastline .board-column.drop-forbidden {
+  background: var(--p-red-050);
+  outline: 2px dashed var(--p-red-700);
+  outline-offset: -4px;
+  position: relative;
+}
+.drop-forbidden-badge {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
