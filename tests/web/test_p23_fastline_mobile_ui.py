@@ -131,7 +131,7 @@ def _fastline_metrics(page) -> dict:
 
 
 def test_fastline_empty_zone_swipes_like_board(mobile_page):
-    """Пустая зона на 390×844 = свайп-паттерн канбана ≤480px: контейнер
+    """TC-p23-122: Пустая зона на 390×844 = свайп-паттерн канбана ≤480px: контейнер
     overflow-x auto + snap mandatory, колонка 82vw (≈319.8px на 390),
     3 столбца, зона скроллится, страница по X не скроллит (NFR-26),
     пустые столбцы без подсказок (ОВ-3). Скриншот — design/. """
@@ -163,7 +163,7 @@ def test_fastline_empty_zone_swipes_like_board(mobile_page):
 
 
 def test_fastline_occupied_touch_targets_and_swipe(mobile_page, web_owner_session, web_base_url, web_cleanup_created):
-    """Занятая зона на 390×844: карточка в столбце зоны, тач-таргеты
+    """TC-p23-123: Занятая зона на 390×844: карточка в столбце зоны, тач-таргеты
     ≥44px (NFR-23: «+ Fast-задача» и быстрое «Выполнено» — тач-путь
     переноса, как в канбане), реальный touch-свайп листает зону со
     snap-оседанием на колонке. Скриншот — design/."""
@@ -224,7 +224,7 @@ def test_fastline_occupied_touch_targets_and_swipe(mobile_page, web_owner_sessio
 
 
 def test_fastline_dnd_states_on_mobile(mobile_page, web_owner_session, web_base_url, web_cleanup_created):
-    """DnD-состояния зоны на мобильном вьюпорте идентичны desktop
+    """TC-p23-124: DnD-состояния зоны на мобильном вьюпорте идентичны desktop
     (классы ставит cards.js): fast-карта над столбцом зоны — голубой
     drop-target (перенос этапов); обычная карта над зоной — красный
     drop-forbidden с бейджем запрета (Э2)."""
@@ -285,7 +285,7 @@ def test_fastline_dnd_states_on_mobile(mobile_page, web_owner_session, web_base_
 
 
 def test_fastline_768_row_layout_like_board(mobile_page):
-    """Ветка 481–768px (проверка 768): у зоны и канбана одна десктопная
+    """TC-p23-125: Ветка 481–768px (проверка 768): у зоны и канбана одна десктопная
     раскладка — ряд из 3 колонок (≥220px), контейнер НЕ свайп-контейнер;
     мобильные включения зоны (82vw/snap) не протекают выше 480px."""
     page = mobile_page
