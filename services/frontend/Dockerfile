@@ -25,7 +25,7 @@ COPY frontend/static/ /srv/static/
 # монтируется с хоста ro, в образ НЕ копируется — design §2); задача 1.4
 # (add-gallery-service) — /api/images* на images:8379 (пара = + ^~,
 # 503-деградация @images_down) и отдача файлов /images/ из тома images-data.
-COPY services/frontend/nginx/ekotov-wiki.conf services/frontend/nginx/search-proxy.inc services/frontend/nginx/search-headers.inc services/frontend/nginx/netdata-proxy.inc services/frontend/nginx/netdata-headers.inc services/frontend/nginx/images-proxy.inc services/frontend/nginx/images-headers.inc services/frontend/nginx/videos-proxy.inc services/frontend/nginx/videos-headers.inc services/frontend/nginx/weather-proxy.inc services/frontend/nginx/weather-headers.inc services/frontend/nginx/games-proxy.inc services/frontend/nginx/games-headers.inc /etc/nginx/conf.d/
+COPY services/frontend/nginx/ekotov-wiki.conf services/frontend/nginx/search-proxy.inc services/frontend/nginx/search-headers.inc services/frontend/nginx/netdata-proxy.inc services/frontend/nginx/netdata-headers.inc services/frontend/nginx/images-proxy.inc services/frontend/nginx/images-headers.inc services/frontend/nginx/videos-proxy.inc services/frontend/nginx/videos-headers.inc services/frontend/nginx/weather-proxy.inc services/frontend/nginx/weather-headers.inc services/frontend/nginx/games-proxy.inc services/frontend/nginx/games-headers.inc services/frontend/nginx/games-proxy-game.inc /etc/nginx/conf.d/
 
 # 10443 — внутренний порт (публикуемый задает compose: ${NGINX_PORT:-10443}:10443).
 EXPOSE 10443
