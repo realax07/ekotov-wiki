@@ -63,7 +63,7 @@ RUN set -eux; \
     FFMPEG_VERSION="7.0.2"; \
     FFMPEG_SHA256="cc546852e535193e6d30a1f18cb90daa84e8ff320ceac6c6f5b514a1fba67079"; \
     FFMPEG_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-10-19-13-06/ffmpeg-n8.1.3-18-g46d899d7a0-linux64-gpl-8.1.tar.xz"; \
-    FFMPEG_FALLBACK_SHA256="cc546852e535193e6d30a1f18cb90daa84e8ff320ceac6c6f5b514a1fba67079"; \
+    FFMPEG_FALLBACK_SHA256="abda8d77ce8309141f83ab8edf0596834087c52467f6badf376a6a2a4c87cf67"; \
     FFMPEG_FALLBACK_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-7.0.2-amd64-static.tar.xz"; \
     attempt=1; max_attempts=5; \
     until python /tmp/install_ffmpeg.py "$FFMPEG_URL" "$FFMPEG_SHA256" "$FFMPEG_VERSION" "$FFMPEG_FALLBACK_URL" "$FFMPEG_FALLBACK_SHA256"; do \
