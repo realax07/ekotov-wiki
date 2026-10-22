@@ -329,7 +329,7 @@ docker run -d --name game-portal --restart unless-stopped \
 ```
 
 ### 9.3 Маршрутизация / отказы
-- nginx (образ frontend): `= /games` → 301 `/games/`; `^~ /games/` → прокси game-portal:8080 (games-proxy.inc: вырезание префикса named capture + $upstream_games с resolver'ом — старт nginx БЕЗ поднятого контейнера безопасен, ошибка резолва только на запросе)
+- nginx (образ frontend): `= /games` → 301 `/games/`; `^~ /games/api/`, `^~ /games/previews/` и `/games/` (обычный префикс) → прокси game-portal:8080 со срезом префикса (games-proxy.inc: named capture + $upstream_games с resolver'ом — старт nginx БЕЗ поднятого контейнера безопасен, ошибка резолва только на запросе); regex `~ ^/games/(munchkin|vice|poker|tanks|durak)(/|$)` → прокси БЕЗ среза префикса (games-proxy-game.inc): хаб роутит страницы игр НАТИВНО — /games/<id>/… уходит как есть (БАГ-5, review-002). Новая игра хаба = добавление id в regex в ekotov-wiki.conf
 - sub_filter абсолютных путей хаба (href="/ → href="/games/, src="/ → src="/games/, fetch('/api/ → fetch('/games/api/, "/previews/ → "/games/previews/ — JSON /api/games) на text/html + application/javascript + text/javascript + application/json, sub_filter_once off; Accept-Encoding "" — сжатое тело не субфильтится; X-Frame-Options SAMEORIGIN — хаб сам фреймит игры в iframe
 - контейнер убит → 502/504 от nginx на /games/*; остальные разделы живы. Деградации @*_down для хаба НЕ заведено (вне матрицы)
 - auth на прокси НЕТ (P26 ТЗ)

@@ -1,5 +1,8 @@
-# Прокси game-portal (P26; PRODUCT_BACKLOG.md «P26. Интеграция game-portal»).
-# Подключается из ekotov-wiki.conf локациями = /games и ^~ /games/.
+# Прокси game-portal (P26; PRODUCT_BACKLOG.md «P26. Интеграция game-portal»)
+# СО СРЕЗАНИЕМ префикса — корень хаба, его статика, API и превью.
+# Подключается из ekotov-wiki.conf локациями = /games, ^~ /games/api/,
+# ^~ /games/previews/ и /games/ (обычный префикс: regex-локейшн страниц
+# игр проверяется РАНЬШЕ — см. games-proxy-game.inc / БАГ-5 review-002).
 #
 # game-portal — standalone-контейнер ВНЕ compose (хаб external, поднимает ПМ
 # отдельно: docker run … --network ekotov-wiki-par_default, порт 8080 внутри;
