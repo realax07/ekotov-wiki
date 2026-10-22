@@ -54,7 +54,7 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # p23-fastline-1 — P23 «Фастлайн»: зона FASTLINE над канбаном (board.html/
 # board.css/cards.js/state.js/task-form.js/api.js).
 # p26-games-1 — P26 game-portal: пункт «Игры» в сайдбаре (base.html).
-templates.env.globals["static_v"] = "p26-games-1"
+templates.env.globals["static_v"] = "p26-games-2"
 
 
 @router.get("/login")
