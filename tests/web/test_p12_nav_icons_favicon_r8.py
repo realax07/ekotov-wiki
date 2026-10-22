@@ -59,14 +59,6 @@ def test_sidebar_icons_inline_svg_unified_style(logged_in_page, web_base_url):
         for i in range(items.count()):
             item = items.nth(i)
             svg = item.locator("svg.nav-icon")
-            if "nav-item-games" in (item.get_attribute("class") or ""):
-                # P26: у «Игры» иконки ПОКА нет (P21 п.9 — отдельная задача);
-                # внешняя иконка (<img>/use) запрещена и здесь (ОГР-8).
-                expect(svg).to_have_count(0)
-                assert item.evaluate(
-                    "a => a.querySelector('img, use') === null"
-                ), f"{path}: внешняя иконка у пункта {i}"
-                continue
             expect(svg).to_have_count(1)
             assert svg.evaluate(
                 "el => el.closest('a').querySelector('img, use') === null"
@@ -252,7 +244,7 @@ def test_nav_order_addresses_states_unchanged(logged_in_page, web_base_url):
     пунктов не «разъехалась» (иконка inline flex, высота пункта без
     скачка). Список расширен P18 weather-service (шестой пункт «Погода»
     после «Видео», мокап A) и P26 game-portal (седьмой пункт «Игры»
-    после «Погода», без иконки — P21 п.9)."""
+    после «Погода»; иконка — P21 п.9, единый inline-SVG эталона)."""
     page = logged_in_page
     page.goto(f"{web_base_url}/board")
     items = _nav_items(page)
@@ -265,16 +257,13 @@ def test_nav_order_addresses_states_unchanged(logged_in_page, web_base_url):
     hrefs = [items.nth(i).get_attribute("href") for i in range(items.count())]
     assert hrefs == ["/board", "/search", "/wiki", "/gallery", "/video", "/weather", "/games/"]
 
-    # SVG внутри <a> (не рядом, не вместо); у «Игры» иконки пока нет
-    # (P21 п.9 — отдельная задача, первый ребенок — текст).
+    # SVG внутри <a> (не рядом, не вместо) — у всех семи пунктов,
+    # включая «Игры» (иконка P21 п.9 в едином стиле эталона).
     for i in range(items.count()):
         first_child = items.nth(i).evaluate(
             "a => (a.children[0] && a.children[0].tagName) || null"
         )
-        if items.nth(i).get_attribute("href") == "/games/":
-            assert first_child is None, (i, first_child)
-        else:
-            assert first_child == "svg", (i, first_child)
+        assert first_child == "svg", (i, first_child)
 
     # Бейдж todo Wiki СНЯТ (решение Заказчика 2026-10-11, 4.5 add-wiki —
     # раздел в проде). Проверяем обратное: бейджа больше нет.

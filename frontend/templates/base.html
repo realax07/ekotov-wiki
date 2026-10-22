@@ -151,10 +151,19 @@
       {# P26 game-portal (PRODUCT_BACKLOG.md «P26. Интеграция game-portal»):
          «Игры» — СЕДЬМОЙ пункт, СТРОГО после «Погода». Ведет на /games/ —
          прокси nginx на внешний контейнер game-portal (standalone, вне
-         compose; RUNBOOK §9). Иконка НЕ заводится в этом диффе (P21 п.9 —
-         отдельная задача); стиль — базовый .nav-item (hover/active/focus
-         геометрия общая). #}
-      <a href="/games/" class="nav-item nav-item-games">Игры</a>
+         compose; RUNBOOK §9). Иконка — inline-SVG в едином стиле эталона
+         (16px .nav-icon, viewBox 0 0 24 24, stroke="currentColor",
+         fill="none" на путях, aria-hidden) — геймпад (штриховой корпус,
+         крестовина + кнопки), без внешних файлов (ОГР-8, P21 п.9). #}
+      <a href="/games/" class="nav-item nav-item-games">
+        <svg class="nav-icon" style="width:16px;height:16px;flex-shrink:0" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 7.5h10a4 4 0 0 1 3.9 3.2l.6 2.9a2.4 2.4 0 0 1-4.3 2L15.3 14H8.7l-1.9 1.6a2.4 2.4 0 0 1-4.3-2l.6-2.9A4 4 0 0 1 7 7.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M7 10.2v3.6M5.2 12h3.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="15.4" cy="10.8" r="1.1" fill="currentColor"/>
+          <circle cx="18.1" cy="13.1" r="1.1" fill="currentColor"/>
+        </svg>
+        Игры
+      </a>
     </nav>
     <div class="sidebar-footer">
       {# 2.1 (FR-23, дельта navigation): раздел «Настройки» — внизу слева,
