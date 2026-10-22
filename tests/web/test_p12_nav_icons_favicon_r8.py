@@ -53,10 +53,20 @@ def test_sidebar_icons_inline_svg_unified_style(logged_in_page, web_base_url):
         # P18 weather-service: шестой пункт «Погода» после «Видео»
         # (утвержденный мокап A, design/p18-weather/variant-a.html) —
         # было 5, стало 6 (прецедент расширения 1.5 video-hosting).
-        assert items.count() == 6, (path, items.count())
+        # P26 game-portal: седьмой пункт «Игры» после «Погода» —
+        # было 6, стало 7.
+        assert items.count() == 7, (path, items.count())
         for i in range(items.count()):
             item = items.nth(i)
             svg = item.locator("svg.nav-icon")
+            if "nav-item-games" in (item.get_attribute("class") or ""):
+                # P26: у «Игры» иконки ПОКА нет (P21 п.9 — отдельная задача);
+                # внешняя иконка (<img>/use) запрещена и здесь (ОГР-8).
+                expect(svg).to_have_count(0)
+                assert item.evaluate(
+                    "a => a.querySelector('img, use') === null"
+                ), f"{path}: внешняя иконка у пункта {i}"
+                continue
             expect(svg).to_have_count(1)
             assert svg.evaluate(
                 "el => el.closest('a').querySelector('img, use') === null"
@@ -109,8 +119,9 @@ def test_nav_items_clickable_not_overlaid(logged_in_page, web_base_url):
     page.goto(f"{web_base_url}/board")
     items = _nav_items(page)
     targets = [items.nth(i).get_attribute("href") for i in range(items.count())]
-    # P18 weather-service: шестой пункт — «Погода» (/weather).
-    assert targets == ["/board", "/search", "/wiki", "/gallery", "/video", "/weather"]
+    # P18 weather-service: шестой пункт — «Погода» (/weather);
+    # P26 game-portal: седьмой — «Игры» (/games/, прокси внешнего хаба).
+    assert targets == ["/board", "/search", "/wiki", "/gallery", "/video", "/weather", "/games/"]
 
     # elementFromPoint в центре каждого пункта.
     hits = page.evaluate(
@@ -120,7 +131,7 @@ def test_nav_items_clickable_not_overlaid(logged_in_page, web_base_url):
           return hit ? (a === hit || a.contains(hit)) : false;
         })"""
     )
-    assert hits == [True] * 6, hits
+    assert hits == [True] * 7, hits
 
     # Клик по каждому пункту → навигация.
     for href in ("/search", "/wiki", "/gallery"):
@@ -235,12 +246,13 @@ def test_no_external_icon_or_favicon_requests(logged_in_page, web_base_url):
 # --------------------------------------------------------------------------
 def test_nav_order_addresses_states_unchanged(logged_in_page, web_base_url):
     """TC-P12N-007 (CHK-P12-18, FR-94 Won't): DOM-порядок и подписи
-    (Доска, Поиск, Wiki+todo, Галерея, Видео, Погода), href каждого
+    (Доска, Поиск, Wiki+todo, Галерея, Видео, Погода, Игры), href каждого
     пункта, active-класс на каждом из разделов, бейдж todo Wiki —
     как прежде; иконки встроены внутрь существующих <a>; геометрия
     пунктов не «разъехалась» (иконка inline flex, высота пункта без
     скачка). Список расширен P18 weather-service (шестой пункт «Погода»
-    после «Видео», мокап A) — прецедент расширения 1.5 video-hosting."""
+    после «Видео», мокап A) и P26 game-portal (седьмой пункт «Игры»
+    после «Погода», без иконки — P21 п.9)."""
     page = logged_in_page
     page.goto(f"{web_base_url}/board")
     items = _nav_items(page)
@@ -248,15 +260,21 @@ def test_nav_order_addresses_states_unchanged(logged_in_page, web_base_url):
         re.sub(r"todo", "", items.nth(i).inner_text()).strip()
         for i in range(items.count())
     ]
-    assert labels == ["Доска", "Поиск", "Wiki", "Галерея", "Видео", "Погода"], labels
+    assert labels == ["Доска", "Поиск", "Wiki", "Галерея", "Видео", "Погода", "Игры"], labels
 
     hrefs = [items.nth(i).get_attribute("href") for i in range(items.count())]
-    assert hrefs == ["/board", "/search", "/wiki", "/gallery", "/video", "/weather"]
+    assert hrefs == ["/board", "/search", "/wiki", "/gallery", "/video", "/weather", "/games/"]
 
-    # SVG внутри <a> (не рядом, не вместо).
+    # SVG внутри <a> (не рядом, не вместо); у «Игры» иконки пока нет
+    # (P21 п.9 — отдельная задача, первый ребенок — текст).
     for i in range(items.count()):
-        first_child = items.nth(i).evaluate("a => a.children[0].tagName")
-        assert first_child == "svg", (i, first_child)
+        first_child = items.nth(i).evaluate(
+            "a => (a.children[0] && a.children[0].tagName) || null"
+        )
+        if items.nth(i).get_attribute("href") == "/games/":
+            assert first_child is None, (i, first_child)
+        else:
+            assert first_child == "svg", (i, first_child)
 
     # Бейдж todo Wiki СНЯТ (решение Заказчика 2026-10-11, 4.5 add-wiki —
     # раздел в проде). Проверяем обратное: бейджа больше нет.

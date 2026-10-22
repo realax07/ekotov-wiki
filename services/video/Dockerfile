@@ -43,7 +43,10 @@ RUN python -m pip install --no-cache-dir \
 #      `curl --retry 5 --retry-delay 10 --retry-all-errors -fSL`).
 # Fail fast сохранен: исчерпание ретраев или несовпадение checksum
 # ломают сборку, тихой подмены источника нет.
-# Источник: https://johnvansickle.com/ffmpeg/releases/ (release 2024-08-24).
+# PRIMARY (с 2026-10-21): датированный иммутабельный релиз BtbN
+# autobuild-2026-10-19-13-06 (n8.1.3-18, работает в проде с p12-rich-1).
+# johnvansickle 7.0.2 (primary до 2026-10-21) ПОМЕНЯЛ содержимое тарбола
+# без смены URL — пин abda8d77 больше не совпадает; оставлен fallback.
 # FALLBACK (10.2026, CI-флейк Errno 104): johnvansickle.com недоступен из CI
 # надолго → вторым источником отдается статическая сборка BtbN/FFmpeg-Builds
 # (github, linux64-gpl; ffmpeg+ffprobe в bin/ топ-каталога — extract в
@@ -58,10 +61,10 @@ RUN python -m pip install --no-cache-dir \
 COPY services/video/install_ffmpeg.py /tmp/install_ffmpeg.py
 RUN set -eux; \
     FFMPEG_VERSION="7.0.2"; \
-    FFMPEG_SHA256="abda8d77ce8309141f83ab8edf0596834087c52467f6badf376a6a2a4c87cf67"; \
-    FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-${FFMPEG_VERSION}-amd64-static.tar.xz"; \
-    FFMPEG_FALLBACK_SHA256="cc546852e535193e6d30a1f18cb90daa84e8ff320ceac6c6f5b514a1fba67079"; \
-    FFMPEG_FALLBACK_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-10-19-13-06/ffmpeg-n8.1.3-18-g46d899d7a0-linux64-gpl-8.1.tar.xz"; \
+    FFMPEG_SHA256="cc546852e535193e6d30a1f18cb90daa84e8ff320ceac6c6f5b514a1fba67079"; \
+    FFMPEG_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-10-19-13-06/ffmpeg-n8.1.3-18-g46d899d7a0-linux64-gpl-8.1.tar.xz"; \
+    FFMPEG_FALLBACK_SHA256="abda8d77ce8309141f83ab8edf0596834087c52467f6badf376a6a2a4c87cf67"; \
+    FFMPEG_FALLBACK_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-7.0.2-amd64-static.tar.xz"; \
     attempt=1; max_attempts=5; \
     until python /tmp/install_ffmpeg.py "$FFMPEG_URL" "$FFMPEG_SHA256" "$FFMPEG_VERSION" "$FFMPEG_FALLBACK_URL" "$FFMPEG_FALLBACK_SHA256"; do \
         if [ "$attempt" -ge "$max_attempts" ]; then \

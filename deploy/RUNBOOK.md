@@ -311,3 +311,25 @@ EnvironmentFile `/opt/ekotov-wiki/.env`). Условие применимост�
 - P19: шаг 5/8 deploy.sh поднимает weather во второй волне (up -d search images backup weather, WEATHER_IMAGE в env) и проверяет по docker compose config, что weather резолвится в релизный тег (не :local); смоук 6.8 сверяет образ контейнера с тегом
 - static_v бампится ПМ до диспетчеризации (R7)
 - проверка после: GET /api/weather 200 stale-флаг, файл /cache/weather.json на томе, страница /weather под логином
+
+## 9. game-portal (standalone-контейнер, P26)
+
+### 9.1 Матрица
+- ВНЕ compose: внешний игровой хаб (github realax07/game-portal, Node, 5 игр), поднимает ПМ отдельно — в матрице deploy.sh НЕ участвует
+- сеть ekotov-wiki-par_default (compose-сеть проекта), порт 8080 ВНУТРИ сети (наружу не публикуется)
+- код маунтится ro: /home/openclaw/game-portal → /srv
+
+### 9.2 Подъем (ПМ, вручную)
+```
+docker run -d --name game-portal --restart unless-stopped \
+  --network ekotov-wiki-par_default \
+  -e HOST=0.0.0.0 \
+  -v /home/openclaw/game-portal:/srv:ro -w /srv \
+  node:26-alpine node game-hub/server.mjs
+```
+
+### 9.3 Маршрутизация / отказы
+- nginx (образ frontend): `= /games` → 301 `/games/`; `^~ /games/api/`, `^~ /games/previews/` и `/games/` (обычный префикс) → прокси game-portal:8080 со срезом префикса (games-proxy.inc: named capture + $upstream_games с resolver'ом — старт nginx БЕЗ поднятого контейнера безопасен, ошибка резолва только на запросе); regex `~ ^/games/(munchkin|vice|poker|tanks|durak)(/|$)` → прокси БЕЗ среза префикса (games-proxy-game.inc): хаб роутит страницы игр НАТИВНО — /games/<id>/… уходит как есть (БАГ-5, review-002). Новая игра хаба = добавление id в regex в ekotov-wiki.conf
+- sub_filter абсолютных путей хаба (href="/ → href="/games/, src="/ → src="/games/, fetch('/api/ → fetch('/games/api/, "/previews/ → "/games/previews/ — JSON /api/games) на text/html + application/javascript + text/javascript + application/json, sub_filter_once off; Accept-Encoding "" — сжатое тело не субфильтится; X-Frame-Options SAMEORIGIN — хаб сам фреймит игры в iframe
+- контейнер убит → 502/504 от nginx на /games/*; остальные разделы живы. Деградации @*_down для хаба НЕ заведено (вне матрицы)
+- auth на прокси НЕТ (P26 ТЗ)

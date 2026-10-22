@@ -29,7 +29,8 @@ def test_sidebar_all_pages_and_wiki_stub(logged_in_page, web_base_url):
     «заглушка без функций» устарела). 5-й пункт «Видео» — 1.5
     video-hosting (дельта specs/video-service, утвержденный мокап 0.2);
     6-й пункт «Погода» — weather-service (дельта specs/weather-service,
-    пункт «Раздел «Погода» в сайдбаре», СТРОГО после «Видео»)."""
+    пункт «Раздел «Погода» в сайдбаре», СТРОГО после «Видео»);
+    7-й пункт «Игры» — P26 game-portal, после «Погода»."""
     page = logged_in_page
     sidebar = Sidebar(page)
     search = SearchPage(page)
@@ -43,9 +44,12 @@ def test_sidebar_all_pages_and_wiki_stub(logged_in_page, web_base_url):
         expect(sidebar.gallery_link).to_be_visible()
         expect(sidebar.video_link).to_be_visible()
         expect(sidebar.weather_link).to_be_visible()
-        # Ровно 6 пунктов навигации (по образцу test_p12_nav_icons_favicon_r8):
-        # «Погода» добавлена weather-service 6-м пунктом, после «Видео».
-        expect(page.locator(".sidebar-nav .nav-item")).to_have_count(6)
+        # P26 game-portal: «Игры» — 7-й пункт, после «Погода» (без иконки —
+        # P21 п.9; href — прокси-префикс внешнего хаба, RUNBOOK §9).
+        expect(sidebar.games_link).to_be_visible()
+        # Ровно 7 пунктов навигации (по образцу test_p12_nav_icons_favicon_r8):
+        # «Погода» — 6-м пунктом (weather-service), «Игры» — 7-м (P26).
+        expect(page.locator(".sidebar-nav .nav-item")).to_have_count(7)
         # Бейдж todo снят (решение Заказчика 2026-10-11, 4.5 add-wiki).
 
     # Доска → Поиск.

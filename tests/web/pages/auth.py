@@ -41,6 +41,8 @@ class Sidebar:
         self.video_link = page.get_by_role("link", name="Видео")
         # weather-service: 6-й пункт сайдбара «Погода» после «Видео».
         self.weather_link = page.get_by_role("link", name="Погода")
+        # P26 game-portal: 7-й пункт сайдбара «Игры» после «Погода».
+        self.games_link = page.get_by_role("link", name="Игры")
         self.logout_button = page.get_by_role("button", name="Выйти")
 
     # --- локаторы-возвратники ---

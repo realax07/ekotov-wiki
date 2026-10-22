@@ -148,6 +148,13 @@
         </svg>
         Погода
       </a>
+      {# P26 game-portal (PRODUCT_BACKLOG.md «P26. Интеграция game-portal»):
+         «Игры» — СЕДЬМОЙ пункт, СТРОГО после «Погода». Ведет на /games/ —
+         прокси nginx на внешний контейнер game-portal (standalone, вне
+         compose; RUNBOOK §9). Иконка НЕ заводится в этом диффе (P21 п.9 —
+         отдельная задача); стиль — базовый .nav-item (hover/active/focus
+         геометрия общая). #}
+      <a href="/games/" class="nav-item nav-item-games">Игры</a>
     </nav>
     <div class="sidebar-footer">
       {# 2.1 (FR-23, дельта navigation): раздел «Настройки» — внизу слева,
