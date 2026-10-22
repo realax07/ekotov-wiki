@@ -44,11 +44,15 @@ proxy_set_header Accept-Encoding "";
 
 proxy_pass $upstream_games$gpath$is_args$args;
 
-sub_filter_types application/javascript;
+sub_filter_types application/javascript text/javascript application/json;
 sub_filter_once off;
 sub_filter 'href="/' 'href="/games/';
 sub_filter 'src="/' 'src="/games/';
 sub_filter 'fetch(\'/api/' 'fetch(\'/games/api/';
+# JSON /api/games: server.mjs отдает image:"/previews/<id>.png" — абсолютный
+# путь из фетча статическое правило src="/ не ловит (app.js вставляет
+# src="${g.image}" динамически); кавычка-якорь не задевает прочие "/previews/.
+sub_filter '"/previews/' '"/games/previews/';
 
 proxy_http_version 1.1;
 proxy_set_header Host              $host;

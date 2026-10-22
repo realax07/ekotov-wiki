@@ -323,12 +323,13 @@ EnvironmentFile `/opt/ekotov-wiki/.env`). Условие применимост�
 ```
 docker run -d --name game-portal --restart unless-stopped \
   --network ekotov-wiki-par_default \
+  -e HOST=0.0.0.0 \
   -v /home/openclaw/game-portal:/srv:ro -w /srv \
   node:26-alpine node game-hub/server.mjs
 ```
 
 ### 9.3 Маршрутизация / отказы
 - nginx (образ frontend): `= /games` → 301 `/games/`; `^~ /games/` → прокси game-portal:8080 (games-proxy.inc: вырезание префикса named capture + $upstream_games с resolver'ом — старт nginx БЕЗ поднятого контейнера безопасен, ошибка резолва только на запросе)
-- sub_filter абсолютных путей хаба (href="/ → href="/games/, src="/ → src="/games/, fetch('/api/ → fetch('/games/api/) на text/html + application/javascript, sub_filter_once off; Accept-Encoding "" — сжатое тело не субфильтрится
+- sub_filter абсолютных путей хаба (href="/ → href="/games/, src="/ → src="/games/, fetch('/api/ → fetch('/games/api/, "/previews/ → "/games/previews/ — JSON /api/games) на text/html + application/javascript + text/javascript + application/json, sub_filter_once off; Accept-Encoding "" — сжатое тело не субфильтится; X-Frame-Options SAMEORIGIN — хаб сам фреймит игры в iframe
 - контейнер убит → 502/504 от nginx на /games/*; остальные разделы живы. Деградации @*_down для хаба НЕ заведено (вне матрицы)
 - auth на прокси НЕТ (P26 ТЗ)
