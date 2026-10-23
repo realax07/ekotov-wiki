@@ -31,15 +31,27 @@ scope=redesign-console paths=openspec/. Worktree: /tmp/wt-sa-redesign
 
 - Requirements в дельтах: 25 (из них ADDED-секций в 8 capability: 15 новых
   требований; MODIFIED: 11; REMOVED: 1 — «Визуальные эффекты доски поверх
-  токенов V3», с ADDED-приемником FR-103). Сценариев GIVEN/WHEN/THEN: 105
+  токенов V3», с ADDED-приемником FR-122). Сценариев GIVEN/WHEN/THEN: 105
   (все требования из блоков MODIFIED сохранены по имени — strict-проверка
-  валидатора; + новые визуальные сценарии).
+  валидатора; + новый визуальный сценарий «Служебные токены техноязыка
+  определены», перечисления вынесены из тел требований в сценарии).
+- Нумерация новых требований — FR-118…FR-127 / NFR-41…NFR-44 (свободные
+  значения: мастер-спеки до FR-116, add-responsive-mobile FR-100…106/
+  NFR-23…26, video-hosting FR-116/117, p12-rich-tools NFR-39/40). Ссылки на
+  существующие FR-44/45/109 и др. не менялись.
 - Утвержденный базлайн трассирован в каждом Requirement (мокап/заявка/README).
 
 ## Валидация
 
-`openspec validate redesign-console --strict` → PASS (см. финальный прогон
-в REPORT-коммите; ERROR-строк нет).
+Фикс-раунд по review-architecture.md (F1–F8): после правок выполнен
+`openspec validate redesign-console --strict` → «Change 'redesign-console' is
+valid», exit 0 (первый прогон на базлайне пакета давал 11 WARNING
+«Requirement text is very long» и ERROR по settings — устранены: перечисления
+перенесены из тел требований в сценарии, сценарий «Единая карточка V3»
+сохранен как якорь master-спеки с содержанием «Пульта»). Полный
+`openspec validate --all --strict` красный из-за ДРУГИХ пакетов
+(add-responsive-mobile и др.) — состояние не изменилось фикс-раундом
+(на базлайне до правок тоже exit 1), вне мандата этого пакета.
 
 ## Коммит
 

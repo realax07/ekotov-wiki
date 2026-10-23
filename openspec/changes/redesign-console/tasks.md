@@ -6,14 +6,15 @@ a2685ee; design/redesign-pro/README.md §Утверждение) — новых 
 [design]-этап только фиксирует токены. Правило: 1 задача = 1 сабагент +
 независимый code_reviewer; ворота — `openspec validate --all --strict` green;
 DOM-хуки сохранять (ОГР-28); токен-дисциплина (hex вне :root запрещен).
-Трассировка: задача → FR-99…FR-108 / NFR-23…26 → Requirement дельт.
+Трассировка: задача → FR-118…FR-127 / NFR-41…44 → Requirement дельт.
 Параллельные волны — маркером [P], зоны не пересекаются.
 
 ## ЭТАП 0. Конвейер
 
 - [x] 0.1 [docs] sa: create_change — пакет `redesign-console` (proposal,
   research, design, impact, tasks, дельты по 12 capability; validate strict
-  PASS). Текущая задача. (Отчет — REPORT-0.1.md пакета)
+  PASS — после фикс-раунда по review-architecture.md F1–F8, см. REPORT-0.1).
+  Текущая задача. (Отчет — REPORT-0.1.md пакета)
 
 ## ЭТАП 1. [design] Фиксация токенов
 
@@ -21,42 +22,53 @@ DOM-хуки сохранять (ОГР-28); токен-дисциплина (he
   блок `:root` из `design/redesign-pro/tokens-console.html` (дословно, без
   правки значений) в `frontend/static/css/app.css` (замена V3-блока);
   `color-scheme: dark`; семантические имена сохранены (design §D1).
-  Проверка: скрипт контраста ≥ 4.5:1 на всех парах (REPORT); grep
-  `frontend/static/css/**` на `--p-paper-|--p-ink-|--p-clay-|--p-blue-|--p-red-|--p-olive-`
-  = 0 вхождений вне истории-комментариев. (FR-99, FR-100, FR-101)
+  V3-примитивы (`--p-paper-*`, `--p-ink-*`, `--p-clay-*`, `--p-blue-*`,
+  `--p-red-*`, `--p-olive-*`, `--p-amber-700`) НЕ удалять в этой задаче:
+  сохранить под новым блоком как deprecated-алиасы с исходными V3-значениями
+  (комментарий «deprecated, удалить в 2.7») — board.css/wiki.css/gallery.css
+  мигрируют только в волнах 2.2/2.3/2.5, без алиасов сайт в промежутке сломан.
+  Проверка: скрипт контраста ≥ 4.5:1 на всех парах (REPORT); grep по
+  `frontend/static/css/app.css` на V3-примитивы = 0 вхождений ВНЕ блока
+  deprecated-алиасов (full-tree grep — гейт 2.7, design §D1).
+  (FR-118, FR-119, FR-120)
 - [ ] 1.2 [design] [S] Эскиз favicon «Пульта» (перекраска существующего
   inline-SVG data-URI в base.html: bg #0e1621, документ #f0b45c, детали
   #172335; бамп cache-маркера `?v=` внутри data-URI — design §D4).
-  Проверка: favicon отрисовывается, маркер изменен. (FR-99; design §D4)
+  Проверка: favicon отрисовывается, маркер изменен. (FR-118; design §D4)
 
 ## ЭТАП 2. [dev] Волны по экранам (static_v бамп в волне 2.1; после 1.1)
 
 - [ ] 2.1 [M] Dev: волна каркаса — base.html + app.css: grid-раскладка 232px+1fr,
   сайдбар «Пульта» (9 пунктов: 7 в основной группе + Настройки/Профиль в
-  футере, LED-бренд, kbd-футер, aria-current cyan-паттерн), skip-link,
+  футере, LED-бренд, kbd-футер — декоративный aria-hidden, только реально
+  действующие хоткеи (design §D2), aria-current cyan-паттерн), skip-link,
   focus-visible/selection/reduced-motion глобально, favicon из 1.2, бамп
   `static_v` → `redesign-1` в `backend/app/pages.py:57` (единственная правка
   бэкенда). Границы: `frontend/templates/base.html`,
   `frontend/static/css/app.css`, `backend/app/pages.py` (1 строка).
   Проверка: smoke — все разделы открываются в темной теме, таб-порядок со
-  skip-link, `?v=redesign-1` во всех static-ссылках. (FR-99…FR-101,
-  NFR-24…26; navigation MODIFIED/ADDED)
+  skip-link, `?v=redesign-1` во всех static-ссылках. (FR-118…FR-120,
+  NFR-42…44; navigation MODIFIED/ADDED)
 - [ ] 2.2 [P] [M] Dev: волна доски + фастлайна (параллельно 2.3/2.4; зоны
   board.*) — колонки с HUD/LED/mono-счетчиками, карточки bg2/hover bg3,
   приоритет-бейджи, fast-карточка «▲», pagehead с readout, янтарная кнопка
   «Новая задача», фастлайн-панель (glow-amber, FST-лейбл, T-отсчет, трек
   amber→cyan), fastline-блоки форм создания/редактирования на токенах.
-  Границы: `frontend/templates/board.html`,
-  `frontend/static/css/board.css`, `frontend/static/js/board/**` (только
-  декор/трек отсчета). Проверка: нецветовые тесты доски и fastline зеленые;
-  цветовые правятся в 4.4. (FR-103; board, fastline дельты)
+ Границы: `frontend/templates/board.html`,
+ `frontend/static/css/board.css`, `frontend/static/js/board/**` (только
+ декор/трек отсчета). Проверка: нецветовые тесты доски и fastline зеленые;
+ все JS-селекторы доски/фастлайна (design §D2: `.task-card*`,
+ `.board-column*`, `.fastline-column`, `.fast-row`, `#fastline`, …)
+ резолвятся после правки шаблонов;
+ цветовые правятся в 4.4. (FR-122; board, fastline дельты)
 - [ ] 2.3 [P] [M] Dev: волна wiki (+rich-контент) — страница статьи (breadcrumb
   микро-лейбл, разделитель-трек, h2 teal-полоса, h3, спойлер cyan-glow,
   код-блок, таблица с LED-статусами), дерево с янтарной подсветкой, редактор/
   история на общих токенах. Границы: `frontend/templates/wiki.html`,
   `frontend/static/css/wiki.css`, `frontend/static/js/wiki/**` (только
-  декор). Проверка: test_rich_tools, p15-серия нецветовые — зеленые.
-  (FR-104, FR-105; wiki дельты)
+  декор). Проверка: test_rich_tools, p15-серия нецветовые — зеленые; все
+  JS-селекторы wiki/rich-зоны (design §D2) резолвятся после правки шаблонов.
+  (FR-123, FR-124; wiki дельты)
 - [ ] 2.4 [P] [S] Dev: волна login + settings/profile — панель login с
   HUD-уголками/янтарной кнопкой/coral-ошибкой; карточки настроек, таблица
   категорий, профиль + кроп на dark. Границы: `frontend/templates/login.html`,
@@ -69,7 +81,7 @@ DOM-хуки сохранять (ОГР-28); токен-дисциплина (he
   `frontend/templates/gallery.html`, `video.html`, `weather.html`,
   `frontend/static/css/gallery.css`, `frontend/static/js/gallery.js`,
   `video.js`. Проверка: нецветовые тесты трех разделов — зеленые.
-  (FR-106…FR-108; gallery, video-ui, weather-ui дельты)
+  (FR-125…FR-127; gallery, video-ui, weather-ui дельты)
 - [ ] 2.6 [P] [S] Dev: волна поиск — вкладка результатов (янтарная инверсия
   подсветки), фильтр-конструктор (dark-select'ы, кнопки «Пульта»), чипы.
   Границы: `frontend/templates/search.html`,
@@ -78,9 +90,15 @@ DOM-хуки сохранять (ОГР-28); токен-дисциплина (he
   зеленые; BUG-014 computed-ассерт зеленый на новых токенах. (search дельты)
 - [ ] 2.7 [S] Dev: мобильная раскладка (≤860px) — сайдбар наверх, nav-строка,
   kbd скрыт, hit-targets ≥44px, доска/фастлайн/кнопки в столбец (мокап
-  @media-блок); финальный проход по всем волнам на 860px. Границы: только
-  `@media`-секции CSS из волн 2.1–2.6. Проверка: web-mobile прогон
-  (p23_fastline_mobile_ui и мобильные ассерты) зеленый. (FR-102, NFR-26)
+  @media-блок); финальный проход по всем волнам на 860px; УДАЛЕНИЕ
+  deprecated-алиасов V3 из `:root` app.css (заложены в 1.1) + full-tree grep
+  `frontend/static/css/**` и `frontend/templates/**` на
+  `--p-paper-|--p-ink-|--p-clay-|--p-blue-|--p-red-|--p-olive-|--p-amber-700`
+  = 0 вхождений (финальный контракт design §D1; токен-дисциплина: нет hex вне
+  токенов). Границы: только
+  `@media`-секции CSS из волн 2.1–2.6 + блок алиасов app.css. Проверка:
+  web-mobile прогон
+  (p23_fastline_mobile_ui и мобильные ассерты) зеленый. (FR-121, NFR-44)
 
 ## ЭТАП 3. [tests] ПОЛНЫЙ QA-контур (обязателен: заявка «Qa и вадидацию не забудь»; J39/H5)
 

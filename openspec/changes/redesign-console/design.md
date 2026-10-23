@@ -50,8 +50,15 @@ design/redesign-pro/README.md § «Утверждение направления
   `--speed-fast: 140ms`, `--speed-modal: 200ms`, `color-scheme: dark`.
 - Запрещено: новые hex-значения вне токенов во всех CSS фронта; наследуемые
   из V3 примитивы `--p-paper-*`, `--p-ink-*`, `--p-clay-*`, `--p-blue-*`,
-  `--p-red-*`, `--p-olive-*`, `--p-amber-700` — удаляются (контракт: ни один
-  селектор фронта на них не ссылается — проверка grep-ом в задаче 1.2).
+  `--p-red-*`, `--p-olive-*`, `--p-amber-700` — удаляются НЕ в 1.1, а в конце
+  ЭТАПА 2 (задача 2.7): в 1.1 они сохраняются под новым блоком как
+  deprecated-алиасы с исходными V3-значениями (комментарий «deprecated,
+  удалить в 2.7»), т.к. board.css/wiki.css/gallery.css мигрируют только
+  в волнах 2.2/2.3/2.5 — без алиасов промежуточные сборки сломаны
+  (var() без значения). Гейт 1.1 — grep по app.css: 0 вхождений V3-примитивов
+  ВНЕ блока deprecated-алиасов; финальный контракт «ни один селектор фронта
+  не ссылается на отсутствующий токен» проверяется full-tree grep-ом
+  (`frontend/static/css/**` + `frontend/templates/**`) в задаче 2.7.
 - V3-подсветка `<mark>` wiki-дерева получает новый токен (amber-подложка
   на dark: фон `--p-amber-900`, текст `--p-amber-400`).
 
@@ -60,12 +67,48 @@ design/redesign-pro/README.md § «Утверждение направления
 - Раскладка `.layout` = grid 232px + 1fr; сайдбар = 9 пунктов (Доска, Wiki,
   Галерея, Видео, Погода, Поиск, Игры в основной группе; Настройки, Профиль —
   в футере сайдбара), inline-SVG 16px `stroke="currentColor"`, бренд с LED,
-  kbd-подсказки в футере (`n` новая задача, `/` поиск, `f` фастлайн).
-- СОХРАНЯЮТСЯ: классы-хуки `.nav-item`, `.nav-item-<page>`, `.sidebar`,
-  `.sidebar-footer`, `.burger`, id `#sidebar`, `#burger-button`, aria-атрибуты
-  (`aria-current="page"`, `aria-expanded`, `aria-controls`), все DOM-id форм и
-  модалок. Меняются ТОЛЬКО стили и декоративная разметка (LED-точки,
-  kbd-футер — новые элементы aria-hidden).
+  kbd-подсказки в футере. Блок kbd-подсказок — декоративный (`aria-hidden`),
+  перечисляет ТОЛЬКО хоткеи, реально обрабатываемые глобальным JS на базлайне;
+  глобальных обработчиков `n`/`/`/`f` в JS нет, «новые функции» — out of
+  scope (proposal), поэтому подсказки к ним не отображаются: появление
+  хоткеев — отдельный change-пакет (до него kbd-футер не рендерится либо
+  пуст). Ложный аффорданс в проде запрещен.
+- СОХРАНЯЮТСЯ: классы-хуки `.nav-item`, `.nav-item-<page>` (вкл.
+  `.nav-item-monitoring`, `.nav-item-settings`), `.sidebar`, `.sidebar-footer`,
+  `.sidebar-backdrop`, `.burger`, класс `sidebar-open` на `<body>`,
+  id `#sidebar`, `#burger-button`, aria-атрибуты (`aria-current="page"`,
+  `aria-expanded`, `aria-controls`), все DOM-id форм и модалок. Меняются
+  ТОЛЬКО стили и декоративная разметка (LED-точки, kbd-футер — новые элементы
+  aria-hidden).
+- ПОЛНЫЙ список JS-хуков, на которых держится фронтовый JS (grep
+  querySelector/getElementById/classList/closest по `frontend/static/js/`,
+  базлайн), — переименование любого из них запрещено (ОГР-28):
+  - каркас/сайдбар: `.nav-item*`, `.sidebar-backdrop`, `.sidebar-footer`,
+    `#sidebar`, `#burger-button`, класс `sidebar-open`;
+  - доска/фастлайн: `.task-card`, `.task-card-fast`, `.task-card-*`
+    (users/assigned/unassigned/creator/header/title/meta), `.board-column`,
+    `.board-column-title`, `.board-dots`, `#board`, `.fastline-column`
+    (+ `data-fastline-stage`), `#fastline`, `.fast-row`, `.col-target`,
+    `has-fast`, `.dragover`, `.drop-target`, `.drop-forbidden`,
+    `#fastline-add-button`, `#fastline-blocked-hint`;
+  - wiki/rich: `.wiki-layout`, `.wiki-content`, `.wiki-breadcrumb`,
+    `.breadcrumb a`, `aside.wiki-tree`, `#wiki-search`,
+    `#wiki-search-results`, `.wiki-toolbar .wiki-create`, `.spoiler-title`,
+    `.spoiler-title-input`, `.spoiler-body`, `.codeblock-head`,
+    `.codeblock-nums`, `[data-block]` (spoiler/code/tabs), `.tab-add`,
+    `.tab-close`, `.tab-rename`, `.rich-active`, `.rich-compact`,
+    `#wiki-article`, `#wiki-editor`, `#wiki-history*`;
+  - галерея: `.g-card`, `.g-card-title`, `#gallery-grid`, `#lightbox-overlay`,
+    `lb-*` (id контролов лайтбокса);
+  - видео: `.v-card`, `.v-card-title`, `video-*`/`player-*` id-хуки;
+  - поиск/настройки/прочее: `.result-item`, `.filter-count`, `.category-name`,
+    `.category-actions`, `.option`, `.option-add`, `.tbl-col-ops`,
+    `.tbl-row-ops`, `.img-pick-item`, `.img-disk-pane`, `.task-view-head`,
+    `.task-view-body`.
+- Проверка волн 2.2/2.3 (и каждой dev-волны): после правки шаблонов/CSS все
+  перечисленные JS-селекторы зоны резолвятся (прогон grep-селекторов по
+  итогам волны) — нецветовые тесты это ловят лишь частично, явный чек
+  обязателен.
 - Активный пункт: `aria-current="page"` → фон bg2 + cyan-рамка 45% + cyan-LED
   справа; иконка cyan.
 
@@ -92,7 +135,7 @@ design/redesign-pro/README.md § «Утверждение направления
 ### D6. Тесты
 
 - Сломавшиеся V3-ассерты правятся на значения «Пульта» (смонтированы в
-  impact.md; задача 4.4). Свойства проверок (цвет из токена; AA; токен-дисциплина)
+  impact.md; задача 3.4). Свойства проверок (цвет из токена; AA; токен-дисциплина)
   не меняются. Новые автотесты — TC-redesign-NNN по дельтам (кейсы ДО кода:
   qa_author + qa_case_reviewer).
 - Контраст: программная проверка всех текстовых пар ≥ 4.5:1 при переносе
