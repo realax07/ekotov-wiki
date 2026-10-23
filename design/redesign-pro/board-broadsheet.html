@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<!-- design/redesign-pro/board-broadsheet.html — направление A «Типографская»: доска + фрагмент wiki.
+     Мокап flow 1; токены — tokens-broadsheet.html того же каталога. Self-contained, без CDN. -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Доска — «Типографская» · ekotov.wiki</title>
+<style>
+/* токены: снимок tokens-broadsheet.html */
+:root{
+  --p-newsprint-000:#f4f3ee; --p-newsprint-100:#efece2; --p-newsprint-200:#e2ded2;
+  --rule:#c9c5ba; --ink:#1f1e1b; --ink-2:#4a4740; --ink-3:#5a564d;
+  --oxblood:#772f2f; --oxblood-800:#5f2424; --oxblood-050:#f0e4e0;
+  --slate:#2b4a5a; --slate-050:#e3e9e9;
+  --red:#7c2626; --olive:#56642f; --amber:#8a5a1e;
+  --font:Georgia,'Iowan Old Style','Palatino Linotype','Times New Roman',serif;
+  --font-data:ui-monospace,'Cascadia Mono','SF Mono',Menlo,monospace;
+  --rule-hairline:1px solid var(--rule);
+  --rule-double:3px double var(--ink);
+  --focus-ring:0 0 0 2px var(--p-newsprint-000),0 0 0 4px var(--oxblood);
+  --fast:160ms;
+}
+*{box-sizing:border-box;margin:0}
+body{font-family:var(--font);background:var(--p-newsprint-000);color:var(--ink);line-height:1.6}
+a{color:inherit}
+:focus-visible{outline:none;box-shadow:var(--focus-ring);border-radius:2px}
+::selection{background:var(--oxblood-050)}
+.skip{position:absolute;left:-9999px;top:0;background:var(--p-newsprint-000);padding:8px 16px;border:var(--rule-hairline)}
+.skip:focus{left:8px;top:8px;z-index:10}
+
+/* --- каркас: страница = разворот --- */
+.layout{display:grid;grid-template-columns:224px 1fr;min-height:100vh}
+.sidebar{border-right:var(--rule-hairline);padding:24px 0;background:var(--p-newsprint-000)}
+.brand{padding:0 24px 16px;border-bottom:var(--rule-double);margin-bottom:16px}
+.brand-name{font-size:26px;font-weight:700;letter-spacing:-.01em;line-height:1.1}
+.brand-sub{font-family:var(--font-data);font-size:11px;color:var(--ink-3);margin-top:4px}
+.nav{list-style:none;padding:0}
+.nav a{display:flex;align-items:center;gap:10px;padding:8px 24px;font-size:14px;text-decoration:none;min-height:36px;transition:background var(--fast)}
+.nav a:hover{background:var(--p-newsprint-100)}
+.nav a[aria-current="page"]{font-weight:700;box-shadow:inset 3px 0 0 var(--oxblood);background:var(--p-newsprint-100)}
+.nav .n{font-family:var(--font-data);font-size:11px;color:var(--ink-3);width:16px;text-align:right;flex:none}
+.nav svg{flex:none}
+.sidebar-foot{margin-top:auto;padding:16px 24px 0;border-top:var(--rule-hairline);font-family:var(--font-data);font-size:11px;color:var(--ink-3)}
+.sidebar{display:flex;flex-direction:column}
+
+/* --- доска: газетная полоса --- */
+main{padding:0 32px 48px;min-width:0}
+.pagehead{padding:24px 0 12px;border-bottom:var(--rule-double);display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.pagehead h1{font-size:34px;font-weight:700;line-height:1.15;letter-spacing:-.015em}
+.folio{font-family:var(--font-data);font-size:12px;color:var(--ink-3)}
+.folio b{color:var(--ink);font-weight:400}
+
+.btn{display:inline-block;font-family:var(--font);font-size:14px;padding:8px 16px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer;min-height:36px;transition:background var(--fast),color var(--fast)}
+.btn:hover{background:var(--ink);color:var(--p-newsprint-000)}
+
+/* фастлайн: отдельная «полоса объявлений» */
+.fastline{margin:16px 0 24px;border:1px solid var(--slate);background:var(--slate-050);padding:12px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.fastline-mark{font-family:var(--font-data);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--slate);border:1px solid var(--slate);padding:2px 8px;flex:none}
+.fastline-task{font-size:15px;font-weight:700}
+.fastline-task small{display:block;font-weight:400;font-size:13px;color:var(--ink-2)}
+.fastline-due{margin-left:auto;font-family:var(--font-data);font-size:12px;color:var(--slate)}
+
+/* колонки разделены линейками, не карточными тенями */
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-bottom:var(--rule-hairline)}
+.col{padding:16px 20px 24px;border-right:var(--rule-hairline);min-width:0}
+.col:first-child{padding-left:0}
+.col:last-child{border-right:none;padding-right:0}
+.col-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:var(--rule-hairline);padding-bottom:8px;margin-bottom:16px}
+.col-head h2{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.col-head .count{font-family:var(--font-data);font-size:12px;color:var(--ink-3)}
+.task{padding:12px 0;border-bottom:var(--rule-hairline)}
+.task:last-child{border-bottom:none}
+.task-title{font-size:15px;line-height:1.4}
+.task-meta{display:flex;gap:12px;align-items:center;margin-top:6px;font-family:var(--font-data);font-size:11px;color:var(--ink-3)}
+.pr{display:inline-block;width:8px;height:8px;border-radius:50%;flex:none}
+.pr-high{background:var(--red)} .pr-medium{background:var(--amber)} .pr-low{background:var(--olive)}
+.cat{color:var(--ink-2)}
+.done .task-title{text-decoration:line-through;text-decoration-thickness:1px;color:var(--ink-2)}
+.fast-dot{display:inline-block;width:8px;height:8px;background:var(--slate);border-radius:50%;margin-right:6px}
+
+/* --- wiki-фрагмент: статья --- */
+.wiki{margin-top:48px;max-width:68ch}
+.wiki-head{border-top:var(--rule-double);padding-top:16px}
+.wiki-head .path{font-family:var(--font-data);font-size:11px;color:var(--ink-3);letter-spacing:.08em;text-transform:uppercase}
+.wiki h1{font-size:30px;line-height:1.2;margin:8px 0 4px;letter-spacing:-.01em}
+.wiki .lede{font-size:17px;color:var(--ink-2);font-style:italic;margin-bottom:16px}
+.wiki h2{font-size:20px;margin:32px 0 8px;padding-bottom:4px;border-bottom:var(--rule-hairline)}
+.wiki h3{font-size:16px;margin:24px 0 6px}
+.wiki p{margin:0 0 12px;max-width:68ch}
+.dropcap::first-letter{float:left;font-size:56px;line-height:.85;padding:4px 8px 0 0;font-weight:700;color:var(--oxblood)}
+.pullquote{margin:24px 0;padding:0 0 0 20px;border-left:3px double var(--ink);font-size:19px;font-style:italic;line-height:1.45;color:var(--ink-2)}
+details.spoiler{border:var(--rule-hairline);margin:16px 0;background:#faf9f5}
+details.spoiler summary{cursor:pointer;padding:10px 16px;font-size:14px;font-weight:700;list-style-position:inside}
+details.spoiler[open] summary{border-bottom:var(--rule-hairline)}
+details.spoiler .body{padding:12px 16px;font-size:14px;color:var(--ink-2)}
+pre{font-family:var(--font-data);font-size:13px;line-height:1.5;background:var(--p-newsprint-100);border:var(--rule-hairline);border-left:3px solid var(--ink);padding:12px 16px;overflow-x:auto;margin:16px 0}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:14px}
+caption{caption-side:top;text-align:left;font-size:13px;font-weight:700;padding-bottom:8px}
+th,td{border:var(--rule-hairline);padding:8px 12px;text-align:left;vertical-align:top}
+th{background:var(--p-newsprint-100);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+td.num{font-family:var(--font-data);text-align:right}
+
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr}
+  .sidebar{border-right:none;border-bottom:var(--rule-double);padding:16px 0 0}
+  .nav{display:flex;flex-wrap:wrap;gap:0 4px;padding:0 12px 12px}
+  .nav a{padding:8px 10px;min-height:44px}
+  .nav .n{display:none}
+  .nav a[aria-current="page"]{box-shadow:inset 0 -3px 0 var(--oxblood)}
+  .sidebar-foot{display:none}
+  main{padding:0 16px 40px}
+  .board{grid-template-columns:1fr}
+  .col{border-right:none;border-bottom:var(--rule-hairline);padding:16px 0}
+  .col:last-child{border-bottom:none}
+  .pagehead h1{font-size:26px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#board">К доске</a>
+<div class="layout">
+  <nav class="sidebar" aria-label="Разделы">
+    <div class="brand">
+      <div class="brand-name">ekotov.wiki</div>
+      <div class="brand-sub">выпуск №212 · личное издание</div>
+    </div>
+    <ul class="nav">
+      <li><a href="#" aria-current="page"><span class="n">01</span><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="4" height="16" fill="none" stroke="currentColor" stroke-width="2"/><rect x="10" y="4" width="4" height="11" fill="none" stroke="currentColor" stroke-width="2"/><rect x="17" y="4" width="4" height="14" fill="none" stroke="currentColor" stroke-width="2"/></svg>Доска</a></li>
+      <li><a href="#wiki"><span class="n">02</span><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2"/></svg>Wiki</a></li>
+      <li><a href="#"><span class="n">03</span><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="10" r="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 18l5-4 4 3 4-4 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Галерея</a></li>
+      <li><a href="#"><span class="n">04</span><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>Видео</a></li>
+      <li><a href="#"><span class="n">05</span><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" stroke="currentColor" stroke-width="2"/></svg>Погода</a></li>
+      <li><a href="#"><span class="n">06</span><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16.5 16.5l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Поиск</a></li>
+      <li><a href="#"><span class="n">07</span><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"/></svg>Игры</a></li>
+      <li><a href="#"><span class="n">08</span><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" stroke="currentColor" stroke-width="2"/></svg>Настройки</a></li>
+      <li><a href="#"><span class="n">09</span><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Профиль</a></li>
+    </ul>
+    <div class="sidebar-foot">северо-запад, 12:40<br>обновлено 2 мин назад</div>
+  </nav>
+
+  <main>
+    <header class="pagehead">
+      <h1>Доска</h1>
+      <div class="folio">пятница, 23 октября · <b>4 активных</b></div>
+      <button class="btn" type="button">Составить задачу</button>
+    </header>
+
+    <section class="fastline" aria-label="Фастлайн">
+      <span class="fastline-mark">Фастлайн</span>
+      <div class="fastline-task">Забрать посылку на складе до 18:00<small>Переехала на фастлайн вручную · комментарий: «после работы»</small></div>
+      <span class="fastline-due">сегодня 18:00</span>
+    </section>
+
+    <section id="board" class="board" aria-label="Колонки задач">
+      <div class="col">
+        <div class="col-head"><h2>Ожидает</h2><span class="count">3</span></div>
+        <article class="task"><div class="task-title">Перебрать зимнюю резину в гараже</div><div class="task-meta"><span class="pr pr-low" title="Низкий"></span><span class="cat">дом</span><span>до 01.11</span></div></article>
+        <article class="task"><div class="task-title">Прочитать «Дизайн привычных вещей», гл. 4–6</div><div class="task-meta"><span class="pr pr-medium" title="Средний"></span><span class="cat">чтение</span><span>до 27.10</span></div></article>
+        <article class="task"><div class="task-title">Заказать фильтр для воды на кухню</div><div class="task-meta"><span class="pr pr-high" title="Высокий"></span><span class="cat">дом</span><span>до 25.10</span></div></article>
+      </div>
+      <div class="col">
+        <div class="col-head"><h2>В работе</h2><span class="count">2</span></div>
+        <article class="task"><div class="task-title"><span class="fast-dot" title="На фастлайне"></span>Черновик отчёта за октябрь</div><div class="task-meta"><span class="pr pr-high" title="Высокий"></span><span class="cat">работа</span><span>до 24.10</span></div></article>
+        <article class="task"><div class="task-title">Разобрать фото с октябрьской поездки</div><div class="task-meta"><span class="pr pr-low" title="Низкий"></span><span class="cat">галерея</span><span>без срока</span></div></article>
+      </div>
+      <div class="col">
+        <div class="col-head"><h2>Выполнено</h2><span class="count">2</span></div>
+        <article class="task done"><div class="task-title">Записаться к стоматологу</div><div class="task-meta"><span class="pr pr-medium" title="Средний"></span><span class="cat">здоровье</span><span>сегодня</span></div></article>
+        <article class="task done"><div class="task-title">Оплатить домен ekotov.wiki</div><div class="task-meta"><span class="pr pr-low" title="Низкий"></span><span class="cat">сайт</span><span>вчера</span></div></article>
+      </div>
+    </section>
+
+    <article class="wiki" id="wiki" aria-label="Фрагмент wiki-страницы">
+      <header class="wiki-head">
+        <div class="path">wiki / дом / ремонт кухни</div>
+        <h1>Ремонт кухни: смета и решения</h1>
+        <p class="lede">Всё, что решено про кухню к октябрю 2026 — чтобы не обсуждать третий раз.</p>
+      </header>
+
+      <h2>Что уже решено</h2>
+      <p class="dropcap">Кухню делаем в два этапа: сначала электрика и вода, потом мебель. Первый этап заморожен по бюджету — 90 тысяч, дальше не лезем, даже если «заодно получится». Стиралку переносим в кладовку, на её месте будет шкаф с бытовым ящиком.</p>
+
+      <blockquote class="pullquote">Главное правило ремонта: одно «заодно» стоит как отдельный этап.</blockquote>
+
+      <h3>Порядок работ</h3>
+      <p>Электрика идёт первой — штробить стены после укладки фартука нельзя. Сроки в таблице ниже считал с запасом выходных.</p>
+
+      <details class="spoiler">
+        <summary>Скрыть/показать: смета по чекам (обновляется)</summary>
+        <div class="body">Смета собрана из чеков Леруа и Кухни-М. Резерв — 8% от бюджета, трогать без записи в этой странице нельзя.</div>
+      </details>
+
+      <h3>Черновик расчёта нагрузке на линию</h3>
+      <pre><code># линия кухни: автомат 16A, кабель 3×2.5
+devices = {"духовка": 3.5, "чайник": 2.2, "ПММ": 2.0}
+total_kw = sum(devices.values())   # 7.7 кВт → свыше 16A?
+# вывод: духовку — на отдельную линию 20A</code></pre>
+
+      <table>
+        <caption>Этап 1 — электрика и вода</caption>
+        <thead><tr><th>Работа</th><th>Кто</th><th>Срок</th><th>Бюджет, ₽</th></tr></thead>
+        <tbody>
+          <tr><td>Штробление, новые точки</td><td>своими</td><td class="num">08–09.11</td><td class="num">6 500</td></tr>
+          <tr><td>Отдельная линия духовки</td><td>электрик</td><td class="num">15.11</td><td class="num">4 000</td></tr>
+          <tr><td>Ввод воды под ПММ</td><td>своими</td><td class="num">15–16.11</td><td class="num">2 300</td></tr>
+        </tbody>
+      </table>
+    </article>
+  </main>
+</div>
+</body>
+</html>
