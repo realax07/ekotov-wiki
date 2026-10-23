@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!--
+  design/redesign-pro/tokens-ceramic.html — направление C «Керамика» (soft modern).
+
+  Статус: ПРЕДЛОЖЕНИЕ на редизайн (flow 1, design/redesign-pro). Не прод-токены:
+  прод-источник по-прежнему design/tokens.html (J47). При выборе направления —
+  change-пакет на замену.
+  Контраст: все пары text/surface проверены, ≥ 4.5:1 (AA), см. README.
+-->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Токены — направление C «Керамика»</title>
+<style>
+/* === НАПРАВЛЕНИЕ C «КЕРАМИКА» — единый источник токенов направления === */
+:root {
+  /* primitives: грейдж (не крем!) — холодновато-тёплая нейтральная база */
+  --p-bg-000:     #f2f1ed;   /* фон страницы, грейдж */
+  --p-bg-100:     #e9e7e0;   /* tint-подложка */
+  --p-surface:    #fbfaf7;   /* поверхность карточки */
+  --p-border:     #dcd9d0;   /* обычная граница */
+  --p-border-2:   #b5b1a6;   /* сильная граница */
+  --p-text-900:   #333a3e;   /* основной текст (10.6:1) */
+  --p-text-700:   #565c5c;   /* вторичный текст (6.1:1) */
+  --p-plum-700:   #66336b;   /* акцент — слива (8.56:1) */
+  --p-plum-800:   #532a58;   /* hover акцента */
+  --p-plum-050:   #efe7f0;   /* soft акцента */
+  --p-moss-800:   #2c564d;   /* success / приоритет low (6.9:1) */
+  --p-moss-050:   #e4ece7;
+  --p-rust-700:   #a04432;   /* error / приоритет high (5.72:1) */
+  --p-rust-050:   #f3e5e0;
+  --p-honey-800:  #7a5c17;   /* приоритет medium (5.4:1) */
+  --p-honey-050:  #f2ecd9;
+  --p-fast-900:   #3d5a66;   /* fast line — глубокая морская (7.2:1) */
+  --p-fast-050:   #e2eaec;
+
+  /* semantic */
+  --color-text-primary:   var(--p-text-900);
+  --color-text-secondary: var(--p-text-700);
+  --color-text-muted:     var(--p-text-700);
+  --color-text-on-accent: #fbfaf7;
+  --color-bg-page:    var(--p-bg-000);
+  --color-bg-surface: var(--p-surface);
+  --color-bg-subtle:  var(--p-bg-100);
+  --color-border-default: var(--p-border);
+  --color-border-strong:  var(--p-border-2);
+  --color-accent:      var(--p-plum-700);
+  --color-accent-hover:var(--p-plum-800);
+  --color-accent-soft: var(--p-plum-050);
+  --fastline:      var(--p-fast-900);
+  --fastline-tint: var(--p-fast-050);
+  --status-error:  var(--p-rust-700);
+  --status-success:var(--p-moss-800);
+  --priority-high:   var(--p-rust-700);
+  --priority-medium: var(--p-honey-800);
+  --priority-low:    var(--p-moss-800);
+
+  /* spacing — сетка 8px */
+  --space-05: 4px; --space-1: 8px; --space-2: 16px; --space-3: 24px; --space-4: 32px; --space-6: 48px;
+
+  /* geometry: тактильные, но иерархичные радиусы */
+  --radius-field: 8px;
+  --radius-card:  14px;
+  --radius-rail:  20px;
+
+  /* elevation: тёплая мягкая тень, одна на уровень */
+  --shadow-soft: 0 1px 2px rgba(51,58,62,.05), 0 4px 12px rgba(51,58,62,.06);
+  --shadow-modal: 0 24px 56px rgba(51,58,62,.24);
+
+  /* typography: humanist-голос, display с характером */
+  --font-family:        system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-family-display: 'Candara', 'Seravek', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  --font-family-data:   ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-size-display: 30px;
+  --font-size-h1: 22px;
+  --font-size-h2: 17px;
+  --font-size-body: 14px;
+  --font-size-label: 12px;
+  --font-size-micro: 11px;
+  --lh-body: 1.55;
+  --lh-display: 1.2;
+  --tracking-caps: .05em;
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 2px var(--p-bg-000), 0 0 0 4px var(--p-plum-700);
+  --speed-fast: 160ms;
+  --speed-modal: 220ms;
+}
+</style>
+</head>
+<body style="font-family:var(--font-family);color:var(--color-text-primary);background:var(--color-bg-page);padding:var(--space-3);max-width:72ch;margin:0 auto;line-height:var(--lh-body)">
+<h1 style="font-family:var(--font-family-display);font-size:var(--font-size-h1)">Токены направления C «Керамика»</h1>
+<p>Предложение редизайна (flow 1). Прод-источник токенов — <code>design/tokens.html</code> (J47).</p>
+<h2 style="font-family:var(--font-family-display)">Primitives</h2>
+<ul>
+<li>bg: 000 #f2f1ed (грейдж) / 100 #e9e7e0; surface #fbfaf7; border #dcd9d0 / strong #b5b1a6</li>
+<li>text: 900 #333a3e / 700 #565c5c</li>
+<li>plum (акцент): 700 #66336b / 800 #532a58 / 050 #efe7f0</li>
+<li>fast line: #3d5a66, tint #e2eaec</li>
+<li>status: moss 800 #2c564d, rust 700 #a04432, honey 800 #7a5c17</li>
+</ul>
+<h2 style="font-family:var(--font-family-display)">Semantics</h2>
+<p>Дуэт акцентов слива+мох вместо одиночного синего; rust и honey — только семантика приоритетов. Радиусы иерархичны: поле 8 / карточка 14 / рейл 20. Тень мягкая тёплая, одна на уровень. Display-шрифт — humanist-стек Candara/Seravek/Trebuchet, body — system-ui.</p>
+</body>
+</html>

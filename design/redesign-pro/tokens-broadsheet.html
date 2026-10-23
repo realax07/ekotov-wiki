@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<!--
+  design/redesign-pro/tokens-broadsheet.html — направление A «Типографская» (editorial print).
+
+  Статус: ПРЕДЛОЖЕНИЕ на редизайн (flow 1, design/redesign-pro). Не прод-токены:
+  прод-источник по-прежнему design/tokens.html (J47). При выборе направления —
+  change-пакет на замену.
+  Контраст: все пары text/surface проверены, ≥ 4.5:1 (AA), см. README.
+-->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Токены — направление A «Типографская»</title>
+<style>
+/* === НАПРАВЛЕНИЕ A «ТИПОГРАФСКАЯ» — единый источник токенов направления === */
+:root {
+  /* primitives */
+  --p-newsprint-000: #f4f3ee;   /* холодная газетная бумага, фон страницы */
+  --p-newsprint-100: #efece2;   /* заголовочная полоса, tint-подложки */
+  --p-newsprint-200: #e2ded2;   /* плотные tint-подложки */
+  --p-rule:        #c9c5ba;     /* hairline-линейки */
+  --p-ink-900:     #1f1e1b;     /* основной текст */
+  --p-ink-700:     #4a4740;     /* вторичный текст */
+  --p-ink-600:     #5a564d;     /* подписи, даты */
+  --p-oxblood-700: #772f2f;     /* акцент (7.96–8.47:1 на бумаге) */
+  --p-oxblood-800: #5f2424;     /* hover акцента */
+  --p-oxblood-050: #f0e4e0;     /* soft акцента */
+  --p-slate-800:   #2b4a5a;     /* fast line (8.48:1) */
+  --p-slate-050:   #e3e9e9;     /* fast line tint */
+  --p-olive-800:   #56642f;     /* success / приоритет low (5.2:1) */
+  --p-amber-800:   #8a5a1e;     /* приоритет medium (5.31:1) */
+  --p-red-800:     #7c2626;     /* error / приоритет high (8.9:1) */
+
+  /* semantic */
+  --color-text-primary:   var(--p-ink-900);
+  --color-text-secondary: var(--p-ink-700);
+  --color-text-muted:     var(--p-ink-600);
+  --color-text-on-accent: #f4f3ee;
+  --color-bg-page:    var(--p-newsprint-000);
+  --color-bg-surface: #faf9f5;
+  --color-bg-subtle:  var(--p-newsprint-100);
+  --color-border-default: var(--p-rule);
+  --color-border-strong:  var(--p-ink-900);
+  --color-accent:      var(--p-oxblood-700);
+  --color-accent-hover:var(--p-oxblood-800);
+  --color-accent-soft: var(--p-oxblood-050);
+  --fastline:      var(--p-slate-800);
+  --fastline-tint: var(--p-slate-050);
+  --status-error:  var(--p-red-800);
+  --status-success:var(--p-olive-800);
+  --priority-high:   var(--p-red-800);
+  --priority-medium: var(--p-amber-800);
+  --priority-low:    var(--p-olive-800);
+
+  /* spacing — сетка 8px */
+  --space-05: 4px; --space-1: 8px; --space-2: 16px; --space-3: 24px; --space-4: 32px; --space-6: 48px;
+
+  /* geometry: типографский мир — нулевые и волосные радиусы */
+  --radius-field: 2px;
+  --radius-card:  0px;
+  --rule-hairline: 1px solid var(--p-rule);
+  --rule-double: 3px double var(--p-ink-900);   /* двойная линейка шапки/секций */
+
+  /* elevation: бумаги не падают — вместо теней только rules */
+  --shadow-soft: none;
+  --shadow-modal: 0 24px 48px rgba(31,30,27,.22);
+
+  /* typography: serif-голос, mono только для фолиантов/дат */
+  --font-family:        Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+  --font-family-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  --font-family-data:   ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, monospace;
+  --font-size-display: 34px;
+  --font-size-h1: 26px;
+  --font-size-h2: 20px;
+  --font-size-body: 15px;
+  --font-size-label: 13px;
+  --font-size-micro: 11px;
+  --lh-body: 1.6;      /* serif'у — больше воздуха */
+  --lh-display: 1.15;
+  --tracking-caps: .08em;  /* small-caps рубрики */
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 2px var(--p-newsprint-000), 0 0 0 4px var(--p-oxblood-700);
+  --speed-fast: 160ms;
+  --speed-modal: 220ms;
+}
+</style>
+</head>
+<body style="font-family:var(--font-family);color:var(--color-text-primary);background:var(--color-bg-page);padding:var(--space-3);max-width:72ch;margin:0 auto;line-height:var(--lh-body)">
+<h1 style="font-family:var(--font-family-display);font-size:var(--font-size-h1);border-bottom:var(--rule-double);padding-bottom:var(--space-1)">Токены направления A «Типографская»</h1>
+<p>Предложение редизайна (flow 1). Прод-источник токенов — <code>design/tokens.html</code> (J47).</p>
+<h2 style="font-size:var(--font-size-h2)">Primitives</h2>
+<ul>
+<li>newsprint: 000 #f4f3ee / 100 #efece2 / 200 #e2ded2; rule #c9c5ba</li>
+<li>ink: 900 #1f1e1b / 700 #4a4740 / 600 #5a564d</li>
+<li>oxblood (акцент): 700 #772f2f / 800 #5f2424 / 050 #f0e4e0</li>
+<li>fast line: slate 800 #2b4a5a, tint #e3e9e9</li>
+<li>status: red 800 #7c2626, olive 800 #56642f, amber 800 #8a5a1e</li>
+</ul>
+<h2 style="font-size:var(--font-size-h2)">Semantics</h2>
+<p>Текст: primary/secondary/muted + on-accent. Поверхности: page/surface/subtle. Границы: hairline #c9c5ba и сильная #1f1e1b; двойная линейка <code>--rule-double</code> для шапок. Радиусы 0–2px, теней нет (кроме модалки). Типографика: Georgia-стек display+body, ui-monospace для дат/счётчиков, body 15px / lh 1.6. Focus-ring двухслойный (бумага+оксблад).</p>
+</body>
+</html>
