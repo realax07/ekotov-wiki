@@ -1,76 +1,121 @@
-/* Каркас интерфейса (задача 2.5, tasks.md 5.1–5.3; FR-28, FR-29, Д-5):
- * единый стиль V3 «Бумага» на ВСЮ доску (карточки + колонки + форма —
- * решение Заказчика Д-5), эталон — design/form-style-v3.html + design/README.md.
- * Дизайн-токены V3 — CSS custom properties в :root (primitives → semantic);
- * страница целиком на системных шрифтах (ОГР-8: без внешних зависимостей).
+/* Каркас интерфейса. Редизайн «Пульт 2.0» (change redesign-console, задачи 1.1/2.1):
+ * направление B «Пульт» (dark professional console, high-tech / mission-control),
+ * источник правды — design/redesign-pro/tokens-console.html + board-console.html
+ * (базлайн PR #242, утвержден Заказчиком 2026-10-23). Токены перенесены в :root
+ * ДОСЛОВНО из tokens-console.html (без «улучшений» значений); семантические
+ * имена сохранены (design §D1). Токен-дисциплина: новые hex вне :root запрещены.
+ * Страница целиком на системных шрифтах (ОГР-8: без внешних зависимостей).
  * focus-visible, prefers-reduced-motion — на всех контролах. */
 
 :root {
-  /* primitives (V3 «Бумага») */
+  color-scheme: dark;
+
+  /* primitives */
+  --p-bg-000:    #0e1621;   /* фон страницы, глубокий сине-графитовый */
+  --p-bg-100:    #172335;   /* панель (сайдбар, шапка) */
+  --p-bg-200:    #1d2b40;   /* приподнятая поверхность (карточка) */
+  --p-bg-300:    #26354d;   /* hover / вдавленная зона */
+  --p-border:    #33435c;   /* обычная граница */
+  --p-border-2:  #4d607c;   /* сильная граница / HUD-уголки панелей */
+  --p-text-900:  #e7edf4;   /* основной текст (15.4:1) */
+  --p-text-600:  #a7b7c8;   /* вторичный текст (8.87:1) */
+  --p-text-500:  #8496a8;   /* подписи (5.98:1) */
+  --p-amber-400: #f0b45c;   /* сигнальный янтарь — fast line (9.86:1) */
+  --p-amber-900: #3a2c12;   /* янтарная подложка */
+  --p-cyan-300:  #4fd8eb;   /* второй акцент: актив/фокус (10.7:1 на 000) */
+  --p-teal-400:  #57c4b0;   /* success / активный раздел (8.59:1) */
+  --p-coral-400: #ef7b6a;   /* error / приоритет high (6.67:1) */
+  --p-violet-300:#b9a8e8;   /* приоритет medium (7.5:1) */
+
+  /* semantic */
+  --color-text-primary:   var(--p-text-900);
+  --color-text-secondary: var(--p-text-600);
+  --color-text-muted:     var(--p-text-500);
+  --color-text-on-accent: #0e1621;
+  --color-bg-page:    var(--p-bg-000);
+  --color-bg-surface: var(--p-bg-200);
+  --color-bg-subtle:  var(--p-bg-100);
+  --color-border-default: var(--p-border);
+  --color-border-strong:  var(--p-border-2);
+  --color-accent:      var(--p-amber-400);
+  --color-accent-hover:#f6c17a;
+  --color-accent-soft: var(--p-amber-900);
+  --color-focus:       var(--p-cyan-300);
+  --fastline:      var(--p-amber-400);
+  --fastline-tint: var(--p-amber-900);
+  --status-error:  var(--p-coral-400);
+  --status-success:var(--p-teal-400);
+  --priority-high:   var(--p-coral-400);
+  --priority-medium: var(--p-violet-300);
+  --priority-low:    var(--p-teal-400);
+  /* Статус-подложки (аддитивно к снимку tokens-console.html; прежние семантические
+   * имена сохранены — login/board CSS ссылаются на них до своих волн 2.2/2.4):
+   * полупрозрачные подложки статусов на dark, БЕЗ новых hex (токен-дисциплина). */
+  --status-error-bg: color-mix(in srgb, var(--p-coral-400) 12%, transparent);
+  --priority-high-soft: color-mix(in srgb, var(--p-coral-400) 12%, transparent);
+  --priority-medium-soft: color-mix(in srgb, var(--p-violet-300) 12%, transparent);
+  --priority-low-soft: color-mix(in srgb, var(--p-teal-400) 12%, transparent);
+
+  /* glow: тонкое свечение только на сигнале (янтарь) и активе/фокусе (cyan) */
+  --glow-amber: 0 0 0 1px rgba(240,180,92,.18), 0 0 20px -6px rgba(240,180,92,.28);
+  --glow-cyan:  0 0 0 1px rgba(79,216,235,.22), 0 0 20px -6px rgba(79,216,235,.32);
+
+  /* фоновая микро-сетка: 1px линии, ячейка 32px (кратна сетке 8px) */
+  --grid-line: rgba(167,183,200,.05);
+  --texture-grid:
+    linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 100% 32px,
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 32px 100%;
+
+  /* spacing — сетка 8px */
+  --space-05: 4px; --space-1: 8px; --space-2: 16px; --space-3: 24px; --space-4: 32px; --space-6: 48px;
+
+  /* geometry */
+  --radius-field: 6px;
+  --radius-card:  8px;
+
+  /* elevation: на тёмном тень почти не видна — глубину дают ступени фона */
+  --shadow-soft: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-modal: 0 24px 56px rgba(0,0,0,.55);
+
+  /* typography: sans для UI, mono — данные, readouts и микро-лейблы капсом */
+  --font-family:        -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --font-family-display: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --font-family-data:   ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, monospace;
+  --font-size-display: 30px;
+  --font-size-h1: 22px;
+  --font-size-h2: 17px;
+  --font-size-body: 14px;
+  --font-size-label: 12px;
+  --font-size-micro: 11px;
+  --lh-body: 1.5;
+  --lh-display: 1.2;
+  --tracking-caps: .06em;
+  --tracking-micro: .14em;   /* SYS/FST-лейблы капсом */
+
+  /* focus + motion */
+  --focus-ring: 0 0 0 2px var(--p-bg-000), 0 0 0 4px var(--p-cyan-300), 0 0 14px rgba(79,216,235,.35);
+  --speed-fast: 140ms;
+  --speed-modal: 200ms;
+
+  /* --- deprecated V3-алиасы («Бумага») — НЕ УДАЛЯТЬ ДО ЗАДАЧИ 2.7 ---
+   * deprecated, удалить в 2.7 (design §D1): board.css/wiki.css/gallery.css
+   * мигрируют только в волнах 2.2/2.3/2.5 — без алиасов промежуточные сборки
+   * сломаны (var() без значения). Значения — исходные V3, без правок. */
   --p-paper-050: #faf7f2;
   --p-paper-100: #f3ede4;
   --p-paper-200: #e9e1d4;
   --p-ink-900: #3d3630;
   --p-ink-600: #6b6158;
-  --p-clay-600: #a8432c;   /* терракотовый акцент, AA на бумажном фоне */
-  --p-clay-700: #93391f;   /* hover акцента */
+  --p-clay-600: #a8432c;
+  --p-clay-700: #93391f;
   --p-clay-050: #f7e8e4;
   --p-red-700: #9c3524;
   --p-red-050: #f8ecea;
   --p-olive-700: #5f6f34;
   --p-amber-700: #8a5a1e;
-  --p-blue-700: #33608c;   /* fast line */
+  --p-blue-700: #33608c;
   --p-blue-050: #eef2f6;
   --p-blue-200: #c9d6e2;
-
-  /* semantic */
-  --color-text-primary: var(--p-ink-900);
-  --color-text-secondary: var(--p-ink-600);
-  --color-text-on-accent: #fff;
-  --color-bg-page: var(--p-paper-050);
-  --color-bg-surface: #fffdf9;
-  --color-bg-subtle: var(--p-paper-100);
-  --color-border-default: var(--p-paper-200);
-  --color-border-strong: var(--p-ink-600);
-  --color-accent: var(--p-clay-600);
-  --color-accent-hover: var(--p-clay-700);
-  --color-accent-soft: var(--p-clay-050);
-  --status-error: var(--p-red-700);
-  --status-error-bg: var(--p-red-050);
-  --status-success: var(--p-olive-700);
-  --priority-high: var(--p-red-700);
-  --priority-medium: var(--p-amber-700);
-  --priority-low: var(--p-olive-700);
-  --priority-high-soft: #f6ebe8;
-  --priority-medium-soft: #f4ecdf;
-  --priority-low-soft: #eff1e4;
-
-  /* spacing — 8px сетка */
-  --space-05: 4px;
-  --space-1: 8px;
-  --space-2: 16px;
-  --space-3: 24px;
-  --space-4: 32px;
-
-  /* geometry */
-  --radius-field: 6px;
-  --radius-card: 10px;
-
-  /* elevation */
-  --shadow-modal: 0 16px 40px rgba(61, 54, 48, 0.18);
-  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
-
-  /* typography */
-  --font-family: system-ui, -apple-system, sans-serif;
-  --font-family-display: Georgia, 'Times New Roman', serif;
-  --font-size-body: 14px;
-  --font-size-label: 13px;
-  --font-size-micro: 11px;
-
-  /* focus + motion */
-  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
-  --speed-fast: 160ms;
-  --speed-modal: 220ms;
 }
 
 * { box-sizing: border-box; }
