@@ -90,7 +90,9 @@ design/redesign-pro/README.md § «Утверждение направления
     `.board-column-title`, `.board-dots`, `#board`, `.fastline-column`
     (+ `data-fastline-stage`), `#fastline`, `.fast-row`, `.col-target`,
     `has-fast`, `.dragover`, `.drop-target`, `.drop-forbidden`,
-    `#fastline-add-button`, `#fastline-blocked-hint`;
+    `#fastline-add-button`, `#fastline-blocked-hint`,
+    `#task-tags-chips`, `.chip` (чипы тегов формы задачи: task-form.js
+    `TAGS_CHIPS_ID`, combobox-делегирование `#task-tags-chips .chip button`);
   - wiki/rich: `.wiki-layout`, `.wiki-content`, `.wiki-breadcrumb`,
     `.breadcrumb a`, `aside.wiki-tree`, `#wiki-search`,
     `#wiki-search-results`, `.wiki-toolbar .wiki-create`, `.spoiler-title`,
@@ -99,7 +101,8 @@ design/redesign-pro/README.md § «Утверждение направления
     `.tab-close`, `.tab-rename`, `.rich-active`, `.rich-compact`,
     `#wiki-article`, `#wiki-editor`, `#wiki-history*`;
   - галерея: `.g-card`, `.g-card-title`, `#gallery-grid`, `#lightbox-overlay`,
-    `lb-*` (id контролов лайтбокса);
+    `lb-*` (id контролов лайтбокса), `#tags-chips` (чипы тегов upload-формы:
+    gallery.js), `.chip` (общий с формой задачи);
   - видео: `.v-card`, `.v-card-title`, `video-*`/`player-*` id-хуки;
   - поиск/настройки/прочее: `.result-item`, `.filter-count`, `.category-name`,
     `.category-actions`, `.option`, `.option-add`, `.tbl-col-ops`,
