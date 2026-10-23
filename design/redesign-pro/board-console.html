@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<!-- design/redesign-pro/board-console.html — направление B «Пульт»: доска + фрагмент wiki.
+<!-- design/redesign-pro/board-console.html — направление B «Пульт», итерация 2: high-tech / mission-control.
+     Эволюция направления: HUD-уголки, glow на янтаре + cyan #4fd8eb (актив/фокус), фоновая микро-сетка,
+     микро-лейблы капсом, терминальные readouts, LED-статусы. Раскладка итерации 1 не менялась.
      Мокап flow 1; токены — tokens-console.html того же каталога. Self-contained, без CDN. -->
 <html lang="ru">
 <head>
@@ -14,34 +16,59 @@
   --border:#33435c; --border2:#4d607c;
   --t900:#e7edf4; --t600:#a7b7c8; --t500:#8496a8;
   --amber:#f0b45c; --amber-900:#3a2c12;
+  --accent-cyan:#4fd8eb;
   --teal:#57c4b0; --coral:#ef7b6a; --violet:#b9a8e8;
+  --glow-amber:0 0 0 1px rgba(240,180,92,.18),0 0 20px -6px rgba(240,180,92,.28);
+  --glow-cyan:0 0 0 1px rgba(79,216,235,.22),0 0 20px -6px rgba(79,216,235,.32);
+  --grid-line:rgba(167,183,200,.05);
   --font:-apple-system,'Segoe UI',system-ui,sans-serif;
   --mono:ui-monospace,'Cascadia Mono','SF Mono',Menlo,monospace;
-  --focus-ring:0 0 0 2px var(--bg0),0 0 0 4px var(--amber);
+  --focus-ring:0 0 0 2px var(--bg0),0 0 0 4px var(--accent-cyan),0 0 14px rgba(79,216,235,.35);
   --fast:140ms;
 }
 *{box-sizing:border-box;margin:0}
-body{font-family:var(--font);background:var(--bg0);color:var(--t900);line-height:1.5}
+body{font-family:var(--font);color:var(--t900);line-height:1.5;
+  background:
+    linear-gradient(var(--grid-line) 1px,transparent 1px) 0 0/100% 32px,
+    linear-gradient(90deg,var(--grid-line) 1px,transparent 1px) 0 0/32px 100%,
+    var(--bg0)}
 a{color:inherit}
 :focus-visible{outline:none;box-shadow:var(--focus-ring);border-radius:4px}
-::selection{background:var(--amber);color:var(--bg0)}
+::selection{background:var(--accent-cyan);color:var(--bg0)}
 .skip{position:absolute;left:-9999px;top:0;background:var(--bg1);color:var(--t900);padding:8px 16px;border:1px solid var(--border)}
 .skip:focus{left:8px;top:8px;z-index:10}
+
+/* --- техноязык: HUD-уголки на панелях --- */
+.hud{position:relative}
+.hud::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  --hc:var(--border2);
+  background:
+    linear-gradient(var(--hc) 0 0) no-repeat 0 0/12px 1px,
+    linear-gradient(var(--hc) 0 0) no-repeat 0 0/1px 12px,
+    linear-gradient(var(--hc) 0 0) no-repeat 100% 0/12px 1px,
+    linear-gradient(var(--hc) 0 0) no-repeat 100% 0/1px 12px,
+    linear-gradient(var(--hc) 0 0) no-repeat 0 100%/12px 1px,
+    linear-gradient(var(--hc) 0 0) no-repeat 0 100%/1px 12px,
+    linear-gradient(var(--hc) 0 0) no-repeat 100% 100%/12px 1px,
+    linear-gradient(var(--hc) 0 0) no-repeat 100% 100%/1px 12px}
+
+/* микро-лейбл капсом: SYS/FST-стиль */
+.micro{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--t500)}
 
 /* --- каркас: пультовая --- */
 .layout{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
 .sidebar{background:var(--bg1);border-right:1px solid var(--border);padding:24px 12px;display:flex;flex-direction:column}
 .brand{padding:0 12px 16px;border-bottom:1px solid var(--border);margin-bottom:12px;display:flex;align-items:center;gap:10px}
-.brand-led{width:8px;height:8px;border-radius:50%;background:var(--teal);flex:none}
+.brand-led{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px rgba(87,196,176,.7);flex:none}
 .brand-name{font-size:15px;font-weight:600;letter-spacing:.01em}
-.brand-sub{font-family:var(--mono);font-size:11px;color:var(--t500)}
+.brand-sub{font-family:var(--mono);font-size:11px;color:var(--t500);letter-spacing:.08em;text-transform:uppercase}
 .nav{list-style:none;padding:0;display:flex;flex-direction:column;gap:2px}
 .nav a{display:flex;align-items:center;gap:12px;padding:9px 12px;min-height:40px;font-size:14px;text-decoration:none;color:var(--t600);border-radius:6px;border:1px solid transparent;transition:background var(--fast),color var(--fast)}
 .nav a:hover{background:var(--bg2);color:var(--t900)}
-.nav a[aria-current="page"]{background:var(--bg2);color:var(--t900);border-color:var(--border)}
-.nav a[aria-current="page"]::after{content:"";margin-left:auto;width:6px;height:6px;border-radius:50%;background:var(--amber)}
+.nav a[aria-current="page"]{background:var(--bg2);color:var(--t900);border-color:rgba(79,216,235,.45)}
+.nav a[aria-current="page"]::after{content:"";margin-left:auto;width:6px;height:6px;border-radius:50%;background:var(--accent-cyan);box-shadow:0 0 6px rgba(79,216,235,.8)}
 .nav svg{flex:none;color:var(--t500)}
-.nav a[aria-current="page"] svg{color:var(--amber)}
+.nav a[aria-current="page"] svg{color:var(--accent-cyan)}
 .kbd-foot{margin-top:auto;padding:16px 12px 0;border-top:1px solid var(--border);font-family:var(--mono);font-size:11px;color:var(--t500);line-height:2}
 .kbd-foot kbd{font-family:inherit;border:1px solid var(--border2);border-radius:4px;padding:0 5px;color:var(--t600)}
 
@@ -49,41 +76,53 @@ a{color:inherit}
 main{padding:0 32px 48px;min-width:0}
 .pagehead{padding:24px 0 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .pagehead h1{font-size:22px;font-weight:650;letter-spacing:-.01em}
-.clock{font-family:var(--mono);font-size:12px;color:var(--t500)}
-.btn{margin-left:auto;display:inline-block;font-family:var(--font);font-size:14px;font-weight:600;padding:8px 16px;min-height:36px;border-radius:6px;border:1px solid var(--amber);background:var(--amber);color:var(--bg0);cursor:pointer;transition:background var(--fast)}
-.btn:hover{background:#f6c17a;border-color:#f6c17a}
+.readout{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--t500);letter-spacing:.06em}
+.readout .dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px rgba(87,196,176,.7);flex:none}
+.readout .sep{color:var(--border2)}
+.btn{margin-left:auto;display:inline-block;font-family:var(--font);font-size:14px;font-weight:600;padding:8px 16px;min-height:36px;border-radius:6px;border:1px solid var(--amber);background:var(--amber);color:var(--bg0);cursor:pointer;transition:background var(--fast),box-shadow var(--fast)}
+.btn:hover{background:#f6c17a;border-color:#f6c17a;box-shadow:0 0 16px -4px rgba(240,180,92,.5)}
 
-/* фастлайн: сигнальный канал */
-.fastline{margin:16px 0 24px;border:1px solid var(--amber);background:var(--amber-900);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.fastline-mark{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);flex:none;display:flex;align-items:center;gap:8px}
-.fastline-mark::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--amber);animation:blink 2s step-end infinite}
+/* фастлайн: сигнальный канал — янтарный glow, HUD-уголки, трек отсчёта */
+.fastline{margin:16px 0 24px;border:1px solid var(--amber);background:var(--amber-900);border-radius:8px;padding:12px 16px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;box-shadow:var(--glow-amber)}
+.fastline.hud::after{--hc:var(--amber)}
+.fastline-mark{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);flex:none;display:flex;align-items:center;gap:8px}
+.fastline-mark::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px rgba(240,180,92,.9);animation:blink 2s step-end infinite}
 @keyframes blink{50%{opacity:.35}}
 .fastline-task{font-size:14px;font-weight:600}
 .fastline-task small{display:block;font-weight:400;color:var(--t600)}
-.fastline-due{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--amber)}
+.fastline-due{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--amber);letter-spacing:.06em}
+/* трек отсчёта: градиент только на данных */
+.fastline-track{position:absolute;left:8px;right:8px;bottom:6px;height:2px;border-radius:1px;background:rgba(240,180,92,.16);overflow:hidden}
+.fastline-track i{display:block;height:100%;width:64%;border-radius:1px;background:linear-gradient(90deg,var(--amber),var(--accent-cyan));box-shadow:0 0 8px rgba(79,216,235,.4)}
 
 .board{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .col{background:var(--bg1);border:1px solid var(--border);border-radius:8px;padding:12px;min-width:0}
 .col-head{display:flex;align-items:center;gap:8px;padding:4px 8px 12px}
-.col-head .led{width:6px;height:6px;border-radius:50%}
-.led-wait{background:var(--t500)} .led-run{background:var(--amber)} .led-done{background:var(--teal)}
+.col-head .led{width:6px;height:6px;border-radius:50%;flex:none}
+.led-wait{background:var(--t500)} .led-run{background:var(--amber);box-shadow:0 0 6px rgba(240,180,92,.8);animation:blink 2s step-end infinite} .led-done{background:var(--teal);box-shadow:0 0 6px rgba(87,196,176,.7)}
 .col-head h2{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t600)}
+.col-head .code{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--t500)}
 .col-head .count{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--t500)}
-.task{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;transition:border-color var(--fast),background var(--fast)}
+.task{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;transition:border-color var(--fast),background var(--fast),box-shadow var(--fast)}
 .task:hover{border-color:var(--border2);background:var(--bg3)}
 .task-title{font-size:14px;font-weight:500;line-height:1.4}
 .task-meta{display:flex;gap:10px;align-items:center;margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--t500)}
+/* AA: на hover-подложке bg3 t500 даёт 4.07:1 — поднимаем до t600 (5.6:1) */
+.task:hover .task-meta{color:var(--t600)}
 .pr{font-size:10px;letter-spacing:.05em;padding:1px 6px;border-radius:4px;border:1px solid}
 .pr-high{color:var(--coral);border-color:var(--coral)}
 .pr-medium{color:var(--violet);border-color:var(--violet)}
 .pr-low{color:var(--teal);border-color:var(--teal)}
-.task-fast{border-color:var(--amber);background:var(--amber-900)}
+.task-fast{border-color:var(--amber);background:var(--amber-900);box-shadow:0 0 14px -8px rgba(240,180,92,.45)}
 .task-fast .task-title::before{content:"▲ ";color:var(--amber);font-size:11px}
 .done .task-title{color:var(--t500);text-decoration:line-through;text-decoration-color:var(--border2)}
 
 /* --- wiki-фрагмент --- */
-.wiki{margin-top:48px;max-width:72ch;border-top:1px solid var(--border);padding-top:24px}
-.wiki-head .path{font-family:var(--mono);font-size:11px;color:var(--t500)}
+.wiki{margin-top:48px;max-width:72ch;padding-top:24px;position:relative}
+/* разделитель-трек вместо сплошной линии */
+.wiki::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;
+  background:repeating-linear-gradient(90deg,var(--border) 0 8px,transparent 8px 16px)}
+.wiki-head .path{font-family:var(--mono);font-size:11px;color:var(--t500);letter-spacing:.08em;text-transform:uppercase}
 .wiki h1{font-size:26px;font-weight:650;letter-spacing:-.01em;margin:8px 0 4px}
 .wiki .lede{color:var(--t600);margin-bottom:20px}
 .wiki h2{font-size:17px;font-weight:650;margin:28px 0 8px;padding-left:12px;box-shadow:inset 3px 0 0 var(--teal)}
@@ -92,6 +131,7 @@ main{padding:0 32px 48px;min-width:0}
 pre{font-family:var(--mono);font-size:13px;line-height:1.55;background:var(--bg1);border:1px solid var(--border);border-radius:8px;padding:12px 16px;overflow-x:auto;margin:16px 0}
 pre .cm{color:var(--t500)} pre .kw{color:var(--amber)}
 details.spoiler{border:1px solid var(--border);border-radius:8px;margin:16px 0;background:var(--bg1)}
+details.spoiler[open]{border-color:rgba(79,216,235,.45);box-shadow:var(--glow-cyan)}
 details.spoiler summary{cursor:pointer;padding:10px 16px;font-size:14px;font-weight:600;list-style-position:inside;min-height:40px;display:flex;align-items:center}
 details.spoiler[open] summary{border-bottom:1px solid var(--border)}
 details.spoiler .body{padding:12px 16px;color:var(--t600);font-size:14px}
@@ -100,6 +140,10 @@ caption{caption-side:top;text-align:left;font-size:12px;font-weight:600;letter-s
 th,td{border:1px solid var(--border);padding:8px 12px;text-align:left}
 th{background:var(--bg1);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--t600)}
 td.num{font-family:var(--mono);text-align:right}
+td.st{font-family:var(--mono);font-size:12px;white-space:nowrap}
+td.st::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:8px;vertical-align:1px}
+td.st-ok::before{background:var(--teal);box-shadow:0 0 5px rgba(87,196,176,.7)}
+td.st-sleep::before{background:var(--t500)}
 tbody tr:hover{background:var(--bg1)}
 
 @media (max-width:860px){
@@ -124,7 +168,7 @@ tbody tr:hover{background:var(--bg1)}
   <nav class="sidebar" aria-label="Разделы">
     <div class="brand">
       <span class="brand-led" aria-hidden="true"></span>
-      <div><div class="brand-name">ekotov.wiki</div><div class="brand-sub">сеанс · 12:40 МСК</div></div>
+      <div><div class="brand-name">ekotov.wiki</div><div class="brand-sub">SYS · сеанс 12:40</div></div>
     </div>
     <ul class="nav">
       <li><a href="#" aria-current="page"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="4" height="16" fill="none" stroke="currentColor" stroke-width="2"/><rect x="10" y="4" width="4" height="11" fill="none" stroke="currentColor" stroke-width="2"/><rect x="17" y="4" width="4" height="14" fill="none" stroke="currentColor" stroke-width="2"/></svg>Доска</a></li>
@@ -143,30 +187,31 @@ tbody tr:hover{background:var(--bg1)}
   <main>
     <header class="pagehead">
       <h1>Доска</h1>
-      <span class="clock">пт 23.10 · активных: 4 · выполнено сегодня: 2</span>
+      <span class="readout"><span class="dot" aria-hidden="true"></span>SYS NOM<span class="sep" aria-hidden="true">·</span>пт 23.10<span class="sep" aria-hidden="true">·</span>ACT 4<span class="sep" aria-hidden="true">·</span>DONE 2</span>
       <button class="btn" type="button">Новая задача</button>
     </header>
 
-    <section class="fastline" aria-label="Фастлайн">
-      <span class="fastline-mark">Фастлайн</span>
+    <section class="fastline hud" aria-label="Фастлайн">
+      <span class="fastline-mark">Фастлайн · FST-01</span>
       <div class="fastline-task">Забрать посылку на складе до 18:00<small>перенос вручную · комментарий: «после работы»</small></div>
       <span class="fastline-due">T-5:20 до срока</span>
+      <span class="fastline-track" aria-hidden="true"><i></i></span>
     </section>
 
     <section id="board" class="board" aria-label="Колонки задач">
-      <div class="col">
-        <div class="col-head"><span class="led led-wait" aria-hidden="true"></span><h2>Ожидает</h2><span class="count">3</span></div>
+      <div class="col hud">
+        <div class="col-head"><span class="led led-wait" aria-hidden="true"></span><h2>Ожидает</h2><span class="code">QUE-01</span><span class="count">3</span></div>
         <article class="task"><div class="task-title">Перебрать зимнюю резину в гараже</div><div class="task-meta"><span class="pr pr-low">низкий</span><span>дом</span><span>до 01.11</span></div></article>
         <article class="task"><div class="task-title">Прочитать «Дизайн привычных вещей», гл. 4–6</div><div class="task-meta"><span class="pr pr-medium">средний</span><span>чтение</span><span>до 27.10</span></div></article>
         <article class="task"><div class="task-title">Заказать фильтр для воды на кухню</div><div class="task-meta"><span class="pr pr-high">высокий</span><span>дом</span><span>до 25.10</span></div></article>
       </div>
-      <div class="col">
-        <div class="col-head"><span class="led led-run" aria-hidden="true"></span><h2>В работе</h2><span class="count">2</span></div>
+      <div class="col hud">
+        <div class="col-head"><span class="led led-run" aria-hidden="true"></span><h2>В работе</h2><span class="code">RUN-02</span><span class="count">2</span></div>
         <article class="task task-fast"><div class="task-title">Черновик отчёта за октябрь</div><div class="task-meta"><span class="pr pr-high">высокий</span><span>работа</span><span>до 24.10</span></div></article>
         <article class="task"><div class="task-title">Разобрать фото с октябрьской поездки</div><div class="task-meta"><span class="pr pr-low">низкий</span><span>галерея</span><span>без срока</span></div></article>
       </div>
-      <div class="col">
-        <div class="col-head"><span class="led led-done" aria-hidden="true"></span><h2>Выполнено</h2><span class="count">2</span></div>
+      <div class="col hud">
+        <div class="col-head"><span class="led led-done" aria-hidden="true"></span><h2>Выполнено</h2><span class="code">DN-03</span><span class="count">2</span></div>
         <article class="task done"><div class="task-title">Записаться к стоматологу</div><div class="task-meta"><span class="pr pr-medium">средний</span><span>здоровье</span><span>сегодня</span></div></article>
         <article class="task done"><div class="task-title">Оплатить домен ekotov.wiki</div><div class="task-meta"><span class="pr pr-low">низкий</span><span>сайт</span><span>вчера</span></div></article>
       </div>
@@ -185,7 +230,7 @@ tbody tr:hover{background:var(--bg1)}
       <h3>Порядок запуска после сбоя питания</h3>
       <p>Сначала n1 (он держит DHCP и DNS), затем n2, резерв поднимают вручную. Полная последовательность — в скрытом блоке ниже.</p>
 
-      <details class="spoiler">
+      <details class="spoiler hud">
         <summary>Показать: полный регламент восстановления</summary>
         <div class="body">1. Проверить ИБП и линию. 2. Поднять n1, дождаться etcd leader. 3. Поднять n2, проверить кворум. 4. WOL на n3 только если нагрузка > 60% сутки. 5. Записать инцидент в wiki.</div>
       </details>
@@ -200,9 +245,9 @@ $ etcdctl endpoint status --cluster -w table
         <caption>Узлы кластера</caption>
         <thead><tr><th>Узел</th><th>Роль</th><th>Состояние</th><th>Uptime</th></tr></thead>
         <tbody>
-          <tr><td>n1</td><td>DHCP, DNS, etcd</td><td>активен</td><td class="num">46 д</td></tr>
-          <tr><td>n2</td><td>etcd, воркер</td><td>активен</td><td class="num">46 д</td></tr>
-          <tr><td>n3</td><td>холодный резерв</td><td>спит (WOL)</td><td class="num">—</td></tr>
+          <tr><td>n1</td><td>DHCP, DNS, etcd</td><td class="st st-ok">активен</td><td class="num">46 д</td></tr>
+          <tr><td>n2</td><td>etcd, воркер</td><td class="st st-ok">активен</td><td class="num">46 д</td></tr>
+          <tr><td>n3</td><td>холодный резерв</td><td class="st st-sleep">спит (WOL)</td><td class="num">—</td></tr>
         </tbody>
       </table>
     </article>

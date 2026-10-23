@@ -1,11 +1,16 @@
 <!DOCTYPE html>
 <!--
-  design/redesign-pro/tokens-console.html — направление B «Пульт» (dark professional console).
+  design/redesign-pro/tokens-console.html — направление B «Пульт» (dark professional console),
+  итерация 2: high-tech / mission-control.
+
+  Новое в итерации 2: второй акцент cyan #4fd8eb (актив/фокус), glow-тени
+  (--glow-amber / --glow-cyan), фоновая микро-сетка (--grid-line). Янтарь остаётся
+  единственным сигнальным цветом фастлайна; cyan — только актив/фокус, не декор.
 
   Статус: ПРЕДЛОЖЕНИЕ на редизайн (flow 1, design/redesign-pro). Не прод-токены:
   прод-источник по-прежнему design/tokens.html (J47). При выборе направления —
   change-пакет на замену.
-  Контраст: все пары text/surface проверены, ≥ 4.5:1 (AA), см. README.
+  Контраст: все пары text/surface проверены программно, ≥ 4.5:1 (AA), см. README.
 -->
 <html lang="ru">
 <head>
@@ -23,12 +28,13 @@
   --p-bg-200:    #1d2b40;   /* приподнятая поверхность (карточка) */
   --p-bg-300:    #26354d;   /* hover / вдавленная зона */
   --p-border:    #33435c;   /* обычная граница */
-  --p-border-2:  #4d607c;   /* сильная граница */
+  --p-border-2:  #4d607c;   /* сильная граница / HUD-уголки панелей */
   --p-text-900:  #e7edf4;   /* основной текст (15.4:1) */
   --p-text-600:  #a7b7c8;   /* вторичный текст (8.87:1) */
   --p-text-500:  #8496a8;   /* подписи (5.98:1) */
   --p-amber-400: #f0b45c;   /* сигнальный янтарь — fast line (9.86:1) */
   --p-amber-900: #3a2c12;   /* янтарная подложка */
+  --p-cyan-300:  #4fd8eb;   /* второй акцент: актив/фокус (10.7:1 на 000) */
   --p-teal-400:  #57c4b0;   /* success / активный раздел (8.59:1) */
   --p-coral-400: #ef7b6a;   /* error / приоритет high (6.67:1) */
   --p-violet-300:#b9a8e8;   /* приоритет medium (7.5:1) */
@@ -46,6 +52,7 @@
   --color-accent:      var(--p-amber-400);
   --color-accent-hover:#f6c17a;
   --color-accent-soft: var(--p-amber-900);
+  --color-focus:       var(--p-cyan-300);
   --fastline:      var(--p-amber-400);
   --fastline-tint: var(--p-amber-900);
   --status-error:  var(--p-coral-400);
@@ -53,6 +60,16 @@
   --priority-high:   var(--p-coral-400);
   --priority-medium: var(--p-violet-300);
   --priority-low:    var(--p-teal-400);
+
+  /* glow: тонкое свечение только на сигнале (янтарь) и активе/фокусе (cyan) */
+  --glow-amber: 0 0 0 1px rgba(240,180,92,.18), 0 0 20px -6px rgba(240,180,92,.28);
+  --glow-cyan:  0 0 0 1px rgba(79,216,235,.22), 0 0 20px -6px rgba(79,216,235,.32);
+
+  /* фоновая микро-сетка: 1px линии, ячейка 32px (кратна сетке 8px) */
+  --grid-line: rgba(167,183,200,.05);
+  --texture-grid:
+    linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 100% 32px,
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 32px 100%;
 
   /* spacing — сетка 8px */
   --space-05: 4px; --space-1: 8px; --space-2: 16px; --space-3: 24px; --space-4: 32px; --space-6: 48px;
@@ -65,7 +82,7 @@
   --shadow-soft: 0 1px 2px rgba(0,0,0,.4);
   --shadow-modal: 0 24px 56px rgba(0,0,0,.55);
 
-  /* typography: sans для UI, mono — только данные (счётчики, даты, id) */
+  /* typography: sans для UI, mono — данные, readouts и микро-лейблы капсом */
   --font-family:        -apple-system, 'Segoe UI', system-ui, sans-serif;
   --font-family-display: -apple-system, 'Segoe UI', system-ui, sans-serif;
   --font-family-data:   ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, monospace;
@@ -78,9 +95,10 @@
   --lh-body: 1.5;
   --lh-display: 1.2;
   --tracking-caps: .06em;
+  --tracking-micro: .14em;   /* SYS/FST-лейблы капсом */
 
   /* focus + motion */
-  --focus-ring: 0 0 0 2px var(--p-bg-000), 0 0 0 4px var(--p-amber-400);
+  --focus-ring: 0 0 0 2px var(--p-bg-000), 0 0 0 4px var(--p-cyan-300), 0 0 14px rgba(79,216,235,.35);
   --speed-fast: 140ms;
   --speed-modal: 200ms;
 }
@@ -88,15 +106,16 @@
 </head>
 <body style="font-family:var(--font-family);color:var(--color-text-primary);background:var(--color-bg-page);padding:var(--space-3);max-width:72ch;margin:0 auto;line-height:var(--lh-body)">
 <h1 style="font-size:var(--font-size-h1)">Токены направления B «Пульт»</h1>
-<p>Предложение редизайна (flow 1). Прод-источник токенов — <code>design/tokens.html</code> (J47).</p>
+<p>Предложение редизайна (flow 1), итерация 2 — high-tech. Прод-источник токенов — <code>design/tokens.html</code> (J47).</p>
 <h2 style="font-size:var(--font-size-h2)">Primitives</h2>
 <ul>
 <li>bg: 000 #0e1621 / 100 #172335 / 200 #1d2b40 / 300 #26354d; border #33435c / strong #4d607c</li>
 <li>text: 900 #e7edf4 / 600 #a7b7c8 / 500 #8496a8</li>
 <li>fast line: amber 400 #f0b45c, подложка #3a2c12</li>
+<li>второй акцент: cyan 300 #4fd8eb — только актив/фокус</li>
 <li>status: teal 400 #57c4b0, coral 400 #ef7b6a, violet 300 #b9a8e8</li>
 </ul>
 <h2 style="font-size:var(--font-size-h2)">Semantics</h2>
-<p>Глубина — ступенями фона (000→300), тени минимальны. Один сигнальный цвет — янтарь фастлайна; teal/coral/violet — только статусы и приоритеты. Данные (счётчики, даты, id) — <code>--font-family-data</code>. Focus-ring янтарный двухслойный. <code>color-scheme: dark</code> объявлен — нативные контролы рендерятся тёмными.</p>
+<p>Глубина — ступенями фона (000→300), тени минимальны. Два акцента с разведёнными ролями: янтарь — сигнальный цвет фастлайна (+glow), cyan — актив/фокус (+glow, focus-ring). teal/coral/violet — только статусы и приоритеты. Градиенты — только на данных (трек отсчёта фастлайна amber→cyan), не на декоре. Панели — HUD-уголки (--p-border-2, на фастлайне янтарные), фон страницы — микро-сетка --texture-grid (1px, ячейка 32px). Микро-лейблы капсом — mono + --tracking-micro. Данные (счётчики, даты, id, readouts) — <code>--font-family-data</code>. <code>color-scheme: dark</code> объявлен — нативные контролы рендерятся тёмными.</p>
 </body>
 </html>
