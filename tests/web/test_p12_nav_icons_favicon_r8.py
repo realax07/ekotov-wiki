@@ -80,19 +80,27 @@ def test_sidebar_icons_inline_svg_unified_style(logged_in_page, web_base_url):
             assert box and abs(box["width"] - 16) <= 1 and abs(box["height"] - 16) <= 1, (
                 path, i, box,
             )
-            # Токенная окраска: color иконки == color текста пункта.
+            # Токенная окраска «Пульта» (redesign-console, design §D2): иконка —
+            # свой токен (--p-text-500 = rgb(132, 150, 168), мокап .nav svg),
+            # подпись пункта — t600; на активном пункте иконка — cyan.
             colors = svg.evaluate(
                 """el => {
                   const a = el.closest('a');
                   return {
                     icon: getComputedStyle(el).color,
                     text: getComputedStyle(a).color,
+                    active: a.matches('[aria-current="page"], .active'),
                   };
                 }"""
             )
-            assert colors["icon"] == colors["text"], (path, i, colors)
-        # Активный раздел: иконка окрашена акцентом ВМЕСТЕ с текстом
-        # (currentColor — достаточно факта равенства на активном пункте).
+            # Неактивный пункт: иконка --p-text-500, подпись --p-text-600;
+            # активный: иконка cyan --p-cyan-300 (rgb(79, 216, 235)).
+            if colors["active"]:
+                assert colors["icon"] == "rgb(79, 216, 235)", (path, i, colors)
+            else:
+                assert colors["icon"] == "rgb(132, 150, 168)", (path, i, colors)
+                assert colors["text"] == "rgb(167, 183, 200)", (path, i, colors)
+        # Активный раздел: иконка окрашена cyan «Пульта» (--accent-cyan).
         # Скоуп .sidebar: активный пункт «Настройки» живет в footer.
         active = page.locator(".sidebar a.nav-item.active")
         expect(active).to_have_count(1)
@@ -146,9 +154,10 @@ def test_favicon_data_uri_decodable_with_cache_marker(logged_in_page, web_base_u
     """TC-P12N-003 (CHK-P12-19, FR-95): на всех страницах функционала —
     ровно один <link rel="icon" type="image/svg+xml">, href —
     data:image/svg+xml; декодированный SVG парсится и рендерится
-    (naturalWidth > 0); внутри URI — кеш-маркер <!--cache:v=1--> (бамп
+    (naturalWidth > 0); внутри URI — кеш-маркер <!--cache:v=2--> (бамп
     маркера меняет href — политика design §3 при зафиксированном
-    отклонении от буквы spec «?v=»); терракотовый акцент #a8432c.
+    отклонении от буквы spec «?v=»); янтарный акцент #f0b45c «Пульта»
+    (redesign-console, impact.md п.8).
     /login — отдельный тест (BUG-010: login.html вне base.html)."""
     page = logged_in_page
     hrefs = {}
@@ -164,7 +173,7 @@ def test_favicon_data_uri_decodable_with_cache_marker(logged_in_page, web_base_u
 
     # Маркер внутри URI и валидность href как атрибута (без сырого #).
     first = hrefs["/board"]
-    assert "cache:v=1" in first, "кеш-маркер отсутствует в data-URI"
+    assert "cache:v=2" in first, "кеш-маркер отсутствует в data-URI"
     assert "%23" in first and '"' not in first.replace("%23", ""), "href невалиден"
 
     # Декодируемость: рендер SVG в изолированном документе (naturalWidth>0).
@@ -182,8 +191,8 @@ def test_favicon_data_uri_decodable_with_cache_marker(logged_in_page, web_base_u
     )
     assert ok, "favicon data-URI не рендерится (naturalWidth=0)"
 
-    # Стиль V3: терракотовый акцент clay в SVG.
-    assert "%23a8432c" in first, "терракотовый акцент #a8432c отсутствует"
+    # Стиль «Пульта»: янтарный акцент в SVG (impact.md п.8).
+    assert "%23f0b45c" in first, "янтарный акцент #f0b45c отсутствует"
 
     # Один и тот же URI на всех страницах (base-механизм head).
     assert len(set(hrefs.values())) == 1, set(map(len, hrefs.values()))

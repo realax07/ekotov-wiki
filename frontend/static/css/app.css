@@ -97,6 +97,14 @@
   --speed-fast: 140ms;
   --speed-modal: 200ms;
 
+  /* --- аддитивно (2.1, design §D1 + токен-дисциплина: декоративные rgba
+   * вынесены в :root, новых цветов вне токенов нет) --- */
+  --accent-cyan: var(--p-cyan-300);            /* второй акцент: актив/фокус */
+  --cyan-border: rgba(79,216,235,.45);         /* рамка активного пункта навигации */
+  --led-glow-teal: 0 0 6px rgba(87,196,176,.7);  /* бренд, выполнено, readout */
+  --led-glow-amber: 0 0 8px rgba(240,180,92,.9); /* в работе (blink), фастлайн */
+  --led-glow-cyan: 0 0 6px rgba(79,216,235,.8);  /* LED активного пункта */
+
   /* --- deprecated V3-алиасы («Бумага») — НЕ УДАЛЯТЬ ДО ЗАДАЧИ 2.7 ---
    * deprecated, удалить в 2.7 (design §D1): board.css/wiki.css/gallery.css
    * мигрируют только в волнах 2.2/2.3/2.5 — без алиасов промежуточные сборки
@@ -120,166 +128,198 @@
 
 * { box-sizing: border-box; }
 
+/* ======================================================================
+   2.1 redesign-console: каркас «Пульт» (мокап design/redesign-pro/
+   board-console.html). Grid-раскладка 232px + 1fr; сайдбар — панель bg1;
+   глобально: cyan-фокус-ринг (focus-visible), cyan-selection,
+   prefers-reduced-motion, skip-link, фоновая микро-сетка.
+   ====================================================================== */
+
+/* Фон страницы: микро-сетка 32px (кратна 8px-сетке) поверх bg-000. */
 body.app-shell {
   margin: 0;
   font-family: var(--font-family);
   font-size: var(--font-size-body);
+  line-height: var(--lh-body);
   color: var(--color-text-primary);
-  background: var(--color-bg-page);
-  display: flex;
-  /* BUG-011 (регресс 9b1e4f1): height:100vh на body рвал документный скролл —
-     окно не прокручивалось вовсе (window.scrollTo не работал). Мокап
-     (design/gallery-grid.html) — body без фиксированной высоты, документный
-     скролл; прилипание сайдбара держится на .sidebar sticky (ниже). */
+  background:
+    linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 100% 32px,
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 32px 100%,
+    var(--color-bg-page);
+  /* Grid-раскладка «Пульта» (мокап .layout): сайдбар 232px + контент 1fr.
+     Реализована на body.app-shell без новой обертки: DOM-хуки каркаса
+     (.sidebar, .content) не переезжают (ОГР-28); мобильная шапка/оверлей
+     вне потока (display:none / position:fixed) и ячеек не занимают. */
+  display: grid;
+  grid-template-columns: 232px 1fr;
   min-height: 100vh;
 }
 
-/* --- Сайдбар (V3: глубокий «чернильный», активный раздел — терракота) --- */
+a { color: inherit; }
 
+/* Глобальный клавиатурный фокус: двойное cyan-кольцо (design §D7). */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 4px;
+}
+
+/* Выделение текста — cyan (design §D7). */
+::selection {
+  background: var(--p-cyan-300);
+  color: var(--p-bg-000);
+}
+
+/* NFR-43: сокращенное движение отключает всю анимацию/переходы фронта. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* --- Skip-link (NFR-44; мокап .skip): вне фокуса за экраном, при фокусе —
+   панель bg1 в левом верхнем углу над контентом. --- */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  left: var(--space-1);
+  top: var(--space-1);
+}
+
+/* --- Сайдбар «Пульта»: панель bg1, правая граница, бренд с LED. --- */
 .sidebar {
-  width: 200px;
-  flex-shrink: 0;
-  background: var(--p-ink-900);
-  color: var(--p-paper-050);
+  background: var(--p-bg-100);
+  border-right: 1px solid var(--p-border);
+  padding: var(--space-3) 12px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: var(--space-2) 0;
-  /* Микрофикс (Заказчик, 2026-10-06): на галерее длинная сетка растягивала
-     документ, и footer сайдбара («Настройки»/«Выйти») уезжал за нижний край
-     экрана. Сайдбар прижат к viewport: высота = экран, при переполнении —
-     собственный скролл; footer виден всегда. */
+  /* BUG-011 (преемственность): высота = экран, при переполнении — свой
+     скролл; footer («Настройки»/«Выйти»/профиль) виден всегда. */
   height: 100vh;
   position: sticky;
   top: 0;
   overflow-y: auto;
 }
 
-.sidebar-nav { display: flex; flex-direction: column; }
+/* Бренд (мокап .brand): teal-LED со свечением + имя + mono-подзаголовок. */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px var(--space-2);
+  border-bottom: 1px solid var(--p-border);
+  margin-bottom: 12px;
+}
 
+.brand-led {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--p-teal-400);
+  box-shadow: var(--led-glow-teal);
+}
+
+.brand-text { display: flex; flex-direction: column; min-width: 0; }
+
+.brand-name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--p-text-900);
+}
+
+/* Микро-лейбл капсом: mono + --tracking-micro (design §D2 п.5). */
+.brand-sub {
+  font-family: var(--font-family-data);
+  font-size: var(--font-size-micro);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--p-text-500);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Пункт навигации: иконка 16px + подпись t600; hover — bg2 + t900. */
 .nav-item {
-  /* N-3 review-004-design: flex+gap 8px — единый ритм иконка+текст по всем
-   * пунктам (эталон: Мониторинг/Галерея; было display:block — у Доски/Поиска/
-   * Wiki иконка вплотную к тексту). */
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: 10px 20px;
-  color: var(--p-paper-050);
+  gap: 12px;
+  padding: 9px 12px;
+  min-height: 40px;
+  font-size: var(--font-size-body);
   text-decoration: none;
-  opacity: 0.85;
+  color: var(--p-text-600);
+  border: 1px solid transparent;
+  border-radius: var(--radius-field);
+  transition: background var(--speed-fast), color var(--speed-fast);
 }
 
-.nav-item:hover { background: rgba(255, 253, 249, 0.08); opacity: 1; }
-
-.nav-item.active {
-  background: var(--color-accent);
-  opacity: 1;
-  font-weight: bold;
+.nav-item:hover {
+  background: var(--p-bg-200);
+  color: var(--p-text-900);
 }
 
-.nav-item:focus-visible {
-  outline: none;
-  box-shadow: inset var(--focus-ring);
-}
-
-/* 2.1 add-ui-polish-r8 (FR-96): геометрия пункта «Настройки» ЗАФИКСИРОВАНА —
- * текст не смещается при нажатии/фокусе. Причина дефекта (воспроизведено на
- * стенде): .sidebar-footer .nav-item-settings обнулял горизонтальный паддинг
- * (settings.css), а включающийся при активации .active (font-weight: bold)
- * расширял текст — левый край текста прыгал с x=40 на x=20 («уезжает влево»).
- * Фикс: ссылке возвращен симметричный паддинг (геометрия как у остальных
- * nav-пунктов) + зарезервированная ширина жирного начертания через
- * text-shadow-независимый прием — явное min-width невозможен (тексты разной
- * длины), поэтому: (1) паддинг всегда одинаковый; (2) transform и любые
- * геометрические сдвиги в active/focus запрещены явно; (3) ширина текста
- * при bold резервируется инлайн-block + сглаживание (font-synthesis не
- * трогаем — системный шрифт). Смещение устранено: left-край текста
- * стабилен во всех состояниях (проверено замером на стенде). */
-.sidebar-footer .nav-item-settings {
-  padding-left: 20px;
-  padding-right: 20px;
-  transform: none;
-}
-
-.sidebar-footer .nav-item-settings:active { transform: none; }
-
-.sidebar-footer .nav-item-settings:focus-visible {
-  outline: none;
-  box-shadow: inset var(--focus-ring);
-  transform: none;
-}
-
-/* 1.5 add-gallery-service (FR-85; мокап design/gallery-grid.html): пункт
- * «Галерея» — с inline-SVG иконкой 16px; flex-ряд с зазором 8px
- * (--space-1), геометрия/цвета прежних .nav-item не меняются
- * (соседние пункты без иконки выглядят как прежде — flex сам по себе
- * не меняет блок из одного текста). */
-.nav-item-gallery {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.nav-item-gallery .nav-icon {
+.nav-item .nav-icon {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
+  color: var(--p-text-500);
 }
 
-.todo-badge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  font-size: var(--font-size-micro);
-  font-weight: normal;
-  background: var(--p-amber-700);
-  color: #fff;
-  border-radius: 999px;
-  vertical-align: middle;
-}
-/* Бейдж «todo» Wiki снят (решение Заказчика 2026-10-11, задача 4.5 add-wiki —
-   раздел в проде). Класс оставлен: больше не используется ни одним шаблоном;
-   удаляется в чистке 6.1, пока не мешает. */
-
-.sidebar-footer { padding: 0 20px; }
-
-.logout-button {
-  width: 100%;
-  padding: 8px;
-  background: transparent;
-  color: var(--p-paper-050);
-  border: 1px solid var(--p-ink-600);
-  border-radius: var(--radius-field);
-  cursor: pointer;
-  font: inherit;
+/* Активный раздел (design §D2): aria-current="page" (класс .active сохранен) —
+   фон bg2, текст t900, cyan-рамка 45%, иконка cyan, cyan-LED справа. */
+.nav-item[aria-current="page"],
+.nav-item.active {
+  background: var(--p-bg-200);
+  color: var(--p-text-900);
+  border-color: var(--cyan-border);
+  font-weight: 600;
 }
 
-.logout-button:hover { background: rgba(255, 253, 249, 0.08); }
+.nav-item[aria-current="page"] .nav-icon,
+.nav-item.active .nav-icon { color: var(--accent-cyan); }
 
-.logout-button:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+.nav-item[aria-current="page"]::after,
+.nav-item.active::after {
+  content: "";
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: var(--led-glow-cyan);
 }
 
-/* --- Пункт «Мониторинг» (1.4 add-netdata-monitoring, FR-78; строго по
-   утвержденному мокапу 1.1а design/netdata-sidebar-mockup.html): в
-   sidebar-footer перед «Настройки», иконка-пульс 16px inline-SVG
-   (stroke="currentColor" → окраска токенами). Состояния — те же, что у
-   nav-item (hover — светлая вуаль на ink-900, focus-visible — inset
-   focus-ring, active — акцентная заливка), только токены V3. Создается
-   из profile.js при роли «Product manager»; без пункта стили молчат. */
+/* Пункт «Мониторинг» (owner, рисуется profile.js) — тот же паттерн. */
 .nav-item-monitoring {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  color: var(--p-paper-050);
+  gap: 12px;
+  color: var(--p-text-600);
 }
 
 .nav-item-monitoring .nav-icon {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
+  color: var(--p-text-500);
 }
 
 .nav-item-monitoring .nav-label {
@@ -289,35 +329,65 @@ body.app-shell {
 }
 
 .nav-item-monitoring:hover {
-  background: rgba(255, 253, 249, 0.08);
-  opacity: 1;
+  background: var(--p-bg-200);
+  color: var(--p-text-900);
 }
 
-.nav-item-monitoring:focus-visible {
-  outline: none;
-  box-shadow: inset var(--focus-ring);
+/* Нажатие (mouse-down) — следующая ступень фона (преемственность P12:
+   у пункта есть видимая press-реакция). */
+.nav-item-monitoring:active { background: var(--p-bg-300); }
+
+.nav-item-monitoring.active,
+.nav-item-monitoring[aria-current="page"] {
+  background: var(--p-bg-200);
+  color: var(--p-text-900);
+  border-color: var(--cyan-border);
 }
 
-.nav-item-monitoring:active {
-  background: var(--color-accent);
-  opacity: 1;
+/* Футер сайдбара: Настройки + Выйти + блок профиля. */
+.sidebar-footer {
+  margin-top: auto;
+  padding: var(--space-2) 12px 0;
+  border-top: 1px solid var(--p-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
-/* --- Блок профиля (1.2, FR-33, Д-7): кружок с первой буквой логина +
-   подпись (Д-10: display_name, если задан, иначе логин целиком); внизу
-   сайдбара, существующие разделы не вытесняет. Цвет кружка — акцентный
-   токен V3 (--color-accent). Аватар (img.profile-avatar) отображается
-   вместо кружка при наличии (FR-42, задача 3.1). Блок кликабелен:
-   клик открывает /settings/profile (FR-39, ОГР-15/ОГР-20) — курсор
-   pointer + focus-visible. */
+.sidebar-footer .nav-item-settings {
+  padding-left: 12px;
+  padding-right: 12px;
+  transform: none;
+}
+
+.sidebar-footer .nav-item-settings:active { transform: none; }
+
+.logout-button {
+  width: 100%;
+  min-height: 36px;
+  padding: var(--space-1);
+  background: transparent;
+  color: var(--p-text-600);
+  border: 1px solid var(--p-border);
+  border-radius: var(--radius-field);
+  cursor: pointer;
+  font: inherit;
+  transition: background var(--speed-fast), color var(--speed-fast);
+}
+
+.logout-button:hover {
+  background: var(--p-bg-200);
+  color: var(--p-text-900);
+}
+
+/* Блок профиля (преемственность FR-33/Д-7): имя t900, служебные t500. */
 .sidebar-profile {
   display: none;
   align-items: center;
   gap: var(--space-1);
-  margin-top: var(--space-1);
   padding-top: var(--space-1);
-  border-top: 1px solid var(--p-ink-600);
-  color: var(--p-paper-050);
+  border-top: 1px solid var(--p-border);
+  color: var(--p-text-900);
 }
 
 .sidebar-profile.profile-filled {
@@ -327,12 +397,7 @@ body.app-shell {
 
 .sidebar-profile.profile-filled:hover .profile-badge,
 .sidebar-profile.profile-filled:hover .profile-avatar {
-  box-shadow: 0 0 0 2px var(--color-accent);
-}
-
-.sidebar-profile.profile-filled:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 0 0 2px var(--accent-cyan);
 }
 
 .profile-avatar {
@@ -361,14 +426,11 @@ body.app-shell {
 
 .profile-name {
   font-size: var(--font-size-label);
+  color: var(--p-text-900);
   overflow-wrap: anywhere;
 }
 
-/* --- Единый tooltip (3.2, FR-43, ОГР-17; design §5): один экземпляр
-   на документ, position: fixed (позиционирование JS-ом у нижнего левого
-   края target, кламп в вьюпорт, вверх при нехватке места снизу).
-   pointer-events: none — всплывашка не перехватывает клик по target
-   (клик по профилю открывает настройки при видимом tooltip). Токены V3. */
+/* --- Единый tooltip (преемственность FR-43/ОГР-17) — на токенах «Пульта». --- */
 .app-tooltip {
   position: fixed;
   z-index: 20;
@@ -386,20 +448,8 @@ body.app-shell {
   transition: opacity var(--speed-fast) ease;
 }
 
-.app-tooltip.tooltip-visible {
-  opacity: 1;
-}
+.app-tooltip.tooltip-visible { opacity: 1; }
 
-/* TC-vis-105 / ОГР-17: при уменьшении движения всплывашка появляется
- * и исчезает мгновенно (без transition), содержание не изменяется. */
-@media (prefers-reduced-motion: reduce) {
-  .app-tooltip {
-    transition: none !important;
-  }
-}
-
-/* Состав tooltip профиля (ОВ-25): аватар, имя (Д-10), логин, роль, bio.
- * bio — необязательная строка (пустое bio — блок не показывается). */
 .app-tooltip .tooltip-profile {
   display: flex;
   flex-direction: column;
@@ -438,13 +488,10 @@ body.app-shell {
   overflow-wrap: anywhere;
 }
 
-.app-tooltip .tooltip-profile-login {
-  color: var(--color-text-secondary);
-  overflow-wrap: anywhere;
-}
-
+.app-tooltip .tooltip-profile-login,
 .app-tooltip .tooltip-profile-role {
   color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .app-tooltip .tooltip-profile-bio {
@@ -453,263 +500,135 @@ body.app-shell {
   overflow-wrap: anywhere;
 }
 
+/* --- Контент: колонка 1fr grid-каркаса. --- */
 .content {
-  flex: 1;
-  padding: var(--space-3);
+  padding: 0 var(--space-4) var(--space-6);
   min-width: 0;
-  /* BUG-011: height:100vh + overflow-y:auto на .content (9b1e4f1) убраны —
-     они глушили документный скролл. Длинный контент снова растягивает
-     документ; footer сайдбара держится в viewport только sticky .sidebar. */
 }
 
-/* 2.1 add-ui-polish-r8 (FR-93): ЕДИНЫЙ класс кнопки действия — токены V3,
- * отступы 8px-сетки (--space-1/--space-3), focus-ring; первичный
- * (терракотовый) вариант. Применение без правки шаблонов (зона волны —
- * только CSS/JS): существующие кнопки действий подключаются селекторами
- * в своих css-файлах (search.css — «Найти»). Класс доступен разметке
- * новых кнопок напрямую. */
-.btn-action {
-  font: inherit;
-  cursor: pointer;
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: var(--color-accent);
-  color: var(--color-text-on-accent);
-  box-shadow: var(--shadow-soft);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-}
-
-.btn-action:hover { background: var(--color-accent-hover); }
-
-.btn-action:active { background: var(--color-accent-hover); }
-
-.btn-action:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-/* Заголовки страниц — серифные (V3). */
+/* Заголовки страниц — sans «Пульта» (pagehead-паттерн мокапа). */
 .content h1 {
-  font-family: var(--font-family-display);
-  font-weight: 400;
-  font-size: 26px;
+  font-family: var(--font-family);
+  font-size: var(--font-size-h1);
+  font-weight: 650;
+  letter-spacing: -.01em;
   margin: 0 0 var(--space-2);
 }
 
 .content h2 {
-  font-family: var(--font-family-display);
+  font-family: var(--font-family);
   font-weight: 600;
 }
 
-.todo-note {
-  display: inline-block;
-  padding: 2px 8px;
-  background: var(--p-amber-700);
-  color: #fff;
-  border-radius: 4px;
-  font-weight: bold;
+/* --- Единая кнопка действия (amber, мокап .btn): сигнальный янтарь. --- */
+.btn-action {
+  font: inherit;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 36px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-field);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  transition: background var(--speed-fast), box-shadow var(--speed-fast);
 }
 
-/* ======================================================================
-   1.1 add-responsive-mobile (FR-99/FR-100; design §1–§2): брейкпоинт-каркас.
-   Магические числа 480/768 — вся брейкпоинт-система пакета (design §1):
-   ≤480px — телефон portrait (первичный мобильный макет), 481–768px —
-   утилитарная ветка (drawer уже активен), >768px — desktop без изменений.
-   Мокапы design/mobile-p14/01/02 — утверждены (decision
-   2026-10-08-p14-mockups-approve). Правило пакета: правки только внутри
-   @media-веток; desktop-вид (≥1024px) — без изменений (NFR-29).
-   ====================================================================== */
+.btn-action:hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+  box-shadow: 0 0 16px -4px rgba(240,180,92,.5);
+}
 
-/* Desktop (>768px): мобильные элементы разметки спрятаны (в desktop-виде их
-   нет). Правило стоит ДО @media-веток — мобильный display внутри media
-   перевешивает его на ≤768px (каскад: поздний + в media). */
+.btn-action:active { background: var(--color-accent-hover); }
+
+/* Техно-заметки (todo): amber-токены на dark. */
+.todo-badge,
+.todo-note {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: var(--font-size-micro);
+  font-weight: normal;
+  background: var(--p-amber-900);
+  color: var(--p-amber-400);
+  border-radius: 4px;
+}
+
+.todo-badge { border-radius: 999px; vertical-align: middle; }
+.todo-note { padding: 2px 8px; font-weight: bold; }
+
+/* --- Мобильная разметка прежнего каркаса (mobile-header/burger/backdrop):
+   DOM и JS-хуки сохранены (ОГР-28: #burger-button, aria-expanded, класс
+   sidebar-open, .sidebar-backdrop — app.js работает), но по утвержденному
+   мокапу мобильной раскладки сайдбар ≤860px переезжает наверх ВИДИМЫМ
+   (горизонтальная nav-строка) — drawer не предусмотрен, элементы скрыты. */
 .mobile-header,
 .sidebar-backdrop,
 .burger {
   display: none;
 }
 
-/* --- ≤768px: сцена на всю ширину, сайдбар → off-canvas drawer (FR-99) ---
-   DOM без дублирования: .sidebar остается единственным источником навигации,
-   CSS переводит его в фиксированную панель; переход по классу sidebar-open
-   на <body> (ставит/снимает app.js). Подложка .sidebar-backdrop display-ом
-   управляется тем же классом (design §2). Токены V3 дословно; ширина и
-   z-порядок (оверлей 300 / панель 310) — по утвержденному мокапу 02. */
-@media (max-width: 768px) {
-  /* Сцена — колонкой: шапка сверху на всю ширину, контент под ней
-     (сайдбар fixed — вне потока, flex-row десктопа на мобиле не нужен). */
-  body.app-shell {
-    flex-direction: column;
-  }
+/* BUG-013 (преемственность): открытая модалка тикета — без скролла страницы
+   (класс ставит board/modal-shell.js). */
+body.modal-shell-open { overflow: hidden; }
 
-  /* Шапка с бургером и заголовком раздела (мокап 01, FR-100):
-     ink-900, safe-area сверху (NFR-25). */
-  .mobile-header {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    width: 100%;
-    background: var(--p-ink-900);
-    color: var(--p-paper-050);
-    padding: calc(6px + env(safe-area-inset-top, 0px)) 8px 6px;
-    min-height: calc(52px + env(safe-area-inset-top, 0px));
-    position: sticky;
-    top: 0;
-    /* BUG-017 (Заказчик, приемка 5.2): при скролле галереи карточки
-       (.g-card:hover/:active — transform = stacking context) рисовались
-       ПОВЕРХ sticky-шапки (z-index auto). Базовый z 10 — выше контента,
-       ниже drawer-стека (300/310/320); lightbox (z 10, позже в DOM)
-       остается выше шапки — fullscreen-просмотр накрывает ее. */
-    z-index: 10;
-    /* 1.2 (minor-1 review-001-1.1): при открытом drawer (z 310) панель
-       физически накрывала бургер — pointer-тап по нему не работал.
-       Мокап 02 крестика внутри drawer не содержит (дозаполнение
-       утвержденного мокапа — по мокапу закрытие бургером), поэтому
-       при открытом drawer шапка поднимается НАД панелью: тап по
-       бургеру закрывает drawer. Обратная сторона: шапка без компенсации
-       накрыла бы верх панели (первый пункт) — открытому drawer'у
-       задается padding-top по высоте шапки (ниже). */
-  }
-  body.sidebar-open .mobile-header {
-    z-index: 320;
-  }
+/* ======================================================================
+   2.1/2.7 redesign-console (FR-131; мокап @media (max-width:860px)):
+   сайдбар наверх одной колонкой, nav — горизонтальная строка с переносом,
+   LED активного пункта скрыт, содержимое — отступы 16px, hit-targets ≥44px.
+   Брейкпоинты зон доски/фастлайна (480/768, board.css) не трогаются —
+   контракт p23 (ряд колонок на 481–768px) сохраняется.
+   ====================================================================== */
+@media (max-width: 860px) {
+  body.app-shell { grid-template-columns: 1fr; }
 
-  /* Бургер: тач-таргет ≥44×44 — NFR-23; виден только в мобильной ветке. */
-  .burger {
-    width: 44px;
-    height: 44px;
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    border-radius: var(--radius-field);
-    color: var(--p-paper-050);
-    cursor: pointer;
-  }
-
-  /* Заголовок раздела в шапке (1.2, FR-100; мокап 01 .header-title):
-     display-шрифт 17px, по центру (бургер и spacer балансируют),
-     длинные названия — в одну строку с многоточием. */
-  .header-title {
-    font-family: var(--font-family-display);
-    font-size: 17px;
-    font-weight: normal;
-    margin: 0;
-    flex: 1;
-    text-align: center;
-    line-height: 1.2;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* Балансировка бургера (мокап 01) — заголовок по центру шапки. */
-  .header-spacer {
-    width: 44px;
-    flex-shrink: 0;
-  }
-
-  /* Сцена на всю ширину: сайдбар выведен из потока — flex-margin'ов нет. */
-  .content {
-    padding: var(--space-2);
-    /* NFR-25: боковые/нижняя safe-area для контента. */
-    padding-left: calc(var(--space-2) + env(safe-area-inset-left, 0px));
-    padding-right: calc(var(--space-2) + env(safe-area-inset-right, 0px));
-    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
-  }
-
-  /* Подложка-оверлей (мокап 02: rgba(ink-900, .45)); по умолчанию скрыта. */
-  .sidebar-backdrop {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 300;
-    background: rgba(61, 54, 48, 0.45);
-    border: none;
-    padding: 0;
-  }
-
-  /* Сайдбар → off-canvas панель drawer (мокап 02: width min(78vw, 300px)). */
   .sidebar {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 310;
-    width: min(78vw, 300px);
+    position: static;
     height: auto;
-    transform: translateX(-100%);
-    transition: transform var(--speed-modal) ease-out;
-    /* safe-area в самом drawer (NFR-25), как в мокапе 02. */
-    padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0px));
-    padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+    border-right: none;
+    border-bottom: 1px solid var(--p-border);
+    padding: 12px;
+    overflow-y: visible;
   }
 
-  /* Открытый drawer — по классу на <body> (design §2). */
-  body.sidebar-open .sidebar {
-    transform: none;
-    box-shadow: var(--shadow-modal);
-    /* 1.2 (z-фикс minor-1): шапка при открытом drawer поднимается НАД
-       панелью (z 320 > 310, тап по бургеру закрывает) — первый пункт
-       без компенсации остался бы под шапкой. Панель с safe-area-top
-       (52px шапки + env) в пост-заголовочной системе координат:
-       пункты стартуют сразу под шапкой. */
-    padding-top: calc(52px + env(safe-area-inset-top, 0px) + var(--space-2));
+  .brand {
+    border-bottom: none;
+    padding: 0 0 var(--space-1);
+    margin-bottom: var(--space-1);
   }
 
-  /* Подложка видима только при открытом drawer. */
-  body.sidebar-open .sidebar-backdrop { display: block; }
+  .sidebar-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
 
-  /* Пункты drawer: тач-таргет ≥44×44 — NFR-23 (в обеих мобильных ветках,
-     481–768px тоже — drawer активен на всем диапазоне ≤768px). */
   .nav-item {
-    min-height: 44px;
+    padding: var(--space-1) 10px;
+    min-height: 44px; /* NFR-23/FR-131: тач-таргет */
   }
 
-  .nav-item-monitoring {
-    min-height: 44px;
+  /* LED активного пункта на мобильной строке скрыт (мокап). */
+  .nav-item[aria-current="page"]::after,
+  .nav-item.active::after { display: none; }
+
+  .sidebar-footer {
+    margin-top: var(--space-1);
+    padding-top: var(--space-1);
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
   }
 
-  .logout-button {
-    min-height: 44px;
-  }
+  .sidebar-footer .nav-item-settings { min-height: 44px; }
+  .logout-button { width: auto; min-height: 44px; }
+  .sidebar-profile.profile-filled { min-height: 44px; }
 
-  /* ОГР-17: без анимации при уменьшении движения. */
-  @media (prefers-reduced-motion: reduce) {
-    .sidebar {
-      transition: none;
-    }
-  }
-}
-
-/* --- ≤480px: телефон portrait — хвосты первичного мобильного макета --- */
-@media (max-width: 480px) {
-  /* safe-area уже задана calc()-ом выше (NFR-25); здесь — подтверждение
-     тач-таргетов пунктов ≥44px (NFR-23) на минимальной ширине. */
-  .nav-item {
-    min-height: 44px;
-  }
-
-  .nav-item-monitoring {
-    min-height: 44px;
-  }
-
-  .logout-button {
-    min-height: 44px;
-  }
-
-  /* 2.2 add-responsive-mobile (design §4): открытая модалка тикета —
-     подложка-страница без скролла (double-скролл модалка+страница снят);
-     класс ставит/снимает board/modal-shell.js, позицию скролла он же
-     восстанавливает при закрытии (возврат на доску в прежнюю позицию). */
-  body.modal-shell-open {
-    overflow: hidden;
-  }
+  .content { padding: 0 var(--space-2) 40px; }
 }
