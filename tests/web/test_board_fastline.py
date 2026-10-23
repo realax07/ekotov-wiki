@@ -89,7 +89,7 @@ def test_fastline_zone_empty_no_hints(board_page):
           return { bg: cs.backgroundColor, border: cs.borderTopStyle };
         }"""
     )
-    assert styles["bg"] == "rgb(238, 242, 246)", styles  # --p-blue-050
+    assert styles["bg"] == "rgb(58, 44, 18)", styles  # --p-amber-900 («Пульт»)
     assert styles["border"] == "solid", styles
 
     expect(zone.get_by_role("heading", name="FASTLINE")).to_be_visible()

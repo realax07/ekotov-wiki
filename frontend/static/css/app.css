@@ -104,6 +104,8 @@
   --led-glow-teal: 0 0 6px rgba(87,196,176,.7);  /* бренд, выполнено, readout */
   --led-glow-amber: 0 0 8px rgba(240,180,92,.9); /* в работе (blink), фастлайн */
   --led-glow-cyan: 0 0 6px rgba(79,216,235,.8);  /* LED активного пункта */
+  --overlay: rgba(14,22,33,.6);                /* подложка модалок (bg-000) */
+  --fastline-track: rgba(240,180,92,.16);      /* фон трека отсчета фастлайна */
 
   /* --- deprecated V3-алиасы («Бумага») — НЕ УДАЛЯТЬ ДО ЗАДАЧИ 2.7 ---
    * deprecated, удалить в 2.7 (design §D1): board.css/wiki.css/gallery.css
@@ -156,6 +158,31 @@ body.app-shell {
 }
 
 a { color: inherit; }
+
+/* HUD-уголки (design §D1 п.1; мокап .hud): 8 градиентных отрезков 12×1px /
+   1×12px по углам панели; цвет --hc (по умолчанию border-2, на сигнальных
+   панелях — янтарь: .fastline.hud::after в board.css). Общий паттерн
+   каркаса — применяется панелями волн 2.2+ (фастлайн, колонки, спойлер,
+   login/settings). */
+.hud { position: relative; }
+
+.hud::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  --hc: var(--p-border-2);
+  background:
+    linear-gradient(var(--hc) 0 0) no-repeat 0 0/12px 1px,
+    linear-gradient(var(--hc) 0 0) no-repeat 0 0/1px 12px,
+    linear-gradient(var(--hc) 0 0) no-repeat 100% 0/12px 1px,
+    linear-gradient(var(--hc) 0 0) no-repeat 100% 0/1px 12px,
+    linear-gradient(var(--hc) 0 0) no-repeat 0 100%/12px 1px,
+    linear-gradient(var(--hc) 0 0) no-repeat 0 100%/1px 12px,
+    linear-gradient(var(--hc) 0 0) no-repeat 100% 100%/12px 1px,
+    linear-gradient(var(--hc) 0 0) no-repeat 100% 100%/1px 12px;
+}
 
 /* Глобальный клавиатурный фокус: двойное cyan-кольцо (design §D7). */
 :focus-visible {

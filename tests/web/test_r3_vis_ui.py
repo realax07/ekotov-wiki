@@ -48,9 +48,11 @@ def _computed(page, selector: str, prop: str, pseudo: str | None = None) -> str:
 # TC-vis-101 — «hover-переход карточки (обязательный минимум)» (Must)
 # --------------------------------------------------------------------------
 def test_card_hover_transition_and_accent_title(board_page, web_cleanup_created):
-    """TC-vis-101: #board несет preset-v; transition ненулевой; hover →
-    transform ≠ none (подъем −4px / масштаб 1.01) и box-shadow ≠ none;
-    цвет заголовка меняется на терракотовый (--p-clay-700)."""
+    """TC-vis-101 («Пульт», impact.md п.7): #board несет preset-v;
+    transition ненулевой; hover → рамка карточки меняется на border-2
+    (--p-border-2) и фон — на bg3; заголовок — t900 (--p-text-900).
+    Семантика «hover дает видимую токенную реакцию, заголовок из токена»
+    сохранена (подъем/тень V3 в «Пульте» не используются)."""
     page = board_page
     create_task_via_ui(page, "QAT-vis-hover")
     card = _card(page, "QAT-vis-hover")
@@ -62,30 +64,37 @@ def test_card_hover_transition_and_accent_title(board_page, web_cleanup_created)
     def _card_prop(prop: str) -> str:
         return card.evaluate(f"el => getComputedStyle(el)['{prop}']")
 
-    before = {"transform": _card_prop("transform"), "boxShadow": _card_prop("boxShadow")}
+    before_border = _card_prop("borderTopColor")
+    before_bg = _card_prop("backgroundColor")
     transition = _card_prop("transitionDuration")
     assert any(part not in ("0s", "0.000000s") for part in transition.split(", ")), transition
 
     card.hover()
-    page.wait_for_timeout(300)  # отыгрыш transition (160ms токен)
+    page.wait_for_timeout(300)  # отыгрыш transition (140ms токен)
 
-    after_transform = _card_prop("transform")
-    after_shadow = _card_prop("boxShadow")
-    assert after_transform != "none", after_transform
-    assert after_transform != before["transform"]
-    assert after_shadow not in ("none", ""), after_shadow
+    after_border = _card_prop("borderTopColor")
+    after_bg = _card_prop("backgroundColor")
+    assert after_border != before_border, (before_border, after_border)
+    assert after_bg != before_bg, (before_bg, after_bg)
+
+    def _rgb(token: str) -> str:
+        h = token.lstrip("#")
+        return f"rgb({int(h[0:2], 16)}, {int(h[2:4], 16)}, {int(h[4:6], 16)})"
+
+    border2 = page.evaluate(
+        "getComputedStyle(document.documentElement).getPropertyValue('--p-border-2').trim()"
+    )
+    assert border2, "токен --p-border-2 пуст"
+    assert _rgb(border2) == after_border, (border2, after_border)
 
     title_color = card.evaluate(
         "el => getComputedStyle(el.querySelector('.task-card-title')).color"
     )
-    clay = page.evaluate(
-        "getComputedStyle(document.documentElement).getPropertyValue('--p-clay-700').trim()"
+    t900 = page.evaluate(
+        "getComputedStyle(document.documentElement).getPropertyValue('--p-text-900').trim()"
     )
-    assert clay, "токен --p-clay-700 пуст"
-    # Сверка по значению цвета: computed отдаёт rgb(), токен — hex (#rrggbb).
-    hex = clay.lstrip("#")
-    clay_rgb = f"rgb({int(hex[0:2], 16)}, {int(hex[2:4], 16)}, {int(hex[4:6], 16)})"
-    assert clay_rgb == title_color, (clay, clay_rgb, title_color)
+    assert t900, "токен --p-text-900 пуст"
+    assert _rgb(t900) == title_color, (t900, title_color)
 
 
 # --------------------------------------------------------------------------
