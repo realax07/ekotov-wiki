@@ -12,17 +12,17 @@
      в @media-ветках app.css имеют смысл только с ним. #}
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}ekotov-wiki{% endblock %}</title>
-  {# 2.4 add-ui-polish-r8 (FR-95; design/polish-favicon.svg, design.md §3):
-     favicon — inline SVG data-URI (ОГР-8: без внешних файлов). Мотив —
-     «страница вики»: терракотовый лист (clay #a8432c) с загнутым уголом
-     и двумя бумажными строками на бумажном фоне (#faf7f2) — стиль V3
-     «Бумага», читается в 16px, без текста. Кеш-политика: браузеры кешируют
-     favicon агрессивно — при ЛЮБОМ изменении иконки менять маркер `?v=`
+  {# 1.2 redesign-console (FR-128; design §D4): favicon перекрашен в палитру
+     «Пульта» — фон #0e1621 (bg-000), документ #f0b45c (amber-400), детали
+     #172335 (bg-100). Мотив прежний («страница вики»: лист с загнутым углом
+     и двумя строками), читается в 16px, без текста, inline SVG data-URI
+     (ОГР-8: без внешних файлов). Кеш-политика: браузеры кешируют favicon
+     агрессивно — при ЛЮБОМ изменении иконки менять маркер `?v=`
      (при релизе — бамп вместе со static_v); маркер зашит ВНУТРЬ SVG
-     комментарием `<!--cache:v=1-->`: data:URI — непарсимый URL, хвост
+     комментарием `<!--cache:v=2-->`: data:URI — непарсимый URL, хвост
      «?v=1» после </svg> ломает XML (проверено в Chromium: naturalWidth=0),
      а комментарий внутри SVG декодируется и дает новый URL при бампе. #}
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><!--cache:v=1--><rect x='1' y='1' width='30' height='30' rx='7' fill='%23faf7f2'/><path d='M11 6h8l5 5v14a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z' fill='%23a8432c'/><path d='M19 6l5 5h-5z' fill='%23f7e8e4'/><rect x='12' y='15' width='9' height='2' rx='1' fill='%23faf7f2'/><rect x='12' y='19' width='6' height='2' rx='1' fill='%23faf7f2'/></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><!--cache:v=2--><rect x='1' y='1' width='30' height='30' rx='7' fill='%230e1621'/><path d='M11 6h8l5 5v14a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z' fill='%23f0b45c'/><path d='M19 6l5 5h-5z' fill='%23172335'/><rect x='12' y='15' width='9' height='2' rx='1' fill='%23172335'/><rect x='12' y='19' width='6' height='2' rx='1' fill='%23172335'/></svg>">
   <link rel="stylesheet" href="/static/css/app.css?v={{ static_v }}">
   <link rel="stylesheet" href="/static/css/board.css?v={{ static_v }}">
 </head>
