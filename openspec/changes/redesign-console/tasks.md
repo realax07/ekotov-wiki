@@ -18,7 +18,7 @@ DOM-хуки сохранять (ОГР-28); токен-дисциплина (he
 
 ## ЭТАП 1. [design] Фиксация токенов
 
-- [ ] 1.1 [design] [S] Фиксация токенов «Пульт» как прод-источника: перенести
+- [x] 1.1 [design] [S] Фиксация токенов «Пульт» как прод-источника: перенести
   блок `:root` из `design/redesign-pro/tokens-console.html` (дословно, без
   правки значений) в `frontend/static/css/app.css` (замена V3-блока);
   `color-scheme: dark`; семантические имена сохранены (design §D1).
@@ -31,14 +31,14 @@ DOM-хуки сохранять (ОГР-28); токен-дисциплина (he
   `frontend/static/css/app.css` на V3-примитивы = 0 вхождений ВНЕ блока
   deprecated-алиасов (full-tree grep — гейт 2.7, design §D1).
   (FR-128, FR-129, FR-130)
-- [ ] 1.2 [design] [S] Эскиз favicon «Пульта» (перекраска существующего
+- [x] 1.2 [design] [S] Эскиз favicon «Пульта» (перекраска существующего
   inline-SVG data-URI в base.html: bg #0e1621, документ #f0b45c, детали
   #172335; бамп cache-маркера `?v=` внутри data-URI — design §D4).
   Проверка: favicon отрисовывается, маркер изменен. (FR-128; design §D4)
 
 ## ЭТАП 2. [dev] Волны по экранам (static_v бамп в волне 2.1; после 1.1)
 
-- [ ] 2.1 [M] Dev: волна каркаса — base.html + app.css: grid-раскладка 232px+1fr,
+- [x] 2.1 [M] Dev: волна каркаса — base.html + app.css: grid-раскладка 232px+1fr,
   сайдбар «Пульта» (9 пунктов: 7 в основной группе + Настройки/Профиль в
   футере, LED-бренд, kbd-футер — декоративный aria-hidden, только реально
   действующие хоткеи (design §D2), aria-current cyan-паттерн), skip-link,
@@ -49,7 +49,7 @@ DOM-хуки сохранять (ОГР-28); токен-дисциплина (he
   Проверка: smoke — все разделы открываются в темной теме, таб-порядок со
   skip-link, `?v=redesign-1` во всех static-ссылках. (FR-128…FR-130,
   NFR-42…44; navigation MODIFIED/ADDED)
-- [ ] 2.2 [P] [M] Dev: волна доски + фастлайна (параллельно 2.3/2.4; зоны
+- [x] 2.2 [P] [M] Dev: волна доски + фастлайна (параллельно 2.3/2.4; зоны
   board.*) — колонки с HUD/LED/mono-счетчиками, карточки bg2/hover bg3,
   приоритет-бейджи, fast-карточка «▲», pagehead с readout, янтарная кнопка
   «Новая задача», фастлайн-панель (glow-amber, FST-лейбл, T-отсчет, трек
@@ -61,7 +61,7 @@ DOM-хуки сохранять (ОГР-28); токен-дисциплина (he
  `.board-column*`, `.fastline-column`, `.fast-row`, `#fastline`, …)
  резолвятся после правки шаблонов;
  цветовые правятся в 4.4. (FR-132; board, fastline дельты)
-- [ ] 2.3 [P] [M] Dev: волна wiki (+rich-контент) — страница статьи (breadcrumb
+- [x] 2.3 [P] [M] Dev: волна wiki (+rich-контент) — страница статьи (breadcrumb
   микро-лейбл, разделитель-трек, h2 teal-полоса, h3, спойлер cyan-glow,
   код-блок, таблица с LED-статусами), дерево с янтарной подсветкой, редактор/
   история на общих токенах. Границы: `frontend/templates/wiki.html`,
@@ -69,26 +69,26 @@ DOM-хуки сохранять (ОГР-28); токен-дисциплина (he
   декор). Проверка: test_rich_tools, p15-серия нецветовые — зеленые; все
   JS-селекторы wiki/rich-зоны (design §D2) резолвятся после правки шаблонов.
   (FR-123, FR-124; wiki дельты)
-- [ ] 2.4 [P] [S] Dev: волна login + settings/profile — панель login с
+- [x] 2.4 [P] [S] Dev: волна login + settings/profile — панель login с
   HUD-уголками/янтарной кнопкой/coral-ошибкой; карточки настроек, таблица
   категорий, профиль + кроп на dark. Границы: `frontend/templates/login.html`,
   `profile-settings.html`, `settings.html`, `frontend/static/css/login.css`,
   `profile-settings.css`, `settings.css`. Проверка: test_auth_ui,
   test_settings_categories_ui, test_r5_crop_ui нецветовые — зеленые.
   (auth, settings дельты)
-- [ ] 2.5 [P] [S] Dev: волна галерея + видео + погода — плитки/лайтбокс,
+- [x] 2.5 [P] [S] Dev: волна галерея + видео + погода — плитки/лайтбокс,
   видео-карточки с LED-статусами, погода-readout. Границы:
   `frontend/templates/gallery.html`, `video.html`, `weather.html`,
   `frontend/static/css/gallery.css`, `frontend/static/js/gallery.js`,
   `video.js`. Проверка: нецветовые тесты трех разделов — зеленые.
   (FR-125…FR-127; gallery, video-ui, weather-ui дельты)
-- [ ] 2.6 [P] [S] Dev: волна поиск — вкладка результатов (янтарная инверсия
+- [x] 2.6 [P] [S] Dev: волна поиск — вкладка результатов (янтарная инверсия
   подсветки), фильтр-конструктор (dark-select'ы, кнопки «Пульта»), чипы.
   Границы: `frontend/templates/search.html`,
   `frontend/static/css/search.css`, `frontend/static/js/search.js`.
   Проверка: test_search_r4_ui, test_search_suggestions_ui нецветовые —
   зеленые; BUG-014 computed-ассерт зеленый на новых токенах. (search дельты)
-- [ ] 2.7 [S] Dev: мобильная раскладка (≤860px) — сайдбар наверх, nav-строка,
+- [x] 2.7 [S] Dev: мобильная раскладка (≤860px) — сайдбар наверх, nav-строка,
   kbd скрыт, hit-targets ≥44px, доска/фастлайн/кнопки в столбец (мокап
   @media-блок); финальный проход по всем волнам на 860px; УДАЛЕНИЕ
   deprecated-алиасов V3 из `:root` app.css (заложены в 1.1) + full-tree grep
