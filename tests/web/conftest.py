@@ -275,7 +275,14 @@ def page(page, web_server):
     if static_url:
         def _to_static(route):
             new_url = static_url + route.request.url.partition("/static")[2]
-            route.fulfill(response=route.fetch(url=new_url))
+            # Д2 (impact/redesign-console.md): teardown-гонка route-колбэков —
+            # fulfill упавшего при навигации/закрытии страницы запроса дает
+            # «Fetch response has been disposed» (~1 из 3 прогонов). Запрос
+            # уже не доставляем — глушим гонку, ассерты тестов это не читают.
+            try:
+                route.fulfill(response=route.fetch(url=new_url))
+            except Exception:
+                pass
 
         # context.route (не page.route): правило действует и на страницы,
         # открытые тестом в том же контексте (page.context.new_page() —
