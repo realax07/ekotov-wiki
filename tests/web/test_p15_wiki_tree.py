@@ -270,9 +270,9 @@ def test_wiki_search_title_and_snippet_mark(
     mark = results.locator(".result-snippet mark").first
     expect(mark).to_have_text("кварцит")
 
-    # инверсная подсветка: фон amber-700 (решение дизайнера, review мокапов)
+    # подсветка «Пульта» (impact.md п.5): фон --p-amber-900 (#3a2c12)
     bg = mark.evaluate("node => getComputedStyle(node).backgroundColor")
-    assert bg == "rgb(138, 90, 30)", f"фон <mark>: {bg}"
+    assert bg == "rgb(58, 44, 18)", f"фон <mark>: {bg}"
 
     # совпадение по тексту (в контенте, не в заголовке)
     search.fill("отделке")

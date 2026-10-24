@@ -194,6 +194,17 @@ export async function initWikiTree() {
   const roots = byParent.get(null) ?? [];
   for (const page of roots) tree.appendChild(renderNode(page, byParent, expandedIds));
 
+  /* redesign-console 2.3 (decor, design §D2): текущая страница — янтарная
+   * подсветка узла дерева (aria-current="page"; вид дает CSS — подложка
+   * --p-amber-900 + текст --p-amber-400). id страницы — из data-page-id
+   * контейнера .wiki-layout (ставит роутер pages.py). */
+  const layout = document.querySelector('.wiki-layout[data-page-id]');
+  if (layout) {
+    const currentId = layout.dataset.pageId;
+    const currentLink = tree.querySelector(`a.tree-link[href="/wiki/${currentId}"]`);
+    if (currentLink) currentLink.setAttribute('aria-current', 'page');
+  }
+
   container.appendChild(tree);
   return tree;
 }
