@@ -49,11 +49,11 @@ OWNER_LOGIN = "owner"
 OWNER_PASSWORD = "QaOwner_Pass_1!"
 OWNER_DEFAULT_ROLE = "Product manager"  # ОВ-21
 
-# Токены/значения макета design/avatar-crop-v3.html (1:1 с app.css :root).
-CARD_SURFACE = "rgb(255, 253, 249)"        # --color-bg-surface
-CARD_RADIUS = "10px"                       # --radius-card
-CARD_SHADOW = "rgba(61, 54, 48, 0.08) 0px 1px 3px 0px"  # --shadow-soft
-ACCENT = "rgb(168, 67, 44)"                # --color-accent (терракота)
+# Токены/значения «Пульта» (redesign-console, impact.md п.6; 1:1 с app.css :root).
+CARD_SURFACE = "rgb(29, 43, 64)"           # --color-bg-surface (bg-200)
+CARD_RADIUS = "8px"                        # --radius-card
+CARD_SHADOW = "rgba(0, 0, 0, 0.4) 0px 1px 2px 0px"  # --shadow-soft
+ACCENT = "rgb(240, 180, 92)"               # --color-accent (янтарь)
 FIELD_LINE = "2px"                         # нижняя линия поля (прием V3)
 
 
