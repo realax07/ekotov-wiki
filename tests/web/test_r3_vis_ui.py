@@ -3,7 +3,7 @@
 Кейсы_TC (approved test-model/approved/add-r3-visual-foundation/):
 - TC-vis-101: hover-переход карточки (обязательный минимум пресета В):
   transition с ненулевой длительностью, hover → transform/box-shadow,
-  заголовок — терракотовый акцент (--p-clay-700).
+  заголовок — янтарь «Пульта»овый акцент (--p-clay-700).
 - TC-vis-102: оформленный пустой state столбца: .board-column-empty,
   dashed 2px, min-height ≥ 48px, ::before-контент, градиент пресета В;
   появление задачи снимает класс.
