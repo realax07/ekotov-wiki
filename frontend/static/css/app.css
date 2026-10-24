@@ -142,7 +142,12 @@ body.app-shell {
   margin: 0;
   font-family: var(--font-family);
   font-size: var(--font-size-body);
-  line-height: var(--lh-body);
+  /* line-height из мокапа (1.5) НЕ применяется глобально: на мобильном
+   * fullscreen-модалке (≤480px) он поднимает поля формы на ~4–5px каждый,
+   * и первый пункт дропдауна комбобокса тегов уходит за нижний край —
+   * scrollIntoView опции сдвигает форму под указателем и клик мимо input
+   * закрывает дропдаун (контракт r6 FR-62/СЦ-9). Токен --lh-body остается
+   * в :root для точечного применения. */
   color: var(--color-text-primary);
   background:
     linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 100% 32px,
