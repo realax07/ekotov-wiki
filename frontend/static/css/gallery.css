@@ -162,12 +162,13 @@
   transition: transform var(--speed-fast) ease, box-shadow var(--speed-fast) ease;
 }
 
+/* Hover «Пульта»: ступени фона/границы, без теней-глубины. */
 .g-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(61, 54, 48, 0.16);
+  border-color: var(--p-border-2);
+  background: var(--p-bg-300);
 }
 
-.g-card:hover .g-card-title { color: var(--p-clay-700); }
+.g-card:hover .g-card-title { color: var(--color-accent); }
 
 .g-card:focus-visible {
   outline: none;
@@ -302,7 +303,7 @@
 .lightbox-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(61, 54, 48, 0.4);
+  background: var(--overlay);
   display: flex;
   z-index: 10;
 }
@@ -330,7 +331,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-4) var(--space-3);
-  background: var(--p-ink-900);
+  background: var(--p-bg-000);
 }
 
 .lb-image {
@@ -352,7 +353,7 @@
   min-width: 64px;
   border: none;
   background: transparent;
-  color: var(--p-paper-050);
+  color: var(--p-text-900);
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -362,7 +363,7 @@
 
 .lb-nav-zone:hover {
   opacity: 1;
-  background: rgba(255, 253, 249, 0.06);
+  background: var(--p-bg-300);
 }
 
 .lb-nav-zone:focus-visible {
@@ -387,10 +388,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  color: rgba(255, 253, 249, 0.85);
+  color: var(--p-text-900);
   font-size: var(--font-size-label);
   pointer-events: none;
-  background: rgba(61, 54, 48, 0.55);
+  background: rgba(14, 22, 33, 0.72);
   padding: 4px 14px;
   border-radius: 999px;
 }
@@ -398,11 +399,11 @@
 .lb-counter kbd {
   font-family: inherit;
   font-size: var(--font-size-micro);
-  border: 1px solid rgba(255, 253, 249, 0.4);
+  border: 1px solid var(--p-border-2);
   border-bottom-width: 2px;
   border-radius: var(--radius-field);
   padding: 0 5px;
-  color: var(--p-paper-050);
+  color: var(--p-text-900);
 }
 
 /* --- Панель справа: реакции / скачать / комментарии --- */

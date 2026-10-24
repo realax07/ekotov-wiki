@@ -121,11 +121,12 @@ def test_combobox_highlights_match_fragment(
     marks = option.locator("mark")
     expect(marks).to_have_count(1)
     assert marks.text_content() == "urgent"
-    # Терракота (accent) на мягком фоне (accent-soft) — токены макета.
+    # Янтарь (accent) на янтарной подложке (accent-soft) — токены «Пульта»
+    # (impact.md п.2).
     accent = marks.first.evaluate("m => getComputedStyle(m).color")
     bg = marks.first.evaluate("m => getComputedStyle(m).backgroundColor")
-    assert accent == "rgb(168, 67, 44)", accent  # --color-accent
-    assert bg == "rgb(247, 232, 228)", bg  # --color-accent-soft
+    assert accent == "rgb(240, 180, 92)", accent  # --color-accent
+    assert bg == "rgb(58, 44, 18)", bg  # --color-accent-soft
 
 
 # regression: keep — r6 FR-58: исключение уже введенных тегов (СЦ-2).
