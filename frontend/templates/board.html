@@ -54,8 +54,8 @@
   <button type="button" id="create-task-button" class="btn btn-primary">Создать задачу</button>
 </header>
 {# P23 «Фастлайн» (openspec/changes/p23-fastline; мокапы design/p23-fastline/
-   v2-*.png, вариант A): зона НАД канбаном — подложка --p-blue-050, рамка
-   --p-blue-200, серифная шапка FASTLINE БЕЗ счетчика (ОВ-2); 3 столбца-этапа
+   v2-*.png, вариант A; редизайн 2.2 — янтарная сигнализация «Пульта»):
+   зона НАД канбаном, шапка FASTLINE БЕЗ счетчика (ОВ-2); 3 столбца-этапа
    (Ожидает/В работе/Выполнено) — этап зоны = существующий status (design §2,
    БЕЗ fastline_stage), поэтому столбцы зоны НЕсут свой класс .fastline-column
    и атрибут data-fastline-stage (НЕ data-status: селекторы канбана
@@ -239,8 +239,8 @@
       <div id="task-tag-combobox-live" class="visually-hidden" aria-live="polite"></div>
     </div>
     <datalist id="task-tag-hints" hidden></datalist>
-    {# 4.1 (FR-34/DEF-005): оформление fast line — голубой ряд-плашка
-       .fast-row по мокапу V3 (токены --p-blue-050/--p-blue-200);
+    {# 4.1 (FR-34/DEF-005) + redesign-console 2.2: оформление fast line —
+       янтарный ряд-плашка .fast-row на токенах «Пульта»;
        структура и текст сохранены (e2e get_by_label("fast line")). #}
     <div class="fast-row">
       <label class="task-form-checkbox">
