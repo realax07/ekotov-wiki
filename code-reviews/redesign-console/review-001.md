@@ -2,6 +2,7 @@
 
 - flow: flow=1 role=code_reviewer repo=/home/openclaw/ekotov-wiki scope=redesign-console
 - Reviewer: code_reviewer (Флоу 1)
+- Reviewer-Delegation: deleg_2f5c56b1 (code review редизайна)
 - Дифф: `origin/main...HEAD` (281bfbb..07c8f13, коммиты 1.1–2.7), worktree /tmp/wt-red-rev, ветка art/rev-001
 - Вердикт: **APPROVE** (3 minor-находки, блокеров нет)
 
