@@ -2,7 +2,7 @@
 
 - change: redesign-console
 - date: 2026-10-24T05:53:30+00:00
-- commit: 1e781ed95f0e89f9a6282e2d2a977e96f1b53db7
+- commit: b0a5654 (HEAD круга 2; круг 1 — 1e781ed, см. итерацию 1)
 - worktree: /tmp/wt-red-regress
 - verdict: PASS (итерация 2; итерация 1 была FAIL — разбор ниже, закрыто teardown-фиксом TC-029)
 - tier: domain (эшелон 1: доменный regress)
