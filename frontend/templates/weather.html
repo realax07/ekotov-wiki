@@ -23,45 +23,35 @@
 {% block title %}Погода — ekotov-wiki{% endblock %}
 {% block content %}
 <style>
-/* ===== Токены V3 «Бумага» — снимок мокапа A (design/p18-weather/
-   variant-a.html; дословно) ===== */
+/* ===== Токены «Пульт» — снимок design/redesign-pro/tokens-console.html
+   (redesign-console 2.5; дословно, скоуп .weather-page как прежде) ===== */
 .weather-page {
-  --p-paper-050: #faf7f2;
-  --p-paper-100: #f3ede4;
-  --p-paper-200: #e9e1d4;
-  --p-ink-900: #3d3630;
-  --p-ink-600: #6b6158;
-  --p-clay-600: #a8432c;
-  --p-clay-700: #93391f;
-  --p-clay-050: #f7e8e4;
-  --p-red-700: #9c3524;
-  --p-red-050: #f8ecea;
-  --p-amber-700: #8a5a1e;
-  --p-amber-050: #f4ecdf;
-  --p-blue-700: #33608c;
-  --p-blue-050: #eef2f6;
-  --color-text-primary: var(--p-ink-900);
-  --color-text-secondary: var(--p-ink-600);
-  --color-bg-page: var(--p-paper-050);
-  --color-bg-surface: #fffdf9;
-  --color-bg-subtle: var(--p-paper-100);
-  --color-border-default: var(--p-paper-200);
-  --color-accent: var(--p-clay-600);
-  --color-accent-soft: var(--p-clay-050);
+  color-scheme: dark;
+  --color-text-primary: #e7edf4;
+  --color-text-secondary: #a7b7c8;
+  --color-bg-page: #0e1621;
+  --color-bg-surface: #1d2b40;
+  --color-bg-subtle: #172335;
+  --color-border-default: #33435c;
+  --color-accent: #f0b45c;
+  --color-accent-hover: #f6c17a;
+  --color-accent-soft: #3a2c12;
+  --status-error: #ef7b6a;
+  --status-error-bg: rgba(239,123,106,.12);
+  --status-success: #57c4b0;
   --space-05: 4px;
   --space-1: 8px;
   --space-2: 16px;
   --space-3: 24px;
   --space-4: 32px;
   --radius-field: 6px;
-  --radius-card: 10px;
-  --shadow-soft: 0 1px 3px rgba(61, 54, 48, 0.08);
-  --font-family: system-ui, -apple-system, sans-serif;
-  --font-family-display: Georgia, 'Times New Roman', serif;
+  --radius-card: 8px;
+  --shadow-soft: 0 1px 2px rgba(0,0,0,.4);
+  --font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
   --font-size-body: 14px;
-  --font-size-label: 13px;
+  --font-size-label: 12px;
   --font-size-micro: 11px;
-  --focus-ring: 0 0 0 3px rgba(168, 67, 44, 0.35);
+  --focus-ring: 0 0 0 2px #0e1621, 0 0 0 4px #4fd8eb, 0 0 14px rgba(79,216,235,.35);
 }
 .weather-page h1 {
   font-family: var(--font-family-display);
@@ -98,7 +88,7 @@
   font-family: var(--font-family-display); font-size: 56px; line-height: 1;
   color: var(--color-text-primary);
 }
-.weather-page .today-icon { color: var(--p-blue-700); display: inline-flex; }
+.weather-page .today-icon { color: var(--status-success); display: inline-flex; }
 .weather-page .today-desc-text {
   margin: 0 0 var(--space-05); font-size: 16px; font-weight: 600;
 }
@@ -129,7 +119,7 @@
   margin: 0 0 var(--space-05); font-weight: bold;
   font-size: var(--font-size-label);
 }
-.weather-page .dc-icon { color: var(--p-blue-700); margin-bottom: var(--space-05); }
+.weather-page .dc-icon { color: var(--status-success); margin-bottom: var(--space-05); }
 .weather-page .dc-desc {
   margin: 0 0 var(--space-1); color: var(--color-text-secondary);
   font-size: var(--font-size-micro); line-height: 1.35;
@@ -142,7 +132,7 @@
 .weather-page .dc-n { color: var(--color-text-secondary); }
 .weather-page .dc-pop {
   margin: 0 0 var(--space-05); font-size: var(--font-size-micro);
-  color: var(--p-blue-700);
+  color: var(--color-text-secondary);
 }
 .weather-page .dc-wind {
   margin: 0; font-size: var(--font-size-micro);
@@ -152,30 +142,30 @@
   border-left: 3px solid var(--color-accent);
   background: var(--color-bg-surface);
 }
-.weather-page .today-mark .dc-name { color: var(--p-clay-700); }
+.weather-page .today-mark .dc-name { color: var(--color-accent); }
 /* ===== Состояния (design §7): загрузка / устаревшие / ошибка ===== */
 .weather-page .state-loading {
   color: var(--color-text-secondary); padding: var(--space-3) 0;
 }
 .weather-page .state-error {
-  background: var(--p-red-050); border: 1px solid var(--p-red-700);
+  background: var(--status-error-bg); border: 1px solid var(--status-error);
   border-radius: var(--radius-card); padding: var(--space-3);
-  color: var(--p-red-700); max-width: 480px;
+  color: var(--status-error); max-width: 480px;
 }
 .weather-page .state-error p { margin: 0 0 var(--space-2); font-weight: 600; }
 .weather-page .state-error .weather-retry {
-  padding: 8px 16px; background: var(--color-accent); color: #fff;
+  padding: 8px 16px; background: var(--color-accent); color: var(--color-bg-page);
   border: none; border-radius: var(--radius-field); cursor: pointer;
-  font: inherit;
+  font: inherit; font-weight: 600;
 }
-.weather-page .state-error .weather-retry:hover { background: var(--p-clay-700); }
+.weather-page .state-error .weather-retry:hover { background: var(--color-accent-hover); }
 .weather-page .state-error .weather-retry:focus-visible {
   outline: none; box-shadow: var(--focus-ring);
 }
 .weather-page .stale-banner {
-  background: var(--p-amber-050); border: 1px solid var(--p-amber-700);
+  background: var(--color-accent-soft); border: 1px solid var(--color-accent);
   border-radius: var(--radius-card); padding: var(--space-1) var(--space-2);
-  color: var(--p-amber-700); margin-bottom: var(--space-2);
+  color: var(--color-accent); margin-bottom: var(--space-2);
   font-size: var(--font-size-label);
 }
 .weather-page .hidden { display: none; }

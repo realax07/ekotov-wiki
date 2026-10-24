@@ -29,7 +29,7 @@
 .search-mode-button.active {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: var(--color-text-on-accent, #fff);
+  color: var(--color-text-on-accent);
   font-weight: bold;
 }
 

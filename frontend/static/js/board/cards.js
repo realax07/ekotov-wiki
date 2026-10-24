@@ -106,6 +106,23 @@ function buildAssigneeLine(task) {
   return line;
 }
 
+/* Дни до срока (T-отсчет fast-карточки): целые сутки по локальной дате;
+ * due_date — YYYY-MM-DD. Просрочка — отрицательное значение (T+-Nд). */
+function fastDaysLeft(dueDate) {
+  var due = new Date(dueDate + "T00:00:00");
+  var now = new Date();
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((due - today) / 86400000);
+}
+
+/* Доля трека отсчета, % (0…100) — окно 7 дней до срока. */
+function fastTrackPercent(dueDate) {
+  var left = fastDaysLeft(dueDate);
+  if (left >= 7) return 100;
+  if (left <= 0) return left === 0 ? 14 : 0;
+  return Math.round((left / 7) * 100);
+}
+
 export function renderCard(task) {
   /* 2.1 (FR-31): карточка — источник перетаскивания (только мышь;
    * touch-устройства HTML5 DnD не срабатывает — перенос прежним
@@ -149,8 +166,29 @@ export function renderCard(task) {
   if (task.due_date) {
     meta.appendChild(el("span", "task-due-date", "до " + task.due_date));
   }
+  if (task.is_fast && task.due_date) {
+    /* redesign-console 2.2 (fastline дельта, мокап §fastline): T-отсчет до
+     * срока — mono янтарь справа (decor; данные — реальный due_date).
+     * due_date — дата без времени (sdd §4): отсчет в СУТКАХ до срока
+     * («T-Nд»; сегодня — «T-0д», просрочено — «T+Nd»). */
+    meta.appendChild(
+      el("span", "task-due-t", "T-" + fastDaysLeft(task.due_date) + "д")
+    );
+  }
   if (meta.childNodes.length) {
     card.appendChild(meta);
+  }
+  if (task.is_fast && task.due_date) {
+    /* Трек отсчета (мокап .fastline-track): полоса 2px, заполнение —
+     * градиент amber→cyan; aria-hidden — decor. Окно отсчета — 7 дней
+     * до срока (created_at в контракте задачи нет): доля = оставшиеся
+     * сутки / 7, ограничено 0…100%. */
+    var track = el("span", "task-fast-track");
+    track.setAttribute("aria-hidden", "true");
+    var fill = document.createElement("i");
+    fill.style.width = fastTrackPercent(task.due_date) + "%";
+    track.appendChild(fill);
+    card.appendChild(track);
   }
 
   /* 5.1 (FR-45, ОВ-24): строка «assigned · creator» — ВСЕГДА (все
@@ -269,6 +307,38 @@ export function renderBoard(data) {
    * сегодня по МСК; автоархивация — на сервере (GET /api/board).
    * done_note прежней редакции больше не существует. */
   document.getElementById("board").dataset.loaded = "true";
+  updateDecor(columns);
+}
+
+/* --- redesign-console 2.2 (decor): mono-счетчики колонок и терминальный
+ * readout pagehead (дата, ACT/DONE) — из реальных данных GET /api/board;
+ * элементы декоративные (aria-hidden в разметке), поведение не трогают. */
+function updateDecor(columns) {
+  var act = 0;
+  var done = 0;
+  COLUMNS.forEach(function (status) {
+    var n = (columns[status] || []).length;
+    if (status === "done") {
+      done = n;
+    } else {
+      act += n;
+    }
+    var counter = document.querySelector('[data-col-count="' + status + '"]');
+    if (counter) {
+      counter.textContent = String(n);
+    }
+  });
+  var actOut = document.getElementById("readout-act");
+  var doneOut = document.getElementById("readout-done");
+  var dateOut = document.getElementById("readout-date");
+  if (actOut) actOut.textContent = String(act);
+  if (doneOut) doneOut.textContent = String(done);
+  if (dateOut) {
+    dateOut.textContent = new Date().toLocaleDateString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+    });
+  }
 }
 
 export function refreshBoard() {

@@ -1,17 +1,20 @@
 """QA 2.1 add-gallery-service — design_validator (TC-GAL-122, статическая часть).
 
-Проверяет токенную дисциплину дельты gallery (design §0 п.4, FR-86): значения
-берутся из CSS-переменных app.css :root (paper/ink/clay, Georgia display,
-радиусы 6/10px, focus-ring), НЕ зашиты литералами в gallery.css/gallery.js;
-мокапы 1.1 существуют (design/gallery-grid.html, gallery-lightbox.html,
-gallery-upload.html).
+Проверяет токенную дисциплину дельты gallery: значения берутся из CSS-переменных
+(app.css :root — палитра «Пульт» redesign-console, sans-дисплей, радиусы 6/8px,
+focus-ring), НЕ зашиты литералами в gallery.css/gallery.js; мокапы 1.1 существуют
+(design/gallery-grid.html, gallery-lightbox.html, gallery-upload.html).
+
+Фикс Д1 (impact/redesign-console.md, задача 3.4): ассерты переведены с V3
+«Бумага» (--p-clay-600 #a8432c и пр.) на токены «Пульта» — акцент
+--p-amber-400/#f0b45c (--color-accent), мягкая подсветка «мой голос» —
+--color-accent-soft (--p-amber-900/#3a2c12) с текстом accent-hover #f6c17a,
+фон страницы bg-000 #0e1621, whitelist rgba-баз gallery.css — bg-токен
+14,22,33; свойства проверок (токен-дисциплина, не хардкод) без изменений.
 
 Динамическая часть (Computed Styles живой страницы, hover/focus-состояния,
-сверка компоновки построчно) — SKIPPED: сетка/лайтбокс не отрисовываются из-за
-BUG-008 (gallery.js SyntaxError, тест-модель/bugs/); вердикт design_validator —
-ПОСЛЕ фикса BUG-008 (переводится в автопрогон этим же файлом + ручной проход
-по мокапам). Итоговый вердикт approve/return — зона СА (review-NNN-design),
-QA фиксирует факты.
+подсветка «мой голос», 422-состояние формы загрузки) требует живой nginx-стенд
+(:18443, images-сервис) — на автостенде conftest пропускается (EKOTOV_WIKI_DB_PATH).
 """
 
 import os
@@ -29,9 +32,10 @@ BASE_URL = os.environ.get("EKOTOV_WIKI_BASE_URL", "http://127.0.0.1:18443")
 
 
 def test_tc_gal_122_tokens_from_css_vars_not_hardcoded():
-    """TC-GAL-122 (шаг 2, токены V3 «Бумага»): gallery.css использует только
-    var(--token) — 0 hex/rgb-литералов цветов; gallery.js — 0 цветовых
-    литералов; токены paper/ink/clay/Georgia/radius/focus-ring определены
+    """TC-GAL-122 (шаг 2, токены «Пульта» redesign-console, фикс Д1):
+    gallery.css использует только var(--token) — 0 hex/rgb-литералов цветов;
+    gallery.js — 0 цветовых литералов; токены «Пульта» (accent amber-400,
+    accent-soft amber-900, sans-дисплей, радиусы 6/8px, focus-ring) определены
     в app.css :root."""
     css = open(os.path.join(REPO, "frontend/static/css/gallery.css")).read()
     # Цветовые литералы в gallery.css (вне комментариев): hex / rgb() / rgba().
@@ -39,18 +43,18 @@ def test_tc_gal_122_tokens_from_css_vars_not_hardcoded():
     hex_literals = re.findall(r"#[0-9a-fA-F]{3,8}\b", body)
     rgb_literals = re.findall(r"rgba?\([^)]*\)", body)
     assert not hex_literals, f"gallery.css: зашиты hex-цвета: {hex_literals[:5]}"
-    # rgba(): в цветовой системе V3 полупрозрачные тени/оверлеи выражаются
-    # rgba() и в эталонных файлах (app.css: --shadow-modal/--focus-ring,
-    # board.css) — допустимый класс (заводские rgba НЕ новые цвета, а alpha
-    # вариантов paper/ink). Сверяем с эталонным набором значений app.css:
-    # допустимы rgba от 61,54,48 (ink-900) и 255,253,249 (paper) — те же
-    # базовые цвета, что в токенах; иные base-цвета = отход от токенов.
-    allowed_bases = {("61", "54", "48"), ("255", "253", "249"), ("168", "67", "44")}
+    # rgba(): в цветовой системе полупрозрачные подложки/оверлеи выражаются
+    # rgba() и в эталонных файлах (app.css: --overlay, --glow-*, board.css) —
+    # допустимый класс (заводские rgba НЕ новые цвета, а alpha вариантов
+    # bg-токенов). Сверяем с эталонным набором app.css :root «Пульта»:
+    # допустимая rgba-база — bg-токен 14,22,33 (bg-000, --overlay); иные
+    # base-цвета = отход от токенов.
+    allowed_bases = {("14", "22", "33")}
     for m in rgb_literals:
         parts = re.findall(r"[\d.]+", m)
         base = tuple(p.split(".")[0] for p in parts[:3])
         assert base in allowed_bases, (
-            f"gallery.css: rgba вне токенных базовых цветов V3: {m} (base={base})"
+            f"gallery.css: rgba вне токенных базовых цветов «Пульта»: {m} (base={base})"
         )
     # Токены используются.
     assert len(re.findall(r"var\(--", body)) >= 50, "токены почти не используются?"
@@ -61,11 +65,22 @@ def test_tc_gal_122_tokens_from_css_vars_not_hardcoded():
     assert not js_hex and not js_rgb, f"gallery.js: цветовые литералы {js_hex[:3]}{js_rgb[:3]}"
 
     root = open(os.path.join(REPO, "frontend/static/css/app.css")).read()
-    for token in ("--font-family-display: Georgia", "--radius-field: 6px",
-                  "--radius-card: 10px", "--focus-ring:"):
-        assert token in root, f"app.css :root: нет {token}"
+    # определения :root (пробелы выравнивания не значимы)
+    root_pairs = dict(re.findall(r"(--[A-Za-z0-9-]+)\s*:\s*([^;]+);", root))
+    for name, value in (
+        ("--color-accent", "var(--p-amber-400)"),
+        ("--p-amber-400", "#f0b45c"),
+        ("--color-accent-soft", "var(--p-amber-900)"),
+        ("--p-amber-900", "#3a2c12"),
+        ("--radius-field", "6px"),
+        ("--radius-card", "8px"),
+        ("--focus-ring", None),
+    ):
+        assert name in root_pairs, f"app.css :root: нет {name}"
+        if value is not None:
+            assert root_pairs[name].strip() == value, (name, root_pairs[name])
 
-    # Мокапы 1.1 на месте (сверка компоновки — после фикса BUG-008).
+    # Мокапы 1.1 на месте (сверка компоновки — динамическая часть).
     for mock in ("gallery-grid.html", "gallery-lightbox.html", "gallery-upload.html"):
         assert os.path.isfile(os.path.join(REPO, "design", mock)), mock
 
@@ -79,12 +94,13 @@ def browser_instance(browser):
 
 def test_tc_gal_122_live_computed_styles_and_states(browser_instance):
     """TC-GAL-122 (шаги 2, 5): динамический design_validator — Computed Styles
-    живой /gallery (токены V3 «Бумага» не хардкод), hover/focus-visible на
+    живой /gallery (токены «Пульта» не хардкод), hover/focus-visible на
     карточке, подсветка «мой голос» после лайка, 422-состояние формы загрузки.
 
     Требует живой nginx-стенд :18443 (пропускается без EKOTOV_WIKI_DB_PATH —
-    прогон в составе web-окружения). Проверки по токенам app.css :root:
-    Georgia display, радиусы 6/10px, терракота --p-clay-600 #a8432c."""
+    прогон в составе web-окружения). Проверки по токенам app.css :root
+    (фикс Д1, задача 3.4): sans-дисплей «Пульта», радиусы 6/8px, акцент
+    --p-amber-400 #f0b45c (--color-accent), фон страницы bg-000 #0e1621."""
     db_path = os.environ.get("EKOTOV_WIKI_DB_PATH")
     uploaded = None
     if not db_path:
@@ -120,7 +136,7 @@ def test_tc_gal_122_live_computed_styles_and_states(browser_instance):
                 accent_var: getComputedStyle(document.documentElement)
                   .getPropertyValue('--color-accent').trim(),
                 clay_var: getComputedStyle(document.documentElement)
-                  .getPropertyValue('--p-clay-600').trim(),
+                  .getPropertyValue('--p-amber-400').trim(),
                 radius_card_var: getComputedStyle(document.documentElement)
                   .getPropertyValue('--radius-card').trim(),
                 radius_field_var: getComputedStyle(document.documentElement)
@@ -130,26 +146,27 @@ def test_tc_gal_122_live_computed_styles_and_states(browser_instance):
               };
             }"""
         )
-        # Терракота clay-600 (#a8432c = rgb(168, 67, 44)) — акцент из :root.
-        # getComputedStyle резолвит вложенные var() в конечное значение —
-        # сверяем сам цвет (жестких литералов в delta-CSS нет, проверено
-        # статикой: значения приходят из цепочки --color-accent→--p-clay-600).
-        assert props["clay_var"].lower() == "#a8432c", props["clay_var"]
-        assert props["accent_var"].strip().lower() == "#a8432c", props["accent_var"]
-        assert props["radius_card_var"] == "10px", props["radius_card_var"]
+        # Янтарь «Пульта» (--p-amber-400 #f0b45c = rgb(240, 180, 92)) — акцент
+        # из :root. getComputedStyle резолвит вложенные var() в конечное
+        # значение — сверяем сам цвет (жестких литералов в delta-CSS нет,
+        # проверено статикой: значения приходят из цепочки
+        # --color-accent→--p-amber-400).
+        assert props["clay_var"].lower() == "#f0b45c", props["clay_var"]
+        assert props["accent_var"].strip().lower() == "#f0b45c", props["accent_var"]
+        assert props["radius_card_var"] == "8px", props["radius_card_var"]
         assert props["radius_field_var"] == "6px", props["radius_field_var"]
-        assert "Georgia" in props["font_display_var"], props["font_display_var"]
+        assert "apple-system" in props["font_display_var"], props["font_display_var"]
         if props["card_radius"]:
-            assert props["card_radius"] == "10px", (
+            assert props["card_radius"] == "8px", (
                 f"радиус карточки не из --radius-card: {props['card_radius']}")
         if props["btn_bg"] and props["btn_bg"] != "rgba(0, 0, 0, 0)":
-            assert props["btn_bg"] == "rgb(168, 67, 44)", (
-                f"кнопка загрузки не терракотовая из токена: {props['btn_bg']}")
+            assert props["btn_bg"] == "rgb(240, 180, 92)", (
+                f"кнопка загрузки не янтарная из токена: {props['btn_bg']}")
         if props["page_bg"]:
-            assert props["page_bg"] == "rgb(250, 247, 242)", (
-                f"фон страницы не paper-050: {props['page_bg']}")
+            assert props["page_bg"] == "rgb(14, 22, 33)", (
+                f"фон страницы не bg-000: {props['page_bg']}")
         if props["card_font_display"]:
-            assert "Georgia" in props["card_font_display"], props["card_font_display"]
+            assert "apple-system" in props["card_font_display"], props["card_font_display"]
 
         # --- Шаг 5а: hover на карточке — тень/сдвиг по мокапу ---
         card = page.locator(".g-card").first
@@ -195,8 +212,8 @@ def test_tc_gal_122_live_computed_styles_and_states(browser_instance):
             expect(my_vote.first).to_be_visible()
             color = my_vote.first.evaluate(
                 "el => getComputedStyle(el).backgroundColor")
-            assert color == "rgb(247, 232, 228)", (
-                f"подсветка «мой голос» не clay-050 (#f7e8e4): {color}")
+            assert color == "rgb(58, 44, 18)", (
+                f"подсветка «мой голос» не --p-amber-900/#3a2c12: {color}")
 
             # --- Шаг 5г: 422-состояние формы загрузки (файл не-изображение) ---
             page.keyboard.press("Escape")

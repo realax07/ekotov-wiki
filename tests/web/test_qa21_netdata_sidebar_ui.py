@@ -127,9 +127,10 @@ def test_design_validator_markup_and_tokens(logged_in_page, web_base_url):
     """Сверка с design/netdata-sidebar-mockup.html (утвержден, мокапы eac40de;
     решение Заказчика 2026-10-05: без промпт-карточки, без маркера внешней
     ссылки): структура a.nav-item.nav-item-monitoring > svg.nav-icon(polyline,
-    stroke=currentColor) + span.nav-label; токены (не хардкод): color =
-    --p-paper-050 (#faf7f2), hover-фон = вуаль rgba(255,253,249,0.08),
-    focus-visible = inset focus-ring, active = var(--color-accent) (#a8432c);
+    stroke=currentColor) + span.nav-label; токены (не хардкод), значения
+    «Пульта» (redesign-console, impact.md п.1): color = --p-text-600
+    (#a7b7c8), hover-фон = ступень фона bg2 (#1d2b40), focus-visible =
+    inset focus-ring (cyan), active = ступень фона bg3 (#26354d);
     иконка 16px."""
     page = logged_in_page
     item = _monitoring_item(page)
@@ -155,26 +156,30 @@ def test_design_validator_markup_and_tokens(logged_in_page, web_base_url):
           const read = (n) => root.getPropertyValue(n).trim();
           return {
             color: cs.color,
-            paper: read('--p-paper-050'),
+            text600: read('--p-text-600'),
             accent: read('--color-accent'),
-            clay: read('--p-clay-600'),
+            cyan: read('--p-cyan-300'),
             focusRing: read('--focus-ring'),
             radius: cs.borderRadius,
           };
         }"""
     )
-    # Цвет текста пункта = токен --p-paper-050 (#faf7f2), не хардкод вне токена.
-    assert eval_res["color"] == "rgb(250, 247, 242)", eval_res
-    assert eval_res["paper"].lower() == "#faf7f2", eval_res
-    # Акцент = clay-600 (#a8432c) — токен V3 «Бумага».
-    assert eval_res["accent"].lower() == "#a8432c", eval_res
-    assert eval_res["clay"].lower() == "#a8432c", eval_res
-    assert "168, 67, 44" in eval_res["focusRing"], eval_res
+    # Цвет текста пункта = токен --p-text-600 (#a7b7c8), не хардкод вне токена
+    # (дельта navigation: подпись пункта --p-text-600).
+    assert eval_res["color"] == "rgb(167, 183, 200)", eval_res
+    assert eval_res["text600"].lower() == "#a7b7c8", eval_res
+    # Акцент = янтарь #f0b45c — сигнальный цвет «Пульта»; cyan — актив/фокус.
+    assert eval_res["accent"].lower() == "#f0b45c", eval_res
+    assert eval_res["cyan"].lower() == "#4fd8eb", eval_res
+    # focus-ring — cyan-токен «Пульта» (сырое значение токена).
+    assert "#4fd8eb" in eval_res["focusRing"], eval_res
 
-    # hover: вуаль rgba(255,253,249,0.08), opacity → 1.
+    # hover: ступень фона bg2 (#1d2b40) — паттерн навигации «Пульта»
+    # (после transition 140ms — иначе захватывается промежуточный кадр).
     item.hover()
+    page.wait_for_timeout(250)
     hover_bg = item.evaluate("(el) => getComputedStyle(el).backgroundColor")
-    assert hover_bg == "rgba(255, 253, 249, 0.08)", hover_bg
+    assert hover_bg == "rgb(29, 43, 64)", hover_bg
     assert item.evaluate("(el) => getComputedStyle(el).opacity") == "1"
 
     # focus-visible: keyboard-фокус → inset focus-ring (box-shadow).
@@ -190,13 +195,14 @@ def test_design_validator_markup_and_tokens(logged_in_page, web_base_url):
           return {matches: el.matches(':focus-visible'), shadow: cs.boxShadow};
         }"""
     )
-    assert "rgba(168, 67, 44, 0.35)" in focus_style["shadow"], focus_style
+    assert "rgba(79, 216, 235, 0.35)" in focus_style["shadow"], focus_style
 
     # active: зажатие ЛКМ — акцентная заливка var(--color-accent).
     box = item.bounding_box()
     page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
     page.mouse.down()
+    page.wait_for_timeout(250)  # transition 140ms — ждем конечное значение
     active_bg = item.evaluate("(el) => getComputedStyle(el).backgroundColor")
     page.mouse.up()
-    # #a8432c = rgb(168, 67, 44)
-    assert active_bg == "rgb(168, 67, 44)", active_bg
+    # #26354d = rgb(38, 53, 77) — ступень фона bg3 (нажатие).
+    assert active_bg == "rgb(38, 53, 77)", active_bg

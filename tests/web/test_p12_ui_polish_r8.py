@@ -4,7 +4,7 @@
 - TC-UIP-103 (CHK-P12-3, FR-88): геометрия/токены .fast-row формы создания
   + behavior-инвариант блокировки приоритета при отметке fast.
 - TC-UIP-104 (CHK-P12-4, FR-93): кнопка #search-advanced-submit — класс
-  .btn-action (токены V3), DOM-id сохранен (ОГР-28), 8px-сетка отступов.
+  .btn-action (токены «Пульта»), DOM-id сохранен (ОГР-28), 8px-сетка отступов.
 - TC-UIP-105 (CHK-P12-5, FR-93, дисп. M4): единый паттерн .btn-action для
   кнопок поиска («Найти» builder + advanced); hover/focus-состояния едины.
 - TC-UIP-106 (CHK-P12-6, FR-96): bbox кнопки «Настройки» идентичен
@@ -80,7 +80,7 @@ def test_fast_row_v3_geometry_and_priority_lock(board_page):
     expect(row).to_be_visible()
 
     # Токены V3: фон/бордер ряда резолвятся в значения :root-токенов
-    # (p-blue-050/p-blue-200), радиус = токен --radius-field.
+    # (amber-900/amber-400 «Пульта», impact.md п.4), радиус = токен --radius-field.
     styles = page.evaluate(
         """() => {
           const row = document.querySelector("#task-form .fast-row");
@@ -90,9 +90,9 @@ def test_fast_row_v3_geometry_and_priority_lock(board_page):
           const cbcs = getComputedStyle(cb);
           return {
             bg: cs.backgroundColor,
-            bgToken: root.getPropertyValue("--p-blue-050").trim(),
+            bgToken: root.getPropertyValue("--p-amber-900").trim(),
             border: cs.borderTopColor,
-            borderToken: root.getPropertyValue("--p-blue-200").trim(),
+            borderToken: root.getPropertyValue("--p-amber-400").trim(),
             radius: cs.borderRadius,
             radiusToken: root.getPropertyValue("--radius-field").trim(),
             marginBottom: cs.marginBottom,
@@ -108,8 +108,8 @@ def test_fast_row_v3_geometry_and_priority_lock(board_page):
     # Токен-значения непусты (стиль ряда строится на var(--…), не литералах)
     # и computed bg/border РАВНЫ значениям токенов (review-004 nit-2:
     # литеральный hex, совпадающий с видимым цветом, больше не проходит).
-    assert styles["bgToken"], "--p-blue-050 пуст"
-    assert styles["borderToken"], "--p-blue-200 пуст"
+    assert styles["bgToken"], "--p-amber-900 пуст"
+    assert styles["borderToken"], "--p-amber-400 пуст"
     assert _rgb_to_hex(styles["bg"]) == styles["bgToken"].lower(), styles
     assert _rgb_to_hex(styles["border"]) == styles["borderToken"].lower(), styles
 
@@ -131,7 +131,8 @@ def test_fast_row_v3_geometry_and_priority_lock(board_page):
 def test_search_action_buttons_single_btn_action_pattern(logged_in_page, web_base_url):
     """TC-UIP-104 + TC-UIP-105 (CHK-P12-4/5, FR-93, дисп. M4): кнопки
     «Найти» конструктора и advanced-поиска несут единый класс .btn-action
-    (токены V3: фон --color-accent, радиус-пилюля 999px); DOM-id не
+    (токены «Пульта»: фон --color-accent, радиус var(--radius-field) = 6px
+    по мокапу .btn — redesign-console); DOM-id не
     переименованы (ОГР-28: #search-builder-submit, #search-advanced-submit);
     отступы кратны 8px; hover/focus-состояния едины (hover-фон токен,
     focus-visible box-shadow --focus-ring)."""
@@ -143,6 +144,7 @@ def test_search_action_buttons_single_btn_action_pattern(logged_in_page, web_bas
     # проверяем на присутствие в DOM (ОГР-28), видимость после клика.
     # Перебор DOM-id-селекторов (ОГР-28) — прямые locator (PO — не догма).
     buttons = {}
+    page.wait_for_timeout(250)  # transition hover/bg 140ms — ждем конечный кадр
     for bid in ("#search-builder-submit", "#search-advanced-submit"):
         btn = page.locator(bid)
         expect(btn).to_have_count(1)  # ОГР-28: id на месте
@@ -162,7 +164,7 @@ def test_search_action_buttons_single_btn_action_pattern(logged_in_page, web_bas
             }""",
             [bid],
         )
-        assert styles["radius"] == "999px", (bid, styles)
+        assert styles["radius"] == "6px", (bid, styles)  # var(--radius-field)
         assert styles["bg"] != "rgba(0, 0, 0, 0)", (bid, styles)
         # 8px-сетка вертикальных отступов (var(--space-N) = 8/16px).
         for key in ("padTop", "padBottom"):
