@@ -1680,7 +1680,8 @@ def test_tc_redesign_028_user_settings_functions_adaptive(logged_in_page, page, 
         page.set_viewport_size({"width": 1280, "height": 720})
 
 
-def test_tc_redesign_029_profile_card_and_crop_dark(logged_in_page, web_base_url):
+def test_tc_redesign_029_profile_card_and_crop_dark(logged_in_page, web_base_url,
+                                                    web_db_path):
     """TC-redesign-029 (CHK-029): карточка профиля и кроп-виджет на токенах
     «Пульта» — карточка на bg2-поверхности, поля bg-прозрачные с cyan-фокусом,
     первичные кнопки янтарные, сообщение об успехе статусным цветом; кроп-виджет
@@ -1714,6 +1715,17 @@ def test_tc_redesign_029_profile_card_and_crop_dark(logged_in_page, web_base_url
     # Аватар в блоке профиля сайдбара (после обновления).
     page.goto(f"{web_base_url}/board")
     expect(page.locator("#sidebar-profile .profile-avatar")).to_be_visible()
+    # Teardown-гигиена (урок regress-final №1): bio/аватар не должны утекать
+    # в последующие сьюты (test_settings_profile_r4::test_page_composition).
+    import sqlite3 as _sq
+    conn = _sq.connect(web_db_path)
+    try:
+        conn.execute(
+            "UPDATE users SET bio = NULL, avatar_path = NULL,"
+            " avatar_updated_at = NULL WHERE login = 'owner'")
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # ==========================================================================
