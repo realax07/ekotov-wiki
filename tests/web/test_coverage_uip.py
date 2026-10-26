@@ -20,6 +20,7 @@ images-сервиса; полный перечень ≈173/≈124 кейса �
 Запуск: pytest tests/web/test_coverage_uip.py -q
 """
 
+import contextlib
 import json
 import os
 import re
@@ -787,6 +788,13 @@ def test_tc_uip_107_ticket_modal_view(board_page, web_owner_session,
     )
     page.reload()
     expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
+    # Гигиена фокуса (круг 3, regress-final итерация 2): в ПОЛНОЙ серии
+    # session-scoped страница приходит из чужих кейсов с непустым
+    # activeElement, и rememberViewTrigger запоминает не body — тогда
+    # restoreViewFocus после Esc уходит не туда и ассерт возврата фокуса
+    # ловит BUTTON в оверлее. Явно приводим фокус к body ДО открытия
+    # (reload уже сбросил DOM) — тест самодостаточен по фокусу.
+    page.evaluate("document.activeElement && document.activeElement.blur()")
 
     card = page.get_by_role("article").filter(has_text="QABF-modal")
     card.click()
@@ -827,8 +835,19 @@ def test_tc_uip_107_ticket_modal_view(board_page, web_owner_session,
     # фокус не ставит — это body) и точно не остается в диалоге.
     page.keyboard.press("Escape")
     expect(overlay).to_be_hidden()
+    # Явное ожидание возврата фокуса (круг 3): возврат синхронен closeTaskDetail,
+    # но в нагруженной полной серии чтение activeElement сразу после
+    # to_be_hidden гоночно; wait_for_function опрашивает то же условие, что
+    # ассерт ниже — ассерт НЕ ослаблен (фокус обязан покинуть оверлей),
+    # таймаут ожидания не глотается: провалившийся ассерт покажет состояние.
+    with contextlib.suppress(Exception):
+        page.wait_for_function(
+            """() => !document.getElementById('task-detail-overlay')
+                  .contains(document.activeElement)"""
+        )
     focused = page.evaluate(
         """() => ({tag: document.activeElement?.tagName,
+             id: document.activeElement?.id || null,
              inOverlay: document.getElementById('task-detail-overlay')
                .contains(document.activeElement)})"""
     )

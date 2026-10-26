@@ -199,6 +199,7 @@ def test_tc_rich_001_spoiler_insert_inline_rename(
     editor.title_input.fill("Спойлер insert-rename")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)
 
     body = page.locator(".article-body")
     article_spoiler = body.locator(".spoiler")
@@ -281,6 +282,7 @@ def test_tc_rich_003_spoiler_in_table_cell_compact(
     editor.title_input.fill("Спойлер в ячейке")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)
 
     body = page.locator(".article-body")
     cell_spoiler = body.locator("td .spoiler")
@@ -337,6 +339,7 @@ def test_tc_rich_004_spoiler_in_spoiler_independent(
     editor.title_input.fill("Спойлер в спойлере")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)
 
     # шаг 4: развернуть внешний — внутренний остался свернутым
     body = page.locator(".article-body")
@@ -385,6 +388,7 @@ def test_tc_rich_005_collapsed_spoiler_keeps_content_state_not_saved(
     editor.title_input.fill("Свернутый сохраняет")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)
 
     # шаг 2: содержимое присутствует в статье… (раскрыл пользователь)
     expect(page.locator(".article-body .spoiler")).to_have_class(re.compile("closed"))
@@ -455,6 +459,7 @@ def test_tc_rich_006_codeblock_python_highlight_numbering(
     editor.title_input.fill("Код python")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)
 
     # шаг 4: в статье тот же вид — подсветка и нумерация
     article_block = page.locator(".article-body .codeblock")
@@ -691,6 +696,7 @@ def test_tc_rich_011_tabs_add_rename_last_protected(
     editor.title_input.fill("Табы последняя")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)
     article = page.locator(".article-body .tabswidget")
     expect(article.locator(".tab")).to_have_count(1)
     expect(article.locator(".tab").first).to_contain_text("Детали")
@@ -752,6 +758,7 @@ def test_tc_rich_012_tabs_limit8_overflow_scroll(editor_page, wiki_api, page_err
     editor.title_input.fill("Табы лимит")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)
     saved = wiki_api.content_of(page_id)
     assert saved.count('data-block-part="tab"') == 8
     assert page_errors == []
@@ -1033,6 +1040,7 @@ def test_tc_rich_018_table_add_remove_row_col_target_cell(
     editor.title_input.fill("Таблица rNcM")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)
     body = page.locator(".article-body")
     expect(body.locator("tr")).to_have_count(3)
     expect(body.locator("thead th")).to_have_count(3)
@@ -1104,6 +1112,7 @@ def test_tc_rich_019_table_last_row_col_not_deletable(
     editor.title_input.fill("Таблица 1х1")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)
     body = page.locator(".article-body")
     expect(body.locator("table")).to_have_count(1)
     expect(body.locator("table")).to_contain_text("Последняя ячейка")
@@ -1163,6 +1172,7 @@ def test_tc_rich_020_table_delete_whole_button(
     editor.title_input.fill("Таблица удалена кнопкой")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)
     body = page.locator(".article-body")
     expect(body.locator("table")).to_have_count(0)
     expect(body).to_contain_text("Сторожа до таблицы")
@@ -1231,6 +1241,7 @@ def test_tc_rich_021_table_tab_enter_br_discriminator(
     editor.title_input.fill("Таблица один-два")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)
     saved = wiki_api.content_of(page_id)
     assert "один<br>два" in saved
     assert "один<br><br>два" not in saved and "одиндва" not in saved
