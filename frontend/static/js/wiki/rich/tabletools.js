@@ -292,10 +292,19 @@ export function install(area) {
   area.appendChild(panel);
   bindCellKeys(area);
 
+  /* BUG-022: перезагрузка контента в режиме edit (area.innerHTML =
+     page.content) выносит панель из DOM — в замыкании остается ссылка
+     на detached-узел, и панель никогда не показывается. При показе
+     возвращаем панель в область, если она отсоединена. */
+  function ensurePanelAttached() {
+    if (!panel.isConnected) area.appendChild(panel);
+  }
+
   /* Панель показывается при ЛЮБОМ движении фокуса/каретки в таблицу:
      focusin не fires при клике внутри уже-фокусированного contenteditable —
      дублируем click/keyup (панель одна, show идемпотентен). */
   function showPanel() {
+    ensurePanelAttached();
     var cell = targetCell(area);
     var table = cell ? cell.closest('table') : null;
     if (!table) {

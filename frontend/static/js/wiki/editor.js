@@ -288,6 +288,32 @@ import {
     run();
   }
 
+  /* BUG-023: redo insertHTML-юнита при каретке в заголовке стирает текст
+     блока — Chromium на redo перезаписывает содержимое блока, записанного
+     в undo-юнит. Перед блоковой вставкой (спойлер/код/табы) уводим каретку
+     в новый пустой абзац за заголовком: redo перезаписывает пустой абзац,
+     текст не теряется. Вне заголовка — no-op. */
+  function escapeHeadingCaretForBlockInsert() {
+    var selection = window.getSelection();
+    if (!selection || !selection.anchorNode ||
+        !state.area.contains(selection.anchorNode)) {
+      return;
+    }
+    var node = selection.anchorNode;
+    var element = node.nodeType === 1 ? node : node.parentNode;
+    if (!element || !element.closest) return;
+    var heading = element.closest('h1,h2,h3,h4,h5,h6');
+    if (!heading || !state.area.contains(heading)) return;
+    var paragraph = document.createElement('p');
+    paragraph.appendChild(document.createElement('br'));
+    heading.insertAdjacentElement('afterend', paragraph);
+    var range = document.createRange();
+    range.selectNodeContents(paragraph);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
   function blockIs(tagName) {
     /* Активен ли блок tagName под кареткой (по formatBlock) */
     try {
@@ -570,6 +596,7 @@ import {
         toolbarButton('Спойлер', spoilerButtonIcon(), 'tb-media', function () {
           insertBlockGuarded(function () {
             focusAreaAndRun(function () {
+              escapeHeadingCaretForBlockInsert();
               document.execCommand('insertHTML', false, newSpoilerHtml());
               var inserted = focusInsertedBody(state.area);
               if (inserted) enhanceSpoilers(inserted); // шапка/inline-контролы
@@ -579,6 +606,7 @@ import {
         toolbarButton('Блок кода', ICONS.code, 'tb-media', function () {
           insertBlockGuarded(function () {
             focusAreaAndRun(function () {
+              escapeHeadingCaretForBlockInsert();
               document.execCommand('insertHTML', false, newCodeblockHtml());
               var inserted = focusInsertedCode(state.area);
               if (inserted) enhanceCodeblocks(inserted);
@@ -588,6 +616,7 @@ import {
         toolbarButton('Табуляция', tabsButtonIcon(), 'tb-media', function () {
           insertBlockGuarded(function () {
             focusAreaAndRun(function () {
+              escapeHeadingCaretForBlockInsert();
               document.execCommand('insertHTML', false, newTabsHtml());
               var inserted = focusInsertedTabs(state.area);
               if (inserted) enhanceTabs(inserted);
@@ -819,6 +848,12 @@ import {
   }
 
   function openLinkDialog() {
+    /* BUG-024: фокус уходит в поле ввода и live-выделение contenteditable
+       схлопывается — сохраняем Range выделения редактора на время диалога. */
+    var selection = window.getSelection();
+    state.linkRange = selection.rangeCount
+      ? selection.getRangeAt(0).cloneRange()
+      : null;
     state.linkInput.value = '';
     state.linkError.hidden = true;
     state.linkDialog.hidden = false;
@@ -843,6 +878,14 @@ import {
     state.linkError.hidden = true;
     state.linkDialog.hidden = true;
     focusAreaAndRun(function () {
+      /* BUG-024: восстанавливаем сохраненное выделение — createLink
+         оборачивает ВЫДЕЛЕННЫЙ фрагмент, а не вставляет URL новым узлом
+         на свернутой каретке. */
+      if (state.linkRange) {
+        var selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(state.linkRange);
+      }
       document.execCommand('createLink', false, check.url);
     });
     state.area.focus();

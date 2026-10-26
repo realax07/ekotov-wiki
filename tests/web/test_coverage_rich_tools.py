@@ -440,9 +440,10 @@ def test_tc_rich_006_codeblock_python_highlight_numbering(
     block = editor.area.locator(".codeblock")
     expect(block).to_have_count(1)
 
-    # шаг 2: выбор языка «python» в шапке блока
+    # шаг 2: выбор языка «python» в шапке блока (меню — portal в body,
+    # BUG-025: рамка код-блока не клиппит список)
     block.locator(".codeblock-lang").click()
-    block.locator(".lang-menu .lang-opt").filter(has_text="python").click()
+    page.locator(".lang-menu .lang-opt").filter(has_text="python").click()
     expect(block.locator(".codeblock-lang")).to_contain_text("python")
 
     # шаг 3: код с def, строкой в кавычках, числом и комментарием
@@ -478,6 +479,54 @@ def test_tc_rich_006_codeblock_python_highlight_numbering(
         "&quot;", '"'
     ), code_in_db
     assert "tok-" not in saved
+    assert page_errors == []
+
+
+def test_bug025_codeblock_lang_menu_not_clipped(
+    editor_page, wiki_api, page_errors, web_base_url
+):
+    """BUG-025 (решение Заказчика 2026-10-26): дропдаун выбора языка
+    код-блока не клиппится рамкой код-блока (overflow: hidden контейнера).
+    Меню — portal в document.body (fixed от кнопки): bounding box списка
+    целиком в viewport и ВЫХОДИТ за нижнюю границу фрейма код-блока
+    (не обрезан), опция кликабельна — клик меняет язык блока."""
+    page = editor_page
+    editor = WikiEditor(page)
+    editor.open_create(web_base_url)
+    editor.area.click()
+    editor.toolbar_button("Блок кода").click()
+    block = editor.area.locator(".codeblock")
+    expect(block).to_have_count(1)
+
+    # раскрыть дропдаун языка
+    block.locator(".codeblock-lang").click()
+    menu = page.locator(".lang-menu")
+    expect(menu).to_be_visible()
+
+    # bounding box списка: целиком в viewport и не зажат фреймом код-блока
+    menu_box = menu.bounding_box()
+    viewport = page.evaluate(
+        "() => ({ w: window.innerWidth, h: window.innerHeight })"
+    )
+    assert menu_box is not None
+    assert menu_box["x"] >= 0 and menu_box["y"] >= 0, menu_box
+    assert (
+        menu_box["x"] + menu_box["width"] <= viewport["w"]
+        and menu_box["y"] + menu_box["height"] <= viewport["h"]
+    ), (menu_box, viewport)  # список виден ЦЕЛИКОМ, не уехал за фрейм
+    block_box = block.bounding_box()
+    # список пересекает фрейм и ПРОДОЛЖАЕТСЯ за его нижней границей —
+    # overflow: hidden код-блока его не обрезает (до фикса меню клиппилось)
+    assert (
+        menu_box["y"] + menu_box["height"]
+        > block_box["y"] + block_box["height"]
+    ), (menu_box, block_box)
+
+    # опция кликабельна (Playwright проверяет hit-target) — клик меняет язык
+    menu.locator(".lang-opt").filter(has_text="sql").click()
+    expect(block.locator(".codeblock-lang")).to_contain_text("sql")
+    assert block.get_attribute("data-lang") == "sql"
+    expect(menu).to_have_count(0)  # меню закрылось после выбора
     assert page_errors == []
 
 
@@ -1125,7 +1174,9 @@ def test_tc_rich_020_table_delete_whole_button(
 ):
     """coverage-backfill-1; TC-rich-020: Удаление таблицы отдельной кнопкой
     (ОВ-4). Одно действие удаляет таблицу целиком, сторожа-абзацы целы;
-    «−» строк/столбцов таблицу целиком не удаляют."""
+    «−» строк/столбцов таблицу целиком не удаляют — в том числе при правке
+    сохраненной страницы (шаг 4, BUG-022: панель FR-122 жива после
+    загрузки контента в режиме edit)."""
     page = editor_page
     editor = WikiEditor(page)
     editor.open_create(web_base_url)
@@ -1179,29 +1230,28 @@ def test_tc_rich_020_table_delete_whole_button(
     expect(body).to_contain_text("Сторожа после таблицы")
     assert "<table" not in wiki_api.content_of(page_id)
 
-    # шаг 4: «−» строк/столбцов таблицу ЦЕЛИКОМ не удаляют (минимум 1×1).
-    # Замечание: шаг кейса выполняется в свежем редакторе — при редактировании
-    # СОХРАНЕННОЙ страницы контекстная панель таблицы недоступна (загрузка
-    # контента затирает panel; дефект продукта — BUG-022, см. test-model/bugs).
-    page.goto(f"{web_base_url}/wiki?create=1")
-    expect(editor.area).to_be_visible()
-    editor.area.click()
-    editor.toolbar_button("Таблица").click()
+    # шаг 4: «−» строк/столбцов таблицу ЦЕЛИКОМ не удаляют (минимум 1×1) —
+    # на ПРАВКЕ сохраненной страницы (шаг 4 кейса TC-rich-020): контекстная
+    # панель таблицы доступна и после загрузки контента (BUG-022 исправлен,
+    # FR-122).
+    saved_id = wiki_api.create(
+        "Таблица на правке",
+        "<p>Сторожа правки</p>"
+        "<table><thead><tr><th>К1</th><th>К2</th></tr></thead>"
+        "<tbody><tr><td>А</td><td>Б</td></tr>"
+        "<tr><td>В</td><td>Г</td></tr></tbody></table>",
+    )
+    editor.open_edit(web_base_url, saved_id)
     expect(editor.area.locator("table")).to_have_count(1)
-    editor.area.locator("thead th").first.click()  # каретка в таблице → панель
     panel = editor.area.locator(".tbl-panel")
-    expect(panel).to_be_visible()
-    for _ in range(10):
-        rows = editor.area.locator("tr").count()
-        cols = editor.area.locator("tr").first.locator("th,td").count()
-        if rows > 1:
-            panel.get_by_role("button", name="Удалить строку").click()
-        elif cols > 1:
-            panel.get_by_role("button", name="Удалить столбец").click()
-        else:
-            break
+    editor.area.locator("tbody tr").nth(1).locator("td").nth(0).click()
+    expect(panel).to_be_visible()  # BUG-022: панель жива после загрузки
+    panel.get_by_role("button", name="Удалить строку").click()
+    expect(panel).to_be_visible()  # каретка перенесена в соседнюю ячейку
+    panel.get_by_role("button", name="Удалить столбец").click()
     expect(editor.area.locator("table")).to_have_count(1)  # ОВ-4: не исчезла
-    expect(editor.area.locator("tr")).to_have_count(1)
+    expect(editor.area.locator("tr")).to_have_count(2)  # thead + 1 строка
+    expect(editor.area.locator("tr").first.locator("th")).to_have_count(1)
     assert page_errors == []
 
 
