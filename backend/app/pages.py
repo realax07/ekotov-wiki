@@ -57,7 +57,7 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # redesign-1 — редизайн «Пульт 2.0» (redesign-console): заменено содержимое
 # ВСЕХ CSS и большинства шаблонов при неизменных путях; без бампа браузеры
 # отдают закешированную V3-статику (impact.md §static_v).
-templates.env.globals["static_v"] = "redesign-1"
+templates.env.globals["static_v"] = "redesign-1a"
 
 
 @router.get("/login")
