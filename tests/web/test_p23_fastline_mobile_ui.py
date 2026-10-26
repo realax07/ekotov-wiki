@@ -78,13 +78,24 @@ def mobile_page(page, web_base_url, web_server):
     if static_url:
         def _to_static(route):
             new_url = static_url + route.request.url.partition("/static")[2]
-            route.fulfill(response=route.fetch(url=new_url))
+            # Д2 (impact/redesign-console.md): teardown-гонка route-колбэков —
+            # fulfill упавшего при закрытии контекста запроса дает «Fetch
+            # response has been disposed» (~1 из 3 прогонов). Запрос уже не
+            # доставляем — глушим гонку (паттерн conftest._to_static).
+            try:
+                route.fulfill(response=route.fetch(url=new_url))
+            except Exception:
+                pass
 
         context.route(f"{web_base_url}/static/**", _to_static)
     if search_url:
         def _to_search(route):
             suffix = route.request.url.partition("/api/")[2]
-            route.fulfill(response=route.fetch(url=f"{search_url}/api/{suffix}"))
+            try:  # Д2 — см. _to_static выше
+                route.fulfill(response=route.fetch(
+                    url=f"{search_url}/api/{suffix}"))
+            except Exception:
+                pass
 
         for path in ("/api/search", "/api/search/", "/api/suggestions", "/api/suggestions/"):
             context.route(f"{web_base_url}{path}*", _to_search)
