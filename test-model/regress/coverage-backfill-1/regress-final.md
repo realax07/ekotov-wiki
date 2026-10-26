@@ -1,16 +1,68 @@
 # Regress coverage-backfill-1 — regress-final.md
 
 - change: coverage-backfill-1
-- date: 2026-10-26T19:27:52+00:00
-- commit: bb547a75b085d436eb742042ad71683641aa91c3 (HEAD = bb547a7 «[coverage-backfill-1] круг 3 тест-гигиены: teardown wiki-страниц rich_tools (register editor-страниц), самодостаточность фокуса UIP-107 (blur+wait перед ассертом, ассерт не ослаблен)»)
-- worktree: прогон — /tmp/wt-cov-iso3 (fix/cov-backfill-isolation-3 @ bb547a7); артефакт — /tmp/wt-cov-art (chore/cov-artifact)
-- verdict: PASS (итерация 3: полная серия 431/0/3 на свежем стенде @ bb547a7; итерации 1-2 были FAIL — изоляция, исправлено 89c85f8+bb547a7)
+- date: 2026-10-26T20:24:16+00:00
+- commit: 2a8360306dc62085999fb019308a507a7aae797b
+- worktree: прогон и артефакт — /tmp/wt-reg-cov4 (chore/cov-artifact @ 2a83603, детач)
+- verdict: PASS (итерация 4: полная серия на свежем стенде @ 2a83603; итерации 1-2 — изоляция, итерация 3 PASS но артефакт протух воротными фиксами)
 - tier: full regress-final (tests/api + tests/web полностью, СЕРИАЛЬНО)
-- duration: tests/web 1019.08s (полная серия); tests/api в том же контуре (326 passed + 1 средовый, эффективно 327/0)
+- duration: tests/api 123.06s; tests/web (полная серия) 1010.29s (0:16:50)
 - diff source: git diff origin/main...HEAD
-- pytest exit code: tests/web 0; tests/api 0 (единственный средовый красный test_avatar_r4 — после согласования AVATARS_DIR и перезапуска app модуль green 9/9)
+- pytest exit code: tests/api 0; tests/web 0
 
-## Итерация 3 (этот прогон)
+## Итерация 4 (этот прогон)
+
+### Окружение
+
+- Причина перегона: после итерации 3 (bb547a7) в пакет вошли два воротных
+  коммита — review-001 и замена time.sleep → threading.Event.wait в
+  tests/web/test_coverage_weather.py (2 места, поведение то же). J51.3
+  требует перегон на актуальном HEAD.
+- Стенд пересоздан с нуля: `scripts/qa_stand_up.sh reset` из worktree
+  /tmp/wt-reg-cov4 @ 2a83603, REPO=worktree,
+  PY=/home/openclaw/venvs/wiki/bin/python, SECRET_KEY единый на контур.
+- Порты: nginx :18515, app :18516, search :18517, images :18518, video :18519,
+  weather :18520; STAND_DIR=/tmp/qa-stand-reg-cov4. Health всех 6 точек
+  (/api/health) — ok до прогона; БД чистая: 2 seed-пользователя, 3
+  image_categories (Дом/Работа/Личное), схема wiki/gallery/video/r4 на месте.
+- Порядок (канонический regress): сначала tests/api (сеет справочник категорий
+  r2_seed_categories), затем полная серия tests/web, тот же env.
+- env прогона: EKOTOV_WIKI_BASE_URL=http://127.0.0.1:18515,
+  EKOTOV_WIKI_DB_PATH=/tmp/qa-stand-reg-cov4/app.db,
+  EKOTOV_WIKI_AVATARS_DIR=/tmp/qa-stand-reg-cov4/avatars (согласован со
+  стендом заранее — замечание итерации 3 не воспроизводилось, test_avatar_r4
+  green без перезапуска app),
+  EKOTOV_WIKI_IMAGES_DIR=/tmp/qa-stand-reg-cov4/images-data,
+  EKOTOV_WIKI_IMAGES_PORT=18518, EKOTOV_WIKI_CORE_URL=http://127.0.0.1:18516.
+
+### Счет
+
+| сьют | green | red | skip | xfail | время |
+|---|---|---|---|---|---|
+| tests/api | 327 | 0 | 11 | 2 | 123.06s |
+| tests/web (полная серия, свежий стенд) | 431 | 0 | 3 | 0 | 1010.29s (0:16:50) |
+
+- Итого: tests/api 327 passed / 0 failed / 11 skipped / 2 xfailed;
+  tests/web 431 passed / 0 failed / 3 skipped. Продуктовых багов не
+  обнаружено, средовых красных нет (test_avatar_r4 green).
+- Известные по ТЗ skip'ы на месте: tests/web 3 (TC-weather-019 —
+  docker-стенд, TC-P14-110 — @pytest.mark.manual, +1 штатный), tests/api 11 —
+  1:1 с итерациями 1–3. Неожиданных skip'ов и красных нет.
+- Хвост лога tests/web: `431 passed, 3 skipped, 10 warnings in 1010.29s
+  (0:16:50)`; tests/api: `327 passed, 11 skipped, 2 xfailed, 1 warning in
+  123.06s (0:02:03)`.
+- Ворота review-001 и рефактор test_coverage_weather.py (Event.wait вместо
+  time.sleep) погашены серией без замечаний — weather-сьют green в составе
+  полной серии.
+
+### Итог итерации 4
+
+- Вердикт: **PASS — полная серия tests/api + tests/web на свежем стенде
+  @ 2a83603.** Счет 1:1 с итерацией 3 (431/0/3 web, 327/0/11/2 api).
+- Блокер merge снят. Артефакт — последний коммит ветки [coverage-backfill-1];
+  после него изменений диффа нет. Не запушено (по ТЗ). Стенд погашен.
+
+## Итерация 3 (история — коммит 6fbf1a8; прогон bb547a7, worktree /tmp/wt-cov-iso3)
 
 ### Окружение
 
