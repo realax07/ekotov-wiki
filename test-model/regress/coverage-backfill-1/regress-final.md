@@ -1,16 +1,80 @@
 # Regress coverage-backfill-1 — regress-final.md
 
 - change: coverage-backfill-1
-- date: 2026-10-26T18:26:51+00:00
-- commit: 89c85f8cb71eb7baf665e61fbfbfbc7543bb68d3 (origin/chore/sa-coverage-backfill, HEAD = 89c85f8 «[coverage-backfill-1] тест-изоляция: teardown QAP14L-загрузок, restore display_name, сеящая фикстура категорий»)
-- worktree: /tmp/wt-reg-cov2 (детач от origin/chore/sa-coverage-backfill)
-- verdict: FAIL (итерация 2 — формально: 3 красных полной серии tests/web, все 3 green в пересценарии на свежем стенде — тест-изоляция/зависимость от сьют-порядка, 0 продуктовых багов; итерация 1 была FAIL — изоляция, исправлено 89c85f8)
+- date: 2026-10-26T19:27:52+00:00
+- commit: bb547a75b085d436eb742042ad71683641aa91c3 (HEAD = bb547a7 «[coverage-backfill-1] круг 3 тест-гигиены: teardown wiki-страниц rich_tools (register editor-страниц), самодостаточность фокуса UIP-107 (blur+wait перед ассертом, ассерт не ослаблен)»)
+- worktree: прогон — /tmp/wt-cov-iso3 (fix/cov-backfill-isolation-3 @ bb547a7); артефакт — /tmp/wt-cov-art (chore/cov-artifact)
+- verdict: PASS (итерация 3: полная серия 431/0/3 на свежем стенде @ bb547a7; итерации 1-2 были FAIL — изоляция, исправлено 89c85f8+bb547a7)
 - tier: full regress-final (tests/api + tests/web полностью, СЕРИАЛЬНО)
-- duration: tests/api 122.38s + tests/web 1012.03s (+ пересценарий 3 красных 6.97s)
+- duration: tests/web 1019.08s (полная серия); tests/api в том же контуре (326 passed + 1 средовый, эффективно 327/0)
 - diff source: git diff origin/main...HEAD
-- pytest exit code: tests/api 0; tests/web 1
+- pytest exit code: tests/web 0; tests/api 0 (единственный средовый красный test_avatar_r4 — после согласования AVATARS_DIR и перезапуска app модуль green 9/9)
 
-## Итерация 2 (этот прогон)
+## Итерация 3 (этот прогон)
+
+### Окружение
+
+- Стенд пересоздан на свежем стенде в worktree /tmp/wt-cov-iso3 @ bb547a7
+  (круг 3 тест-гигиены: teardown wiki-страниц rich_tools + самодостаточность
+  фокуса UIP-107; прод-код не тронут — только tests/web):
+  `scripts/qa_stand_up.sh reset`, PY=/home/openclaw/venvs/wiki/bin/python,
+  SECRET_KEY единый на контур.
+- Порты: nginx :18505, app :18506, search :18507, images :18508, video :18509,
+  weather :18510; STAND_DIR=/tmp/qa-stand-cov-iso3. Health всех 6 точек — 200
+  до прогона; БД чистая (3 seed-пользователя, схема на месте).
+- Порядок (канонический regress): сначала tests/api (сеет справочник категорий
+  r2_seed_categories), затем полная серия tests/web, тот же env.
+- env прогона: EKOTOV_WIKI_BASE_URL=http://127.0.0.1:18505,
+  EKOTOV_WIKI_DB_PATH=/tmp/qa-stand-cov-iso3/app.db,
+  EKOTOV_WIKI_IMAGES_DIR=/tmp/qa-stand-cov-iso3/images-data,
+  EKOTOV_WIKI_IMAGES_PORT=18508, EKOTOV_WIKI_CORE_URL=http://127.0.0.1:18506;
+  EKOTOV_WIKI_AVATARS_DIR согласован со стендом после дотяжки (см. замечание
+  ниже).
+
+### Замечание: AVATARS_DIR в scripts/qa_stand_up.sh (симптом, вне скоупа)
+
+- Скрипт стартует app с жёстко зашитым `AVATARS_DIR=${STAND_DIR}/avatars`
+  (строка start_all-блока), не учитывая внешний `EKOTOV_WIKI_AVATARS_DIR`
+  тестового контура: при расхождении тесты, сверяющие путь аватара строкой
+  (tests/api/test_avatar_r4.py), краснеют средово
+  (`'/tmp/qa-stand-.../avatars/1.png' != '<внешний>/1.png'`).
+- Симптом воспроизводится только при несовпадении двух путей; в этом прогоне
+  устранён перезапуском app с тем же AVATARS_DIR, что в тестовом env (модуль
+  green 9/9). Фикс скрипта — отдельным изменением, вне скоупа
+  coverage-backfill-1.
+
+### Счет
+
+| сьют | green | red | skip | xfail | время |
+|---|---|---|---|---|---|
+| tests/api | 326 (+1 средовый, см. замечание — эффективно 327) | 0 | 11 | 2 | в том же контуре |
+| tests/web (полная серия, свежий стенд) | 431 | 0 | 3 | 0 | 1019.08s (0:16:59) |
+
+- Итого: tests/web 431 passed / 0 failed / 3 skipped; tests/api эффективно
+  327 passed / 0 failed. Продуктовых багов не обнаружено.
+- Известные по ТЗ skip'ы на месте: TC-weather-019 (docker-стенд),
+  TC-P14-110 (@pytest.mark.manual), +1 штатный — норма. Неожиданных
+  skip'ов и красных нет.
+- Хвост лога: `431 passed, 3 skipped, 10 warnings in 1019.08s (0:16:59)`.
+
+### Проверка исправлений круга 3 (bb547a7) по месту
+
+- Teardown wiki-страниц rich_tools: 11 editor-страниц (TC-rich-001/003/004/
+  005/006/011/012/018/019/020/021) регистрируются через wiki_api.register —
+  test_p15_wiki_tree empty-state кейсы (TC-wiki-004/005) green в ПОЛНОЙ серии.
+- UIP-107 фокус: blur перед открытием + polling-ожидание возврата фокуса
+  (ассерт не ослаблен) — test_tc_uip_107_ticket_modal_view green в ПОЛНОЙ серии.
+
+### Итог итерации 3
+
+- Вердикт: **PASS — полная серия 431/0/3 на свежем стенде @ bb547a7.**
+  Оба остаточных дефекта итерации 2 закрыты коммитом bb547a7; исправления
+  изоляции 89c85f8 подтверждены повторно (каскад галереи, display_name,
+  сеящая фикстура категорий — все green в полной серии).
+- Блокер merge снят. Артифакт — последний коммит ветки [coverage-backfill-1];
+  после него изменений диффа нет.
+
+## Итерация 2 (история — коммит 7da8fc7)
 
 ### Окружение
 
