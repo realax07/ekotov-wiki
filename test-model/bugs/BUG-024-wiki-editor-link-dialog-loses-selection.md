@@ -63,4 +63,9 @@ function applyLink() {
   статьи без искажений); обертка выделения зафиксирована настоящим
   баг-репортом.
 
-## Статус: OPEN (2026-10-26)
+## Статус
+
+OPEN (2026-10-26) → FIXED (fff75dd, ветка bugfix/rich-editor-022-023-024, волна
+[BUG-022]; openLinkDialog сохраняет Range, applyLink восстанавливает перед
+createLink). Тест: TC-rich-029 ассертит обертку выделенного фрагмента
+(якорь = текст строки). После merge и деплоя (static_v redesign-1b) — CLOSED.

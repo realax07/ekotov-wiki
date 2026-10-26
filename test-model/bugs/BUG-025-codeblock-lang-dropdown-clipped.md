@@ -49,6 +49,8 @@ TC-rich-006 / test_rich_tools переведены на поиск меню от
 
 ## Статус
 
-OPEN (2026-10-26, решение Заказчика) → FIXED (ветка bugfix/rich-editor-022-023-024,
-коммит волны [BUG-022]; static_v redesign-1b уже в волне). После merge и
-деплоя — CLOSED.
+OPEN (2026-10-26, решение Заказчика) → FIXED (fff75dd, ветка
+bugfix/rich-editor-022-023-024, волна [BUG-022]; меню — portal в
+document.body, fixed от кнопки, z-index 20). Тест:
+test_bug025_codeblock_lang_menu_not_clipped. static_v redesign-1b уже в
+волне. После merge и деплоя — CLOSED.
