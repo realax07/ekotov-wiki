@@ -647,8 +647,9 @@ def test_tc_weather_017_provider_timeout_is_error_worker_free(wclient, monkeypat
         thread = threading.Thread(target=run_fetch, daemon=True)
         thread.start()
         deadline = time.monotonic() + 10
+        _wakeup = threading.Event()
         while not hang.connections and time.monotonic() < deadline:
-            time.sleep(0.05)
+            _wakeup.wait(0.05)
 
         # Воркер не блокирован: health отвечает мгновенно, пока fetch висит.
         health_started = time.monotonic()
@@ -824,8 +825,9 @@ def test_tc_weather_025_responsiveness_on_provider_failure(
         thread = threading.Thread(target=run_get_weather, daemon=True)
         thread.start()
         # Дожидаемся окна зависшего запроса и в нем меряем разделы.
+        _wakeup2 = threading.Event()
         while thread.is_alive() and time.monotonic() - started < 5.0:
-            time.sleep(0.1)
+            _wakeup2.wait(0.1)
         if thread.is_alive():
             # Параллельные разделы отвечают, пока /api/weather ждет таймауты.
             for section in ("/board", "/search", "/gallery", "/video"):
