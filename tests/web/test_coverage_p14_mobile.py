@@ -564,10 +564,93 @@ def test_tc_p14_106_mobile_search(mobile_page, web_owner_session,
 
 
 # ---------------------------------------------------------------------------
+# Teardown-гигиена (изоляция): загрузки/профиль кейсов P14 не текут соседям.
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def qap14l_gallery_clean():
+    """Teardown-очистка изображений кейса TC-P14-108 (QAP14L-*) — БД + том.
+    Паттерн галерейных фикстур test_p15_wiki_editor (disk_upload_teardown/
+    gallery_image): очистка в teardown ЛЮБОГО исхода теста — падение на
+    ассертах не льет QAP14L-хвосты в общую галерею стенда и не ломает
+    порядко-зависимые галерейные сьюты (tc_gal_115/116)."""
+    yield
+    _delete_qap14l_images()
+
+
+def _delete_qap14l_images() -> None:
+    """Удаление изображений по префиксу QAP14L- напрямую (БД images + том),
+    паттерн test_coverage_uip._qabf_cleanup: DELETE /api/images/{id} в
+    images-сервисе нет (докстринг gallery.py)."""
+    import sqlite3
+
+    from tests.web.test_p15_wiki_editor import IMAGES_DIR
+
+    db_path = os.environ.get("EKOTOV_WIKI_DB_PATH")
+    if not db_path or not os.path.exists(db_path):
+        return
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    files: list[str] = []
+    try:
+        rows = conn.execute(
+            "SELECT id, filename, thumb_name FROM images"
+            " WHERE original_name LIKE ?",
+            ("QAP14L-%",),
+        ).fetchall()
+        if not rows:
+            return
+        ids = [r["id"] for r in rows]
+        q = ",".join("?" * len(ids))
+        for table in ("image_tags", "image_reactions", "image_comments"):
+            conn.execute(f"DELETE FROM {table} WHERE image_id IN ({q})", ids)
+        for r in rows:
+            files += [r["filename"], r["thumb_name"]]
+            conn.execute("DELETE FROM images WHERE id = ?", (r["id"],))
+        conn.commit()
+    finally:
+        conn.close()
+    for f in files:
+        try:
+            os.remove(os.path.join(IMAGES_DIR, f))
+        except OSError:
+            pass
+
+
+@pytest.fixture
+def owner_display_name_restore(web_db_path):
+    """Teardown-restore display_name owner — паттерн teardown-гигиены
+    TC-redesign-029 (test_redesign_console): кейс TC-P14-107 задает
+    «QAP14 Дисплей-нейм» (FR-56); без восстановления профиль owner утекает
+    в соседние кейсы (подпись сайдбара, r3/r5-сьюты). Возвращается прежнее
+    значение (на сеяной БД — NULL)."""
+    import sqlite3
+
+    conn = sqlite3.connect(web_db_path)
+    try:
+        row = conn.execute(
+            "SELECT display_name FROM users WHERE login = 'owner'"
+        ).fetchone()
+        previous = row[0] if row else None
+    finally:
+        conn.close()
+    yield
+    conn = sqlite3.connect(web_db_path)
+    try:
+        conn.execute(
+            "UPDATE users SET display_name = ? WHERE login = 'owner'",
+            (previous,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
 # TC-P14-107 — Настройки и профиль на мобильном (Should)
 # ---------------------------------------------------------------------------
 def test_tc_p14_107_mobile_settings_profile(mobile_page, web_owner_session,
-                                            web_base_url):
+                                            web_base_url,
+                                            owner_display_name_restore):
     """TC-P14-107: настройки и профиль на 390px — одна колонка полной
     ширины, без X-скролла; инпуты ≥16px, кнопки ≥44px; операции справочника
     (создать/удалить категорию) и профиля (display_name, FR-56) работают;
@@ -622,7 +705,8 @@ def test_tc_p14_107_mobile_settings_profile(mobile_page, web_owner_session,
 # TC-P14-108 — Лайтбокс на таче (Should)
 # ---------------------------------------------------------------------------
 def test_tc_p14_108_mobile_lightbox_swipe(mobile_page, gallery_on_autostand,
-                                          images_service, web_base_url):
+                                          images_service, web_base_url,
+                                          qap14l_gallery_clean):
     """TC-P14-108: свайп по ИЗОБРАЖЕНИЮ (≥50px, |dx|>|dy|) листает лайтбокс
     циклично; короткое/диагональное движение — тап (листания нет); скролл
     панели комментариев не перехватывается жестом; на desktop стрелки и

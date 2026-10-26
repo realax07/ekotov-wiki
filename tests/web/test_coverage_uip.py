@@ -135,6 +135,35 @@ def gal_clean():
     _qabf_cleanup()
 
 
+@pytest.fixture(autouse=True)
+def seed_categories(web_server):
+    """Сеящая фикстура справочника категорий (seed CHK-139/TC-env-001:
+    «Дом/Работа/Личное») — образец conftest._seed_users (INSERT OR IGNORE —
+    идемпотентно). Кейсы файла создают задачи с category=«Дом» (TC-UIP-102/107,
+    FR-21: вне справочника — 422), а соседи по прогону (сьют справочника
+    test_settings_categories_ui, ядерный API-регресс TC-P12N-008 этого же
+    файла — subprocess над tests/api/test_categories с удалением неиспользуемых)
+    сеянные категории удаляют: на свежей/вычищенной БД без пересеивания
+    POST /api/tasks уходит в 422. Пересеивание — ДО каждого теста файла."""
+    import sqlite3
+
+    from tests.web.conftest import SEED_CATEGORIES
+
+    db_path = web_server["db_path"]
+    if not db_path:
+        yield  # внешний стенд без DB-крюка — сеять некуда, не вмешиваемся
+        return
+    conn = sqlite3.connect(db_path)
+    try:
+        for name in SEED_CATEGORIES:
+            conn.execute(
+                "INSERT OR IGNORE INTO categories (name) VALUES (?)", (name,))
+        conn.commit()
+    finally:
+        conn.close()
+    yield
+
+
 def _upload(session, base: str, name: str, blob: bytes, mime: str,
             category: str | None = None) -> dict:
     data = {"category": category} if category else {}

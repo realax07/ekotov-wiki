@@ -515,6 +515,7 @@ def test_tc_rich_029_toolbar_wysiwyg_roundtrip(
     editor.title_input.fill("WYSIWYG раундтрип")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)  # UI-сохраненная страница — в teardown-очистку
 
     # шаг 3: тот же вид без расхождений (DOM-сравнение со структурой редактора)
     body = page.locator(".article-body")
@@ -717,6 +718,7 @@ def test_tc_rich_032_undo_redo_including_h_toggle(
     editor.title_input.fill("Undo redo rich")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)  # UI-сохраненная страница — в teardown-очистку
     body = page.locator(".article-body")
     expect(body.locator("h3")).to_have_count(1)
     expect(body.locator(".spoiler")).to_have_count(1)
@@ -911,6 +913,7 @@ def test_tc_rich_037_code_enter_roundtrip_no_br(
     editor.title_input.fill("Код roundtrip")
     editor.save_button().click()
     page_id = _saved_page_id(page)
+    wiki_api.register(page_id)  # UI-сохраненная страница — в teardown-очистку
     expected = "строка один\nстрока два\nстрока три"
     saved = wiki_api.content_of(page_id)
     code_in_db = saved.split("<code>")[1].split("</code>")[0]
@@ -940,6 +943,7 @@ def test_tc_rich_037_code_enter_roundtrip_no_br(
     editor.title_input.fill("Пустой код")
     editor.save_button().click()
     page_id2 = _saved_page_id(page)
+    wiki_api.register(page_id2)  # UI-сохраненная страница — в teardown-очистку
     saved3 = wiki_api.content_of(page_id2)
     assert "<code></code>" in saved3, saved3
     code_empty = saved3.split("<code>")[1].split("</code>")[0]
