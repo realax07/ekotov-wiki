@@ -156,4 +156,5 @@ dev; перечислены в эскалации Э-6).
   `services/images/tests/test_images_service.py`, `backend/app/auth.py`,
   `frontend/static/js/gallery.js`.
 - Коммит: локальный, ветка `add-gallery-service`, push НЕТ.
-- Эскалации-источники: `frontend/REPORT-1.5-gallery-frontend.md` (Э-3/Э-4).
+- Эскалации-источники: `archive/code-reviews/REPORT-1.5-gallery-frontend.md`
+  (Э-3/Э-4; перенесен из `frontend/` в `archive/code-reviews/`).
