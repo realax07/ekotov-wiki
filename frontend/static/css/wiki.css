@@ -1837,9 +1837,11 @@ td .spoiler, th .spoiler { margin: 0; } /* страховка на контен�
   cursor: pointer;
 }
 .lang-menu {
-  position: absolute;
-  z-index: 3;
-  margin-top: 2px;
+  /* BUG-025: меню вне код-блока (portal в body, JS ставит fixed-координаты
+   * от кнопки) — overflow: hidden рамки код-блока больше не клиппит список;
+   * z-index слоя 20 — над контентом/панелями, под диалогами (40). */
+  position: fixed;
+  z-index: 20;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-field);

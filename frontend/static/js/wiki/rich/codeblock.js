@@ -101,7 +101,12 @@ function buildLangPicker(block, editable) {
     document.removeEventListener('click', onDocClick, true);
   }
   function onDocClick(event) {
-    if (!wrap.contains(event.target)) closeMenu();
+    /* menu в document.body (BUG-025) — клик по опции не должен закрывать
+       меню до срабатывания обработчика опции */
+    if (!wrap.contains(event.target) &&
+        !(menu && menu.contains(event.target))) {
+      closeMenu();
+    }
   }
   function openMenu() {
     menu = editorEl('div', 'lang-menu');
@@ -124,7 +129,15 @@ function buildLangPicker(block, editable) {
       });
       menu.appendChild(option);
     });
-    wrap.appendChild(menu);
+    /* BUG-025: меню позиционируется ВНЕ clip-контекста код-блока —
+       .codeblock { overflow: hidden } (рамка/скругления pre) обрезал
+       absolute-меню внутри шапки, выбор языка не работал. Меню —
+       fixed от кнопки в document.body, над контентом (z-index слоя
+       20; диалоги редактора — 40, выше меню). */
+    document.body.appendChild(menu);
+    var buttonRect = button.getBoundingClientRect();
+    menu.style.left = buttonRect.left + 'px';
+    menu.style.top = buttonRect.bottom + 2 + 'px';
     document.addEventListener('click', onDocClick, true);
   }
   button.addEventListener('click', function (event) {

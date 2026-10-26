@@ -479,19 +479,18 @@ def test_tc_rich_029_toolbar_wysiwyg_roundtrip(
         editor.toolbar_button(button).click()
         page.keyboard.press("End")
         page.keyboard.press("ArrowDown")
-    # ссылка — вставка при выделении всей области (механика select_all_text,
-    # как в tests/web/test_p15_wiki_editor.py): продукт вставляет URL как
-    # новый узел <a>URL</a> — выделение диапазона диалог ссылки теряет
-    # (дефект продукта — BUG-024)
-    editor.select_all_text()
+    # ссылка — на ВЫДЕЛЕННЫЙ фрагмент последней строки (BUG-024 исправлен:
+    # диалог «Ссылка» сохраняет выделение редактора, createLink оборачивает
+    # выделение, а не вставляет URL новым узлом)
+    page.keyboard.press("Control+End")
+    page.keyboard.press("Home")
+    page.keyboard.press("Shift+End")
     editor.toolbar_button("Ссылка").click()
     editor.link_address_input().fill("https://example.com")
     editor.link_dialog.get_by_role("button", name="Вставить").click()
-    # продукт нормализует URL (добавляет «/») и вставляет <a> в начало
-    # первой строки — выделение диапазона диалог ссылки теряет (BUG-024)
-    expect(
-        editor.area.locator("a[href^='https://example.com']")
-    ).to_have_count(1)
+    link = editor.area.locator("a[href^='https://example.com']")
+    expect(link).to_have_count(1)
+    expect(link).to_have_text("ссылка на источник")  # обернут именно фрагмент
 
     # таблица в конец
     _caret_to_area_end(page)
@@ -519,9 +518,8 @@ def test_tc_rich_029_toolbar_wysiwyg_roundtrip(
 
     # шаг 3: тот же вид без расхождений (DOM-сравнение со структурой редактора)
     body = page.locator(".article-body")
-    # ссылка вставляется продуктом как новый узел <a>URL</a> в начало
-    # первой строки (выделение теряет диалог — BUG-024), поэтому h2
-    # содержит ссылку-URL + текст заголовка
+    # ссылка оборачивает выделенный фрагмент последней строки (BUG-024
+    # исправлен): якорь содержит текст строки, URL-узлов-вставок нет
     expect(body.locator("h2")).to_contain_text("Заголовок раздела")
     expect(body.locator("b, strong").filter(has_text="жирный")).to_have_count(1)
     expect(body.locator("i, em").filter(has_text="курсивный")).to_have_count(1)
@@ -530,7 +528,9 @@ def test_tc_rich_029_toolbar_wysiwyg_roundtrip(
     expect(body.locator("ol li")).to_have_text("пункт нумерованный")
     expect(body.locator("blockquote")).to_contain_text("цитата целиком")
     expect(body.locator("pre code")).to_contain_text("print('код')")
-    expect(body.locator("a[href^='https://example.com']")).to_have_count(1)
+    expect(body.locator("a[href^='https://example.com']")).to_have_text(
+        "ссылка на источник"
+    )
     expect(body.locator("table")).to_have_count(1)
     img = body.locator("img")
     expect(img).to_have_count(1)
@@ -664,10 +664,11 @@ def test_tc_rich_032_undo_redo_including_h_toggle(
 ):
     """coverage-backfill-1; TC-rich-032: Undo/redo, включая undo после
     H-toggle (F4). Правки (спойлер, снятие H2, замена H1→H3) отменяются в
-    обратном порядке; redo повторно применяет; финальное состояние
-    сохраняется корректно (FR-110). Гранулярность нативного стека крупнее
-    одной правки — откат до наблюдаемых вех (число нажатий подобрано по
-    фактическому стеку, заход на набор текста защищен ассертами)."""
+    обратном порядке; redo повторно применяет — ТЕКСТ не теряется ни на
+    undo, ни на redo (BUG-023 исправлен); финальное состояние сохраняется
+    корректно (FR-110). Гранулярность нативного стека крупнее одной правки
+    — откат до наблюдаемых вех (число нажатий подобрано по фактическому
+    стеку, заход на набор текста защищен ассертами)."""
     page = editor_page
     editor = WikiEditor(page)
     editor.open_create(web_base_url)
@@ -702,17 +703,18 @@ def test_tc_rich_032_undo_redo_including_h_toggle(
     ).to_have_count(1)  # текст не потерян
 
     # шаг 3: redo повторно применяет правки (включая замену уровня и
-    # спойлер) до полного восстановления структуры. Замечание: при redo
-    # вставки спойлера текст абзаца пропадает (воспроизводится стабильно,
-    # дефект продукта — BUG-023 в test-model/bugs); структурные ассерты
-    # ниже проверяют работоспособность redo, сохранность текста — на фазе
-    # undo выше.
+    # спойлер) до полного восстановления структуры, ТЕКСТ НЕ ТЕРЯЕТСЯ
+    # (BUG-023 исправлен: redo insertHTML-юнита спойлера больше не
+    # перезаписывает содержимое блока с кареткой)
     for _ in range(6):
         if editor.area.locator(".spoiler").count() == 1:
             break
         page.keyboard.press("Control+Shift+Z")
     expect(editor.area.locator(".spoiler")).to_have_count(1)
     expect(editor.area.locator("h3")).to_have_count(1)  # замена применена снова
+    expect(
+        editor.area.locator("h1, h2, h3, p").filter(has_text="Абзац для отмены")
+    ).to_have_count(1)  # текст не потерян и не задублирован redo-ом
 
     # шаг 4: финальное состояние корректно сохраняется
     editor.title_input.fill("Undo redo rich")
@@ -724,6 +726,7 @@ def test_tc_rich_032_undo_redo_including_h_toggle(
     expect(body.locator(".spoiler")).to_have_count(1)
     saved = wiki_api.content_of(page_id)
     assert 'data-block="spoiler"' in saved  # структура применена redo-ом
+    assert "Абзац для отмены" in saved  # BUG-023: текст не потерян redo-ом
     assert page_errors == []
 
 

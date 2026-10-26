@@ -332,9 +332,9 @@ def test_code_language_numbering_copy_highlight(editor_page, wiki_api, web_base_
     expect(block.locator(".codeblock-lang")).to_contain_text("python")
     expect(block.locator(".codeblock-nums")).to_be_visible()
 
-    # выбор языка: дропдаун → sql
+    # выбор языка: дропдаун → sql (меню — portal в body, BUG-025)
     block.locator(".codeblock-lang").click()
-    block.locator(".lang-menu .lang-opt").filter(has_text="sql").click()
+    page.locator(".lang-menu .lang-opt").filter(has_text="sql").click()
     expect(block.locator(".codeblock-lang")).to_contain_text("sql")
 
     page.keyboard.type("SELECT id FROM users WHERE id = 1")
