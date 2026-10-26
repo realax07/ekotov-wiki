@@ -816,7 +816,8 @@ def test_tc_redesign_011_v3_tokens_removed_cache_invalidated():
     """TC-redesign-011 (CHK-011, FR-128/2.7): V3-токены удалены — grep
     --p-paper/--p-ink/--p-clay/--p-blue/--p-red/--p-olive/--p-amber-700 по
     css+шаблонам = 0; ни один селектор не ссылается на несуществующий токен
-    (все var() резолвятся в определения); static_v=redesign-1 в pages.py; все
+    (все var() резолвятся в определения); static_v=redesign-1a в pages.py
+    (бамп BUG-004, 5d8f249); все
     static-подключения base.html с ?v=; favicon-маркер <!--cache:v=2--> бампнут
     отдельно от redesign-1 (REPORT-шаги гейта 2.7 заменены прямым прогоном)."""
     v3_hits = {}
@@ -831,7 +832,7 @@ def test_tc_redesign_011_v3_tokens_removed_cache_invalidated():
     dangling = sorted(refs - defined)
     assert dangling == [], dangling
     pages_py = (REPO / "backend/app/pages.py").read_text()
-    assert 'static_v"] = "redesign-1"' in pages_py
+    assert 'static_v"] = "redesign-1a"' in pages_py
     base_html = (REPO / "frontend/templates/base.html").read_text()
     static_links = re.findall(r'(?:href|src)="(/static/[^"]+)"', base_html)
     assert static_links, static_links
