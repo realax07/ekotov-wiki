@@ -267,10 +267,13 @@ export function renderBoard(data) {
       }
     });
     /* 3.1 (FR-32): оформленный пустой state пустого столбца —
-     * пунктирная зона (board.css), текст дает CSS (::before). */
-    var column = container.closest(".board-column");
+     * пунктирная зона (board.css), текст дает CSS (::before). BUG-004:
+     * класс ставится на КОНТЕЙНЕР карточек, не на секцию — псевдоэлемент
+     * на секции рендерился первым боксом, НАД .col-head; на контейнере
+     * он идет после шапки колонки. ОГР-28: разрешенное добавление
+     * класса на контейнер, существующие атрибуты колонок не тронуты. */
     var isEmpty = !container.firstElementChild;
-    column.classList.toggle("board-column-empty", isEmpty);
+    container.classList.toggle("board-column-empty", isEmpty);
     container.hidden = false;
   });
   /* P23: зона FASTLINE — этап = status (design §2). Пустые столбцы зоны

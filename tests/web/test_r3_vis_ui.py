@@ -121,21 +121,31 @@ def test_empty_column_state_styled_and_cleared(
     _wait_board(page)
 
     column = page.locator('.board-column[data-status="in_progress"]')
-    expect(column).to_contain_class("board-column-empty")
+    # BUG-004: класс пустого state — на КОНТЕЙНЕРЕ карточек
+    # (.board-column-cards), не на секции: псевдоэлемент на секции
+    # рендерился НАД .col-head. Точка проверки стилей — контейнер.
+    cards_box = page.locator(
+        '.board-column[data-status="in_progress"] .board-column-cards'
+    )
+    expect(cards_box).to_contain_class("board-column-empty")
 
-    border_style = _computed(page, '[data-status="in_progress"]', "borderTopStyle")
-    border_width = _computed(page, '[data-status="in_progress"]', "borderTopWidth")
-    min_height = _computed(page, '[data-status="in_progress"]', "minHeight")
+    sel = '[data-status="in_progress"] .board-column-cards'
+    border_style = _computed(page, sel, "borderTopStyle")
+    border_width = _computed(page, sel, "borderTopWidth")
+    min_height = _computed(page, sel, "minHeight")
     assert border_style == "dashed", border_style
     assert border_width == "2px", border_width
     assert int(float(min_height.rstrip("px"))) >= 48, min_height
 
-    before_content = _computed(
-        page, '[data-status="in_progress"]', "content", "::before"
-    )
+    before_content = _computed(page, sel, "content", "::before")
     assert before_content not in ("none", "normal", ""), before_content
-    background = _computed(page, '[data-status="in_progress"]', "backgroundImage")
+    background = _computed(page, sel, "backgroundImage")
     assert "linear-gradient" in background, background
+
+    # BUG-004: порядок чтения — шапка колонки ВЫШЕ пустого state.
+    head_y = column.locator(".col-head").bounding_box()["y"]
+    empty_y = cards_box.bounding_box()["y"]
+    assert head_y < empty_y, (head_y, empty_y)
 
     # Шаг 4: задача в столбце → класс снят (создание + перевод селектом
     # «Столбец» — механика move_via_card_select; новая задача создается
