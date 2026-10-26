@@ -83,18 +83,18 @@ TC-ID-маркером в docstring (трассировка qa-инвентар�
 Зона тестов: `services/weather/tests/ или tests/web/` (ориентир: services/weather/tests/test_weather_…_backfill.py::…); дословные шаги и
 ожидания — в файле кейса.
 
-- [ ] C.01 `services/weather/tests/ или tests/web/` — **TC-weather-001** — Пункт сайдбара «Погода» виден авторизованным и ведет на /weather
-- [ ] C.02 `services/weather/tests/ или tests/web/` — **TC-weather-005** — Деградация: отсутствующая метрика — прочерк, карточка не ломается
-- [ ] C.03 `services/weather/tests/ или tests/web/` — **TC-weather-006** — Прогноз на неделю: ровно 7 карточек с полным набором полей по датам
-- [ ] C.04 `services/weather/tests/ или tests/web/` — **TC-weather-007** — Граница: «сегодня» — первая карточка прогноза, согласована с карточкой «Сегодня»
-- [ ] C.05 `services/weather/tests/ или tests/web/` — **TC-weather-008** — Запрос к провайдеру: зафиксированные координаты, tz, 7 дней, м/с и полный набор полей
-- [ ] C.06 `services/weather/tests/ или tests/web/` — **TC-weather-015** — Битый JSON провайдера не затирает кэш — паритет отказу провайдера
-- [ ] C.07 `services/weather/tests/ или tests/web/` — **TC-weather-016** — Пустой кэш + недоступный провайдер: 503 JSON, честный UI без заглушек, кэш не создан
-- [ ] C.08 `services/weather/tests/ или tests/web/` — **TC-weather-017** — Таймаут 5 с считается ошибкой провайдера; воркер не блокируется
-- [ ] C.09 `services/weather/tests/ или tests/web/` — **TC-weather-018** — Граница: ровно один автоматический повтор при ошибке провайдера
+- [x] C.01 `services/weather/tests/ или tests/web/` — **TC-weather-001** — Пункт сайдбара «Погода» виден авторизованным и ведет на /weather
+- [x] C.02 `services/weather/tests/ или tests/web/` — **TC-weather-005** — Деградация: отсутствующая метрика — прочерк, карточка не ломается
+- [x] C.03 `services/weather/tests/ или tests/web/` — **TC-weather-006** — Прогноз на неделю: ровно 7 карточек с полным набором полей по датам
+- [x] C.04 `services/weather/tests/ или tests/web/` — **TC-weather-007** — Граница: «сегодня» — первая карточка прогноза, согласована с карточкой «Сегодня»
+- [x] C.05 `services/weather/tests/ или tests/web/` — **TC-weather-008** — Запрос к провайдеру: зафиксированные координаты, tz, 7 дней, м/с и полный набор полей
+- [x] C.06 `services/weather/tests/ или tests/web/` — **TC-weather-015** — Битый JSON провайдера не затирает кэш — паритет отказу провайдера
+- [x] C.07 `services/weather/tests/ или tests/web/` — **TC-weather-016** — Пустой кэш + недоступный провайдер: 503 JSON, честный UI без заглушек, кэш не создан
+- [x] C.08 `services/weather/tests/ или tests/web/` — **TC-weather-017** — Таймаут 5 с считается ошибкой провайдера; воркер не блокируется
+- [x] C.09 `services/weather/tests/ или tests/web/` — **TC-weather-018** — Граница: ровно один автоматический повтор при ошибке провайдера
 - [ ] C.10 `services/weather/tests/ или tests/web/` — **TC-weather-019** — Деградация: остановка контейнера weather — быстрый 503 nginx, стек работает
-- [ ] C.11 `services/weather/tests/ или tests/web/` — **TC-weather-023** — Вид по утвержденному мокапу A; без внешних библиотек/CDN; B/C не реализованы
-- [ ] C.12 `services/weather/tests/ или tests/web/` — **TC-weather-025** — NFR: отзывчивость при отказе провайдера — /api/weather ≤ ~11 с, стек не деградирует
+- [x] C.11 `services/weather/tests/ или tests/web/` — **TC-weather-023** — Вид по утвержденному мокапу A; без внешних библиотек/CDN; B/C не реализованы
+- [x] C.12 `services/weather/tests/ или tests/web/` — **TC-weather-025** — NFR: отзывчивость при отказе провайдера — /api/weather ≤ ~11 с, стек не деградирует
 
 ## Группа D — add-responsive-mobile (P14 мобильный адаптив): 10 кейсов (`test-model/approved/add-responsive-mobile/`)
 
