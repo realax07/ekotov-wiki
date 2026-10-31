@@ -1,7 +1,7 @@
 # autotest-coverage Specification
 
 ## Purpose
-TBD - created by archiving change coverage-backfill-1. Update Purpose after archive.
+Реестр обязательного автотестового покрытия: какие сценарии спек должны иметь автотесты и как это проверяется.
 
 ## Requirements
 

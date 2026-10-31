@@ -1,7 +1,7 @@
 # weather-service Specification
 
 ## Purpose
-TBD - created by archiving change weather-service. Update Purpose after archive.
+Погодный сервис: агрегация погодных данных с кэшем и деградацией при недоступности провайдера.
 
 ## Requirements
 

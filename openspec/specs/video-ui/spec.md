@@ -1,7 +1,7 @@
 # video-ui Specification
 
 ## Purpose
-TBD - created by archiving change redesign-console. Update Purpose after archive.
+Видео-интерфейс: плеер, загрузка и управление видео в wiki-разделе.
 
 ## Requirements
 

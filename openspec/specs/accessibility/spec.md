@@ -1,7 +1,7 @@
 # accessibility Specification
 
 ## Purpose
-TBD - created by archiving change redesign-console. Update Purpose after archive.
+Доступность интерфейса: читаемость текста, фокус, контраст и семантика на уровне AA для основных экранов wiki.
 
 ## Requirements
 

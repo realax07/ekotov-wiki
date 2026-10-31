@@ -1,7 +1,7 @@
 # p23-fastline Specification
 
 ## Purpose
-TBD - created by archiving change p23-fastline. Update Purpose after archive.
+Фастлайн: отдельная зона над канбаном, не более одной fast-задачи в активной фазе, priority-lock и сигнальный визуал.
 
 ## Requirements
 

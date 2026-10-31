@@ -1,7 +1,7 @@
 # video-service Specification
 
 ## Purpose
-TBD - created by archiving change video-hosting. Update Purpose after archive.
+Видео-сервис: загрузка, обработка (ffmpeg), хранение и выдача видео-контента wiki.
 
 ## Requirements
 

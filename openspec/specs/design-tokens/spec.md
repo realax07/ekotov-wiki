@@ -1,7 +1,7 @@
 # design-tokens Specification
 
 ## Purpose
-TBD - created by archiving change redesign-console. Update Purpose after archive.
+Дизайн-токены Пульта: палитра, типографика, свечение и spacing редизайна как единый источник визуальных констант.
 
 ## Requirements
 

@@ -1,7 +1,7 @@
 # p12-rich-tools Specification
 
 ## Purpose
-TBD - created by archiving change p12-rich-tools. Update Purpose after archive.
+Rich-инструменты wiki-редактора: таблицы, спойлеры, блоки кода с выбором языка, redo/undo и панель форматирования.
 
 ## Requirements
 
