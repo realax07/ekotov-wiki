@@ -102,20 +102,20 @@ DOM-хуки сохранять (ОГР-28); токен-дисциплина (he
 
 ## ЭТАП 3. [tests] ПОЛНЫЙ QA-контур (обязателен: заявка «Qa и вадидацию не забудь»; J39/H5)
 
-- [ ] 3.1 [tests] [S] qa_impact_analysis: актуализировать impact.md по
+- [x] ~~3.1 снято ПМ 2026-10-31~~ (суперседено волной coverage-backfill-1: impact/чеклист/кейсы поглощены её QA-контуром)
   фактическому диффу волн 2.1–2.7 — MODIFIED-дельты покрывают весь фронт;
   сверить список сломающихся тестов (8 файлов из impact.md) с реальным прогоном
   web-набора; зафиксировать REPORT-impact (дополнения, если найдены новые
   сломавшиеся). (impact.md; H5)
-- [ ] 3.2 [tests] [S] qa_checklist: чеклист QA по дельтам — по каждому
+- [x] ~~3.2 снято ПМ 2026-10-31~~ (суперседено волной coverage-backfill-1: impact/чеклист/кейсы поглощены её QA-контуром)
   Requirement/Scenario дельт пункт проверки (12 capability, 25 Requirement,
   105 Scenario, статус-таблица J23). Выход: `openspec/changes/redesign-console/qa/checklist.md`.
-- [ ] 3.3 [tests] [M] qa_author + qa_case_reviewer: кейсы ИЗ ДЕЛЬТ спеки (не
+- [x] ~~3.3 снято ПМ 2026-10-31~~ (суперседено волной coverage-backfill-1: impact/чеклист/кейсы поглощены её QA-контуром)
   из кода) — TC-redesign-001…NNN на каждый Scenario (каждый Scenario дельты
   имеет кейс; Must-сценарии — автотест или скриптовый прогон с REPORT);
   независимый qa_case_reviewer ревьюит до автоматизации. Выход:
   `openspec/changes/redesign-console/qa/cases/` (new/ → approved/).
-- [ ] 3.4 [tests] [M] qa_automation: автоматизация кейсов TC-redesign-NNN в
+- [x] 3.4 [tests] [M] qa_automation: автоматизация кейсов TC-redesign-NNN в — выполнено: TC-redesign-NNN в tests/web/test_redesign_console.py (+BUG-004 волна)
   `tests/web/test_redesign_console_ui.py` (+ точечно p15/p23-файлы) —
   токен-ассерты (цвета из токенов «Пульта»), контраст-скрипт, focus-visible,
   reduced-motion, skip-link, HUD/LED-дисциплина, mobile-брейкпоинт; ПРАВКА
@@ -124,16 +124,16 @@ DOM-хуки сохранять (ОГР-28); токен-дисциплина (he
   p12_ui_polish_r8, p15_wiki_tree, r5_profile_card, r3_vis,
   p12_nav_icons_favicon — новые значения токенов, свойства проверок без
   изменений; ни один не удаляется/skip). Проверка: полный web-набор зеленый.
-- [ ] 3.5 [tests] [S] Независимый аудит покрытия (прецедент add-wiki): сверка
+- [x] 3.5 [tests] [S] Независимый аудит покрытия (прецедент add-wiki): сверка — выполнено: аудит покрытия в coverage-backfill-1 (89 Must-автотестов)
   «каждый Scenario дельты ↔ кейс ↔ автотест/прогон» + REPORT-coverage до
   regress-final.
 
 ## ЭТАП 4. [devops] Релиз
 
-- [ ] 4.1 [ops] regress-final: прогон всех наборов по порядку api →
+- [x] 4.1 [ops] regress-final: прогон всех наборов по порядку api → — выполнено: test-model/regress/redesign-console/regress-final.md (PASS 715/1, единственный fail — TC-GAL-119, починен #243)
   web-desktop → web-mobile → смок на сборке с `static_v=redesign-1`; падение
   набора = баг-репорт и стоп; проверка кеш-инвалидации статики (нет ?v=stale).
-- [ ] 4.2 [ops] Прод-выкатка + живая приемка Заказчика (заявка «Qa и вадидацию
+- [x] 4.2 [ops] Прод-выкатка + живая приемка Заказчика (заявка «Qa и вадидацию — выполнено: деплой redesign-1/1a, приемка Заказчика «все ок»
   не забудь»; протокол приемки обязателен). После приемки — archive пакета
   (`openspec archive redesign-console`, слияние дельт в master-specs,
   design/tokens.html V3 → archive).

@@ -13,7 +13,9 @@
 
 ## Локальные факты
 
-- Прод: docker compose проект `ekotov-wiki-par` (6 контейнеров: app :8377 внутри сети,
+- Скиллы: зеркало фабрики в `skills/` (9 групп: pm-factory/flow/roles/roles-tools/runtimes/engineering/creative/research/office), проектные — `skills/project/`, не трогаются фабричным синком. Агенты `agents/` — проектные копии роль-файлов фабрики. Активных change-пакетов нет: все релизы архивированы (2026-10-31), планы — `archive/plans/`, код-ревью — `archive/code-reviews/`.
+
+- Прод: docker compose проект `ekotov-wiki-par` (7 контейнеров: app :8377 внутри сети,
   frontend nginx TLS :10443, search :8378, images :8379, backup, netdata);
   systemd-юнит `ekotov-wiki` эпохи монолита выведен из боевого пути.
 - БД: sqlite в томе `ekotov-wiki-par_wiki-data` (`/data/wiki.db` внутри контейнеров);
@@ -23,7 +25,7 @@
   `latest` запрещен (FR-72); pre-deploy бэкапы `/var/backups/ekotov-wiki/`
   (wiki-pre-<tag>-*.db + avatars-pre-<tag>-*.tar); статическая версия —
   `static_v` в `backend/app/pages.py`, бампится на каждый деплой с изменениями
-  статики (сейчас `p15-wiki-5`).
+  статики (сейчас `redesign-1a`).
 - Стенды (тесты): порт 8080, env `EKOTOV_WIKI_DB_PATH` +
   `EKOTOV_WIKI_AVATARS_DIR`/`AVATARS_DIR` (оба), venv `~/venvs/wiki`, playwright 1.63.
   После seed — миграции `app.migrate_r4` (нужен SECRET_KEY) и `app.migrate_wiki`.
