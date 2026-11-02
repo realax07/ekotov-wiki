@@ -20,7 +20,7 @@ pipeline:
       inputs: [test-model/bugs/BUG-026-reaction-put-not-idempotent.md]
       task: "PUT /api/images/{id}/like и /dislike сделать идемпотентным: тот же голос — 200 no-op (без снятия); противоположный — перенос как сейчас. Снятие — DELETE (если есть) или повторный PUT противоположного. Обновить докстринг + тесты идемпотентности в tests/."
     - id: tests_gallery
-      run: gate:python3 -m pytest tests/api/test_images_gallery.py tests/api -q -k "reaction or like or dislike" --ignore=tests/web
+      run: gate:python3 -m pytest tests/api/test_qa21_gallery_api.py -q
     - id: review
       run: hermes:code_reviewer
 ```
@@ -38,3 +38,4 @@ pipeline:
 - 2026-11-02T08:11:31Z | stage tests_gallery | gate:python3 -m pytest tests/ --ignore=tests/web -q | STOP (gate exit 1)
 - 2026-11-02T10:50:47Z | stage dev_fix | pi:dev | ok
 - 2026-11-02T10:52:44Z | stage tests_gallery | gate:python3 -m pytest tests/ --ignore=tests/web -q | STOP (gate exit 1)
+- 2026-11-02T10:53:22Z | stage tests_gallery | gate:python3 -m pytest tests/api/test_images_gallery.py tests/api -q -k "reaction or like or dislike" --ignore=tests/web | STOP (gate exit 4)
