@@ -645,7 +645,8 @@ def test_rename_files_list_and_idempotent(client, seeded_gallery, images_dir):
 
 
 # --------------------------------------------------------------------------
-# Реакции (FR-81): один голос, смена, снятие, негатив 401
+# Реакции (FR-81): один голос, смена, снятие, негатив 401;
+# идемпотентность PUT (BUG-026/TD-5)
 # --------------------------------------------------------------------------
 
 
@@ -667,13 +668,17 @@ def test_reaction_flow(client, client2, seeded_gallery):
     r = client.put(f"/api/images/{img}/dislike")
     assert r.json() == {"likes": 0, "dislikes": 2, "my_reaction": -1}
 
-    # 3) Повторное действие того же знака снимает голос.
+    # 3) Идемпотентность PUT (BUG-026/TD-5): повтор same-sign — no-op,
+    #    голос остается (снятие — только DELETE, шаг 4).
     r = client.put(f"/api/images/{img}/dislike")
-    assert r.json() == {"likes": 0, "dislikes": 1, "my_reaction": None}
+    assert r.status_code == 200
+    assert r.json() == {"likes": 0, "dislikes": 2, "my_reaction": -1}
 
-    # 4) Явное снятие: PE переносит голос на лайк и снимает DELETE-ом.
-    #    К этому шагу голос owner снят (шаг 3), у PE — дизлайк; его перенос
-    #    на лайк и удаление оставляют 0/0.
+    # 4) Явное снятие: owner снимает голос DELETE-ом (BUG-026), PE переносит
+    #    голос на лайк и снимает DELETE-ом → в сумме 0/0.
+    r = client.delete(f"/api/images/{img}/dislike")
+    assert r.status_code == 200
+    assert r.json() == {"likes": 0, "dislikes": 1, "my_reaction": None}
     assert client2.put(f"/api/images/{img}/like").json() == {
         "likes": 1, "dislikes": 0, "my_reaction": 1,
     }
@@ -696,6 +701,51 @@ def test_reaction_flow(client, client2, seeded_gallery):
         assert n == 2  # owner + PE
     finally:
         conn.close()
+
+
+def test_reaction_put_idempotent(client, seeded_gallery):
+    """BUG-026 (TD-5): PUT like/dislike — идемпотентная установка голоса.
+
+    Ретрай сети / двойной клик (повтор same-sign PUT) не меняет состояние:
+    тот же голос → 200 no-op без снятия; противоположный — перенос как
+    раньше; снятие — только DELETE.
+    """
+    img = seeded_gallery[1]
+
+    # Тот же знак: состояние после повтора равно состоянию после первого PUT.
+    first = client.put(f"/api/images/{img}/like")
+    assert first.status_code == 200
+    assert first.json() == {"likes": 1, "dislikes": 0, "my_reaction": 1}
+    second = client.put(f"/api/images/{img}/like")
+    assert second.status_code == 200
+    assert second.json() == first.json()
+
+    # Тройной ретрай — в БД по-прежнему один голос, счетчик не растет.
+    client.put(f"/api/images/{img}/like")
+    conn = sqlite3.connect(os.environ["EKOTOV_WIKI_DB_PATH"])
+    try:
+        rows = conn.execute(
+            "SELECT value FROM image_reactions WHERE image_id = ?", (img,)
+        ).fetchall()
+    finally:
+        conn.close()
+    assert rows == [(1,)]
+
+    # Противоположный знак — перенос (как и прежде), повтор — no-op.
+    assert client.put(f"/api/images/{img}/dislike").json() == {
+        "likes": 0, "dislikes": 1, "my_reaction": -1,
+    }
+    assert client.put(f"/api/images/{img}/dislike").json() == {
+        "likes": 0, "dislikes": 1, "my_reaction": -1,
+    }
+
+    # Снятие — DELETE; повторный DELETE тоже идемпотентен (голоса уже нет).
+    assert client.delete(f"/api/images/{img}/dislike").json() == {
+        "likes": 0, "dislikes": 0, "my_reaction": None,
+    }
+    assert client.delete(f"/api/images/{img}/dislike").json() == {
+        "likes": 0, "dislikes": 0, "my_reaction": None,
+    }
 
 
 def test_reaction_no_session_401(anon_client, seeded_gallery):

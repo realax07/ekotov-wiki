@@ -7,9 +7,11 @@
 - GET    /api/images?category=&tag=       — список, created_at DESC, теги,
                                            счетчики + мой голос (1.6, Э-3)
 - GET    /api/images/{id}                 — метаданные + теги + реакции + комментарии
-- PUT    /api/images/{id}/like            — голос +1 (upsert; повторное — снятие)
+- PUT    /api/images/{id}/like            — голос +1, идемпотентно (повтор —
+                                           no-op 200; противоположный — перенос;
+                                           BUG-026/TD-5: PUT не toggle)
 - DELETE /api/images/{id}/like            — снятие голоса
-- PUT    /api/images/{id}/dislike         — голос −1 (перенос противоположного)
+- PUT    /api/images/{id}/dislike         — голос −1, идемпотентно (паритет like)
 - DELETE /api/images/{id}/dislike         — снятие голоса
 - POST   /api/images/{id}/comments        — {body}; пустой после trim → 422
 - DELETE /api/images/{id}/comments/{cid}  — только автор; чужой → 403
@@ -327,44 +329,23 @@ def get_image(request: Request, image_id: int):
 
 
 def _set_reaction(conn: sqlite3.Connection, image_id: int, user_id: int, value: int) -> dict:
-    """Upsert голоса по design §3/spec FR-81:
+    """Идемпотентная установка голоса (BUG-026/TD-5, audit 2026-10-31):
 
     - голоса не было / был противоположный → ставим value (смена голоса —
       «счетчики изменились ровно на один голос»);
-    - голос уже value (повторное действие того же знака) → СНИМАЕМ.
-    Ответ — обновленные счетчики + мой голос.
+    - голос уже value (повтор: ретрай сети, двойной клик) → no-op, состояние
+      НЕ меняется — PUT по семантике HTTP идемпотентен (раньше повтор
+      снимал голос — toggle, дефект BUG-026).
+    Снятие голоса — только DELETE /like | /dislike.
+    Ответ — актуальные счетчики + мой голос.
     """
-    row = conn.execute(
-        "SELECT value FROM image_reactions WHERE image_id = ? AND user_id = ?",
-        (image_id, user_id),
-    ).fetchone()
-    if row is not None and int(row["value"]) == value:
-        conn.execute(
-            "DELETE FROM image_reactions WHERE image_id = ? AND user_id = ?",
-            (image_id, user_id),
-        )
-    else:
-        conn.execute(
-            "INSERT INTO image_reactions (image_id, user_id, value) VALUES (?, ?, ?)"
-            " ON CONFLICT(image_id, user_id) DO UPDATE SET value = excluded.value",
-            (image_id, user_id, value),
-        )
+    conn.execute(
+        "INSERT INTO image_reactions (image_id, user_id, value) VALUES (?, ?, ?)"
+        " ON CONFLICT(image_id, user_id) DO UPDATE SET value = excluded.value",
+        (image_id, user_id, value),
+    )
     conn.commit()
-    counts = conn.execute(
-        "SELECT"
-        " (SELECT count(*) FROM image_reactions WHERE image_id = ? AND value = 1) AS likes,"
-        " (SELECT count(*) FROM image_reactions WHERE image_id = ? AND value = -1) AS dislikes",
-        (image_id, image_id),
-    ).fetchone()
-    my = conn.execute(
-        "SELECT value FROM image_reactions WHERE image_id = ? AND user_id = ?",
-        (image_id, user_id),
-    ).fetchone()
-    return {
-        "likes": counts["likes"],
-        "dislikes": counts["dislikes"],
-        "my_reaction": my["value"] if my else None,
-    }
+    return _reaction_state(conn, image_id, user_id)
 
 
 @router.put("/api/images/{image_id}/like")
