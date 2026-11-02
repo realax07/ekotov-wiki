@@ -39,3 +39,4 @@ pipeline:
 - 2026-11-02T10:50:47Z | stage dev_fix | pi:dev | ok
 - 2026-11-02T10:52:44Z | stage tests_gallery | gate:python3 -m pytest tests/ --ignore=tests/web -q | STOP (gate exit 1)
 - 2026-11-02T10:53:22Z | stage tests_gallery | gate:python3 -m pytest tests/api/test_images_gallery.py tests/api -q -k "reaction or like or dislike" --ignore=tests/web | STOP (gate exit 4)
+- 2026-11-02T10:54:33Z | stage tests_gallery | gate:python3 -m pytest tests/api/test_qa21_gallery_api.py -q | STOP (gate exit 1)
