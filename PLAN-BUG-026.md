@@ -15,10 +15,12 @@ pipeline:
   stages:
     - id: dev_fix
       run: pi:dev
-      zones: services/images/**
+      zones:
+        - services/images/**
       inputs: [test-model/bugs/BUG-026-reaction-put-not-idempotent.md]
       task: "PUT /api/images/{id}/like и /dislike сделать идемпотентным: тот же голос — 200 no-op (без снятия); противоположный — перенос как сейчас. Снятие — DELETE (если есть) или повторный PUT противоположного. Обновить докстринг + тесты идемпотентности в tests/."
-      gate: cd services/images && python3 -m pytest tests/ -q 2>/dev/null || python3 -m pytest tests/ -q
+    - id: tests_gallery
+      run: gate:python3 -m pytest tests/ -q -k gallery
     - id: review
       run: hermes:code_reviewer
 ```
