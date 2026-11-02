@@ -1,0 +1,42 @@
+{
+  "branch": "pipeline/BUG-026-6778a219",
+  "flow": 2,
+  "history": [
+    {
+      "at": "2026-11-02T10:50:47Z",
+      "detail": "pi ok",
+      "exit_code": 0,
+      "stage": "dev_fix",
+      "status": "done"
+    },
+    {
+      "at": "2026-11-02T10:52:44Z",
+      "detail": "gate exit 1",
+      "exit_code": 1,
+      "stage": "tests_gallery",
+      "status": "stopped"
+    }
+  ],
+  "package": "BUG-026",
+  "plan": "/home/openclaw/ekotov-wiki/PLAN-BUG-026.md",
+  "schema_version": "package-runner-state/1",
+  "stages": {
+    "dev_fix": {
+      "at": "2026-11-02T10:50:47Z",
+      "detail": "pi ok",
+      "exit_code": 0,
+      "status": "done",
+      "stderr_tail": "",
+      "stdout_tail": "## Отчет dev — BUG-026, stage dev_fix\n\nКоммит: `49f0936` на `pipeline/BUG-026-6778a219` (локальный, push НЕТ — по режиму).\n\n### Реализовано\n- **`services/images/app/gallery.py`**\n  - `_set_reaction`: убрана toggle-ветка. PUT = идемпотентный upsert: тот же голос → 200 no-op (состояние не меняется); противоположный → перенос (upsert как раньше). Снятие — только `DELETE /like | /dislike` (эндпоинты уже были).\n  - Дублирующий блок подсчета счетчиков заменен вызовом существующего хелпера `_reaction_state`.\n  - Докстринги обновлены: модульный (маршруты: «идемпотентно, повтор — no-op 200, BUG-026/TD-5: PUT не toggle») и докстринг `_set_reaction`.\n- **`services/images/tests/test_images_service.py`**\n  - `test_reaction_flow`: шаг 3 переписан под идемпотентность (повтор same-sign → голос остается), шаг 4 — явное снятие DELETE-ом; счетчики и PK-инвариант сохранены.\n  - Новый `test_reaction_put_idempotent`: same-sign PUT ×3 (состояние идентично, в БД ровно один голос), перенос противоположным, идемпотентный повторный DELETE.\n\n### Проверено\n- `cd services/images && python3 -m pytest tests/ -q` → **35 passed** (было 34, +1 новый; вывод свежий, полный).\n- Целевые тесты: `test_reaction_flow` + `test_reaction_put_idempotent` → 2 passed.\n- Зона: `git diff --name-only` — только `services/images/**` → **zone-check PASS**. Коммит без push.\n- Worktree-boundary: pwd/branch совпали с ТЗ (`pipeline/BUG-026-6778a219`).\n\n### Вопросы / эскалации ПМ (вне моей зоны — править не мог)\n1. **`tests/api/test_qa21_gallery_api.py` TC-GAL-111** (`test_tc_gal_111_reaction_toggle_change_independence`) — ассертит старую toggle-семантику против живого стенда (шаги 1 и 3: повтор same-sign → снятие). После фикса этот тест **упадет**. Нужна адаптация `[test-adapted]` в зоне `tests/**` отдельной сессией.\n2. **`frontend/static/js/gallery.js` `sendReaction`** — всегда шлет PUT, рассчитан на toggle (докстринг :18-19 «повторное — снятие»). После фикса повторный клик по активной кнопке в UI станет no-op — снять голос кликом будет нельзя. Нужен фронт-фикс: same-sign клик → DELETE, противоположный → PUT (зона `frontend/**`).\n3. Наблюдение (вне задачи): `frontend/static/js/video.js` имеет аналогичные реакции — если видео-реакции в ядре (`backend/`) тоже toggle, там тот же TD-5-паттерн; в зону/задачу не входило, не трогал.\n4. Входы: карточка `test-model/bugs/BUG-026-...md` в worktree отсутствовала — прочитал из коммита `d9fc4fe` (ветка `bugfix/BUG-026-reaction-put`), содержание учтено полностью.\n\n`prepare: PM-side | reserve: PM-side | zone-check: PASS | provenance: ожидает ревью (commit 49f0936)`"
+    },
+    "tests_gallery": {
+      "at": "2026-11-02T10:52:44Z",
+      "detail": "gate exit 1",
+      "exit_code": 1,
+      "status": "stopped",
+      "stderr_tail": "",
+      "stdout_tail": "ERROR tests/api/test_suggestions.py::test_suggestions_unique - RuntimeError: ...\nERROR tests/api/test_suggestions.py::test_suggestions_sorted - RuntimeError: ...\nERROR tests/api/test_suggestions.py::test_suggestions_union_of_tags_and_categories\nERROR tests/api/test_suggestions_gap.py::test_suggestions_exclude_orphan_tag_and_null_category\nERROR tests/api/test_suggestions_gap.py::test_suggestions_all_categories_empty_only_tags\nERROR tests/api/test_suggestions_gap.py::test_suggestions_task_delete_updates_without_restart\nERROR tests/api/test_suggestions_r6.py::test_suggestions_r6_no_param_union - ...\nERROR tests/api/test_suggestions_r6.py::test_suggestions_r6_kind_tags_only - ...\nERROR tests/api/test_suggestions_r6.py::test_suggestions_r6_kind_categories_only\nERROR tests/api/test_suggestions_r6.py::test_suggestions_r6_unknown_kind_422\nERROR tests/api/test_suggestions_r6.py::test_suggestions_r6_unauthorized_with_and_without_kind\nERROR tests/api/test_suggestions_r6.py::test_suggestions_r6_kind_filters_exclude_other_kind_active\nERROR tests/api/test_tasks.py::test_create_task_title_only_defaults - Runtime...\nERROR tests/api/test_tasks.py::test_create_task_with_all_attributes - Runtime...\nERROR tests/api/test_tasks.py::test_create_task_without_title_422 - RuntimeEr...\nERROR tests/api/test_tasks.py::test_title_boundaries_one_char_ok_spaces_documented\nERROR tests/api/test_tasks.py::test_attributes_stored_and_readable - RuntimeE...\nERROR tests/api/test_tasks.py::test_edit_attributes_saved - RuntimeError: При...\nERROR tests/api/test_tasks.py::test_comment_persists - RuntimeError: Приложен...\nERROR tests/api/test_tasks.py::test_bare_task_card_empty_fields - RuntimeErro...\nERROR tests/api/test_tasks.py::test_rename_task - RuntimeError: Приложение ht...\nERROR tests/api/test_tasks.py::test_patch_delete_missing_and_double_delete - ...\nERROR tests/api/test_tasks.py::test_delete_existing_task - RuntimeError: Прил...\nERROR tests/api/test_tasks.py::test_deleted_task_inaccessible_everywhere - Ru...\nERROR tests/api/test_tasks.py::test_create_task_via_api_authorized - RuntimeE...\nERROR tests/api/test_tasks.py::test_create_via_api_missing_title_422 - Runtim...\nERROR tests/api/test_tasks.py::test_data_survives_service_restart - RuntimeEr...\nERROR tests/api/test_tasks.py::test_archive_survives_service_restart - Runtim...\nERROR tests/api/test_tasks_assign_r4.py::test_post_with_assigned - RuntimeErr...\nERROR tests/api/test_tasks_assign_r4.py::test_post_without_assigned - Runtime...\nERROR tests/api/test_tasks_assign_r4.py::test_post_assigned_null - RuntimeErr...\nERROR tests/api/test_tasks_assign_r4.py::test_post_unknown_user_422 - Runtime...\nERROR tests/api/test_tasks_assign_r4.py::test_patch_unknown_user_422 - Runtim...\nERROR tests/api/test_tasks_assign_r4.py::test_post_creator_id_rejected - Runt...\nERROR tests/api/test_tasks_assign_r4.py::test_patch_creator_id_rejected - Run...\nERROR tests/api/test_tasks_assign_r4.py::test_creator_is_session_user - Runti...\nERROR tests/api/test_tasks_assign_r4.py::test_get_task_contains_users - Runti...\nERROR tests/api/test_tasks_assign_r4.py::test_board_contains_users - RuntimeE...\nERROR tests/api/test_tasks_assign_r4.py::test_patch_assign_and_clear - Runtim...\nERROR tests/api/test_users_r4.py::test_users_200_sorted_by_login_with_both_seed_users\nERROR tests/api/test_users_r4.py::test_users_display_name_null_until_profile_filled\nERROR tests/api/test_users_r4.py::test_users_401_without_session - RuntimeErr...\nERROR tests/api/test_users_r4.py::test_users_read_only_session_owner_sees_both_users\nERROR tests/smoke_cross/test_smoke_auth_search.py::test_auth_login_ok_and_negative\nERROR tests/smoke_cross/test_smoke_auth_search.py::test_search_via_nginx - Ru...\nERROR tests/smoke_cross/test_smoke_gallery.py::test_gallery_page_via_nginx - ...\nERROR tests/smoke_cross/test_smoke_health.py::test_health_via_nginx - Runtime...\nERROR tests/smoke_cross/test_smoke_video.py::test_video_page_via_nginx - Runt...\nERROR tests/smoke_cross/test_smoke_wiki.py::test_wiki_page_via_nginx - Runtim...\n1 failed, 142 passed, 2 xfailed, 1 warning, 243 errors in 116.01s (0:01:56)"
+    }
+  },
+  "worktree": "/home/openclaw/ekotov-wiki-worktrees/pipeline-BUG-026-6778a219"
+}
