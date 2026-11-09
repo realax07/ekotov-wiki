@@ -95,13 +95,11 @@ def make_repo(tmp_path: Path, *, change_id: str = "add-widget",
               "## Вердикт: approve\nReviewer-Delegation: deleg_testreviewer0000\n")
     if with_sdd:
         write(repo, "sdd.md", "# SDD\n")
-    # J41 (синхронизация flow_transition с фабрикой): dev_task/create_change
-    # требуют план релиза с объявленным воркфлоу — fixture-репо «собранный».
+    # J41: в фабрике PLAN подкладывает autouse-фикстура tests/conftest.py
+    # (plan_release_fixture); в проекте ее нет — wiki-адаптация: PLAN в make_repo.
     write(repo, "PLAN-add-widget.md",
           "# PLAN-add-widget\n\n**Флоу: 1** (fixture)\n")
-    # Проектная адаптация путей (wiki): зона dev здесь — tests/**, а не
-    # фабричная src/** (role_zone_policy: agents/README.md@8d5db6d).
-    write(repo, "tests/widget.py", "X = 1\n")
+    write(repo, "src/widget.py", "X = 1\n")
     commit_all(repo)
     return repo
 
@@ -128,7 +126,7 @@ def prepare_argv(repo: Path, registry: Path, state: Path, tmp_path: Path,
         "--change", "add-widget", "--task", "1.1",
         "--action", kw.get("action", "dev_task"),
         "--role", kw.get("role", "dev"),
-        "--path", "tests/**",
+        "--path", "src/**",
         "--owner-pm", "pm-main",
         "--registry", str(registry), "--state", str(state),
         "--audit", str(tmp_path / "audit.jsonl"),
@@ -211,7 +209,7 @@ class TestPrepareDryRun:
         assert data["prepared"] is True
         assert data["role"] == "dev"
         assert data["action"] == "dev_task"
-        assert data["zones"] == ["tests/**"]
+        assert data["zones"] == ["src/**"]
         assert data["gates"]  # план gates из decision
         assert data["decision"]["status"] == "ALLOW"
         assert "dry-run" in data["note"]
@@ -310,7 +308,7 @@ class TestPrepareRun:
         reg = make_registry(tmp_path)
         state = tmp_path / "state" / "flowctl_state.json"
         flowctl_cmd(*prepare_argv(repo, reg, state, tmp_path))
-        write(repo, "tests/widget.py", "X = 2\n")
+        write(repo, "src/widget.py", "X = 2\n")
         commit_all(repo, "unrelated change")
         r = flowctl_cmd("run", "--correlation-id", "corr0001",
                         "--registry", str(reg), "--state", str(state),
@@ -344,7 +342,7 @@ class TestPrepareRun:
         # зона; action/role те же, чтобы отказ пришел от идемпотентности,
         # а не от wrong-role/policy):
         argv = prepare_argv(repo, reg, state, tmp_path)
-        argv[argv.index("--path") + 1] = "backend/**"
+        argv[argv.index("--path") + 1] = "tests/unit/**"  # J66: зона dev
         r = flowctl_cmd(*argv)
         assert r.returncode == 1
         assert "DUPLICATE_PAYLOAD" in r.stdout
@@ -390,10 +388,10 @@ class TestFinish:
         flowctl_cmd("run", "--correlation-id", "corr0001",
                     "--registry", str(reg), "--state", str(state))
         # «Работа агента»: изменение в своей зоне + коммит (report = указатель).
-        write(repo, "tests/widget.py", "X = 42\n")
+        write(repo, "src/widget.py", "X = 42\n")
         sha = commit_all(repo, "dev: widget")
         report = tmp_path / "agent-report.md"
-        report.write_text(f"# Отчет\nизменено: tests/widget.py ({sha})\n",
+        report.write_text(f"# Отчет\nизменено: src/widget.py ({sha})\n",
                           encoding="utf-8")
         return report
 
@@ -598,7 +596,7 @@ class TestRecovery:
         state = tmp_path / "state" / "flowctl_state.json"
         flowctl_cmd(*prepare_argv(repo, reg, state, tmp_path))
         # «Падение» после записи файлов агентом:
-        write(repo, "tests/widget.py", "X = crash\n")
+        write(repo, "src/widget.py", "X = crash\n")
         r = flowctl_cmd("reconcile", "--repo", str(repo),
                         "--registry", str(reg), "--state", str(state),
                         "--json")
@@ -609,7 +607,7 @@ class TestRecovery:
         rec = json.loads(state.read_text(encoding="utf-8"))["runs"]["corr0001"]
         assert rec["status"] == "needs_attention"
         # Файлы агента сохранены; worktree не удален:
-        assert "X = crash" in (repo / "tests/widget.py").read_text(encoding="utf-8")
+        assert "X = crash" in (repo / "src/widget.py").read_text(encoding="utf-8")
         # Повторный run НЕ повторяет делегацию:
         r2 = flowctl_cmd("run", "--correlation-id", "corr0001",
                          "--registry", str(reg), "--state", str(state),
@@ -730,7 +728,7 @@ class TestUnits:
             "actor_role": "dev", "action": "dev_task", "task_id": "1.1",
             "scope": {"repo": str(repo), "project": "proj", "flow": 1,
                       "change": "add-widget", "task": "1.1"},
-            "zones": ["tests/**"], "worktree": None, "branch": None,
+            "zones": ["src/**"], "worktree": None, "branch": None,
             "goal_path": "g.md", "prepared_digest": "d" * 64,
             "approval_ref": None,
         }
