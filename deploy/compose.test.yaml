@@ -263,16 +263,17 @@ services:
     environment:
       EKOTOV_WIKI_DB_PATH: /data/wiki.db
       EKOTOV_WIKI_AVATARS_DIR: /data/avatars
-      EKOTOV_WIKI_IMAGES_DIR: /data/images
-      EKOTOV_WIKI_VIDEOS_DIR: /data/videos
+      EKOTOV_WIKI_IMAGES_DIR: /media/images
+      EKOTOV_WIKI_VIDEOS_DIR: /media/videos
       BACKUP_DIR: /backups
       BACKUP_INTERVAL_SEC: "3600"
       BACKUP_RETENTION_DAYS: "14"
     volumes:
       - wiki-test-data:/data:ro
-      # Медиа-тома стенда — ro, глубина как у владельцев (паритет прода).
-      - images-test-data:/data/images:ro
-      - videos-test-data:/data/videos:ro
+      # Медиа-тома стенда — ro на верхнеуровневых путях (паритет прода;
+      # вложенный маунтпойнт в ro /data невозможен — CI e2e TD-D).
+      - images-test-data:/media/images:ro
+      - videos-test-data:/media/videos:ro
       - ./backups-test:/backups
     depends_on:
       - app

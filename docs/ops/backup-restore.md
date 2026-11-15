@@ -88,16 +88,23 @@ restore.py сам делает `PRAGMA integrity_check` + smoke-запрос к
 
 ## 4. Медиа-тома в backup-контейнере (deploy-хвост — ЗАКРЫТ TD-D, 2026-11-15)
 
-Код backup.py готов к каталогам `/data/images`, `/data/videos`
-(env `EKOTOV_WIKI_IMAGES_DIR` / `EKOTOV_WIKI_VIDEOS_DIR` — те же имена,
-что у сервисов images/video). `deploy/compose.yaml` (сервис backup)
-маунтит их С TD-D — ro, той же глубиной, что у владельцев томов
-(урок avatars: глубина маунта = глубина alias-пути):
+Код backup.py читает каталоги из env `EKOTOV_WIKI_IMAGES_DIR` /
+`EKOTOV_WIKI_VIDEOS_DIR` (дефолты кода — `/data/images`, `/data/videos` —
+те же имена, что у сервисов images/video). В backup-контейнере пути
+ДРУГИЕ — `/media/images`, `/media/videos`: `/data` у sidecar занят
+ro-маунтом БД (`wiki-data:/data:ro`), а вложенный маунтпойнт внутрь
+ro-маунта docker создать не может («read-only file system», класс
+weather PR #207 — поймано CI e2e TD-D). У владельцев томов (images/video)
+`/data` rw — там вложение легально. `deploy/compose.yaml` (сервис backup)
+с TD-D маунтит медиа так:
 
 ```yaml
 # сервис backup, volumes (ПРИМЕНЕНО, PR pipeline/td-d-deploy):
-      - images-data:/data/images:ro
-      - videos-data:/data/videos:ro
+      - images-data:/media/images:ro
+      - videos-data:/media/videos:ro
+# environment:
+      EKOTOV_WIKI_IMAGES_DIR: /media/images
+      EKOTOV_WIKI_VIDEOS_DIR: /media/videos
 ```
 
 Паритет в `deploy/compose.test.yaml` (тома стенда `images-test-data`/

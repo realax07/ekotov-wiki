@@ -246,8 +246,11 @@ services:
       # Медиа-тома (TD-A-хвост, TD-D): env-имена — паритет сервисам
       # images/video (docs/ops/backup-restore.md §4); код backup.py
       # молча пропускает отсутствующий каталог (обратная совместимость).
-      EKOTOV_WIKI_IMAGES_DIR: /data/images
-      EKOTOV_WIKI_VIDEOS_DIR: /data/videos
+      # Пути /media/* — НЕ /data/*: /data занят ro-маунтом БД, вложенный
+      # маунтпойнт внутрь ro-маунта докер не создаст («read-only file
+      # system» — класс weather, PR #207; поймано CI e2e TD-D).
+      EKOTOV_WIKI_IMAGES_DIR: /media/images
+      EKOTOV_WIKI_VIDEOS_DIR: /media/videos
       BACKUP_DIR: /backups
       # Суточный цикл; retention 14 дней (design §5).
       BACKUP_INTERVAL_SEC: "86400"
@@ -255,11 +258,12 @@ services:
     volumes:
       # Данные — только чтение (безопасный профиль, plan §1.2 / README сервиса).
       - wiki-data:/data:ro
-      # Медиа-тома — ro, СТОЛЬКО ЖЕ ГЛУБИНЫ, что у владельцев (урок avatars:
-      # глубина маунта = глубина alias-пути). Полный контур: БД + аватары +
+      # Медиа-тома — ro на ВЕРХНЕУРОВНЕВЫХ путях (маунтпойнт нельзя
+      # вкладывать в ro-маунт /data — CI e2e TD-D «read-only file
+      # system», класс weather PR #207). Полный контур: БД + аватары +
       # галерея + видео (TD-A/TD-D; images-daily-*/videos-daily-*).
-      - images-data:/data/images:ro
-      - videos-data:/data/videos:ro
+      - images-data:/media/images:ro
+      - videos-data:/media/videos:ro
       # Каталог бэкапов — bind хоста (как у deploy.sh, design §5). Образ
       # работает под ЧИСЛОВЫМ uid 10001 (USER 10001 в Dockerfile) — bind-каталог
       # на хосте должен иметь владельца 10001:10001 (имя wiki:wiki на хосте
