@@ -1,4 +1,22 @@
-# Автотесты add-kanban-core (tests/)
+# Автотесты ekotov-wiki (tests/)
+
+## Раскладка тестов (J66, test-model/test-layout.json)
+
+Тесты разложены по слоям; режим проверки — `strict` (test вне раскладки или
+чужой стек уровня = FLOW-ERROR на flow_check):
+
+| Слой | Содержимое | Стек | Стенд |
+|---|---|---|---|
+| `tests/unit/` | чистые unit-тесты (зона dev) | без requests/playwright | не нужен |
+| `tests/api/` | API-интеграционные (requests против живого контура) | без playwright | нужен (qa_stand_up.sh) |
+| `tests/integration/` | многокомпонентные сквозные (сервисный слой без HTTP/браузера) | без requests/playwright | не нужен |
+| `tests/web/` | UI (playwright) | playwright | нужен (qa_stand_up.sh / автостенд conftest) |
+| `tests/smoke_cross/` | cross-domain smoke (эшелон 2, J54) | requests | нужен |
+
+Исторические QA-отчеты релизов — `archive/test-model/reports/` (перенесены из
+корня tests/, J66-миграция).
+
+## add-kanban-core (tests/api) — исходный набор
 
 pytest + requests набор по 80 approved-кейсам `test-model/approved/add-kanban-core/`
 (7 файлов кейсов: auth 17, board 10, fastline 12, tasks 16, archive 9, search 11,

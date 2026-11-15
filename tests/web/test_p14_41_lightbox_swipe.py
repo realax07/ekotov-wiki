@@ -15,7 +15,7 @@
   паритет свайпа и стрелок (та же цель navigateLightbox).
 
 Прогон: процессный nginx-стенд :18443 (app :8080 + search :8378 +
-images :8389; прецедент tests/REPORT-2.1-gallery-qa.md §1 — автостенд
+images :8389; прецедент archive/test-model/reports/REPORT-2.1-gallery-qa.md §1 — автостенд
 conftest галерею не обслуживает). Изоляция: QAGAL-префикс + teardown
 БД/тома по префиксу (паттерн test_p12_gallery_rename_masonry_r8).
 

@@ -24,7 +24,7 @@
     чужие (релизные wiki-pre-*) не трогаются.
 
 Прогон (без стенда, stdlib-модули сервиса):
-  /home/openclaw/venvs/wiki/bin/python -m pytest tests/test_backup_restore.py -v
+  /home/openclaw/venvs/wiki/bin/python -m pytest tests/unit/test_backup_restore.py -v
 """
 
 import json
@@ -37,7 +37,7 @@ from pathlib import Path
 import pytest
 
 SERVICES_BACKUP_DIR = (
-    Path(__file__).resolve().parent.parent / "services" / "backup"
+    Path(__file__).resolve().parents[2] / "services" / "backup"
 )
 sys.path.insert(0, str(SERVICES_BACKUP_DIR))
 

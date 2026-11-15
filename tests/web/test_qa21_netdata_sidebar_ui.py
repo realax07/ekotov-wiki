@@ -1,6 +1,6 @@
 """QA 2.1 (a)+(г): web-проверки сайдбара «Мониторинг» на локальном стенде.
 
-Трассировка: TC-ADD-201…TC-ADD-206 (change add-netdata-monitoring, QA 2.1a/г; FR-78, design §0/§3); см. tests/REPORT-2.1-netdata-qa.md.
+Трассировка: TC-ADD-201…TC-ADD-206 (change add-netdata-monitoring, QA 2.1a/г; FR-78, design §0/§3); см. archive/test-model/reports/REPORT-2.1-netdata-qa.md.
 
 Запуск:  EKOTOV_WIKI_BASE_URL=http://127.0.0.1:18443 \
          EKOTOV_WIKI_DB_PATH=<стендовая БД> \
