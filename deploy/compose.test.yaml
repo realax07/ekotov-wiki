@@ -252,6 +252,7 @@ services:
   # Sidecar-бэкап на стенде: цикл укорочен до 3600с (проверяемость на
   # стенде без суточного ожидания), retention тот же (14 дней). Каталог
   # бэкапов — bind проекта стенда (НЕ /var/backups хоста — изоляция NFR-10).
+  # Медиа-маунты — паритет прода (TD-A/TD-D): env + ro-тома той же глубины.
   backup:
     image: ${BACKUP_IMAGE:-ekotov-wiki/backup:test}
     build:
@@ -262,11 +263,16 @@ services:
     environment:
       EKOTOV_WIKI_DB_PATH: /data/wiki.db
       EKOTOV_WIKI_AVATARS_DIR: /data/avatars
+      EKOTOV_WIKI_IMAGES_DIR: /data/images
+      EKOTOV_WIKI_VIDEOS_DIR: /data/videos
       BACKUP_DIR: /backups
       BACKUP_INTERVAL_SEC: "3600"
       BACKUP_RETENTION_DAYS: "14"
     volumes:
       - wiki-test-data:/data:ro
+      # Медиа-тома стенда — ro, глубина как у владельцев (паритет прода).
+      - images-test-data:/data/images:ro
+      - videos-test-data:/data/videos:ro
       - ./backups-test:/backups
     depends_on:
       - app
@@ -292,6 +298,14 @@ services:
     volumes:
       # Сокет стенда — тот же хост-сокет, только в прокси (whitelist GET).
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    # Healthcheck — паритет прода (TD-D): wget /_ping (busybox wget есть в
+    # образе; nc -z в нем всегда exit 0 — не годится, см. compose.yaml).
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2375/_ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     logging:
       driver: json-file
       options:
@@ -305,7 +319,7 @@ services:
     mem_limit: 256m
     depends_on:
       docker-socket-proxy:
-        condition: service_started
+        condition: service_healthy
     environment:
       # Docker-коллектор (go.d): Docker API через whitelisted-прокси (TD-C).
       DOCKER_HOST: tcp://docker-socket-proxy:2375
