@@ -3,7 +3,7 @@
 > Дополнение к `deploy/RUNBOOK.md` (прод-факты, сервисы, деплой). Этот раздел —
 > что лежит в бэкапах, как проверить целостность и как восстановиться на чистом
 > volume. Код: `services/backup/backup.py` (цикл), `services/backup/restore.py`
-> (восстановление). Тест: `tests/test_backup_restore.py`.
+> (восстановление). Тест: `tests/unit/test_backup_restore.py`.
 
 ## 1. Что в бэкапе
 
@@ -32,7 +32,7 @@
 - **WAL-safe**: копия снимается через `sqlite3.Connection.backup` (sqlite
   backup API), не копированием файла живой БД — коммиты, живущие в
   `-wal` на момент бэкапа, в копию входят (проверено
-  `tests/test_backup_restore.py::test_backup_db_includes_wal_tail`).
+  `tests/unit/test_backup_restore.py::test_backup_db_includes_wal_tail`).
 - **immutable-fallback** (ro-том без создания `-wal`/`-shm`, прод p15):
   бэкап читает ТОЛЬКО main-файл БД; незалитетый WAL-хвост в копию НЕ
   входит. Модуль печатает WARNING с размером `-wal` — по нему видно масштаб.
@@ -116,7 +116,7 @@ weather PR #207 — поймано CI e2e TD-D). У владельцев том�
 ## 5. Проверка контура (тест)
 
 ```bash
-/home/openclaw/venvs/wiki/bin/python -m pytest tests/test_backup_restore.py -v
+/home/openclaw/venvs/wiki/bin/python -m pytest tests/unit/test_backup_restore.py -v
 ```
 
 13 кейсов: WAL-хвост в копии БД, манифесты (инвентарь+sha256, вложенность),

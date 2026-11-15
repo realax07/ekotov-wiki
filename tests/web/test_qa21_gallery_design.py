@@ -22,7 +22,7 @@ import re
 
 import pytest
 
-pytestmark = [pytest.mark.api, pytest.mark.must]
+pytestmark = [pytest.mark.web, pytest.mark.must]
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

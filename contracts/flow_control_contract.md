@@ -130,7 +130,9 @@ Decision {
 | dev_task | dev | architecture review пройден; задача tasks.md; [P]/зависимости; зона свободна | нет | flow_check; pm_bounds (J9/J10) |
 | code_review | code_reviewer (≠ автор) | diff задачи; delegation автора | нет | review-файл с вердиктом (формат code_reviewer_agent.md) |
 | merge_task | интегратор/dev-lead (не ПМ: J9) | approve-вердикт + provenance-sidecar (task/change/SHA, независимая роль); легаси-review — compatibility UNKNOWN, не новый auto-merge | нет | pm_bounds_check --require-review; pr_validate; branch protection (внеш.) |
-| qa_checklist → qa_cases → qa_review → qa_automation | qa_* | цепочка контрактов 3–6: спека → чеклист → new → approved → tests | нет | flow_check (порядок new/approved/tests, TC-трассировка) |
+| qa_cases → qa_review → qa_automation | qa_* | цепочка контрактов 4–6: спека → new → approved → tests (remove-qa-checklist: этап qa_checklist упразднен, кейсы пишутся по спеке напрямую) | нет | flow_check (порядок new/approved/tests, трассировка TC → Requirement/Scenario) |
+| ops_task (боевая/операционная задача: деплой-действия, переключение прода, миграция данных в бою) | ПМ + devops, **Заказчик обязателен** | задача tasks.md с маркером `[ops]`; план отката; приемка Заказчика зафиксирована (протокол: дата, что проверено, дословное «ок») | да (приемка) | протокол приемки в PR/коммите; J10 НЕ применяется (диффа кода нет — ревьюеру нечего смотреть) |
+| docs_task (документация по факту: map/sdd/RUNBOOK) | sa/ПМ | задача tasks.md с маркером `[docs]`; факты свергнуты с боем/логами | нет | J10 НЕ применяется; факты верифицируются источником (логи, прогоны), ссылка в коммите |
 | archive_change | sa | все задачи [x]; QA-контур завершен; явное разрешение ПМ (контракт 7); дельты слиты | нет (фаза еще открыта) | flow_check контракт 7; openspec validate |
 | release / новая фаза релиза | ПМ | archive завершен | **да** (старт релиза/фазы) | — |
 
@@ -147,6 +149,7 @@ f925a57 с validate 13/13 strict и слитыми дельтами) призн�
 
 - Вход: `BUG-NNN` репорт в `test-model/bugs/` + **существующая спека**, описывающая ожидаемое поведение.
 - Исключения из Флоу 1: без БА/СА-цикла; QA-контур по объему бага (решение ПМ в границах уже запущенной фазы).
+- Этап `qa_automation` (J66, решение Заказчика 2026-11-07): после `bug_fix`, по необходимости — регрессионный приемочный тест к багу и адаптация приемочных тестов `tests/api|web|integration` (dev пишет только `tests/unit`). Вход — тот же, что у `bug_fix`. Тот же этап — во Флоу 3, 4, 5 после первого этапа флоу.
 - Условие эскалации: если фикс вводит **новое ожидаемое поведение/API** (дельта спеки) → действие по Флоу 2 запрещено, `DENY` с указанием правила эскалации (переход на Флоу 1 / решение Заказчика). Эскалация — не «запрет и тишина»: decision содержит `next_candidates = [create_change, escalate_to_customer]`.
 
 ### Флоу 3 (хотфикс/аварийная стабилизация)
@@ -190,6 +193,8 @@ Reservation {
 | `INVALID_GATE` | Пропущен обязательный этап/ворота порядка | check_action | какой этап пропущен и где это видно |
 | `HUMAN_APPROVAL_REQUIRED` | Нет зафиксированного решения Заказчика для этого scope/фазы | check_action | какое действие, какую фазу, где искать формат решения (раздел 10) |
 | `WRONG_ROLE` | Действие зарезервировано другой ролью (включая ревью собственной работы) | check_action | ожидаемая роль, фактическая, где зафиксирована |
+| `SELF_REVIEW` | Review-файл на собственную работу (в т.ч. созданный ПМ/диспетчером под давлением красного CI) | check_action, аудит review-файлов | задача, автор кода, автор review-файла |
+| `OPS_TASK_AS_DEV` | ops-задача проведена как dev (review-файл вместо протокола приемки Заказчика) | разбор тикета | задача, что должно было быть |
 | `ZONE_CONFLICT` | Пересечение зон записи активных сессий | admit_session | конфликтующие пути и delegation_id |
 | `STALE_EVIDENCE` | Evidence устарел: approve до нового коммита, незакрытый долг хотфикса | check_action | что устарело, старый/новый SHA или даты |
 | `AMBIGUOUS_STATE` | Противоречивые/неоднозначные факты, неизвестный flow, неоднозначный scope | inspect, check_action | оба противоречащих факта с путями |
@@ -245,9 +250,9 @@ GateReport {
 
 | Скрипт | Что реально проверяет сегодня | Адаптер в Flow Control |
 |---|---|---|
-| `scripts/flow_check.py` | Детерминированная state machine ПО ФАЙЛАМ уже созданных артефактов: change без requirements.md / proposal+design+tasks / specs-дельт (контракты 1–2), sdd.md при активном change, Requirement без Scenario, чеклист без спеки и без FR-источников (3/4), кейсы в new/ без чеклиста, формат «1 кейс = 1 файл» (H1), approved/ без review «одобрить» (5), автотесты без approved и TC-трассировки (6), архивированный change без слияния дельт (7), закрытые dev-задачи без code-review approve (J10), I3-покрытие API-маршрутов. Чистый, без LLM и агентов; exit 0/1/2 | Adapter `flow_check_gate`: `run_gates` запускает как subprocess; ошибки FLOW-ERROR мапятся в `blocking_reasons` (`INVALID_GATE`/`MISSING_INPUT` по разделам). Общие чистые функции (parse_verdict, approved_review_tasks) переиспользуются импортом, не дублируются |
+| `scripts/flow_check.py` | Детерминированная state machine ПО ФАЙЛАМ уже созданных артефактов: change без requirements.md / proposal+design+tasks / specs-дельт (контракты 1–2), sdd.md при активном change, Requirement без Scenario, кейсы в new/ без трассировки к спеке Requirement/Scenario, формат «1 кейс = 1 файл» (H1), approved/ без review «одобрить» (5), автотесты без approved и TC-трассировки (6), архивированный change без слияния дельт (7), закрытые dev-задачи без code-review approve (J10), I3-покрытие API-маршрутов. remove-qa-checklist: чеклисты не требуются и не валидируются (append-only история). Чистый, без LLM и агентов; exit 0/1/2 | Adapter `flow_check_gate`: `run_gates` запускает как subprocess; ошибки FLOW-ERROR мапятся в `blocking_reasons` (`INVALID_GATE`/`MISSING_INPUT` по разделам). Общие чистые функции (parse_verdict, approved_review_tasks) переиспользуются импортом, не дублируются |
 | `scripts/pm_bounds_check.py` | Границы ПМ: (J3) защищенные пути конвейера без `[pipeline]`-маркера; (J2) обязательные поля реестра, один ПМ = один проект; (J9) коммиты ПМ-сессии в продуктовых репо без маркера; (J10) merge без review-файла с approve-вердиктом и датой ≤ коммита. Режимы CLI: --commits, --sessions, --product-commits, --all-projects, --require-review; exit 0/1 | Adapter `pm_bounds_gate`. НЕ превращается в единую state machine — остается независимым gate; его пары `(project, owner_pm)` и protected paths питают `admit_session` (`ZONE_CONFLICT`, `WRONG_ROLE` для ПМ-исполнителя) |
-| `scripts/pr_validate.py` | PR по трассировочному маркеру в title/body (`[BUG-NNN]`/`[change-id]`/`[chore]`): наличие обязательных артефактов по контракту (баг-репорт; change-пакет+чеклист+approved+review+тесты; chore без openspec-диффа), J10-покрытие задач диффа review. Работает локально и как GitHub Action; exit 0/1 | Adapter `pr_gate` для действий `merge_task`; маркер ID = источник `scope.change_id` при PR |
+| `scripts/pr_validate.py` | PR по трассировочному маркеру в title/body (`[BUG-NNN]`/`[change-id]`/`[chore]`): наличие обязательных артефактов по контракту (баг-репорт; change-пакет+approved+review+тесты; chore без openspec-диффа), J10-покрытие задач диффа review. Работает локально и как GitHub Action; exit 0/1 | Adapter `pr_gate` для действий `merge_task`; маркер ID = источник `scope.change_id` при PR |
 
 Дублируемые проверки (вердикты review, J10 встречается в обоих скриптах) унифицировать адаптерами либо вынести общие чистые функции **после** тестов старого поведения; exit codes и режимы скриптов не менять без отдельного теста совместимости (00-README, огр. 2). `pm_bounds_check.py` не становится частью state machine.
 
