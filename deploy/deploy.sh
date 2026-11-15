@@ -19,8 +19,10 @@
 #   DRY_RUN=1 COMPOSE_FILE=deploy/compose.test.yaml PROJECT=wiki-test \
 #   SMOKE_URL=https://127.0.0.1:8443 RELEASE_TAG=<метка> bash deploy/deploy.sh
 #
-# МАТРИЦА СЕРВИСОВ (design §6): SERVICES="app frontend search backup",
-# теги образов ekotov-wiki/<name>:<RELEASE_TAG> (latest ЗАПРЕЩЕН — FR-72).
+# МАТРИЦА СЕРВИСОВ (design §6 + images с add-gallery-service + video с
+# video-hosting + weather с weather-service): SERVICES="app frontend search
+# images video backup weather", теги образов ekotov-wiki/<name>:<RELEASE_TAG>
+# (latest ЗАПРЕЩЕН — FR-72).
 #
 # Шаги (design §6): предусловия → бэкап (ДО ВСЕХ; вызывает МОДУЛЬ
 # services/backup/backup.py — from backup import run_backup, один код с
@@ -28,7 +30,7 @@
 # wiki-pre-*/avatars-pre-*, sidecar-retention их не трогает) → build ВСЕХ
 # образы матрицы → one-shot миграция ЯДРА (СТРОГО до up; search/backup —
 # читатели, миграций не требуют — design §6) → up app → healthy →
-# up search images backup [weather] → healthy → up nginx → healthy → смоук-матрица:
+# up search images backup [video] [weather] → healthy → up nginx → healthy → смоук-матрица:
 # health app, health search, поиск через nginx (маршрутизация + X-Service:
 # search), статика (+ smoke_static.py), аватары, 502=0 (502>0 — FAIL),
 # «образы контейнеров = релизные теги» → docker image prune -f.
@@ -42,7 +44,7 @@ set -euo pipefail
 
 # --- Параметры (переопределяются env) --------------------------------------
 RELEASE_TAG="${RELEASE_TAG:-}"                    # МЕТКА РЕЛИЗА: ekotov-wiki/<name>:<RELEASE_TAG>
-SERVICES="${SERVICES:-app frontend search images backup weather}"  # МАТРИЦА (design §6 + images с add-gallery-service) — менять осознанно
+SERVICES="${SERVICES:-app frontend search images video backup weather}"  # МАТРИЦА (design §6 + images/video/weather) — менять осознанно
 SRC_DIR="${SRC_DIR:-/opt/ekotov-wiki}"            # клона с целевым коммитом (контекст сборки)
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/ekotov-wiki}"
 COMPOSE_DIR="${COMPOSE_DIR:-${SRC_DIR}/deploy}"   # где deploy/.env с SECRET_KEY
@@ -66,6 +68,7 @@ SEARCH_IMAGE="${SEARCH_IMAGE:-ekotov-wiki/search:${RELEASE_TAG}}"
 BACKUP_IMAGE="${BACKUP_IMAGE:-ekotov-wiki/backup:${RELEASE_TAG}}"
 IMAGES_IMAGE="${IMAGES_IMAGE:-ekotov-wiki/images:${RELEASE_TAG}}"
 WEATHER_IMAGE="${WEATHER_IMAGE:-ekotov-wiki/weather:${RELEASE_TAG}}"
+VIDEO_IMAGE="${VIDEO_IMAGE:-ekotov-wiki/video:${RELEASE_TAG}}"   # TD-D: video в матрице (P19-паттерн weather)
 
 # Карта сервис → Dockerfile (контекст сборки — корень клона; так же делают
 # compose-файлы). Нейминг compose-сервисов: frontend-образ носит сервис
@@ -78,6 +81,7 @@ dockerfile_for() {
     images)   echo "services/images/Dockerfile" ;;
     backup)   echo "services/backup/Dockerfile" ;;
     weather)  echo "services/weather/Dockerfile" ;;
+    video)    echo "services/video/Dockerfile" ;;
     *)        return 1 ;;
   esac
 }
@@ -89,6 +93,7 @@ image_for() {  # образ контейнера compose-сервиса
     search)   echo "${SEARCH_IMAGE}" ;;
     images)   echo "${IMAGES_IMAGE}" ;;
     weather)  echo "${WEATHER_IMAGE}" ;;
+    video)    echo "${VIDEO_IMAGE}" ;;
     backup)   echo "${BACKUP_IMAGE}" ;;
     *)        return 1 ;;
   esac
@@ -121,7 +126,11 @@ for tool in docker curl git python3 tar; do
   command -v "$tool" >/dev/null || fail "Нет утилиты: $tool"
 done
 docker compose version >/dev/null || fail "Нет compose plugin"
-[ -d "${SRC_DIR}/.git" ] || fail "Нет клона с целевым коммитом: ${SRC_DIR}"
+# worktree-совместимая проверка git-репозитория (TD-D): [ -d .git ] не
+# видит git-worktree (там .git — ФАЙЛ с gitdir-ссылкой); rev-parse проверяет
+# фактическую работоспособность git в SRC_DIR.
+git -C "${SRC_DIR}" -c safe.directory="${SRC_DIR}" rev-parse --git-dir >/dev/null 2>&1 \
+  || fail "Нет клона/worktree с целевым коммитом: ${SRC_DIR} (git rev-parse --git-dir не прошел)"
 for svc in ${SERVICES}; do
   [ -f "${SRC_DIR}/$(dockerfile_for "${svc}")" ] || fail "Нет $(dockerfile_for "${svc}") в ${SRC_DIR}"
 done
@@ -317,7 +326,7 @@ if [ -n "${MIGRATE_MODULE}" ]; then
   if [ "${DRY_RUN}" = "1" ]; then
     echo "   [DRY-RUN] ${COMPOSE} run --rm --no-deps -e DB_PATH=${DB_PATH_IN_CONTAINER} -e SECRET_KEY=[REDACTED] app python -m ${MIGRATE_MODULE}"
   else
-    env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" \
+    env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" VIDEO_IMAGE="${VIDEO_IMAGE}" \
       ${COMPOSE} run --rm --no-deps -e DB_PATH="${DB_PATH_IN_CONTAINER}" -e SECRET_KEY="x" app \
       python -m "${MIGRATE_MODULE}" \
       || fail "Миграция ${MIGRATE_MODULE} не прошла — деплой прерван ДО up (старый контейнер продолжает работать). БД восстанови из ${DB_BACKUP}."
@@ -342,8 +351,10 @@ wait_healthy() { # $1 = compose-сервис, $2 = число попыток (x5
   return 1
 }
 
-# Волна 2 по матрице: search images backup + weather (только если в SERVICES).
+# Волна 2 по матрице: search images backup + video/weather (только если в
+# SERVICES — TD-D: video по P19-паттерну weather).
 WAVE2="search images backup"
+case " ${SERVICES} " in *" video "*) WAVE2="${WAVE2} video" ;; esac
 case " ${SERVICES} " in *" weather "*) WAVE2="${WAVE2} weather" ;; esac
 
 # P19 тест-проверка ДО up (детерминированная, без контейнеров): отрендеренный
@@ -355,7 +366,7 @@ _matrix_compose_config() {
   # M2 (review-001): stderr compose НЕ глотаем — реальная причина (нет
   # deploy/.env с SECRET_KEY, битый compose-файл) попадает в fail, а не теряется.
   stderr_file="$(mktemp)" || fail "mktemp недоступен — гейт compose config не выполнить"
-  actual_json="$(env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" VIDEO_IMAGE="${VIDEO_IMAGE:-ekotov-wiki/video:${RELEASE_TAG}}" \
+  actual_json="$(env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" VIDEO_IMAGE="${VIDEO_IMAGE}" \
     ${COMPOSE} config --format json 2>"${stderr_file}")" \
     || fail "docker compose config не отрезолвился (compose-файл: ${COMPOSE_FILE}) — stderr compose:
 $(cat "${stderr_file}")"
@@ -377,17 +388,17 @@ if image != expected:
   done
 }
 _matrix_compose_config
-ok "compose config: все сервисы матрицы резолвятся в релизные теги (weather=${WEATHER_IMAGE})"
+ok "compose config: все сервисы матрицы резолвятся в релизные теги (video=${VIDEO_IMAGE} weather=${WEATHER_IMAGE})"
 
 log "5/8 Up матрицы: app → healthy → ${WAVE2} → healthy → nginx"
-run env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" \
+run env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" VIDEO_IMAGE="${VIDEO_IMAGE}" \
   ${COMPOSE} up -d app
 if [ "${DRY_RUN}" != "1" ]; then
   wait_healthy app 12 || fail "app не стал healthy за 60s: ${COMPOSE} ps; логи: docker compose logs app"
   ok "app healthy (${APP_IMAGE})"
 fi
 
-run env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" \
+run env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" VIDEO_IMAGE="${VIDEO_IMAGE}" \
   ${COMPOSE} up -d ${WAVE2}
 if [ "${DRY_RUN}" != "1" ]; then
   wait_healthy search 12 || fail "search не стал healthy за 60s: ${COMPOSE} ps; логи: docker compose logs search"
@@ -398,6 +409,14 @@ if [ "${DRY_RUN}" != "1" ]; then
   # backup: health по heartbeat (interval 60s, start_period 30s) — запас выше.
   wait_healthy backup 24 || fail "backup не стал healthy за 120s: ${COMPOSE} ps; логи: docker compose logs backup"
   ok "backup healthy (${BACKUP_IMAGE}) — sidecar поднят, релизный бэкап (шаг 2/8) остался в ${BACKUP_DIR}"
+  # TD-D: video в матрице подъема — как weather (P19-паттерн): health-чек
+  # compose-сервиса (:8380/api/health), только когда video в SERVICES.
+  case " ${SERVICES} " in
+    *" video "*)
+      wait_healthy video 12 || fail "video не стал healthy за 60s: ${COMPOSE} ps; логи: docker compose logs video"
+      ok "video healthy (${VIDEO_IMAGE})"
+      ;;
+  esac
   # P19: weather здоров только когда он в матрице (health-чек compose-сервиса).
   case " ${SERVICES} " in
     *" weather "*)
@@ -407,7 +426,7 @@ if [ "${DRY_RUN}" != "1" ]; then
   esac
 fi
 
-run env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" \
+run env APP_IMAGE="${APP_IMAGE}" FRONTEND_IMAGE="${FRONTEND_IMAGE}" SEARCH_IMAGE="${SEARCH_IMAGE}" BACKUP_IMAGE="${BACKUP_IMAGE}" IMAGES_IMAGE="${IMAGES_IMAGE}" WEATHER_IMAGE="${WEATHER_IMAGE}" VIDEO_IMAGE="${VIDEO_IMAGE}" \
   ${COMPOSE} up -d nginx
 if [ "${DRY_RUN}" != "1" ]; then
   wait_healthy nginx 12 || fail "nginx не стал healthy за 60s: ${COMPOSE} ps; логи: docker compose logs nginx"
@@ -492,6 +511,7 @@ _matrix_images() {
   local svc expected actual
   actual="$(${COMPOSE} ps --format '{{.Service}} {{.Image}}')"
   MATRIX_CHECK="app nginx search images backup"
+  case " ${SERVICES} " in *" video "*) MATRIX_CHECK="${MATRIX_CHECK} video" ;; esac
   case " ${SERVICES} " in *" weather "*) MATRIX_CHECK="${MATRIX_CHECK} weather" ;; esac
   for svc in ${MATRIX_CHECK}; do
     expected="$(image_for "${svc}")"
@@ -504,6 +524,7 @@ _matrix_images() {
 }
 _matrix_images
 IMAGES_OK_NOTE="app=${APP_IMAGE} nginx=${FRONTEND_IMAGE} search=${SEARCH_IMAGE} backup=${BACKUP_IMAGE}"
+case " ${SERVICES} " in *" video "*) IMAGES_OK_NOTE="${IMAGES_OK_NOTE} video=${VIDEO_IMAGE}" ;; esac
 case " ${SERVICES} " in *" weather "*) IMAGES_OK_NOTE="${IMAGES_OK_NOTE} weather=${WEATHER_IMAGE}" ;; esac
 ok "Образы контейнеров = релизные теги: ${IMAGES_OK_NOTE}"
 

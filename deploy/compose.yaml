@@ -230,8 +230,8 @@ services:
         max-file: "3"
 
   # Sidecar-бэкап (задача 1.2; design §5): cron-цикл средствами python
-  # (sqlite3 .backup + tar avatars), retention 14 дней. Релизный бэкап
-  # deploy.sh (задача 1.4) вызывает ТОТ ЖЕ модуль — без дубля кода.
+  # (sqlite3 .backup + tar avatars/images/videos), retention 14 дней. Релизный
+  # бэкап deploy.sh (задача 1.4) вызывает ТОТ ЖЕ модуль — без дубля кода.
   backup:
     image: ${BACKUP_IMAGE:-ekotov-wiki/backup:local}
     build:
@@ -243,6 +243,14 @@ services:
     environment:
       EKOTOV_WIKI_DB_PATH: /data/wiki.db
       EKOTOV_WIKI_AVATARS_DIR: /data/avatars
+      # Медиа-тома (TD-A-хвост, TD-D): env-имена — паритет сервисам
+      # images/video (docs/ops/backup-restore.md §4); код backup.py
+      # молча пропускает отсутствующий каталог (обратная совместимость).
+      # Пути /media/* — НЕ /data/*: /data занят ro-маунтом БД, вложенный
+      # маунтпойнт внутрь ro-маунта докер не создаст («read-only file
+      # system» — класс weather, PR #207; поймано CI e2e TD-D).
+      EKOTOV_WIKI_IMAGES_DIR: /media/images
+      EKOTOV_WIKI_VIDEOS_DIR: /media/videos
       BACKUP_DIR: /backups
       # Суточный цикл; retention 14 дней (design §5).
       BACKUP_INTERVAL_SEC: "86400"
@@ -250,6 +258,12 @@ services:
     volumes:
       # Данные — только чтение (безопасный профиль, plan §1.2 / README сервиса).
       - wiki-data:/data:ro
+      # Медиа-тома — ro на ВЕРХНЕУРОВНЕВЫХ путях (маунтпойнт нельзя
+      # вкладывать в ro-маунт /data — CI e2e TD-D «read-only file
+      # system», класс weather PR #207). Полный контур: БД + аватары +
+      # галерея + видео (TD-A/TD-D; images-daily-*/videos-daily-*).
+      - images-data:/media/images:ro
+      - videos-data:/media/videos:ro
       # Каталог бэкапов — bind хоста (как у deploy.sh, design §5). Образ
       # работает под ЧИСЛОВЫМ uid 10001 (USER 10001 в Dockerfile) — bind-каталог
       # на хосте должен иметь владельца 10001:10001 (имя wiki:wiki на хосте
@@ -293,6 +307,17 @@ services:
       # whitelista: соединение с unix-сокетом через ro-маунт работает,
       # файловые мутации маунта невозможны).
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    # Честный health (TD-D/TD-C-хвост): TCP+HTTP против whitelisted-прокси,
+    # не «живость процесса» — /_ping granted дефолтом образа (PING-секция).
+    # Проверено на образе v0.5.0: wget есть (busybox), здоровый прокси — exit 0,
+    # закрытый порт — exit 1. nc -z НЕ ГОДИТСЯ: busybox v1.37 в этом образе
+    # молча игнорирует -z и всегда завершается 0 (замер на живом прокси).
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2375/_ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     logging:
       driver: json-file
       options:
@@ -311,8 +336,11 @@ services:
     # стоковый образ ~150-300 MB, design §5).
     mem_limit: 256m
     depends_on:
+      # service_healthy (TD-D): прокси теперь с честным healthcheck — netdata
+      # стартует, когда Docker API через прокси реально отвечает, а не по
+      # факту запуска процесса (иначе первые сборы go.d падали в refused).
       docker-socket-proxy:
-        condition: service_started
+        condition: service_healthy
     environment:
       # Docker-коллектор (go.d): Docker API через whitelisted-прокси (TD-C),
       # прямой маунт хост-сокета УБРАН. Группу сокета (PGID) entrypoint
@@ -399,14 +427,15 @@ volumes:
     # оба — один модуль services/backup/backup.py.
   images-data:
     # Файлы изображений галереи (оригинал + превью; FR-79 — вне БД;
-    # design §4). Новый том, пустой при первом старте; включается в контур
-    # бэкапов релиза (design §7: tar images-data). nginx — ro-маунт (1.4).
+    # design §4). Новый том, пустой при первом старте; в контуре бэкапов:
+    # релизный tar deploy.sh (design §7) + sidecar (TD-A/TD-D:
+    # images-daily-*, ro-маунт в backup). nginx — ro-маунт (1.4).
   videos-data:
     # Файлы видео (оригинал + mp4 + превью-кадр; change video-hosting,
     # design §5 — вне БД, вне репозитория). RW у video, ro у frontend
-    # (задача 1.4). ВНИМАНИЕ (наблюдение O1 ревью №1, задача 6.2): том
-    # videos-data в бэкап-контур НЕ входит — вес видео; фиксируется
-    # в протоколе приемки.
+    # (задача 1.4). С TD-A/TD-D (2026-11-15) том В БЭКАП-КОНТУРЕ: sidecar
+    # backup монтирует его ro и пишет videos-daily-*.tar (ранее — осознанный
+    # хвост «вес видео»; решением TD закрыт, наблюдение O1 ревью №1 снято).
   weather-cache:
     # Кэш погоды (change weather-service, design §2/§4 — вне БД, вне
     # репозитория): единственный RW-маунт сервиса weather, атомарная

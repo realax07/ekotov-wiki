@@ -86,25 +86,32 @@ restore.py сам делает `PRAGMA integrity_check` + smoke-запрос к
 и печатает сводку sha256-сверки по каждому медиа-tar. Код возврата: 0 OK,
 1 ошибка проверки, 2 usage.
 
-## 4. Медиа-тома в backup-контейнере (deploy-хвост)
+## 4. Медиа-тома в backup-контейнере (deploy-хвост — ЗАКРЫТ TD-D, 2026-11-15)
 
-Код backup.py готов к каталогам `/data/images`, `/data/videos`
-(env `EKOTOV_WIKI_IMAGES_DIR` / `EKOTOV_WIKI_VIDEOS_DIR` — те же имена,
-что у сервисов images/video). Но `deploy/compose.yaml` (сервис backup)
-сегодня маунтит только `wiki-data:/data:ro` — images/videos-каталоги в
-контейнере отсутствуют и бэкапятся как «пропущено». Для полного контура
-нужен deploy-патч (вне зоны TD-A, waves TD-C/TD-D правят deploy/**):
+Код backup.py читает каталоги из env `EKOTOV_WIKI_IMAGES_DIR` /
+`EKOTOV_WIKI_VIDEOS_DIR` (дефолты кода — `/data/images`, `/data/videos` —
+те же имена, что у сервисов images/video). В backup-контейнере пути
+ДРУГИЕ — `/media/images`, `/media/videos`: `/data` у sidecar занят
+ro-маунтом БД (`wiki-data:/data:ro`), а вложенный маунтпойнт внутрь
+ro-маунта docker создать не может («read-only file system», класс
+weather PR #207 — поймано CI e2e TD-D). У владельцев томов (images/video)
+`/data` rw — там вложение легально. `deploy/compose.yaml` (сервис backup)
+с TD-D маунтит медиа так:
 
 ```yaml
-# сервис backup, volumes — добавить ro-маунты СТОЛЬКО ЖЕ ГЛУБИНЫ, что у
-# владельцев томов (урок avatars: глубина маунта = глубина alias-пути):
-      - images-data:/data/images:ro
-      - videos-data:/data/videos:ro
+# сервис backup, volumes (ПРИМЕНЕНО, PR pipeline/td-d-deploy):
+      - images-data:/media/images:ro
+      - videos-data:/media/videos:ro
+# environment:
+      EKOTOV_WIKI_IMAGES_DIR: /media/images
+      EKOTOV_WIKI_VIDEOS_DIR: /media/videos
 ```
 
-До патча ежедневный контур достоверен для БД + аватаров (wiki-data целиком);
-галерея/видео покрываются только релизными копиями deploy.sh (аватары) —
-это осознанный хвост, не тихая дыра (цикл пишет «пропущено» в лог).
+Паритет в `deploy/compose.test.yaml` (тома стенда `images-test-data`/
+`videos-test-data`). До TD-D ежедневный контур покрывал только БД+аватаров
+(цикл писал «пропущено» для галереи/видео) — хвост закрыт; поведение
+«пропуск отсутствующего каталога» сохранено в коде как защита (первый
+прогон до создания томов не падает).
 
 ## 5. Проверка контура (тест)
 

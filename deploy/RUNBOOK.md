@@ -81,9 +81,9 @@ git -C /home/openclaw/ekotov-wiki log --oneline -1
 | Сервис | Образ | Порт (внутр.) | mem_limit | Данные | Роль |
 |---|---|---|---|---|---|
 | app | `ekotov-wiki/app:<tag>` | 8377 | 512m | том **rw** | ядро: вся логика кроме поиска; ЕДИНСТВЕННЫЙ писатель БД; применяет схему idempotent'но при старте |
-| frontend | `ekotov-wiki/frontend:<tag>` | 10443 (публикует `${NGINX_PORT}`) | 64m | том :ro + images-data :ro + серт хоста :ro | nginx: TLS, статика, avatars, /images/ из тома, маршрутизация app/search/images |
+| frontend | `ekotov-wiki/frontend:<tag>` | 10443 (публикует `${NGINX_PORT}`) | 64m | том :ro + images-data :ro + videos-data :ro + серт хоста :ro | nginx: TLS, статика, avatars, /images/ и /videos/ из томов, маршрутизация app/search/images/video |
 | search | `ekotov-wiki/search:<tag>` | 8378 | 512m | том **:ro** | поиск+suggestions (роутеры как в монолите, контракт `contracts/openapi-search.json`) |
-| backup | `ekotov-wiki/backup:<tag>` | — | 64m | том :ro + bind `/var/backups/ekotov-wiki` (uid 10001) | sidecar-бэкапы, cron-цикл 86400s, retention 14 дней |
+| backup | `ekotov-wiki/backup:<tag>` | — | 64m | том :ro + images-data :ro + videos-data :ro + bind `/var/backups/ekotov-wiki` (uid 10001) | sidecar-бэкапы БД+медиа (TD-A/TD-D), cron-цикл 86400s, retention 14 дней; env `EKOTOV_WIKI_IMAGES_DIR`/`EKOTOV_WIKI_VIDEOS_DIR` |
 | images | `ekotov-wiki/images:<tag>` | 8379 | 128m | том **rw** (БД) + images-data **rw** | галерея (add-gallery-service): upload/валидация JPEG/PNG/GIF/WebP ≤10МБ (magic-байты), превью Pillow ≤800px, реакции/комментарии; пишет ТОЛЬКО таблицы gallery; файлы — в images-data (design §2, FR-79) |
 | video | `ekotov-wiki/video:<tag>` | 8380 | 512m | том **rw** videos-data | видеохостинг (P11, video-1): upload ≤500МБ любой формат → ffmpeg-конвертация mp4+превью (фон-воркер, статусы uploaded/converting/ready/error), playback, комментарии/реакции/категории; пишет ТОЛЬКО таблицы video_*; ffmpeg статический В ОБРАЗЕ (pin johnvansickle 7.0.2 + SHA256; fallback BtbN n8.1 со своим SHA256 — дрейф версии ffmpeg в fallback) |
 
@@ -149,22 +149,33 @@ sudo -E DRY_RUN=1 RELEASE_TAG=<метка> bash deploy/deploy.sh   # ОБЯЗА�
 # из него; без .env упадет на гейте, stderr compose будет в сообщении)
 sudo -E RELEASE_TAG=<метка> bash deploy/deploy.sh             # боевой
 # миграционный релиз: + MIGRATE_MODULE=app.migrate_rN
-# видео-релиз: app.migrate_wiki (по команде) + app.migrate_video ОТДЕЛЬНО
-# (deploy.sh про video-схему не знает): python -m app.migrate_video
+# видео-релиз: video В МАТРИЦЕ деплоя (TD-D, P19-паттерн weather — образ
+# собирается и поднимается deploy.sh); миграции — MIGRATE_MODULE=app.migrate_wiki
+# (ядро, шов скрипта) + app.migrate_video ОТДЕЛЬНОЙ командой (deploy.sh про
+# video-схему по-прежнему не знает): python -m app.migrate_video
 ```
 
-Матрица: `SERVICES="app frontend search backup"` (env-оверрайд — осознанно),
-теги `ekotov-wiki/<name>:<RELEASE_TAG>`, по-сервисный оверрайд
-`APP_IMAGE`/`FRONTEND_IMAGE`/`SEARCH_IMAGE`/`BACKUP_IMAGE` (горячий фикс одного сервиса).
+Матрица: `SERVICES="app frontend search images video backup weather"` (env-оверрайд —
+осознанно), теги `ekotov-wiki/<name>:<RELEASE_TAG>`, по-сервисный оверрайд
+`APP_IMAGE`/`FRONTEND_IMAGE`/`SEARCH_IMAGE`/`IMAGES_IMAGE`/`VIDEO_IMAGE`/`BACKUP_IMAGE`/`WEATHER_IMAGE`
+(горячий фикс одного сервиса).
+
+SRC_DIR может указывать на **git-worktree** (TD-D): проверка репозитория —
+`git rev-parse --git-dir`, не `[ -d .git ]` (в worktree `.git` — файл-ссылка).
+Канон для релизов с волны PLAN-TD-CLOSEOUT: отдельный worktree от origin/main,
+деплой из него — основной клон не отрывается от main.
 
 Порядок шагов (set -euo pipefail, останов на первой ошибке):
 предусловия (+ подготовка bind-каталога бэкапов: `mkdir -p` + idempotent
 `chown 10001:10001 /var/backups/ekotov-wiki` — образ backup под ЧИСЛОВЫМ uid 10001) →
 **бэкап ДО ВСЕХ изменений** (модуль `services/backup/backup.py::run_backup` — тот же
-код, что у sidecar; `wiki-pre-<release>-<дата>-<время>.db` + `avatars-pre-*.tar`
-через staging `release-staging/` и mv в релизные имена) → build ВСЕХ образов матрицы →
-one-shot миграция ядра (до up!) → `up -d app` → healthy → `up -d search backup` →
-healthy → `up -d nginx` → healthy → смоук-матрица → `docker image prune -f`.
+код, что у sidecar; `wiki-pre-<release>-<дата>-<время>.db` + `avatars-pre-*.tar` +
+`images-pre-*.tar.gz` через staging `release-staging/` и mv в релизные имена) →
+build ВСЕХ образов матрицы → one-shot миграция ядра (до up!) → `up -d app` → healthy →
+`up -d search images backup video weather` → все healthy (каждый — свой healthcheck:
+app/search/images/video/weather по `/api/health`, backup по heartbeat,
+docker-socket-proxy по wget /_ping, netdata по /api/v1/info) → `up -d nginx` →
+healthy → смоук-матрица → `docker image prune -f`.
 
 Смоук-матрица деплоя: health app 200; health search напрямую 200; поиск через nginx
 200/401/422 + `X-Service: search` (502/503 = FAIL); /login 200; статика 200;
@@ -214,8 +225,8 @@ sudo -E APP_IMAGE=ekotov-wiki/app:<hotfix-tag> \
 
 | Трасса | Файлы | Кто/когда |
 |---|---|---|
-| Деплой-трасса | `/var/backups/ekotov-wiki/wiki-pre-<release>-<дата>-<время>.db`, `avatars-pre-*.tar` | deploy.sh перед всеми изменениями; модуль `run_backup`; релизные файлы sidecar-retention НЕ трогает |
-| Sidecar-ретеншн | `wiki-daily-*`, `avatars-daily-*` (суточный цикл 86400s, retention 14 дней) | контейнер backup; страхует МЕЖДУ релизами |
+| Деплой-трасса | `/var/backups/ekotov-wiki/wiki-pre-<release>-<дата>-<время>.db`, `avatars-pre-*.tar`, `images-pre-*.tar.gz` | deploy.sh перед всеми изменениями; модуль `run_backup`; релизные файлы sidecar-retention НЕ трогает |
+| Sidecar-ретеншн | `wiki-daily-*`, `avatars-daily-*`, `images-daily-*`, `videos-daily-*` (суточный цикл 86400s, retention 14 дней) | контейнер backup; страхует МЕЖДУ релизами. Медиа-тома (images-data/videos-data) в backup-контейнере с TD-A/TD-D (ro-маунты + env `EKOTOV_WIKI_IMAGES_DIR`/`EKOTOV_WIKI_VIDEOS_DIR`) — полный контур БД+медиа, см. `docs/ops/backup-restore.md` |
 | Pre-2.4 (фиксация переключения) | `/var/backups/ekotov-wiki/pre-2.4/wiki-pre-2.4-<дата>-<время>.db` — консистентный снапшот тома параллели на момент переключения 2.4 (VACUUM INTO из образа app) | 2.4-switch.sh pre |
 | Исторические (v1-эпоха) | `wiki-pre-<цель>-<дата>-<время>.db` в том же каталоге | сохранены |
 
