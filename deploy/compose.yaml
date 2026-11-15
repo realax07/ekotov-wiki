@@ -267,21 +267,57 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Docker Socket Proxy (TD-C / TD-2): ЕДИНСТВЕННАЯ точка монтирования
+  # хост-сокета docker. Прямой маунт сокета в netdata (задача 1.2, даже
+  # флагом :ro) давал ПОЛНЫЙ Docker API: ro ограничивает файловую семантику
+  # маунта, но не API — dockerd обрабатывает POST-запросы через сокет
+  # независимо от флага (create/exec контейнеров = root-эквивалент на хосте).
+  # Прокси (haproxy-обертка) пропускает ТОЛЬКО GET/HEAD по whitelisted
+  # секциям: POST=0, AUTH/SECRETS/EXEC/ALLOW_START|STOP|RESTARTS и все
+  # остальные секции заревоканы дефолтом образа. Whitelist = минимально
+  # достаточные вызовы go.d docker-коллектора netdata (docs netdata:
+  # /info на каждый сбор, /images/json раз в 5 мин, /containers/json;
+  # EVENTS/PING/VERSION — безвредные, granted дефолтом образа).
+  # Порт 2375 НЕ публикуется — доступ только изнутри compose-сети
+  # (паритет FR-65). Образ запинен (latest ЗАПРЕЩЕН, FR-72).
+  docker-socket-proxy:
+    image: ${SOCKET_PROXY_IMAGE:-tecnativa/docker-socket-proxy:v0.5.0}
+    restart: unless-stopped
+    mem_limit: 64m
+    environment:
+      - CONTAINERS=1
+      - IMAGES=1
+      - INFO=1
+    volumes:
+      # Сокет смонтирован только в прокси и только ro (страховка поверх
+      # whitelista: соединение с unix-сокетом через ro-маунт работает,
+      # файловые мутации маунта невозможны).
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # Netdata-мониторинг (задача 1.2, change add-netdata-monitoring; design §1/§4/§5):
   # метрики железа хоста (proc/sys, ro) + контейнеров стека (docker-коллектор
-  # через docker.sock, ro). Дашборд :19999 слушает ВНУТРИ compose-сети, порт
-  # НЕ публикуется — доступ только через nginx (задача 1.3; FR-75, паритет
-  # app/search). Образ — канал stable: latest ЗАПРЕЩЕН (FR-72).
+  # через docker-socket-proxy — TD-C). Дашборд :19999 слушает ВНУТРИ
+  # compose-сети, порт НЕ публикуется — доступ только через nginx (задача 1.3;
+  # FR-75, паритет app/search). Образ — канал stable: latest ЗАПРЕЩЕН (FR-72).
   netdata:
     image: ${NETDATA_IMAGE:-netdata/netdata:stable}
     restart: unless-stopped
     # NFR-19: netdata 256m (сумма лимитов стека 1.41 GB, резерв хосту >= 2.4 GB;
     # стоковый образ ~150-300 MB, design §5).
     mem_limit: 256m
+    depends_on:
+      docker-socket-proxy:
+        condition: service_started
     environment:
-      # Docker-коллектор (go.d): путь к сокету контейнеров (design §4). Группу
-      # сокета (PGID) entrypoint образа определяет сам (docs netdata docker).
-      DOCKER_HOST: unix:///var/run/docker.sock
+      # Docker-коллектор (go.d): Docker API через whitelisted-прокси (TD-C),
+      # прямой маунт хост-сокета УБРАН. Группу сокета (PGID) entrypoint
+      # образа больше не определяет — TCP-подключение без групп.
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
       # Анонимная телеметрия наружу не нужна (легкий стек, ОВ-1).
       DISABLE_TELEMETRY: "1"
     volumes:
@@ -289,10 +325,7 @@ services:
       # пути по официальной документации netdata docker (design §4).
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
-      # Контейнеры стека: docker-коллектор через хост-сокет, строго ro —
-      # netdata НЕ управляет контейнерами (design §4, урок R6/PLAN-R7).
-      # На VPS других контейнеров нет (факт RUNBOOK §1).
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Хост-сокет НЕ маунтится (TD-C: контроль доступа — docker-socket-proxy).
     # Healthcheck (паритет самодостаточных healthcheck app/search): в текущем
     # Debian-based образе есть curl — им же работает встроенный health.sh
     # образа (poll /api/v1/info); wget НЕ гарантирован, поэтому curl —
