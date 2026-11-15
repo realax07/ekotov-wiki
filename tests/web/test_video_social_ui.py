@@ -171,18 +171,18 @@ def test_reaction_click_active_deletes_inactive_puts(
     expect(page.locator("#like-count")).to_have_text("0")
     expect(like).to_have_attribute("aria-pressed", "false")
     expect(page.locator("#react-hint")).to_be_hidden()
-    assert calls == [{"method": "DELETE", "body": '{"value": 1}'}]
+    assert calls == [{"method": "DELETE", "body": '{"value":1}'}]
 
     # Клик по НЕактивной — PUT (установка); голос вернулся.
     like.click()
     expect(page.locator("#like-count")).to_have_text("1")
     expect(like).to_have_attribute("aria-pressed", "true")
     expect(page.locator("#react-hint")).to_be_visible()
-    assert calls[-1] == {"method": "PUT", "body": '{"value": 1}'}
+    assert calls[-1] == {"method": "PUT", "body": '{"value":1}'}
 
     # Клик по второй (неактивной) кнопке — PUT-перенос, не DELETE.
     page.locator("#dislike-button").click()
-    assert calls[-1] == {"method": "PUT", "body": '{"value": -1}'}
+    assert calls[-1] == {"method": "PUT", "body": '{"value":-1}'}
 
 
 def test_player_view_comments_card_tail(logged_in_page, web_base_url):
