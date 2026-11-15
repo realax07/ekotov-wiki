@@ -13,11 +13,14 @@
                                                 200; 401; 403; 404
 - PUT    /api/videos/{id}/reaction            — {value: 1|-1}: ровно один
                                                 голос на пользователя
-                                                (PK video_id+user_id): тот же
-                                                value снимает (DELETE строки),
-                                                противоположный переносит
-                                                (UPDATE) — атомарно в одной
-                                                транзакции; 200
+                                                (PK video_id+user_id):
+                                                идемпотентно (TD-B/TD-5,
+                                                паритет BUG-026 галереи):
+                                                тот же value — no-op 200
+                                                (сетевой ретрай состояние не
+                                                меняет), противоположный
+                                                переносит (UPDATE) — атомарно
+                                                в одной транзакции; 200
                                                 {my_reaction, likes, dislikes};
                                                 401; 404; 422
 - GET    /api/videos/categories               — справочник категорий —
@@ -153,11 +156,13 @@ def delete_comment(request: Request, video_id: str, comment_id: str):
 
 @router.put("/api/videos/{video_id}/reaction")
 def put_reaction(request: Request, video_id: str, payload: dict):
-    """Голос {value: 1|-1} — ровно один на пользователя (PK(video_id,user_id)):
-    тот же value снимает (DELETE строки), противоположный переносит (UPDATE).
-    Атомарно: SELECT+DELETE/UPDATE/INSERT+счетчики в ОДНОЙ транзакции
-    BEGIN IMMEDIATE — повторные клики не могут оставить двух голосов.
-    Ответ {my_reaction, likes, dislikes}; my_reaction=null после снятия."""
+    """Голос {value: 1|-1} — ровно один на пользователя (PK(video_id,user_id)).
+    Идемпотентный PUT (TD-B/TD-5, паритет BUG-026 в галерее): тот же value —
+    no-op (состояние не меняется — сетевой ретрай/двойной клик безопасны),
+    противоположный — перенос (UPDATE). Атомарно: SELECT+UPDATE/INSERT+счетчики
+    в ОДНОЙ транзакции BEGIN IMMEDIATE — повторные клики не могут оставить
+    двух голосов.
+    Ответ {my_reaction, likes, dislikes}."""
     user_id = _user_id_of(request)
     value = (payload or {}).get("value")
     if value not in (1, -1):
@@ -173,12 +178,9 @@ def put_reaction(request: Request, video_id: str, payload: dict):
             (video_id, user_id),
         ).fetchone()
         if row is not None and int(row["value"]) == value:
-            # Повторный клик — снятие голоса (Scenario «Повторный клик
-            # снимает голос»).
-            conn.execute(
-                "DELETE FROM video_reactions WHERE video_id = ? AND user_id = ?",
-                (video_id, user_id),
-            )
+            # Идемпотентность PUT (TD-B/TD-5): тот же голос — no-op, состояние
+            # НЕ меняется (раньше повтор снимал голос — toggle, дефект TD-5).
+            pass
         elif row is not None:
             # Клик по второй кнопке — перенос голоса (UPDATE той же строки).
             conn.execute(

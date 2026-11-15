@@ -12,9 +12,10 @@ TC-vid-040…043 — NFR-38: 401 без сессии на ВСЕ D-эндпои�
   GET/POST/DELETE, reaction PUT, categories GET) — состояние не меняется;
 TC-vid-044…048 — комментарии: 201+автор в списке / 422 пустой и
   whitespace / 404 видео / удаление СВОЕГО 200 / ЧУЖОГО 403 / 404;
-TC-vid-049…052 — реакции: постановка (счетчик +1) / повторный клик
-  снимает (ровно -1, my_reaction=null) / перенос на вторую кнопку
-  (лайк → дизлайк, счетчики ровно на единицу) / два пользователя
+TC-vid-049…052 — реакции: постановка (счетчик +1) / повторный same-sign
+  PUT — no-op, идемпотентно (TC-vid-041, TD-B/TD-5; снятие toggle-ом
+  упразднено решением Заказчика — PLAN-TD-CLOSEOUT) / перенос на вторую
+  кнопку (лайк → дизлайк, счетчики ровно на единицу) / два пользователя
   независимо, ровно одна строка на пару (PK) / value не 1|-1 → 422;
 TC-vid-053…057 — категории: справочник = image_categories (RO) /
   upload с валидным category_id / 422 на несуществующий / NULL = «Без
@@ -308,11 +309,12 @@ def test_comment_delete_only_own(client, client2, db_path):
 
 
 def test_reaction_put_toggle_move(client, db_path):
-    """Сценарии реакций: постановка (+1 ровно), повторный клик снимает
-    (my_reaction=null), клик по второй переносит (лайк → дизлайк) —
-    счетчики меняются ровно на единицу.
+    """Сценарии реакций: постановка (+1 ровно), повтор same-sign PUT —
+    no-op идемпотентно (TD-B/TD-5, TC-vid-041), клик по второй переносит
+    (лайк → дизлайк) — счетчики меняются ровно на единицу.
     Трассировка approved-кейсов: TC-vid-030 (перенос голоса),
-    TC-vid-031 (повторный клик снимает голос)."""
+    TC-vid-041 (идемпотентный PUT; TC-vid-031 «повторный клик снимает»
+    superseded решением Заказчика — PLAN-TD-CLOSEOUT TD-B)."""
     video_id = _insert_video(db_path)
     url = f"/api/videos/{video_id}/reaction"
 
@@ -321,12 +323,12 @@ def test_reaction_put_toggle_move(client, db_path):
     assert r.status_code == 200
     assert r.json() == {"my_reaction": 1, "likes": 1, "dislikes": 0}
 
-    # Повторный клик — снятие.
+    # Повтор same-sign PUT (сетевой ретрай) — no-op: состояние не меняется.
     r = client.put(url, json={"value": 1})
-    assert r.json() == {"my_reaction": None, "likes": 0, "dislikes": 0}
+    assert r.status_code == 200
+    assert r.json() == {"my_reaction": 1, "likes": 1, "dislikes": 0}
 
     # Перенос: лайк → дизлайк одной строкой (UPDATE).
-    client.put(url, json={"value": 1})
     r = client.put(url, json={"value": -1})
     assert r.json() == {"my_reaction": -1, "likes": 0, "dislikes": 1}
 
@@ -350,8 +352,54 @@ def test_reaction_two_users_independent(client, client2, db_path):
     assert client.put(url, json={"value": 1}).json()["likes"] == 1
     state = client2.put(url, json={"value": 1}).json()
     assert state == {"my_reaction": 1, "likes": 2, "dislikes": 0}
-    # Второй снимает — счетчик ровно -1.
-    assert client2.put(url, json={"value": 1}).json()["likes"] == 1
+    # Идемпотентность (TD-B/TD-5): повтор same-sign PUT второго — no-op,
+    # голос сохраняется (снятие toggle-ом упразднено PLAN-TD-CLOSEOUT).
+    assert client2.put(url, json={"value": 1}).json()["likes"] == 2
+
+
+def test_reaction_put_idempotent(client, db_path):
+    """TC-vid-041 (TD-B/TD-5): PUT /api/videos/{id}/reaction идемпотентен
+    по ключу user+video — сетевой ретрай / двойной клик (повтор same-sign
+    PUT) не меняет состояние: тот же голос → 200 no-op без снятия;
+    противоположный — перенос как раньше; в БД ровно одна строка."""
+    video_id = _insert_video(db_path)
+    url = f"/api/videos/{video_id}/reaction"
+
+    # Тот же знак: состояние после повтора равно состоянию после первого PUT.
+    # Arrange: первый PUT — лайк.
+    first = client.put(url, json={"value": 1})                          # Act
+    assert first.status_code == 200                                     # Assert
+    assert first.json() == {"my_reaction": 1, "likes": 1, "dislikes": 0}
+    second = client.put(url, json={"value": 1})                         # Act
+    assert second.status_code == 200                                    # Assert
+    assert second.json() == first.json()
+
+    # Тройной ретрай — в БД по-прежнему один голос, счетчик не растет.
+    client.put(url, json={"value": 1})
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT value FROM video_reactions WHERE video_id = ?", (video_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+    assert rows == [(1,)]
+
+    # Противоположный знак — перенос (как и прежде), повтор — no-op.
+    assert client.put(url, json={"value": -1}).json() == {
+        "my_reaction": -1, "likes": 0, "dislikes": 1,
+    }
+    assert client.put(url, json={"value": -1}).json() == {
+        "my_reaction": -1, "likes": 0, "dislikes": 1,
+    }
+
+    # Симметрично для дизлайка → лайка (ретрай после переноса).
+    assert client.put(url, json={"value": 1}).json() == {
+        "my_reaction": 1, "likes": 1, "dislikes": 0,
+    }
+    assert client.put(url, json={"value": 1}).json() == {
+        "my_reaction": 1, "likes": 1, "dislikes": 0,
+    }
 
 
 def test_reaction_invalid_value_422(client, db_path):
