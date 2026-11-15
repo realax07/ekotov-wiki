@@ -33,7 +33,9 @@ TC-vid-031 — SUPERSEDED (toggle-семантика упразднена реш
 `frontend/static/js/video.js sendReaction` и UX «повторный клик снимет»
 (хинт + aria-метки) зависят от toggle; снятие голоса из UI требует решения
 (DELETE /api/videos/{id}/reaction по образцу галереи + правка video.js) —
-отдельным пакетом.
+отдельным пакетом. ЗАКРЫТО: TD-B2 (PLAN-TD-CLOSEOUT) — DELETE
+/api/videos/{id}/reaction + клик по активной реакции = DELETE (ветка
+pipeline/td-b2-video-ux, TC-vid-059).
 
 ## Статус
 CLOSED (2026-11-15, PR #275, ветка pipeline/td-b-reactions): PUT = идемпотентный

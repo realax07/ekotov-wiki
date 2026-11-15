@@ -40,7 +40,13 @@
  *   GET    /api/videos/{id}/comments         — комментарии;
  *   POST   /api/videos/{id}/comments         — {text} добавить;
  *   DELETE /api/videos/{id}/comments/{cid}   — удалить СВОЙ (чужой = 403);
- *   PUT    /api/videos/{id}/reaction         — {value: 1|-1} голос;
+ *   PUT    /api/videos/{id}/reaction         — {value: 1|-1} голос
+ *                                              (идемпотентно: тот же знак —
+ *                                              no-op, TD-B/TD-5);
+ *   DELETE /api/videos/{id}/reaction         — {value: 1|-1} снять СВОЙ
+ *                                              голос (TD-B2, follow-up
+ *                                              BUG-027/#275; клик по
+ *                                              активной реакции);
  *   GET    /api/videos/categories            — справочник (RO);
  *   GET    /api/auth/me                      — кто я (id для «свой/чужой»);
  *   POST   /api/categories                   — новая категория (ядро, галерея).
@@ -343,8 +349,14 @@ function fillCategorySelects() {
 
 let currentPlayerId = null;
 
+/* Текущее состояние реакций открытого видео (my_reaction из последнего
+ * ответа API) — по нему клик различает установку (PUT) и снятие (DELETE,
+ * TD-B2 follow-up BUG-027/#275). */
+let currentReaction = { my_reaction: null };
+
 function renderReactionButtons(reaction) {
   const my = reaction.my_reaction;
+  currentReaction = reaction;
   const likeBtn = document.getElementById('like-button');
   const dislikeBtn = document.getElementById('dislike-button');
   document.getElementById('like-count').textContent = String(reaction.likes);
@@ -374,8 +386,12 @@ function renderReactionButtons(reaction) {
 
 async function sendReaction(value) {
   if (!currentPlayerId) return;
+  // TD-B2 (follow-up BUG-027/#275): PUT — идемпотентная установка (повтор
+  // больше НЕ снимает голос), снятие — явный DELETE по клику на АКТИВНОЙ
+  // реакции (паритет галереи DELETE /like | /dislike).
+  const removing = Number(currentReaction.my_reaction) === value;
   const resp = await fetch('/api/videos/' + currentPlayerId + '/reaction', {
-    method: 'PUT',
+    method: removing ? 'DELETE' : 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ value }),
   });

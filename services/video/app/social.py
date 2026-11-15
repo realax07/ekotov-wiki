@@ -11,6 +11,18 @@
                                                 201; 401; 404; 422
 - DELETE /api/videos/{id}/comments/{cid}      — ТОЛЬКО свой (чужой = 403);
                                                 200; 401; 403; 404
+- DELETE /api/videos/{id}/reaction        — {value: 1|-1} Снятие СВОЕГО
+                                                голоса (TD-B2, follow-up
+                                                BUG-027/#275, паритет
+                                                DELETE /like | /dislike
+                                                галереи): удаляется строка
+                                                ТОЛЬКО с совпадающим value
+                                                (клик по активной реакции);
+                                                нет голоса / другой знак —
+                                                no-op 200 (DELETE
+                                                идемпотентен); 200
+                                                {my_reaction, likes,
+                                                dislikes}; 401; 404; 422
 - PUT    /api/videos/{id}/reaction            — {value: 1|-1}: ровно один
                                                 голос на пользователя
                                                 (PK video_id+user_id):
@@ -152,6 +164,58 @@ def delete_comment(request: Request, video_id: str, comment_id: str):
 # --------------------------------------------------------------------------
 # Реакции (Requirement «Лайки и дизлайки — один голос на пользователя»)
 # --------------------------------------------------------------------------
+
+
+@router.delete("/api/videos/{video_id}/reaction")
+def delete_reaction(request: Request, video_id: str, payload: dict):
+    """Снятие своего голоса {value: 1|-1} (TD-B2, follow-up BUG-027/#275).
+
+    После идемпотентного PUT (TD-B) повторный клик по активной реакции
+    больше не снимает голос — снятие переехало в явный DELETE (паритет
+    галереи: DELETE /api/images/{id}/like | /dislike удаляют строку только
+    с совпадающим value, services/images/app/gallery.py). Идемпотентный
+    DELETE: нет голоса / знак не совпал — no-op 200, состояние НЕ меняется
+    (повторный клик / ретрай безопасны). Ответ — актуальные счетчики
+    {my_reaction, likes, dislikes}; 404 — нет видео; 422 — value не 1|-1.
+    """
+    user_id = _user_id_of(request)
+    value = (payload or {}).get("value")
+    if value not in (1, -1):
+        raise HTTPException(
+            status_code=422, detail="value must be 1 or -1"
+        )
+    conn = get_connection()
+    try:
+        _require_video(conn, video_id)
+        conn.execute("BEGIN IMMEDIATE")
+        # Паритет галереи: снимаем ТОЛЬКО совпадающий знак — клик по
+        # активной реакции; несовпадение (протухший UI) — no-op.
+        conn.execute(
+            "DELETE FROM video_reactions"
+            " WHERE video_id = ? AND user_id = ? AND value = ?",
+            (video_id, user_id, value),
+        )
+        conn.commit()
+        counts = conn.execute(
+            "SELECT"
+            " (SELECT value FROM video_reactions"
+            "   WHERE video_id = ? AND user_id = ?) AS my_reaction,"
+            " (SELECT count(*) FROM video_reactions"
+            "   WHERE video_id = ? AND value = 1) AS likes,"
+            " (SELECT count(*) FROM video_reactions"
+            "   WHERE video_id = ? AND value = -1) AS dislikes",
+            (video_id, user_id, video_id, video_id),
+        ).fetchone()
+        return {
+            "my_reaction": counts["my_reaction"],
+            "likes": counts["likes"],
+            "dislikes": counts["dislikes"],
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 @router.put("/api/videos/{video_id}/reaction")

@@ -17,6 +17,9 @@ TC-vid-049…052 — реакции: постановка (счетчик +1) / 
   упразднено решением Заказчика — PLAN-TD-CLOSEOUT) / перенос на вторую
   кнопку (лайк → дизлайк, счетчики ровно на единицу) / два пользователя
   независимо, ровно одна строка на пару (PK) / value не 1|-1 → 422;
+TC-vid-059 — снятие голоса явным DELETE (TD-B2, follow-up BUG-027/#275):
+  совпадающий знак — строка удалена / повторный DELETE и чужой знак —
+  no-op / 404 / 422;
 TC-vid-053…057 — категории: справочник = image_categories (RO) /
   upload с валидным category_id / 422 на несуществующий / NULL = «Без
   категории» / фильтр ?category=<id> и ?category=none;
@@ -206,6 +209,10 @@ def test_social_endpoints_unauthorized_401(anon_client, client, db_path):
         anon_client.post(f"/api/videos/{video_id}/comments", json={"text": "х"}),
         anon_client.delete(f"/api/videos/{video_id}/comments/cid"),
         anon_client.put(f"/api/videos/{video_id}/reaction", json={"value": 1}),
+        # starlette 1.6 TestClient.delete без json= — тело через request().
+        anon_client.request(
+            "DELETE", f"/api/videos/{video_id}/reaction", json={"value": 1}
+        ),
         anon_client.get("/api/videos/categories"),
         anon_client.get("/api/videos"),  # фильтр категории — тоже за сессией
         anon_client.get("/api/videos?category=none"),
@@ -419,6 +426,74 @@ def test_reaction_invalid_value_422(client, db_path):
 def test_reaction_video_not_found_404(client, db_path):
     resp = client.put("/api/videos/no-such/reaction", json={"value": 1})
     assert resp.status_code == 404
+
+
+def test_reaction_delete_removes_vote(client, client2, db_path):
+    """TC-vid-059 (TD-B2, follow-up BUG-027/#275): DELETE
+    /api/videos/{id}/reaction {value} снимает СВОЙ голос — клик по
+    активной реакции из UI (после идемпотентного PUT повторный клик
+    больше не снимает). Совпадающий знак — строка удалена, счетчик
+    обнулен; повторный DELETE — идемпотентный no-op 200; чужой знак —
+    no-op (паритет галереи DELETE /like | /dislike: удаляется только
+    совпадающий value); после снятия голос ставится заново."""
+    video_id = _insert_video(db_path)
+    url = f"/api/videos/{video_id}/reaction"
+
+    # Arrange: лайк owner-ом (PUT — установка, ретрай безопасен).
+    assert client.put(url, json={"value": 1}).json() == {
+        "my_reaction": 1, "likes": 1, "dislikes": 0,
+    }
+
+    # Снятие совпадающего знака: строка удалена, my_reaction = null.
+    r = client.request("DELETE", url, json={"value": 1})                # Act
+    assert r.status_code == 200                                         # Assert
+    assert r.json() == {"my_reaction": None, "likes": 0, "dislikes": 0}
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT value FROM video_reactions WHERE video_id = ?", (video_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+    assert rows == []
+
+    # Повторный DELETE (ретрай сети / двойной клик) — идемпотентный no-op.
+    assert client.request("DELETE", url, json={"value": 1}).json() == {
+        "my_reaction": None, "likes": 0, "dislikes": 0,
+    }
+
+    # Чужой знак — no-op: голос с другим value не задет (дизлайк не
+    # снимает чужой лайк), после снятия голос ставится заново.
+    assert client2.put(url, json={"value": 1}).json() == {
+        "my_reaction": 1, "likes": 1, "dislikes": 0,
+    }
+    assert client.request("DELETE", url, json={"value": -1}).json() == {
+        "my_reaction": None, "likes": 1, "dislikes": 0,
+    }
+    assert client.put(url, json={"value": -1}).json() == {
+        "my_reaction": -1, "likes": 1, "dislikes": 1,
+    }
+    assert client.request("DELETE", url, json={"value": -1}).json() == {
+        "my_reaction": None, "likes": 1, "dislikes": 0,
+    }
+
+
+def test_reaction_delete_errors(client, db_path):
+    """TC-vid-059: DELETE реакции — value не 1|-1 → 422 (запись не
+    задета); нет видео → 404."""
+    video_id = _insert_video(db_path)
+    url = f"/api/videos/{video_id}/reaction"
+    assert client.put(url, json={"value": 1}).json()["likes"] == 1
+
+    resp = client.request("DELETE", url, json={"value": 0})             # Act
+    assert resp.status_code == 422                                      # Assert
+    resp = client.request("DELETE", url, json={})
+    assert resp.status_code == 422
+    assert client.get("/api/videos").json()["videos"][0]["likes"] == 1
+
+    assert client.request(
+        "DELETE", "/api/videos/no-such/reaction", json={"value": 1}
+    ).status_code == 404
 
 
 # --------------------------------------------------------------------------
