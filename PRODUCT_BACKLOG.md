@@ -323,6 +323,7 @@ images в матрицу deploy.sh (включая 6.8); тогда деплой
 **Действия (chore):** шаг 5/8 — up -d всех сервисов матрицы (или явный список с WEATHER_IMAGE); тест на состав up; в следующем релизе.
 
 ### P22. video в матрицу deploy.sh (найдено 2026-10-20 при деплое p12-rich-1)
+**Статус:** ЗАКРЫТ — ДУБЛЬ P24 (закрыт вместе с ним в TD-D, PR #278)
 **Статус:** НОВЫЙ — video собирается/поднимается вручную (вне SERVICES deploy.sh). Действия: включить video в матрицу (SERVICES, *_IMAGE, dockerfile_for) — P19-паттерн.
 
 ### P23. Фастлайн — отдельная линия сверху доски (заявлено 2026-10-20)
@@ -342,8 +343,10 @@ images в матрицу deploy.sh (включая 6.8); тогда деплой
 **Про BA:** артефакт requirements не требуется — дословная заявка Заказчика в этом файле = requirements (роль BA выполнена Заказчиком лично, решение ПМ 2026-10-20; машина BA-артефакт не требует).
 
 ### P24. video в матрицу deploy.sh (найдено 2026-10-20/21 при деплоях p12-rich-1/p23-fastline-1)
+**Статус:** РЕАЛИЗОВАНО (PR #278/TD-D, релиз td-closeout-1: video в SERVICES/образах/шаге 5/8, wait_healthy video)
 **Статус:** НОВЫЙ — video собирается/поднимается вручную вне SERVICES deploy.sh (дважды обходилось девопсом). Действия: video в матрицу (SERVICES, *_IMAGE, dockerfile_for, шаг 5/8) — P19-паттерн.
 ### P25. deploy.sh: поддержка worktree как SRC_DIR (найдено 2026-10-21 при деплое p23-fastline-2)
+**Статус:** РЕАЛИЗОВАНО (PR #278/TD-D: git rev-parse --git-dir вместо [ -d .git ]; негатив-тест на не-git каталоге; RUNBOOK §3)
 **Статус:** НОВЫЙ — [ -d .git ] отвергает worktree (нет .git-каталога); девопс обходился чекаутом в основной клон. Действия: проверку заменить на git-работоспособность (git rev-parse), либо документировать ограничение в RUNBOOK.
 
 ### P26. Интеграция game-portal: ссылка в сайдбаре (заявлено 2026-10-22)
@@ -357,22 +360,27 @@ images в матрицу deploy.sh (включая 6.8); тогда деплой
 ## Блок TD: Техдолг эксплуатации (аудит систем-дизайна Kimi K3.1, 2026-10-31; вердикт ПМ: blocker нет)
 
 ### TD-1. Достоверный бэкап (media + WAL-safe + restore-тест)
+**Статус:** РЕАЛИЗОВАНО (релиз td-closeout-1, 2026-11-15: PR #277 — media-манифесты sha256, WAL-safe backup API, restore.py + 13 тестов; PR #278 — маунты media-volume в sidecar; живой цикл: wiki+avatars+images+videos 4 артефакта; docs/ops/backup-restore.md) — TD-A/PLAN-TD-CLOSEOUT
 **Статус:** НОВЫЙ. Facts: `/data/images` и `/data/videos` вне backup-контура (`services/backup/backup.py:154-183`); degraded-копия через `immutable=1` (без WAL) считается успешной (`backup.py:65,81-110`); restore не тестируется, RTO не измерен; бэкап в bind-каталоге того же хоста, внехостовой копии нет.
 **Действия:** WAL-safe online backup; degraded-копию не считать успешной; images/videos в контур; внехостовая копия; периодический restore-тест с измеренным RTO.
 
 ### TD-2. Docker socket от netdata
+**Статус:** РЕАЛИЗОВАНО (PR #276: tecnativa/docker-socket-proxy v0.5.0 — whitelist CONTAINERS/IMAGES/INFO, POST=0 проверен 403; netdata через DOCKER_HOST=tcp; деплой 2026-11-15, оба healthy, docker-коллектор check success) — TD-C/PLAN-TD-CLOSEOUT
 **Статус:** НОВЫЙ. Facts: `/var/run/docker.sock` смонтирован (`deploy/compose.yaml:284`); `:ro` на маунте НЕ ограничивает Docker API через сокет — компрометация netdata = граница риска хост.
 **Действия:** убрать сокет (потеря container-метрик приемлема) ИЛИ read-only proxy с allowlist методов.
 
 ### TD-3. game-portal в управляемый периметр
+**Статус:** РЕАЛИЗОВАНО (PR #276: RUNBOOK §9 переписан по живому inspect — recreate с GAME_HUB_PROXY=1 и rw-маунтами, таблица состояний §9.3, обновление/откат §9.4-5, «вне compose — осознанно») — TD-C/PLAN-TD-CLOSEOUT
 **Статус:** НОВЫЙ. Facts: `/games/*` проксируется без auth во внешний контейнер общей compose-сети (`services/frontend/nginx/ekotov-wiki.conf:298-320`); у standalone-контейнера нет mem_limit/healthcheck/managed-деградации.
 **Действия:** auth_request сессией wiki на `/games/*` (если публичность не intentional) ИЛИ отдельная сеть + лимиты + healthcheck.
 
 ### TD-4. video/netdata в релизный контур + честные health
+**Статус:** РЕАЛИЗОВАНО (PR #278: video в матрицу deploy.sh (P19-паттерн), worktree-SRC_DIR через git rev-parse (P25), healthcheck socket-proxy wget /_ping + netdata depends_on service_healthy; деплой td-closeout-1: 7 сервисов healthy, смоук чисто) — TD-D/PLAN-TD-CLOSEOUT
 **Статус:** НОВЫЙ (частично дублирует P24). Facts: video вне матрицы build/up/smoke (`deploy/deploy.sh:45,73-95`); health satellite-сервисов проверяет только живость процесса, без схемы БД/воркеров; `architecture/map.md` все еще описывает 6 контейнеров и video как плановый.
 **Действия:** video в матрицу (P24-паттерн); health с проверкой минимальных зависимостей; актуализация map.md.
 
 ### TD-5. Медиа-ошибки: без зависших статусов и сирот
+**Статус:** РЕАЛИЗОВАНО (PR #275 BUG-027: идемпотентный PUT реакций + PR #279 TD-B2: DELETE-снятие из UI по образцу галереи, TC-vid-041/059/109; regress-final без дельты) — TD-B/PLAN-TD-CLOSEOUT
 **Статус:** НОВЫЙ. Facts: непредвиденное исключение конвертера оставляет запись в `converting` до перезапуска (`services/video/app/converter.py:185-196`); ffmpeg stderr подавляется; images — файлы создаются до транзакции БД, ошибка превью оставляет сирот (`services/images/app/gallery.py:128-176`).
 **Действия:** converting → error или ограниченный re-enqueue; сохранять хвост stderr; cleanup файлов при любой ошибке. Попутно (minor): PUT реакции сделать идемпотентным (сетевой retry сейчас снимает голос).
 
