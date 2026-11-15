@@ -132,6 +132,12 @@ jobs:
   # tests/web (playwright) — полный стенд: в CI web-слой покрывает job e2e
   # (playwright против compose-стенда, те же образы, что у прода); полная
   # серия tests/web через qa_stand_up.sh — локальный регресс (tests/README.md).
+  # ИЗВЕСТНАЯ КРАСНОТА (единственный failed, 1-в-1 с чистым main):
+  # tests/api/test_qa21_gallery_api.py::test_tc_gal_111_reaction_toggle_
+  # change_independence — легаси-тест toggle-семантики реакции, отмененной
+  # BUG-026 (PUT = идемпотентный set, снятие DELETE; PR #266). Обновление
+  # легаси-теста под контракт BUG-026 — отдельная продуктовая задача
+  # (решение 11b), не этот [chore].
   tests:
     runs-on: ubuntu-latest
     steps:
