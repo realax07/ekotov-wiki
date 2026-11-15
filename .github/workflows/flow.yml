@@ -149,7 +149,10 @@ jobs:
           # регистрирует плагин глобально (pytest>=8 — только root conftest),
           # без него любой pytest из корня падает на импорте плагина; в
           # backend/requirements.txt его нет (backend/ не трогаем).
-          pip install -r backend/requirements.txt pytest-playwright==0.9.0
+          # httpx (0.28.1 = venv wiki): сервис weather импортирует httpx
+          # напрямую — в requirements.txt отсутствует (локально приходит
+          # транзитивно через starlette testclient).
+          pip install -r backend/requirements.txt pytest-playwright==0.9.0 httpx==0.28.1
 
       # Слой 1: unit (стендонезависимы; GITHUB_EVENT_PATH удаляется —
       # pr_validate/gate_runner трактуют его как PR-контекст).
@@ -171,6 +174,10 @@ jobs:
           PY="$(command -v python)" REPO="$GITHUB_WORKSPACE" \
             STAND_DIR=/tmp/qa-stand FFMPEG_DIR=/usr/bin \
             bash scripts/qa_stand_up.sh reset
+
+      - name: Dump stand logs on failure
+        if: failure()
+        run: tail -30 /tmp/qa-stand/*.log
 
       - name: API + integration tests (tests/api, tests/integration)
         run: |
