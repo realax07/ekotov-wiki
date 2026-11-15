@@ -312,24 +312,74 @@ EnvironmentFile `/opt/ekotov-wiki/.env`). Условие применимост�
 - static_v бампится ПМ до диспетчеризации (R7)
 - проверка после: GET /api/weather 200 stale-флаг, файл /cache/weather.json на томе, страница /weather под логином
 
-## 9. game-portal (standalone-контейнер, P26)
+## 9. game-portal (standalone-контейнер, P26; актуализировано TD-C 2026-11-15)
 
-### 9.1 Матрица
-- ВНЕ compose: внешний игровой хаб (github realax07/game-portal, Node, 5 игр), поднимает ПМ отдельно — в матрице deploy.sh НЕ участвует
+### 9.1 Матрица / «вне compose — осознанно»
+- ВНЕ compose: внешний игровой хаб (github realax07/game-portal, Node, 7 игр: kosynka, durak, vice, munchkin, poker, tanks, evolution), поднимает ПМ отдельно — в матрице deploy.sh НЕ участвует. Это ОСОЗНАННОЕ решение, не недоработка (TD-C фиксация):
+  - код — внешний апстрим-репозиторий со своими локальными патч-коммитами (HOST, GAME_HUB_PROXY), не собирается в образы релизных тегов;
+  - НЕ добавлять его в SERVICES/<SVC>_IMAGE deploy.sh, в бэкап-контур и в зависимые матрицы — деплой-скрипт его не знает и не должен знать (up/down матрицы стек хаба не трогают);
+  - обновление кода — git-циклом в клоне + recreate контейнера (§9.4), обновление НЕ через deploy.sh;
+  - сервисное состояние игр (`.runtime`, `<svc>/.data`) — точечные rw-маунты поверх ro-бинда (§9.1.1); при введении НОВОГО каталога состояния — новый rw-маунт в recreate-команде (§9.4), ro всего бинда не снимать.
 - сеть ekotov-wiki-par_default (compose-сеть проекта), порт 8080 ВНУТРИ сети (наружу не публикуется)
 - код маунтится ro: /home/openclaw/game-portal → /srv
 
-### 9.2 Подъем (ПМ, вручную)
+#### 9.1.1 Сервисное состояние (rw-маунты поверх ro)
+- ro-маунт всего /srv; точечные rw-маунты ТОЛЬКО для каталогов, куда игры пишут: `game-hub/.runtime` (реестр spawn-сервисов) и `evolution/.data` — набор фиксирован в recreate-команде §9.2; при новой пишущей игре — НОВЫЙ rw-маунт туда же, ro всего бинда не снимать.
+- busybox ps в alpine не знает `-p`; spawn-дети (services.mjs) живут в PID-namespace контейнера: рестарт контейнера пересоздает все бэкенд-игры, stale-пиды `.runtime/processes.json` отбрасываются сами (owned()).
+
+### 9.2 Подъем / recreate (ПМ, вручную)
+Единая recreate-команда (новый подъем — та же команда без `docker rm -f`; ОБНОВЛЕНИЕ/ОТКАТ — тоже она, меняется только состояние клона; набор игр/маунтов сверять с живым контейнером `docker inspect game-portal`, список ниже — факт P26-контура):
 ```
+docker rm -f game-portal 2>/dev/null; \
 docker run -d --name game-portal --restart unless-stopped \
   --network ekotov-wiki-par_default \
-  -e HOST=0.0.0.0 \
-  -v /home/openclaw/game-portal:/srv:ro -w /srv \
-  node:26-alpine node game-hub/server.mjs
+  -e HOST=0.0.0.0 -e GAME_HUB_PROXY=1 \
+  -v /home/openclaw/game-portal:/srv:ro \
+  -v /home/openclaw/game-portal/game-hub/.runtime:/srv/game-hub/.runtime \
+  -v /home/openclaw/game-portal/evolution/.data:/srv/evolution/.data \
+  node:26-alpine sh -c 'for s in kosynka durak vice munchkin poker tanks evolution; do node game-hub/services.mjs start "$s" || exit 1; done; exec node game-hub/server.mjs'
+```
+- `-e GAME_HUB_PROXY=1` обязателен: same-origin прокси бэкенд-игр за `/games/<id>/` (без него апстрим-редиректы на `localhost:<порт>` — мертвы на сервере).
+- spawn-цикл сервисов — Cmd контейнера: по одному `node game-hub/services.mjs start <svc> || exit 1`, затем `exec node game-hub/server.mjs`. НЕ вызывать start без аргумента (он поднимает хаб сам — EADDRINUSE с exec). Проверка: `docker logs game-portal --tail 50` без EADDRINUSE/exit 1.
+
+### 9.3 Состояния контейнера (ПМ-диагностика)
+| Состояние | Как увидеть | Что это значит / действие |
+|---|---|---|
+| Up (норма) | `docker ps --filter name=game-portal` → `Up …` | `/games/` отвечает; смоук §9.5 |
+| Restarting (цикл) | статус `Restarting (N) …` | см. `docker logs game-portal --tail 50`: чаще EADDRINUSE (двойной start хаба) или падение синтаксиса свежего кода → §9.4/§9.6 |
+| Exited | `docker ps -a` → `Exited (N)` | `--restart unless-stopped` сам поднимет только при рестарте демона; после падения — recreate §9.2, не start вручную (Cmd-цикл должен стартовать СВЕЖИЙ код из клона) |
+| Контейнера нет | `docker ps -a` пусто | подъем §9.2; nginx при этом отдаёт 502/504 на /games/* — остальные разделы живы (деградации @*_down для хаба НЕТ, он вне матрицы) |
+- Живость хаба ≠ живость игр: `/games/api/games` должен вернуть все `available:true` — `false` у конкретной игры = умер spawn-сервис или GAME_HUB_DISABLE (см. `docker logs game-portal`).
+
+### 9.4 Обновление из апстрима (ПМ, вручную)
+```
+git -C /home/openclaw/game-portal fetch origin
+git -C /home/openclaw/game-portal merge origin/main   # ТОЛЬКО merge: ff-only уронит локальные патчи
+git -C /home/openclaw/game-portal grep -nE 'HOST=|listen\(|GAME_HUB_PROXY' game-hub/server.mjs   # патч-строки живы
+<recreate-команда §9.2>
+```
+- Локальные деплой-коммиты клона (HOST-патч в `server.listen`, GAME_HUB_PROXY) не существуют в апстриме — `git pull` (divergent) не использовать.
+- Новая игра апстрима =merge + recreate + две строки инфры: id в regex-локацию nginx `services/frontend/nginx/ekotov-wiki.conf` ([ops]-PR, фронтенд-редеплой) и сервис в стартовый цикл контейнера. Игра вне regex попадает в strip-локацию: страница 200, но ассеты/API коллидят с корнем сайта — неиграбельна (проверяй ассет и api каждой игры, не только страницу).
+- Верификация после обновления (§9.5) обязательна: страница 200 ≠ игра работает.
+
+### 9.5 Откат (ПМ, вручную) и смоук
+- Откат = код предыдущего коммита в клоне + recreate §9.2 (образ node:26-alpine не релизуется, «откат образа» к хабу неприменим):
+```
+git -C /home/openclaw/game-portal log --oneline -5          # выбрать последний известный хороший коммит
+git -C /home/openclaw/game-portal checkout <hash>           # detached — осознанно, откат до починки
+<recreate-команда §9.2>
+git -C /home/openclaw/game-portal checkout main             # возврат на ветку перед следующим обновлением
+```
+- Смоук после любого recreate/обновления/отката (одной пачкой):
+```
+curl -sk https://127.0.0.1:10443/games/api/games | python3 -m json.tool   # все available:true
+curl -sk -o /dev/null -w '%{http_code}\n' https://127.0.0.1:10443/games/   # 200
+curl -sk -o /dev/null -w '%{http_code}\n' https://127.0.0.1:10443/games/<id>/   # 200, страница игры
+curl -sk -o /dev/null -w '%{http_code}\n' https://127.0.0.1:10443/games/<id>/api/<health-эндпоинт>  # 200 (БАГ-5: нативный роутинг без среза)
 ```
 
-### 9.3 Маршрутизация / отказы
-- nginx (образ frontend): `= /games` → 301 `/games/`; `^~ /games/api/`, `^~ /games/previews/` и `/games/` (обычный префикс) → прокси game-portal:8080 со срезом префикса (games-proxy.inc: named capture + $upstream_games с resolver'ом — старт nginx БЕЗ поднятого контейнера безопасен, ошибка резолва только на запросе); regex `~ ^/games/(munchkin|vice|poker|tanks|durak)(/|$)` → прокси БЕЗ среза префикса (games-proxy-game.inc): хаб роутит страницы игр НАТИВНО — /games/<id>/… уходит как есть (БАГ-5, review-002). Новая игра хаба = добавление id в regex в ekotov-wiki.conf
+### 9.6 Маршрутизация / отказы
+- nginx (образ frontend): `= /games` → 301 `/games/`; `^~ /games/api/`, `^~ /games/previews/` и `/games/` (обычный префикс) → прокси game-portal:8080 со срезом префикса (games-proxy.inc: named capture + $upstream_games с resolver'ом — старт nginx БЕЗ поднятого контейнера безопасен, ошибка резолва только на запросе); regex `~ ^/games/(munchkin|vice|poker|tanks|durak|evolution)(/|$)` → прокси БЕЗ среза префикса (games-proxy-game.inc): хаб роутит страницы игр НАТИВНО — /games/<id>/… уходит как есть (БАГ-5, review-002). kosynka — игра без бэкенд-роутинга, в regex не входит (strip-локация). Новая игра хаба = добавление id в regex в ekotov-wiki.conf
 - sub_filter абсолютных путей хаба (href="/ → href="/games/, src="/ → src="/games/, fetch('/api/ → fetch('/games/api/, "/previews/ → "/games/previews/ — JSON /api/games) на text/html + application/javascript + text/javascript + application/json, sub_filter_once off; Accept-Encoding "" — сжатое тело не субфильтится; X-Frame-Options SAMEORIGIN — хаб сам фреймит игры в iframe
 - контейнер убит → 502/504 от nginx на /games/*; остальные разделы живы. Деградации @*_down для хаба НЕ заведено (вне матрицы)
 - auth на прокси НЕТ (P26 ТЗ)

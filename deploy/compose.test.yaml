@@ -278,24 +278,43 @@ services:
 
   # Netdata-мониторинг — те же параметры, что в проде (паритет топологии
   # NFR-10): метрики железа + контейнеров, порт НЕ публикуется, доступ к
-  # дашборду — только через nginx (задача 1.3). docker.sock стенда — тот же
-  # хост-сокет (метрики реальные, данные БД стенда не затрагиваются; design §5).
+  # дашборду — только через nginx (задача 1.3). Хост-сокет стенда — тот же,
+  # доступ как в проде: через docker-socket-proxy (TD-C), прямой маунт
+  # сокета УБРАН (метрики реальные, данные БД стенда не затрагиваются; design §5).
+  docker-socket-proxy:
+    image: ${SOCKET_PROXY_IMAGE:-tecnativa/docker-socket-proxy:v0.5.0}
+    restart: unless-stopped
+    mem_limit: 64m
+    environment:
+      - CONTAINERS=1
+      - IMAGES=1
+      - INFO=1
+    volumes:
+      # Сокет стенда — тот же хост-сокет, только в прокси (whitelist GET).
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   netdata:
     image: ${NETDATA_IMAGE:-netdata/netdata:stable}
     restart: unless-stopped
     # NFR-19: netdata 256m (тот же лимит, что в проде — design §5).
     mem_limit: 256m
+    depends_on:
+      docker-socket-proxy:
+        condition: service_started
     environment:
-      # Docker-коллектор (go.d): путь к сокету контейнеров (design §4).
-      DOCKER_HOST: unix:///var/run/docker.sock
+      # Docker-коллектор (go.d): Docker API через whitelisted-прокси (TD-C).
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
       DISABLE_TELEMETRY: "1"
     volumes:
       # Метрики железа хоста — строго ro (docs netdata docker).
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
-      # Контейнеры стека — docker-коллектор, строго ro (netdata НЕ управляет
-      # контейнерами; design §4).
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Контейнеры стека — через docker-socket-proxy (TD-C), сокет не маунтится.
     # Healthcheck: curl по /api/v1/info (wget в Debian-based образе не
     # гарантирован; встроенный health.sh образа использует curl — ТЗ 1.2).
     healthcheck:
