@@ -166,7 +166,8 @@ jobs:
 
       - name: Stand up (qa_stand_up.sh)
         run: |
-          PY=python STAND_DIR=/tmp/qa-stand FFMPEG_DIR=/usr/bin \
+          # PY — абсолютный путь: [ -x python ] в скрипте PATH не резолвит
+          PY="$(command -v python)" STAND_DIR=/tmp/qa-stand FFMPEG_DIR=/usr/bin \
             bash scripts/qa_stand_up.sh reset
 
       - name: API + integration tests (tests/api, tests/integration)
@@ -179,7 +180,7 @@ jobs:
 
       - name: Tear down stand
         if: always()
-        run: PY=python STAND_DIR=/tmp/qa-stand bash scripts/qa_stand_up.sh stop || true
+        run: PY="$(command -v python)" STAND_DIR=/tmp/qa-stand bash scripts/qa_stand_up.sh stop || true
 
   # e2e против compose-стенда (change add-containerization, tasks 1.7; FR-69).
   # Только ДОБАВЛЕНИЕ job: существующие job'ы не переименованы (required
