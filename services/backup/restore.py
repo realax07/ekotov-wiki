@@ -96,7 +96,9 @@ def restore_media(media_tar: str, dest_dir: str) -> dict:
         with tarfile.open(media_tar, "r") as tar:
             for member in tar.getmembers():
                 if member.isfile() and member.name != MANIFEST_NAME:
-                    tar.extract(member, tmp_dir, set_attrs=False)
+                    # filter="data": py3.12+ deprecation + защита от путей/'..'
+                    # в членах tar (наши tar'ы — плоские регулярные файлы).
+                    tar.extract(member, tmp_dir, set_attrs=False, filter="data")
         for entry in manifest["files"]:
             path = os.path.join(tmp_dir, *entry["path"].split("/"))
             if not os.path.isfile(path):
