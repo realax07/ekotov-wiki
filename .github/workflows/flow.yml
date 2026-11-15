@@ -166,8 +166,10 @@ jobs:
 
       - name: Stand up (qa_stand_up.sh)
         run: |
-          # PY — абсолютный путь: [ -x python ] в скрипте PATH не резолвит
-          PY="$(command -v python)" STAND_DIR=/tmp/qa-stand FFMPEG_DIR=/usr/bin \
+          # PY — абсолютный путь: [ -x python ] в скрипте PATH не резолвит;
+          # REPO — корень клона на раннере (дефолт скрипта — машинный путь).
+          PY="$(command -v python)" REPO="$GITHUB_WORKSPACE" \
+            STAND_DIR=/tmp/qa-stand FFMPEG_DIR=/usr/bin \
             bash scripts/qa_stand_up.sh reset
 
       - name: API + integration tests (tests/api, tests/integration)
