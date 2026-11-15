@@ -29,6 +29,11 @@ services/backup/
 ## Статус работ
 
 - 0.2 [x] каркас каталога (этот каталог).
-- 1.2 [ ] Dockerfile + сервис в `deploy/compose.yaml` (bind `/var/backups/ekotov-wiki`).
-- 1.4 [ ] порядок в deploy.sh: бэкап → build → миграция → up.
-- 2.2 [ ] сценарий stop-backup: релизный бэкап работает.
+- 1.2 [x] Dockerfile + сервис в `deploy/compose.yaml` (bind `/var/backups/ekotov-wiki`).
+- 1.4 [x] порядок в deploy.sh: бэкап → build → миграция → up.
+- 2.2 [x] сценарий stop-backup: релизный бэкап работает.
+- TD-A [x] медиа-каталоги в бэкапе (инвентарь+hash-манифест), restore-скрипт
+  (`restore.py`) + restore-тест (`tests/test_backup_restore.py`),
+  RUNBOOK «Бэкап/Restore» — `docs/ops/backup-restore.md` (PLAN-TD-CLOSEOUT).
+  Хвост: ro-маунты images-data/videos-data в backup-сервис compose
+  (см. docs/ops/backup-restore.md §4).

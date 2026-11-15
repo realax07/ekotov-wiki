@@ -2,13 +2,23 @@
 
 Cron-цикл средствами python (без системного cron): сразу при старте и далее
 каждые BACKUP_INTERVAL_SEC (дефолт 86400 = сутки) — консистентная копия
-SQLite (sqlite3 .backup, WAL-safe) + tar каталога аватаров → каталог бэкапов,
-retention BACKUP_RETENTION_DAYS (дефолт 14) для СВОИХ файлов (wiki-daily-*,
-avatars-daily-*; релизные wiki-pre-*/avatars-pre-* деплоя sidecar не трогает).
+SQLite (sqlite3 .backup, WAL-safe) + tar медиа-каталогов (avatars, images,
+videos — каждый со своим tar + hash-манифест _manifest.json) → каталог
+бэкапов, retention BACKUP_RETENTION_DAYS (дефолт 14) для СВОИХ файлов
+(wiki-daily-*, avatars-daily-*, images-daily-*, videos-daily-*; релизные
+wiki-pre-*/avatars-pre-* деплоя sidecar не трогает).
 
 Тома (deploy/compose.yaml, сервис backup):
   /data     — wiki-data:ro (только чтение: БД + avatars/)
   /backups  — bind /var/backups/ekotov-wiki
+
+Медиа (TD-A, PLAN-TD-CLOSEOUT): каталоги images/ и videos/ живут в СВОИХ
+named volume (images-data, videos-data) и по умолчанию НЕ смонтированы в
+backup-контейнер — пока маунтов нет, каталог отсутствует и цикл честно
+пишет «пропущено» (не падает, запуск не блокирует работу сервисов).
+Код готов к маунтам: env EKOTOV_WIKI_IMAGES_DIR / EKOTOV_WIKI_VIDEOS_DIR
+(те же имена, что у сервисов images/video). Нужные ro-маунты в compose
+ставятся отдельным deploy-изменением (см. docs/ops/backup-restore.md).
 
 Вызов (один код, без дубля релизного бэкапа — design §5):
   sidecar-цикл:      python -m backup                       (CMD образа)
@@ -17,11 +27,15 @@ avatars-daily-*; релизные wiki-pre-*/avatars-pre-* деплоя sidecar 
 Read-only SQLite: том смонтирован ro, БД живет в WAL-режиме. mode=ro на
 проде p15 падает (нельзя создать -wal/-shm рядом — том без создания файлов),
 тогда backup_database ретраит с mode=ro&immutable=1 (только main-файл БД;
-риск отставания на WAL-хвост задокументирован в коде). На томах, где -shm
-создается, mode=ro работает как раньше (sqlite >= 3.22, heap-memory
-wal-index; в python:3.12-slim sqlite >= 3.40).
+риск отставания на WAL-хвост задокументирован в коде и в warning'е
+печатается размер -wal, чтобы видеть масштаб неот checkpoint'енного хвоста).
+На томах, где -shm создается, mode=ro работает как раньше (sqlite >= 3.22,
+heap-memory wal-index; в python:3.12-slim sqlite >= 3.40).
 """
 
+import hashlib
+import io
+import json
 import os
 import sqlite3
 import tarfile
@@ -32,6 +46,9 @@ from datetime import datetime, timezone
 # дефолты совпадают с маунтами compose.
 DB_PATH = os.environ.get("EKOTOV_WIKI_DB_PATH", "/data/wiki.db")
 AVATARS_DIR = os.environ.get("EKOTOV_WIKI_AVATARS_DIR", "/data/avatars")
+# Медиа-каталоги (env-имена — паритет сервисам images/video, compose).
+IMAGES_DIR = os.environ.get("EKOTOV_WIKI_IMAGES_DIR", "/data/images")
+VIDEOS_DIR = os.environ.get("EKOTOV_WIKI_VIDEOS_DIR", "/data/videos")
 BACKUP_DIR = os.environ.get("BACKUP_DIR", "/backups")
 INTERVAL_SEC = int(os.environ.get("BACKUP_INTERVAL_SEC", "86400"))
 RETENTION_DAYS = int(os.environ.get("BACKUP_RETENTION_DAYS", "14"))
@@ -43,6 +60,12 @@ HEARTBEAT_PATH = os.environ.get("BACKUP_HEARTBEAT_PATH", "/tmp/backup-heartbeat"
 # deploy.sh — wiki-pre-*/avatars-pre-* — не удаляет).
 DB_PREFIX = "wiki-daily-"
 AVATARS_PREFIX = "avatars-daily-"
+IMAGES_PREFIX = "images-daily-"
+VIDEOS_PREFIX = "videos-daily-"
+
+# Имя hash-манифеста внутри медиа-tar (формата 1: список файлов + sha256).
+MANIFEST_NAME = "_manifest.json"
+MANIFEST_FORMAT = "ekotov-wiki-media-manifest/1"
 
 
 def _stamp() -> str:
@@ -108,6 +131,20 @@ def backup_database(db_path: str, dest_path: str) -> str:
                 "backup, см. deploy/compose.yaml)",
                 flush=True,
             )
+            # TD-A: масштаб риска — размер WAL-хвоста рядом с БД (если его
+            # видно): > 32 байт заголовка = есть незалитые в main записи.
+            wal_path = db_path + "-wal"
+            try:
+                wal_size = os.path.getsize(wal_path)
+                if wal_size > 32:
+                    print(
+                        f"[backup] WARNING: immutable-бэкап: -wal рядом с БД "
+                        f"не пуст ({wal_size} bytes) — этот хвост в копию "
+                        "НЕ вошел (checkpoint не выполнялся)",
+                        flush=True,
+                    )
+            except OSError:
+                pass  # -wal нет/не читается — читать нечего, хвоста нет
             if os.path.exists(dest_path):
                 os.remove(dest_path)
             _attempt(immutable=True)
@@ -121,18 +158,98 @@ def backup_database(db_path: str, dest_path: str) -> str:
     return dest_path
 
 
-def backup_avatars(avatars_dir: str, dest_path: str) -> str:
-    """tar каталога аватаров. Каталог может отсутствовать (пустой том /
-    первый деплой) — тогда пустой tar, как в deploy.sh (шаг 2/7)."""
+def _sha256_file(path: str) -> str:
+    """sha256 файла (порциями — файлы видео до сотен МБ)."""
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def build_media_manifest(src_dir: str) -> dict:
+    """Инвентарь+hash-манифест каталога (формат ekotov-wiki-media-manifest/1).
+
+    Рекурсивно: путь, размер, sha256 каждого файла. Симметричная проверка —
+    в services/backup/restore.py::verify_media_tar (restore-тест TD-A).
+    """
+    files = []
+    for root, dirs, names in os.walk(src_dir):
+        dirs.sort()
+        for name in sorted(names):
+            path = os.path.join(root, name)
+            rel = os.path.relpath(path, src_dir).replace(os.sep, "/")
+            files.append(
+                {
+                    "path": rel,
+                    "size": os.path.getsize(path),
+                    "sha256": _sha256_file(path),
+                }
+            )
+    return {
+        "format": MANIFEST_FORMAT,
+        "source": src_dir,
+        "generated_utc": _stamp(),
+        "total_files": len(files),
+        "total_bytes": sum(f["size"] for f in files),
+        "files": files,
+    }
+
+
+def backup_media_dir(src_dir: str, dest_path: str, *, required: bool = False):
+    """tar медиа-каталога + hash-манифест (_manifest.json внутри tar).
+
+    required=False (images/videos): каталога может не быть в контейнере
+    (том не смонтирован — compose backup пока маунтит только wiki-data):
+    возвращаем None, цикл не падает — бэкап «пропущен», не «сломан».
+    required=True (avatars — паритет deploy.sh, шаг 2/8 ожидает tar всегда):
+    отсутствующий каталог дает ПУСТОЙ tar с манифестом (0 файлов).
+    """
+    present = os.path.isdir(src_dir)
+    if not present and not required:
+        print(
+            f"[backup] медиа {src_dir}: каталог не смонтирован/не создан — "
+            "пропущено (маунт тома в backup-контейнер — см. "
+            "docs/ops/backup-restore.md)",
+            flush=True,
+        )
+        return None
+    if os.path.exists(dest_path):
+        raise FileExistsError(f"Файл бэкапа уже существует: {dest_path}")
+    manifest = build_media_manifest(src_dir) if present else {
+        "format": MANIFEST_FORMAT,
+        "source": src_dir,
+        "generated_utc": _stamp(),
+        "total_files": 0,
+        "total_bytes": 0,
+        "files": [],
+    }
     with tarfile.open(dest_path, "w") as tar:
-        if os.path.isdir(avatars_dir):
-            for name in sorted(os.listdir(avatars_dir)):
-                tar.add(os.path.join(avatars_dir, name))
+        if present:
+            for name in sorted(os.listdir(src_dir)):
+                # arcname=имя (НЕ абсолютный путь): tar развертывается
+                # прямо в чистый каталог restore'ом (restore.py).
+                tar.add(os.path.join(src_dir, name), arcname=name)
+        info = tarfile.TarInfo(MANIFEST_NAME)
+        payload = json.dumps(manifest, ensure_ascii=False, indent=1).encode()
+        info.size = len(payload)
+        info.mtime = int(time.time())
+        tar.addfile(info, io.BytesIO(payload))
+    return dest_path
+
+
+def backup_avatars(avatars_dir: str, dest_path: str) -> str:
+    """tar каталога аватаров (+ манифест). Каталог может отсутствовать
+    (пустой том / первый деплой) — тогда пустой tar с манифестом, как в
+    deploy.sh (шаг 2/8): релизный контур ожидает avatars-daily-*.tar всегда."""
+    result = backup_media_dir(avatars_dir, dest_path, required=True)
+    assert result == dest_path  # required=True всегда возвращает путь
     return dest_path
 
 
 def prune_old_backups(backup_dir: str, retention_days: int) -> list[str]:
-    """Удаляет СВОИ файлы (wiki-daily-*, avatars-daily-*) старше retention.
+    """Удаляет СВОИ файлы (wiki-daily-*, avatars-daily-*, images-daily-*,
+    videos-daily-*) старше retention.
 
     Отсчет — по mtime. Чужие файлы каталога (релизные wiki-pre-* и пр.)
     не трогает — их жизненный цикл ведет deploy.sh.
@@ -140,7 +257,9 @@ def prune_old_backups(backup_dir: str, retention_days: int) -> list[str]:
     cutoff = time.time() - retention_days * 86400
     removed: list[str] = []
     for name in sorted(os.listdir(backup_dir)):
-        if name.startswith((DB_PREFIX, AVATARS_PREFIX)):
+        if name.startswith(
+            (DB_PREFIX, AVATARS_PREFIX, IMAGES_PREFIX, VIDEOS_PREFIX)
+        ):
             path = os.path.join(backup_dir, name)
             try:
                 if os.path.getmtime(path) < cutoff:
@@ -155,13 +274,19 @@ def run_backup(
     db_path: str | None = None,
     avatars_dir: str | None = None,
     backup_dir: str | None = None,
+    images_dir: str | None = None,
+    videos_dir: str | None = None,
 ) -> list[str]:
-    """Один цикл бэкапа: БД + аватары + retention. Возвращает созданные файлы.
+    """Один цикл бэкапа: БД + медиа (avatars, images, videos) + retention.
+    Возвращает созданные файлы (пропущенные отсутствующие каталоги не
+    считаются — цикл не падает, работа сервисов не блокируется).
 
     Точка вызова для deploy.sh (задача 1.4, релизный бэкап — тот же код).
     """
     db_path = db_path or DB_PATH
     avatars_dir = avatars_dir or AVATARS_DIR
+    images_dir = images_dir or IMAGES_DIR
+    videos_dir = videos_dir or VIDEOS_DIR
     backup_dir = backup_dir or BACKUP_DIR
     os.makedirs(backup_dir, exist_ok=True)
     stamp = _stamp()
@@ -179,6 +304,20 @@ def run_backup(
         f"[backup] аватары: {avatars_dest} ({os.path.getsize(avatars_dest)} bytes)",
         flush=True,
     )
+
+    # Медиа-каталоги своих томов (TD-A): инвентарь+hash-манифест в каждом tar.
+    # Отсутствующий каталог (том не смонтирован в контейнер) — «пропущено»,
+    # не ошибка: запуск бэкапа не блокирует работу сервисов.
+    for prefix, src in ((IMAGES_PREFIX, images_dir), (VIDEOS_PREFIX, videos_dir)):
+        dest = os.path.join(backup_dir, f"{prefix}{stamp}.tar")
+        made = backup_media_dir(src, dest)
+        if made:
+            created.append(made)
+            print(
+                f"[backup] медиа {src}: {made} "
+                f"({os.path.getsize(made)} bytes)",
+                flush=True,
+            )
 
     removed = prune_old_backups(backup_dir, RETENTION_DAYS)
     if removed:
