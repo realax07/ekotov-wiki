@@ -17,6 +17,7 @@ LABEL org.opencontainers.image.title="ekotov-wiki/backup" \
       org.opencontainers.image.description="Sidecar-бэкап ekotov-wiki (sqlite3 .backup + tar avatars, retention 14 дней, design §5)"
 
 COPY services/backup/backup.py /srv/backup.py
+COPY services/backup/restore.py /srv/restore.py
 
 # Каталог бэкапов — bind /var/backups/ekotov-wiki (compose). Владелец — uid
 # 10001: bind-каталог на хосте создается root'ом (mkdir в Dockerfile имеет
