@@ -2,7 +2,9 @@
 
 Инварианты перехода add-microservices-full:
 1. Контракт поиска заморожен в contracts/openapi-search.json и содержит ровно
-   маршруты, уходящие из монолита (TC-openapi-201).
+   маршруты, уходящие из монолита, плюс /api/health сервиса — полное
+   множество = живому /openapi.json сервиса 1:1 (TC-openapi-201; волна 1
+   add-p20-contracts, задача 1.2 — синхронизация множеств путей).
 2. Ядро (backend/app/main.py) не импортирует и не включает
    search/suggestions-роутеры (TC-openapi-202). Активировано задачей 1.5:
    маршруты отрезаны от монолита, xfail снят (strict сохранен).
@@ -25,6 +27,9 @@ EXPECTED_PATHS = {
     "/api/search/advanced",
     "/api/suggestions",
     "/api/suggestions/users",
+    # Волна 1 add-p20-contracts (задача 1.2): контракт = живой /openapi.json
+    # сервиса 1:1 — healthcheck сервиса входит в заморозку.
+    "/api/health",
 }
 
 

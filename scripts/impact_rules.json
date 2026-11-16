@@ -7,7 +7,7 @@
    "title": "контракт изменился — openapi.json перегенерирован",
    "when": [
     {
-     "path": "^services/[^/]+/openapi"
+     "path": "^services/[^/]+/openapi\\.json$"
     }
     ],
     "require": [
@@ -122,12 +122,12 @@
   },
   {
    "id": "IR-07",
-   "title": "контракты изменились структурно — openapi.json перегенерирован",
-   "when": [
-    {
-     "path": "^contracts/"
-    }
-   ],
+    "title": "контракты изменились структурно — openapi.json перегенерирован",
+    "when": [
+     {
+      "path": "^contracts/openapi\\.json$"
+     }
+     ],
    "content_when": [
     {
      "path": "contracts/",

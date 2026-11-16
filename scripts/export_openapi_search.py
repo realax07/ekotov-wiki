@@ -1,26 +1,33 @@
-"""Экспорт контракта поиска OpenAPI → contracts/openapi-search.json.
+"""Экспорт контракта search-сервиса OpenAPI → contracts/openapi-search.json.
 
-Change add-microservices-full, tasks 0.1 (design §3, план §3).
+Change add-microservices-full, tasks 0.1 (design §3); волна 1 пакета
+add-p20-contracts, задача 1.1 (design §1): полный экспорт живой схемы
+СЕРВИСА 1:1 — фильтрация по префиксам упразднена, контракт замораживается
+ровно такой, какой отдает живой services/search/app/main.py (5 path-items,
+включая /api/health).
 
 Что делает:
-  1. Поднимает локальный экземпляр монолита (uvicorn на свободном порту,
-     временная пустая БД) — тот же механизм, что scripts/export_openapi.py:
-     контракт должен быть зафиксирован ровно такой, какой его отдает живое
-     приложение (middleware регистрируется через http-слой, прямой вызов
+  1. Строит временную БД (users + sessions — минимум для сессионного
+     middleware сервиса) и вставляет валидную сессию: у сервиса нет
+     роутера логина (design add-microservices-full §2), вход делается
+     прямой вставкой строки sessions, как в services/search/tests.
+  2. Поднимает живой search-сервис (uvicorn app.main:app из каталога
+     services/search на свободном порту) — контракт должен быть
+     зафиксирован ровно такой, какой его отдает живое приложение через
+     http-слой (middleware регистрируется через http, прямой вызов
      app.openapi() не годится).
-  2. Логинится seeded-юзером (owner) под тестовым паролем — без сессии
-     middleware отвечает 302 → /login, схема не публикуется публично.
-  3. Забирает GET /openapi.json, фильтрует paths до маршрутов поиска
-     (префиксы /api/search и /api/suggestions — роутеры app/search.py и
-     app/suggestions.py целиком переезжают в search-сервис, design §2) и
-     пишет в contracts/openapi-search.json (формат — json.dumps
-     (sort_keys=True, indent=2, ensure_ascii=False) + завершающий \\n —
-     стабильный дифф). Components не фильтруются: общие схемы остаются
-     как есть, чтобы контракт поиска был самодостаточным.
+  3. Контроль без сессии: GET /openapi.json → 401 (схема не публикуется
+     публично — services/search/app/middleware.py, паттерн ядра).
+  4. Забирает GET /openapi.json ПОД сессией ЦЕЛИКОМ (без фильтрации —
+     у сервиса своя схема целиком, FR-133/FR-137), ассертит ожидаемое
+     множество path-items (5 путей, расхождение = RuntimeError — контроль
+     полноты, design add-p20-contracts §1) и пишет
+     contracts/openapi-search.json (формат — json.dumps(sort_keys=True,
+     indent=2, ensure_ascii=False) + завершающий \\n — стабильный дифф).
 
-Проверка «экспорт = зафиксированный файл» (tasks 0.1, design §3): повторный
-запуск скрипта не должен менять contracts/openapi-search.json (пустой
-git-дифф).
+Код сервиса не меняется (ОГР-29). Проверка «экспорт = зафиксированный
+файл» (задача 1.1): повторный запуск скрипта не меняет
+contracts/openapi-search.json (пустой git-дифф).
 
 Запуск:  python scripts/export_openapi_search.py   (из корня репозитория)
 Проверка: git diff --exit-code -- contracts/openapi-search.json
@@ -30,26 +37,60 @@ from __future__ import annotations
 
 import json
 import socket
+import sqlite3
 import subprocess
 import sys
 import tempfile
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-BACKEND_DIR = REPO_ROOT / "backend"
+SERVICE_DIR = REPO_ROOT / "services" / "search"
 CONTRACT_PATH = REPO_ROOT / "contracts" / "openapi-search.json"
 
-# Префиксы путей search-сервиса (design §2: app/search.py + app/suggestions.py
-# переезжают целиком → /api/search* + /api/suggestions*).
-SEARCH_PATH_PREFIXES = ("/api/search", "/api/suggestions")
+# Полное множество path-items живого /openapi.json сервиса (design
+# add-p20-contracts §1): search/suggestions-роутеры + healthcheck.
+# Расхождение живой схемы с этим множеством = RuntimeError.
+EXPECTED_PATHS = {
+    "/api/search",
+    "/api/search/advanced",
+    "/api/suggestions",
+    "/api/suggestions/users",
+    "/api/health",
+}
 
-# Тестовые учетные данные seed-пользователей (как в tests/api/conftest.py,
-# NFR-7 — значения без секретности).
-OWNER_LOGIN = "owner"
-OWNER_PASSWORD = "QaOwner_Pass_1!"
+SESSION_COOKIE_NAME = "session"  # services/search/app/middleware.py
+SESSION_TOKEN = "export-openapi-session"
+
+# Валидная сессия: срок скользящий (+1 день), форма как в
+# services/search/tests/test_search_service.py (fixture db_path).
+SESSION_CREATED = datetime.now(timezone.utc)
+SESSION_EXPIRES = SESSION_CREATED + timedelta(days=1)
+
+# Минимальная схема БД для сессионного middleware сервиса (users +
+# sessions; сервис — read-only потребитель, экспорту /openapi.json
+# запросы к tasks не нужны).
+DB_SCHEMA_SQL = """
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY,
+  login TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  display_name TEXT,
+  role TEXT,
+  bio TEXT,
+  avatar_path TEXT,
+  avatar_updated_at TEXT
+);
+CREATE TABLE sessions (
+  token TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+"""
 
 
 def _free_port() -> int:
@@ -72,107 +113,74 @@ def _wait_ready(base_url: str, deadline: float = 60.0) -> None:
     raise RuntimeError(f"Локальный app {base_url} не готов за {deadline}s: {last_error}")
 
 
-def _seed_owner(db_path: Path) -> None:
-    """Seed owner с тестовым паролем в пустую БД (bcrypt — как
-    tests/web/conftest._seed_users; NFR-7, значения без секретности)."""
-    import bcrypt
-    import sqlite3
-
+def _build_db(db_path: Path) -> None:
+    """Временная БД: user owner + валидная сессия для middleware сервиса."""
     conn = sqlite3.connect(db_path)
     try:
+        conn.executescript(DB_SCHEMA_SQL)
         conn.execute(
-            "INSERT INTO users (login, password_hash, role) VALUES (?, ?, ?)",
-            (
-                OWNER_LOGIN,
-                bcrypt.hashpw(OWNER_PASSWORD.encode(), bcrypt.gensalt()).decode(),
-                "Product manager",
-            ),
+            "INSERT INTO users (id, login, password_hash) VALUES (1, 'owner', 'x')"
+        )
+        conn.execute(
+            "INSERT INTO sessions (token, user_id, created_at, expires_at)"
+            " VALUES (?, 1, ?, ?)",
+            (SESSION_TOKEN, SESSION_CREATED.isoformat(), SESSION_EXPIRES.isoformat()),
         )
         conn.commit()
     finally:
         conn.close()
 
 
-def _start_app(tmp_db: Path) -> tuple[subprocess.Popen, str]:
-    """uvicorn app.main:app на свободном порту с временной пустой БД."""
+def _start_service(tmp_dir: Path) -> tuple[subprocess.Popen, str]:
+    """uvicorn app.main:app (services/search) на свободном порту с tmp-БД."""
     port = _free_port()
     base_url = f"http://127.0.0.1:{port}"
-    db_path = tmp_db / "app.db"
+    db_path = tmp_dir / "wiki.db"
+    _build_db(db_path)
     env = dict(
         __import__("os").environ,
-        DB_PATH=str(db_path),
-        SECRET_KEY="export-openapi-local-secret",
-        AVATARS_DIR=str(tmp_db / "avatars"),
+        EKOTOV_WIKI_DB_PATH=str(db_path),
         TZ="UTC",
     )
-    subprocess.run(
-        [sys.executable, "-m", "app.db"],
-        cwd=BACKEND_DIR, env=env, check=True, capture_output=True,
-    )
-    _seed_owner(db_path)
     proc = subprocess.Popen(
         [
             sys.executable, "-m", "uvicorn", "app.main:app",
             "--host", "127.0.0.1", "--port", str(port), "--log-level", "warning",
         ],
-        cwd=BACKEND_DIR, env=env,
+        cwd=SERVICE_DIR, env=env,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     return proc, base_url
 
 
-def _login(base_url: str) -> requests.Session:
-    """Сессия owner (кука Secure — по http на localhost банку снимаем,
-    повторяя браузерное поведение tests/web/conftest.LocalhostSession)."""
+def _session() -> requests.Session:
+    """Клиент с валидной сессией (кука Secure — по http на localhost банку
+    снимаем, как в LocalhostSession-паттерне tests/web/conftest.py)."""
     session = requests.Session()
-    resp = session.post(
-        f"{base_url}/api/auth/login",
-        json={"login": OWNER_LOGIN, "password": OWNER_PASSWORD},
-    )
-    if resp.status_code != 200:
-        raise RuntimeError(f"seed-вход owner не удался: {resp.status_code} {resp.text}")
-    for cookie in session.cookies:
-        cookie.secure = False
+    session.cookies.set(SESSION_COOKIE_NAME, SESSION_TOKEN, domain="127.0.0.1")
     return session
-
-
-def _filter_search_schema(schema: dict) -> dict:
-    """Фильтрация paths до маршрутов поиска; остальная схема — как отдана."""
-    paths = schema.get("paths", {})
-    search_paths = {
-        path: ops
-        for path, ops in paths.items()
-        if path.startswith(SEARCH_PATH_PREFIXES)
-    }
-    if not search_paths:
-        raise RuntimeError(
-            "В схеме приложения не найдено ни одного маршрута поиска "
-            f"({', '.join(SEARCH_PATH_PREFIXES)}) — фильтрация дала пустой контракт"
-        )
-    filtered = dict(schema)
-    filtered["paths"] = search_paths
-    return filtered
 
 
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="export-openapi-search-") as tmp:
-        proc, base_url = _start_app(Path(tmp))
+        proc, base_url = _start_service(Path(tmp))
         try:
             _wait_ready(base_url)
 
-            # Контроль FR-68 ДО входа: без сессии схема не отдается 200.
+            # Контроль FR-68 ДО входа: без сессии схема не отдается 200
+            # (сервис отвечает 401 — API-путь, services/search/app/middleware.py).
             anon = requests.get(f"{base_url}/openapi.json", timeout=5,
                                 allow_redirects=False)
-            if anon.status_code not in (302, 307, 401):
+            if anon.status_code != 401:
                 raise RuntimeError(
                     f"FR-68 нарушен: /openapi.json без сессии = "
-                    f"{anon.status_code} (ожидался 302 → /login или 401)"
+                    f"{anon.status_code} (ожидался 401 — сервис без валидной "
+                    f"сессии не публикует схему)"
                 )
 
-            session = _login(base_url)
-            resp = session.get(f"{base_url}/openapi.json", timeout=10)
+            resp = _session().get(f"{base_url}/openapi.json", timeout=10)
             resp.raise_for_status()
-            schema = _filter_search_schema(resp.json())
+            schema = resp.json()
         finally:
             proc.terminate()
             try:
@@ -180,15 +188,24 @@ def main() -> int:
             except subprocess.TimeoutExpired:
                 proc.kill()
 
+    # Контроль полноты (design add-p20-contracts §1): контракт = живая
+    # схема сервиса 1:1, без фильтрации.
+    paths = set(schema.get("paths", {}))
+    if paths != EXPECTED_PATHS:
+        raise RuntimeError(
+            "Живая схема сервиса разошлась с ожидаемым множеством path-items: "
+            f"лишние {sorted(paths - EXPECTED_PATHS)}, "
+            f"недостающие {sorted(EXPECTED_PATHS - paths)}"
+        )
+
     CONTRACT_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONTRACT_PATH.write_text(
         json.dumps(schema, sort_keys=True, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
-    paths = sorted(schema.get("paths", {}))
     print(f"OK: contracts/openapi-search.json записан "
           f"({len(paths)} путей, openapi {schema.get('openapi', '?')}):")
-    for path in paths:
+    for path in sorted(paths):
         print(f"  {path}")
     return 0
 
