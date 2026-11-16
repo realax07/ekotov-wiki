@@ -16,8 +16,10 @@ search :8378 + images :8379, images-семейство маршрутизиру�
   фильтр, created_at DESC, tags в списке; справочник галереи отделен от
   задач; неизвестная категория фильтра → 200 []; неизвестный числовой
   category_id при upload → 422.
-- TC-GAL-111 — реакции: toggle-семантика (повторный same-sign PUT снимает),
-  смена голоса, независимость голосов owner/PE, отсутствие дублей (upsert).
+- TC-GAL-111 — реакции: идемпотентный PUT (BUG-026/TD-5, паритет видео
+  TC-vid-041: повтор same-sign — no-op 200, снятие — DELETE /like |
+  /dislike), смена голоса, независимость голосов owner/PE, отсутствие
+  дублей (upsert).
 - TC-GAL-112 — комментарии: добавление/просмотр обоими, пустой → 422,
   удаление своего → 200, чужого → 403 (остается), несуществующего → 404.
 - TC-GAL-113 — Э-6: /api/auth/me возвращает ровно 6 ключей с id.
@@ -495,26 +497,37 @@ def test_tc_gal_110_upload_unknown_numeric_category_id_422(owner, gallery):
 # ---------------------------------------------------------------------------
 
 
-def test_tc_gal_111_reaction_toggle_change_independence(uploaded, owner, pe):
-    """TC-GAL-111: toggle-семантика (повтор same-sign PUT снимает голос,
-    дубля нет); смена голоса — смещение ровно на один; голоса owner/PE
-    независимы; my_reaction/счетчики корректны в списке и детали."""
+def test_tc_gal_111_reaction_put_idempotent_change_independence(uploaded, owner, pe):
+    """TC-GAL-111: идемпотентный PUT (BUG-026/TD-5, паритет видео TC-vid-041) —
+    повтор same-sign PUT не меняет состояние (no-op 200, сетевой ретрай
+    НЕ снимает голос), снятие — только DELETE /like | /dislike; смена голоса —
+    смещение ровно на один; голоса owner/PE независимы; дублей нет
+    (PK upsert); my_reaction/счетчики корректны в списке и детали."""
     img = uploaded
 
-    # Шаг 1: лайк; повторный same-sign PUT — снятие (toggle FR-81).
+    # Шаг 1: лайк; повторный same-sign PUT — идемпотентный no-op (BUG-026).
     r1 = owner.put(f"{BASE_URL}/api/images/{img}/like")
     assert r1.status_code == 200, r1.text
     assert r1.json()["my_reaction"] == 1 and r1.json()["likes"] == 1
     r2 = owner.put(f"{BASE_URL}/api/images/{img}/like")
     assert r2.status_code == 200
-    assert r2.json()["my_reaction"] is None and r2.json()["likes"] == 0
+    assert r2.json()["my_reaction"] == 1 and r2.json()["likes"] == 1  # no-op
 
     with _db() as conn:  # шаг 5: дублей нет (PK upsert)
-        assert conn.execute(
-            "SELECT count(*) c FROM image_reactions WHERE image_id = ?", (img,)
-        ).fetchone()["c"] == 0
+        rows = conn.execute(
+            "SELECT user_id, value FROM image_reactions WHERE image_id = ?", (img,)
+        ).fetchall()
+        assert [(r["user_id"], r["value"]) for r in rows] == [(1, 1)]
 
-    # Шаг 2: смена голоса с чистого состояния (like → dislike = 0/1).
+    # Шаг 2: снятие — только DELETE /like; повторный DELETE тоже идемпотентен.
+    d1 = owner.delete(f"{BASE_URL}/api/images/{img}/like")
+    assert d1.status_code == 200
+    assert d1.json()["my_reaction"] is None and d1.json()["likes"] == 0
+    d2 = owner.delete(f"{BASE_URL}/api/images/{img}/like")
+    assert d2.status_code == 200
+    assert d2.json()["my_reaction"] is None and d2.json()["likes"] == 0
+
+    # Шаг 3: смена голоса с чистого состояния (like → dislike = 0/1).
     owner.put(f"{BASE_URL}/api/images/{img}/like")
     r3 = owner.put(f"{BASE_URL}/api/images/{img}/dislike")
     assert r3.status_code == 200
@@ -522,11 +535,11 @@ def test_tc_gal_111_reaction_toggle_change_independence(uploaded, owner, pe):
     assert body["my_reaction"] == -1
     assert body["likes"] == 0 and body["dislikes"] == 1, body  # ровно +1
 
-    # Шаг 3: повторный same-sign dislike — снятие.
+    # Шаг 4: повторный same-sign dislike PUT — no-op (голос сохранен).
     r4 = owner.put(f"{BASE_URL}/api/images/{img}/dislike")
-    assert r4.json()["my_reaction"] is None and r4.json()["dislikes"] == 0
+    assert r4.json()["my_reaction"] == -1 and r4.json()["dislikes"] == 1
 
-    # Шаг 4: независимость голосов двух пользователей.
+    # Шаг 5: независимость голосов двух пользователей.
     owner.put(f"{BASE_URL}/api/images/{img}/like")
     rp = pe.put(f"{BASE_URL}/api/images/{img}/like")
     assert rp.status_code == 200
