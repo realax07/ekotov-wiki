@@ -1,0 +1,24 @@
+# Заглушка-указатель: контракт video-сервиса заморожен в
+# contracts/openapi-video.json (add-p20-contracts, волна 2, задачи 2.1/2.2).
+# Этот файл — навигационный якорь структуры monorepo (services/README.md);
+# источник истины контракта — JSON, экспорт scripts/export_openapi_video.py.
+#
+# Пути контракта (ровно, = живой /openapi.json сервиса 1:1;
+# 10 path-items / 14 операций, включая PATCH rename и
+# GET /api/videos/authcheck — internal, стык nginx auth_request):
+#   POST /api/videos
+#   GET  /api/videos
+#   GET  /api/videos/{video_id}/file
+#   GET  /api/videos/{video_id}/preview
+#   GET  /api/videos/{video_id}/comments
+#   POST /api/videos/{video_id}/comments
+#   DELETE /api/videos/{video_id}/comments/{comment_id}
+#   PUT  /api/videos/{video_id}/reaction
+#   DELETE /api/videos/{video_id}/reaction
+#   GET  /api/videos/categories
+#   PATCH  /api/videos/{video_id}
+#   DELETE /api/videos/{video_id}
+#   GET  /api/videos/authcheck
+#   GET  /api/health
+#
+# См. tasks.md пакета add-p20-contracts (волна 2, design §1/§2).

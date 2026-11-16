@@ -1,0 +1,12 @@
+# Заглушка-указатель: контракт weather-сервиса заморожен в
+# contracts/openapi-weather.json (add-p20-contracts, волна 4, задачи 4.1/4.2).
+# Этот файл — навигационный якорь структуры monorepo (services/README.md);
+# источник истины контракта — JSON, экспорт scripts/export_openapi_weather.py.
+#
+# Пути контракта (ровно, = живой /openapi.json сервиса 1:1;
+# 2 path-items / 2 операции):
+#   GET /api/weather   (карточка «Сегодня» + 7 дней; 503 weather_unavailable;
+#                       провайдер Open-Meteo в спеку НЕ входит — Д-17)
+#   GET /api/health
+#
+# См. tasks.md пакета add-p20-contracts (волна 4, design §1/§2).
