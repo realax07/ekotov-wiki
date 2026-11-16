@@ -11,6 +11,8 @@ nginx-стенд :18443 (app :8080 + search :8378 + images :8379; images-сем�
   лайк/комментарий из окна, скачивание оригинала; фильтрованная выдача.
 - TC-GAL-117 — лайк с подсветкой «мой голос», комментарий через UI, пустой
   422, чужой комментарий без кнопки удаления, XSS-дисциплина.
+- TC-GAL-123 — снятие реакции из UI (BUG-029, паритет видео TD-B2/BUG-027):
+  клик по АКТИВНОЙ реакции — DELETE /like|/dislike, по НЕактивной — PUT.
 - TC-GAL-118 — загрузка: форма (input + drag&drop), ошибки 422 в UI.
 - TC-GAL-119 — сайдбар «Галерея» 4-м пунктом, «Видео» — 5-м (1.5
   video-hosting), «Погода» — 6-м (weather-service), «Игры» — 7-м (P26
@@ -419,6 +421,69 @@ def test_tc_gal_117_like_highlight_comment_ui_xss(gallery_js_page, browser_insta
     expect(foreign).to_be_visible()
     assert foreign.locator("button").count() == 0, "у чужого комментария есть кнопки"
     pe_context.close()
+
+
+# ---------------------------------------------------------------------------
+# TC-GAL-123 — снятие реакции из UI: активная = DELETE, неактивная = PUT
+# ---------------------------------------------------------------------------
+
+
+def test_tc_gal_123_reaction_click_active_deletes_inactive_puts(gallery_js_page):
+    """TC-GAL-123 (BUG-029, паритет видео TD-B2/BUG-027). Механика снятия
+    реакции из UI галереи: клик по АКТИВНОЙ реакции (my_reaction совпал,
+    aria-pressed=true) — DELETE /api/images/{id}/like|/dislike (снятие
+    СВОЕГО голоса с совпадающим знаком), по НЕактивной — PUT
+    (идемпотентная установка/перенос, BUG-026/TD-5). До фикса BUG-029
+    sendReaction всегда слал PUT — снятие из UI было невозможно (корень
+    красного TC-GAL-117, шаг «повторный same-sign — снятие»).
+    Методы наблюдаются слушателем page.on('request') — перехвата нет,
+    ход — через реальный backend images-сервиса (стенд :18443)."""
+    page = gallery_js_page
+    gallery = GalleryPage(page)
+    _upload_api("owner", MARKER + "r123.png")
+
+    page.reload()
+    page.wait_for_load_state("networkidle")
+
+    methods = []
+
+    def _on_request(request):
+        if re.search(r"/api/images/\d+/(like|dislike)$", request.url):
+            methods.append(request.method)
+
+    page.on("request", _on_request)
+
+    gallery.card(MARKER + "r123.png").click()
+    expect(gallery.lightbox).to_be_visible()
+
+    # 1) Установка: PUT, голос подсвечен.
+    gallery.lb_like.click()
+    expect(gallery.lb_like).to_have_attribute("aria-pressed", "true")
+    expect(gallery.lb_like_count).to_have_text("1")
+    assert methods == ["PUT"]
+
+    # 2) Клик по АКТИВНОЙ реакции — DELETE (снятие), НЕ повторный PUT.
+    gallery.lb_like.click()
+    expect(gallery.lb_like).to_have_attribute("aria-pressed", "false")
+    expect(gallery.lb_like_count).to_have_text("0")
+    assert methods == ["PUT", "DELETE"]
+
+    # 3) Клик по НЕактивной — PUT (голос ставится заново).
+    gallery.lb_like.click()
+    expect(gallery.lb_like).to_have_attribute("aria-pressed", "true")
+    assert methods == ["PUT", "DELETE", "PUT"]
+
+    # 4) Смена голоса — PUT-перенос (клик по неактивной кнопке).
+    gallery.lb_dislike.click()
+    expect(gallery.lb_dislike).to_have_attribute("aria-pressed", "true")
+    expect(gallery.lb_like).to_have_attribute("aria-pressed", "false")
+    assert methods == ["PUT", "DELETE", "PUT", "PUT"]
+
+    # 5) Снятие дизлайка — DELETE /dislike; счетчик обнулен.
+    gallery.lb_dislike.click()
+    expect(gallery.lb_dislike).to_have_attribute("aria-pressed", "false")
+    expect(gallery.lb_dislike_count).to_have_text("0")
+    assert methods == ["PUT", "DELETE", "PUT", "PUT", "DELETE"]
 
 
 # ---------------------------------------------------------------------------

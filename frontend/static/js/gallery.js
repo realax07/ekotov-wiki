@@ -15,8 +15,12 @@
  *          ({id, body, created_at, user_id, author});
  * - POST   /api/images (multipart: file, category?, tags?) — 201; 422
  *          {error, details} — текст показывается в форме (NFR-21);
- * - PUT    /api/images/{id}/like | /dislike — голос (повторное — снятие,
- *          противоположное — перенос); ответ {likes, dislikes, my_reaction};
+ * - PUT    /api/images/{id}/like | /dislike — голос (идемпотентная
+ *          установка: тот же знак — no-op, BUG-026/TD-5; противоположный —
+ *          перенос); ответ {likes, dislikes, my_reaction};
+ * - DELETE /api/images/{id}/like | /dislike — снять СВОЙ голос (совпадающий
+ *          знак; несовпадение/нет голоса — no-op 200). Клик по АКТИВНОЙ
+ *          реакции (BUG-029, паритет видео TD-B2/BUG-027);
  * - POST   /api/images/{id}/comments {body} — 201; пустой → 422;
  * - DELETE /api/images/{id}/comments/{cid} — только автор (чужой → 403);
  * - PUT    /api/images/{id}/name {name} — переименование файла (original_name;
@@ -606,8 +610,13 @@ function sendReaction(kind) {
   var elems = lightboxElements();
   elems.like.disabled = true;
   elems.dislike.disabled = true;
+  /* BUG-029 (паритет видео TD-B2/BUG-027): PUT — идемпотентная установка
+   * (повтор больше НЕ снимает голос), снятие — явный DELETE по клику на
+   * АКТИВНОЙ реакции (state DELETE /like | /dislike). */
+  var value = kind === "like" ? 1 : -1;
+  var removing = Number(img.my_reaction) === value;
   fetch("/api/images/" + img.id + "/" + kind, {
-    method: "PUT",
+    method: removing ? "DELETE" : "PUT",
     credentials: "same-origin",
   })
     .then(function (response) {
