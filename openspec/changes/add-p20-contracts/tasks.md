@@ -116,36 +116,41 @@
 
 ## Волна 5. Схемная валидация сервисных тестов (FR-138, ОВ-1б, NFR-46) — [M]
 
-- [ ] 5.1 Зависимость `jsonschema` (draft-07+) в test-deps всех 4
+- [x] 5.1 Зависимость `jsonschema` (draft-07+) в test-deps всех 4
   сервисов (requirements тестов; рантайм образов не меняется).
   Проверка: `python -c "import jsonschema; print(jsonschema.Draft7Validator)"`
   в окружении сервисных тестов; `pip freeze | grep -i jsonschema`
   зафиксирован там, где фиксируются deps. FR-138.
-- [ ] 5.2 Helper `services/<svc>/tests/contract_helpers.py` × 4 (или
+  <!-- факт: jsonschema==4.26.0 в тест-deps; 4 сервисных сьюта green (code-review-004 approve) -->
+- [x] 5.2 Helper `services/<svc>/tests/contract_helpers.py` × 4 (или
   копия одного файла — дизайн §3): загрузка
   `contracts/openapi-<svc>.json`, Draft7Validator + резолвер `$ref` на
   корень файла (строится один раз на модуль), функция
   `validate_response(path, method, status, payload)`; отсутствие
   маршрута/статуса в спеке = AssertionError. Проверка: юнит-тест
   helper'а на позитивном и негативном payload. FR-138.
-- [ ] 5.3 Схемные проверки happy-path 200 каждого маршрута + типовая
+  <!-- факт: копии helper ×4 идентичны modulo имени контракта; кэш валидаторов (code-review-004 approve) -->
+- [x] 5.3 Схемные проверки happy-path 200 каждого маршрута + типовая
   ошибка (401 без сессии и/или 422) в существующие тест-файлы 4
   сервисов — ДОБАВЛЕНИЕ проверок, существующие ассерты не правятся
   (NFR-45). Проверка: `pytest services/search/tests services/video/tests
   services/images/tests services/weather/tests` зеленый;
   `grep -rc validate_response services/*/tests` ≥ 1 на сервис.
   FR-138, NFR-45.
-- [ ] 5.4 Drift-ловушка: в тесте одного сервиса (например images)
+  <!-- факт: прогоны 17/111/42/26 = 196 green; NFR-45 append-only (code-review-004 approve) -->
+- [x] 5.4 Drift-ловушка: в тесте одного сервиса (например images)
   негативный кейс — payload с чужим полем против спеки падает с
   сообщением «маршрут + несовпавшее поле». Проверка: инвертированный
   тест (pytest.raises) зеленый. FR-138.
-- [ ] 5.5 Замер замедления: время `pytest services/*/tests` до волны и
+  <!-- факт: TC-gal-112 инвертирован: AssertionError маршрут+$.error (code-review-004 approve) -->
+- [x] 5.5 Замер замедления: время `pytest services/*/tests` до волны и
   после — прирост ≤ 20%. Проверка: два замера (`time pytest ...`)
   записаны в описании задачи PR, прирост ≤ 20%. NFR-46.
+  <!-- факт: NFR-46: 46.6с → 46.1с (−0.9%), регресса нет (code-review-004 approve) -->
 
 ## Волна 6. Карта и nginx-тест (FR-139, ОГР-30, Д-17, ОВ-9; FR-141, ОВ-8) — [S]
 
-- [ ] 6.1 Раздел «Контракты и зависимости» в `architecture/map.md`
+- [x] 6.1 Раздел «Контракты и зависимости» в `architecture/map.md`
   (структура — design §4): nginx-маршруты (пары «= точный + ^~ префикс»,
   порты 8377–8381), потребители (браузерные JS; nginx authcheck → video
   как единственный сервер-сервер-стык), деградации `@*_down` → 503 +
@@ -157,7 +162,8 @@
   `for f in contracts/openapi-{search,video,images,weather}.json
   services/{search,video,images,weather}/openapi.yaml; do test -f $f;
   done` — exit 0. FR-139, ОГР-30, Д-17, ОВ-9.
-- [ ] 6.2 nginx-тест `tests/api/test_nginx_routes_contract.py` (design
+  <!-- факт: факт-чек ~30 путей §8 — 0 MISSING; ОГР-30/Д-17/ОВ-9 отражены (code-review-004 approve) -->
+- [x] 6.2 nginx-тест `tests/api/test_nginx_routes_contract.py` (design
   §6): парсинг location-строк `services/frontend/nginx/ekotov-wiki.conf`,
   ассерт ровно ожидаемых семейств per service + named-локации
   деградаций + `/_video_auth`; маркер TC-API-NNN внутри docstring
@@ -165,10 +171,11 @@
   `pytest tests/api/test_nginx_routes_contract.py` зеленый на HEAD;
   ручной негатив — временное переименование `^~ /api/weather/` в рабочей
   копии → тест красный (возврат файла). FR-141, ОВ-8.
+  <!-- факт: TC-API-001…004 green + негативы; конф восстановлен байт-в-байт (code-review-004 approve) -->
 
 ## Волна 7. Гейт дрейфа, последняя волна (FR-140, ОВ-5/ОВ-6, ОГР-31, NFR-46) — [M]
 
-- [ ] 7.1 Добавить правила IR-08…IR-12 (таблица design §5): when по
+- [x] 7.1 Добавить правила IR-08…IR-12 (таблица design §5): when по
   `services/<svc>/app/**` и `backend/app/**`, `content_when` — список
   пар `{path, regex}` (форма — по образцам IR-06/IR-07, Н-1):
   path — `services/<svc>/app/**` / `backend/app/**`, regex —
@@ -179,7 +186,8 @@
   Проверка: JSON читается; `python3 scripts/pr_validate.py . --id test`
   на чистом HEAD без DENY (content_when не срабатывает на пустом диффе).
   FR-140, ОВ-5, ОВ-6.
-- [ ] 7.2 Негативный тест гейта (tests конвейера, рядом с существующими
+  <!-- факт: IR-08…IR-12 только в JSON, код ворот не менялся (code-review-004 approve) -->
+- [x] 7.2 Негативный тест гейта (tests конвейера, рядом с существующими
   прогонами pr_validate; маркер TC-FLOW-NNN в docstring): фиктивный
   дифф «новый маршрут в services/video/app без контракта» через
   `PR_CHANGED_FILES` + `PR_BODY`-конвенцию → ожидаемый DENY с id IR-08;
@@ -190,9 +198,11 @@
   DENY (IR-07 сужен, регресс-проверка Д-Б1). Проверка:
   `pytest tests -k impact` (или существующий лок-файл тестов
   ворот) зеленый; четыре кейса в ассертах. FR-140, ОВ-6.
-- [ ] 7.3 Включение гейта и итоговая сверка: все 4 контракта заморожены
+  <!-- факт: tests/unit = 70 passed; независимая проба deny/green (code-review-004 approve) -->
+- [x] 7.3 Включение гейта и итоговая сверка: все 4 контракта заморожены
   и зеленые (волны 1–4), `openspec validate --all --strict` зелен,
   полный регресс-сьют (tests/api + services/*) зелен. Проверка:
   `git diff --exit-code` после повторного прогона всех экспорт-скриптов
   (5 файлов контрактов) — пусто; CI на PR зелен, длительность шага
   ворот ≤ 30 c в логе (NFR-46). FR-140, ОГР-31, NFR-46.
+  <!-- факт: повторный экспорт ×5 — дельта пуста; openspec strict CI green; CI PR #298 green (code-review-004 approve) -->

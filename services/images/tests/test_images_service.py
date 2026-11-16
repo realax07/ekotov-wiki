@@ -852,3 +852,102 @@ def test_core_tables_untouched(client, client2, db_path, seeded_gallery):
         # users читался (display_name в комментариях) — но не менялся: above.
     finally:
         conn.close()
+
+
+# --------------------------------------------------------------------------
+# Волна 5 (add-p20-contracts, FR-138/ОВ-1б, NFR-46): схемная валидация
+# ответов по замороженному контракту — helper tests/contract_helpers.py
+# (копия одного файла, design §3). Существующие ассерты не правятся
+# (NFR-45) — только ДОБАВЛЕНИЕ проверок.
+# --------------------------------------------------------------------------
+
+from tests.contract_helpers import validate_response  # noqa: E402
+
+
+def test_contract_helper_positive_and_negative():
+    """TC-gal-109 (волна 5, задача 5.2): юнит копии helper'а — позитивный
+    payload валиден (details не запрещены — ОВ-1б); негативный (error не
+    строка) падает с маршрутом и несовпавшим полем; неизвестный маршрут —
+    AssertionError (ловушка дрейфа)."""
+    validate_response("/api/images", "GET", 401,
+                      {"error": "unauthorized", "details": "x"})
+    with pytest.raises(AssertionError) as ei:
+        validate_response("/api/images", "GET", 401, {"error": 123})
+    msg = str(ei.value)
+    assert "GET /api/images" in msg and "[401]" in msg and "$.error" in msg
+    with pytest.raises(AssertionError, match="маршрут отсутствует"):
+        validate_response("/api/ghost", "GET", 200, {})
+
+
+def test_contract_schemas_happy_paths(client, seeded_gallery):
+    """TC-gal-110 (волна 5, задача 5.3): happy-path 200/201 КАЖДОГО маршрута
+    images-сервиса валидируется по схеме из contracts/openapi-images.json."""
+    img = seeded_gallery[0]
+    # GET /api/images (список) + GET /api/images/{image_id}.
+    validate_response("/api/images", "GET", 200, client.get("/api/images").json())
+    details = client.get(f"/api/images/{img}")
+    assert details.status_code == 200
+    validate_response("/api/images/{image_id}", "GET", 200, details.json())
+    # PUT /api/images/{image_id}/name (rename).
+    renamed = client.put(f"/api/images/{img}/name", json={"name": "Контракт"})
+    assert renamed.status_code == 200
+    validate_response("/api/images/{image_id}/name", "PUT", 200, renamed.json())
+    # Реакции: PUT/DELETE like и dislike (идемпотентный PUT — BUG-026).
+    like = client.put(f"/api/images/{img}/like")
+    assert like.status_code == 200
+    validate_response("/api/images/{image_id}/like", "PUT", 200, like.json())
+    unlike = client.delete(f"/api/images/{img}/like")
+    assert unlike.status_code == 200
+    validate_response("/api/images/{image_id}/like", "DELETE", 200,
+                      unlike.json())
+    dislike = client.put(f"/api/images/{img}/dislike")
+    assert dislike.status_code == 200
+    validate_response("/api/images/{image_id}/dislike", "PUT", 200,
+                      dislike.json())
+    un_dislike = client.delete(f"/api/images/{img}/dislike")
+    assert un_dislike.status_code == 200
+    validate_response("/api/images/{image_id}/dislike", "DELETE", 200,
+                      un_dislike.json())
+    # Комментарии: POST 201 → DELETE 200.
+    created = client.post(f"/api/images/{img}/comments",
+                          json={"body": "контракт-коммент"})
+    assert created.status_code == 201
+    validate_response("/api/images/{image_id}/comments", "POST", 201,
+                      created.json())
+    gone = client.delete(f"/api/images/{img}/comments/{created.json()['id']}")
+    assert gone.status_code == 200
+    validate_response("/api/images/{image_id}/comments/{comment_id}", "DELETE",
+                      200, gone.json())
+    # POST /api/images (201, upload) + GET /api/health.
+    upload = _upload(client, name="contract.png")
+    assert upload.status_code == 201
+    validate_response("/api/images", "POST", 201, upload.json())
+    validate_response("/api/health", "GET", 200,
+                      client.get("/api/health").json())
+
+
+def test_contract_schemas_error_paths(client, anon_client, seeded_gallery):
+    """TC-gal-111 (волна 5, задача 5.3): типовые ошибки — 401 без сессии
+    и 422 (rename с пустым именем — форма ядра {«error», «details»}) —
+    валидируются по Error-схеме контракта."""
+    validate_response("/api/images", "GET", 401,
+                      anon_client.get("/api/images").json())
+    img = seeded_gallery[0]
+    bad = client.put(f"/api/images/{img}/name", json={"name": ""})
+    assert bad.status_code == 422
+    validate_response("/api/images/{image_id}/name", "PUT", 422, bad.json())
+
+
+def test_contract_drift_trap_payload_violates_schema(client, anon_client):
+    """TC-gal-112 (волна 5, задача 5.4): drift-ловушка — payload с чужим
+    полем против спеки падает с сообщением «маршрут + несовпавшее поле».
+    Инвертированный кейс (pytest.raises): живой 401-ответ валиден, а его
+    мутированная копия (error не строка, лишний тип) — AssertionError,
+    в сообщении маршрут и поле."""
+    real = anon_client.get("/api/images").json()
+    validate_response("/api/images", "GET", 401, real)  # контроль: валиден
+    drifted = dict(real, error=123)
+    with pytest.raises(AssertionError) as ei:
+        validate_response("/api/images", "GET", 401, drifted)
+    msg = str(ei.value)
+    assert "GET /api/images" in msg and "[401]" in msg and "$.error" in msg

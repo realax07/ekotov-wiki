@@ -463,3 +463,68 @@ def test_broken_cache_file_counts_as_missing(client, cache_file, monkeypatch):
     assert body["stale"] is False
     # Кэш-файл перезаписан валидной полезной нагрузкой.
     assert json.loads(cache_file.read_text(encoding="utf-8"))["today"]["code"] == 63
+
+
+# --------------------------------------------------------------------------
+# Волна 5 (add-p20-contracts, FR-138/ОВ-1б, NFR-46): схемная валидация
+# ответов по замороженному контракту — helper tests/contract_helpers.py
+# (копия одного файла, design §3). Существующие ассерты не правятся
+# (NFR-45) — только ДОБАВЛЕНИЕ проверок.
+# --------------------------------------------------------------------------
+
+from tests.contract_helpers import validate_response  # noqa: E402
+
+
+def test_contract_helper_positive_and_negative():
+    """TC-weather-044 (волна 5, задача 5.2): юнит копии helper'а —
+    позитивный payload (cached_payload) валиден по WeatherResponse;
+    негативный (6 дней вместо ровно 7) падает с маршрутом и несовпавшим
+    полем; негативный по Error-схеме (error не строка) — тоже."""
+    payload = dict(cached_payload(), stale=False)  # stale добавляет роутер
+    validate_response("/api/weather", "GET", 200, payload)
+    short_days = dict(payload, days=payload["days"][:6])
+    with pytest.raises(AssertionError) as ei:
+        validate_response("/api/weather", "GET", 200, short_days)
+    msg = str(ei.value)
+    assert "GET /api/weather" in msg and "$.days" in msg
+    with pytest.raises(AssertionError) as ei:
+        validate_response("/api/weather", "GET", 401, {"error": 123})
+    assert "$.error" in str(ei.value)
+    with pytest.raises(AssertionError, match="маршрут отсутствует"):
+        validate_response("/api/ghost", "GET", 200, {})
+
+
+def test_contract_schemas_happy_paths(client, monkeypatch):
+    """TC-weather-045 (волна 5, задача 5.3): happy-path 200 КАЖДОГО
+    маршрута weather-сервиса валидируется по схеме из
+    contracts/openapi-weather.json (WeatherResponse — карточка «Сегодня»
+    + ровно 7 дней, null-метрики допустимы)."""
+    monkeypatch.setattr(
+        "app.provider.fetch", _stub_fetch([], result=cached_payload())
+    )
+    body = client.get(
+        "/api/weather", cookies={SESSION_COOKIE_NAME: SESSION_TOKEN}
+    )
+    assert body.status_code == 200
+    validate_response("/api/weather", "GET", 200, body.json())
+    validate_response("/api/health", "GET", 200,
+                      client.get("/api/health").json())
+
+
+def test_contract_schemas_error_paths(client, monkeypatch):
+    """TC-weather-046 (волна 5, задача 5.3): типовые ошибки — 401 без сессии
+    (провайдер не вызывается) и 503 weather_unavailable (пустой кэш +
+    отказ провайдера) — валидируются по Error-схеме контракта."""
+    calls: list = []
+    monkeypatch.setattr("app.provider.fetch", _stub_fetch(calls))
+    resp = client.get("/api/weather")
+    assert resp.status_code == 401
+    validate_response("/api/weather", "GET", 401, resp.json())
+    monkeypatch.setattr(
+        "app.provider.fetch", _stub_fetch(calls, fail_times=99)
+    )
+    resp = client.get(
+        "/api/weather", cookies={SESSION_COOKIE_NAME: SESSION_TOKEN}
+    )
+    assert resp.status_code == 503
+    validate_response("/api/weather", "GET", 503, resp.json())

@@ -18,3 +18,9 @@ pytest==9.1.1
 pytest-xdist==3.8.0
 requests==2.34.2
 playwright==1.63.0
+# jsonschema — схемная валидация ответов сервисов по замороженным
+# контрактам contracts/openapi-<svc>.json (add-p20-contracts, волна 5,
+# задача 5.1, FR-138; draft-07 через jsonschema.Draft7Validator).
+# ТОЛЬКО тест-зависимость: рантайм-образы сервисов не меняются
+# (design add-p20-contracts §3).
+jsonschema==4.26.0

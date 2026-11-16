@@ -621,3 +621,114 @@ def test_core_tables_untouched(client, db_path):
         )
     finally:
         conn.close()
+
+
+# --------------------------------------------------------------------------
+# Волна 5 (add-p20-contracts, FR-138/ОВ-1б, NFR-46): схемная валидация
+# ответов по замороженному контракту — helper tests/contract_helpers.py
+# (копия одного файла, design §3). Существующие ассерты не правятся
+# (NFR-45) — только ДОБАВЛЕНИЕ проверок.
+# --------------------------------------------------------------------------
+
+from tests.contract_helpers import validate_response  # noqa: E402
+
+
+def test_contract_helper_positive_and_negative():
+    """TC-vid-112 (волна 5, задача 5.2): юнит копии helper'а — позитивный
+    payload валиден (details не запрещены — ОВ-1б); негативный (error не
+    строка) падает с маршрутом и несовпавшим полем; неизвестный маршрут —
+    AssertionError (ловушка дрейфа)."""
+    validate_response("/api/videos", "GET", 401,
+                      {"error": "unauthorized", "details": "x"})
+    with pytest.raises(AssertionError) as ei:
+        validate_response("/api/videos", "GET", 401, {"error": 123})
+    msg = str(ei.value)
+    assert "GET /api/videos" in msg and "[401]" in msg and "$.error" in msg
+    with pytest.raises(AssertionError, match="маршрут отсутствует"):
+        validate_response("/api/ghost", "GET", 200, {})
+
+
+def test_contract_schemas_happy_paths(client, videos_dir, db_path):
+    """TC-vid-113 (волна 5, задача 5.3): happy-path 200/201 КАЖДОГО
+    JSON-маршрута video-сервиса валидируется по схеме из
+    contracts/openapi-video.json (file/preview — бинарные отдачи с пустой
+    `{}`-схемой: helper возвращает как есть, маршрут все равно проверен)."""
+    # POST /api/videos (201) + GET /api/videos (200, список).
+    upload = _upload(client, name="clip.mp4", content=b"mp4-bytes")
+    assert upload.status_code == 201
+    vid = upload.json()["id"]
+    validate_response("/api/videos", "POST", 201, upload.json())
+    validate_response("/api/videos", "GET", 200, client.get("/api/videos").json())
+    # authcheck (nginx-стык) + categories (общий справочник галереи).
+    validate_response("/api/videos/authcheck", "GET", 200,
+                      client.get("/api/videos/authcheck").json())
+    validate_response("/api/videos/categories", "GET", 200,
+                      client.get("/api/videos/categories").json())
+    # PATCH rename.
+    rename = client.patch(f"/api/videos/{vid}", json={"title": "Контракт"})
+    assert rename.status_code == 200
+    validate_response("/api/videos/{video_id}", "PATCH", 200, rename.json())
+    # Комментарии: POST 201 → GET 200 → DELETE 200.
+    created = client.post(f"/api/videos/{vid}/comments", json={"text": "коммент"})
+    assert created.status_code == 201
+    validate_response("/api/videos/{video_id}/comments", "POST", 201,
+                      created.json())
+    listing = client.get(f"/api/videos/{vid}/comments")
+    assert listing.status_code == 200
+    validate_response("/api/videos/{video_id}/comments", "GET", 200,
+                      listing.json())
+    gone_comment = client.delete(f"/api/videos/{vid}/comments/{created.json()['id']}")
+    assert gone_comment.status_code == 200
+    validate_response("/api/videos/{video_id}/comments/{comment_id}", "DELETE",
+                      200, gone_comment.json())
+    # Реакция: PUT 200 → DELETE 200 (идемпотентный set — BUG-026).
+    react = client.put(f"/api/videos/{vid}/reaction", json={"value": 1})
+    assert react.status_code == 200
+    validate_response("/api/videos/{video_id}/reaction", "PUT", 200,
+                      react.json())
+    unreact = client.request("DELETE", f"/api/videos/{vid}/reaction",
+                             json={"value": 1})
+    assert unreact.status_code == 200
+    validate_response("/api/videos/{video_id}/reaction", "DELETE", 200,
+                      unreact.json())
+    # file + preview: готовое видео (статус ready, файлы в томе) — 200.
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("UPDATE video_videos SET status = 'ready' WHERE id = ?",
+                     (vid,))
+        conn.commit()
+    finally:
+        conn.close()
+    with open(os.path.join(videos_dir, vid, "preview.jpg"), "wb") as f:
+        f.write(b"jpeg-bytes")
+    file_resp = client.get(f"/api/videos/{vid}/file")
+    assert file_resp.status_code == 200
+    validate_response("/api/videos/{video_id}/file", "GET", 200,
+                      file_resp.content)
+    preview_resp = client.get(f"/api/videos/{vid}/preview")
+    assert preview_resp.status_code == 200
+    validate_response("/api/videos/{video_id}/preview", "GET", 200,
+                      preview_resp.content)
+    # GET /api/health + DELETE /api/videos/{video_id} (последним).
+    validate_response("/api/health", "GET", 200,
+                      client.get("/api/health").json())
+    gone = client.delete(f"/api/videos/{vid}")
+    assert gone.status_code == 200
+    validate_response("/api/videos/{video_id}", "DELETE", 200, gone.json())
+
+
+def test_contract_schemas_error_paths(client, anon_client, db_path):
+    """TC-vid-114 (волна 5, задача 5.3): типовые ошибки — 401 без сессии
+    и 422 validation-handler (upload без файла; rename несловарное тело) —
+    по Error-схеме контракта (обе формы 422 — валидационная и загрузочная)."""
+    validate_response("/api/videos", "GET", 401,
+                      anon_client.get("/api/videos").json())
+    validate_response("/api/videos/authcheck", "GET", 401,
+                      anon_client.get("/api/videos/authcheck").json())
+    no_file = client.post("/api/videos")
+    assert no_file.status_code == 422
+    validate_response("/api/videos", "POST", 422, no_file.json())
+    vid = _insert_row(db_path)
+    bad_body = client.patch(f"/api/videos/{vid}", json="не словарь")
+    assert bad_body.status_code == 422
+    validate_response("/api/videos/{video_id}", "PATCH", 422, bad_body.json())
