@@ -10,9 +10,11 @@ TC-openapi-201/202 из tests/api/test_openapi_search_service.py).
 Контракт: contracts/openapi-search.json (заморожен, задача 0.1).
 """
 
+import json
 import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -378,3 +380,73 @@ def test_expired_session_select_only(db_path, anon_client):
         assert resp.json() == {"error": "unauthorized"}
     finally:
         os.chmod(ro_dir, mode)
+
+
+# --------------------------------------------------------------------------
+# ОВ-7 (design add-p20-contracts §2; возврат Д-1 code-review-001):
+# Error-схема и $ref на 401/400/422 в замороженном контракте
+# --------------------------------------------------------------------------
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+CONTRACT_PATH = REPO_ROOT / "contracts" / "openapi-search.json"
+_HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
+
+
+def _error_schema_of(body: dict) -> dict:
+    """Минимальная валидация тела по контрактной Error-схеме (сценарий ОВ-7):
+    required «error» присутствует и является строкой; details не запрещены
+    (без additionalProperties:false — ОВ-1б)."""
+    assert isinstance(body, dict)
+    assert isinstance(body.get("error"), str)
+    return body
+
+
+def test_contract_error_schema_and_refs():
+    """TC-openapi-215: ОВ-7 — components.schemas.Error в контракте; все
+    401/400/422-ответы ссылаются на нее $ref-ом; FastAPI-заготовка
+    HTTPValidationError в файле отсутствует (фактическая форма 422 —
+    {"error", "details"} validation-handler, не {\"detail\": [...]})."""
+    contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+    error = contract["components"]["schemas"]["Error"]
+    assert error["type"] == "object"
+    assert error["required"] == ["error"]
+    assert "additionalProperties" not in error  # ОВ-1б
+
+    error_refs, validation_refs = 0, 0
+    for path, item in contract["paths"].items():
+        for method, op in item.items():
+            if method not in _HTTP_METHODS:
+                continue
+            for status, response in op.get("responses", {}).items():
+                schema = response["content"]["application/json"]["schema"]
+                if status in {"400", "401", "422"}:
+                    assert schema == {"$ref": "#/components/schemas/Error"}, (
+                        f"{method.upper()} {path} {status}: {schema}"
+                    )
+                    error_refs += 1
+                if "HTTPValidationError" in json.dumps(schema):
+                    validation_refs += 1
+    # 401 на всех защищенных операциях (4) + 422 search/suggestions/advanced
+    # + 400 advanced = 8 аннотированных error-ответов.
+    assert error_refs == 8
+    assert validation_refs == 0
+    assert "HTTPValidationError" not in contract["components"]["schemas"]
+
+
+def test_error_responses_match_contract_schema(client, anon_client):
+    """TC-openapi-216: ОВ-7 сценарий — фактические тела 401 (middleware),
+    422 (validation-handler и семантический unknown user) и 400 (advanced)
+    валидируются по контрактной Error-схеме (required «error»)."""
+    contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+    assert contract["components"]["schemas"]["Error"]["required"] == ["error"]
+
+    _error_schema_of(anon_client.get("/api/search").json())          # 401
+    _error_schema_of(client.get("/api/search", params={"priority": "urgent"}).json())  # 422
+    _error_schema_of(client.get("/api/search", params={"assigned": "ghost"}).json())   # 422 semantic
+    _error_schema_of(client.get("/api/suggestions", params={"kind": "bogus"}).json())  # 422
+    _error_schema_of(
+        client.post("/api/search/advanced", json={"query": 'x = "a" OR y'}).json()
+    )  # 400 filter syntax
+    _error_schema_of(
+        client.post("/api/search/advanced", json={"query": 123}).json()
+    )  # 422 query not a string

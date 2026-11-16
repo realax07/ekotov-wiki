@@ -21,8 +21,21 @@ add-p20-contracts, задача 1.1 (design §1): полный экспорт ж
   4. Забирает GET /openapi.json ПОД сессией ЦЕЛИКОМ (без фильтрации —
      у сервиса своя схема целиком, FR-133/FR-137), ассертит ожидаемое
      множество path-items (5 путей, расхождение = RuntimeError — контроль
-     полноты, design add-p20-contracts §1) и пишет
-     contracts/openapi-search.json (формат — json.dumps(sort_keys=True,
+     полноты, design add-p20-contracts §1).
+  5. Аннотирование ошибок (design add-p20-contracts §2, ОВ-7; арх-ревью
+     Н-2 — контракт = детерминированный экспорт + аннотации скрипта;
+     образец — scripts/export_openapi_video.py): components.schemas.Error
+     {"error": …} (без additionalProperties:false — ОВ-1б); 401
+     middleware → $ref Error (FastAPI их не декларирует вовсе); 422
+     FastAPI-заготовка HTTPValidationError заменяется на фактическую
+     форму сервиса {"error", "details"} (обработчик RequestValidationError,
+     services/search/app/main.py — фактическое тело {"error", "details"});
+     400 advanced
+     (endpoint-форма sdd §3.5) → $ref Error по коду обработчика. Не
+     ссылающиеся более HTTPValidationError/ValidationError удаляются.
+     Ручные правки замороженного JSON вне экспорт-скрипта запрещены
+     (FR-137).
+  6. Пишет contracts/openapi-search.json (формат — json.dumps(sort_keys=True,
      indent=2, ensure_ascii=False) + завершающий \\n — стабильный дифф).
 
 Код сервиса не меняется (ОГР-29). Проверка «экспорт = зафиксированный
@@ -69,6 +82,102 @@ SESSION_TOKEN = "export-openapi-session"
 # services/search/tests/test_search_service.py (fixture db_path).
 SESSION_CREATED = datetime.now(timezone.utc)
 SESSION_EXPIRES = SESSION_CREATED + timedelta(days=1)
+
+# --------------------------------------------------------------------------
+# Аннотирование ошибок (design add-p20-contracts §2, ОВ-7)
+# --------------------------------------------------------------------------
+
+# {"error": …} — фактический стандарт middleware (401) и validation-handler
+# (422) сервиса (app/main.py, app/middleware.py); Error БЕЗ
+# additionalProperties:false (ОВ-1б).
+ERROR_SCHEMA = {
+    "type": "object",
+    "required": ["error"],
+    "properties": {"error": {"type": "string"}},
+}
+
+
+def _error_ref_response(description: str) -> dict:
+    return {
+        "description": description,
+        "content": {
+            "application/json": {"schema": {"$ref": "#/components/schemas/Error"}}
+        },
+    }
+
+
+# (path, method) → {status: response}. Состав снят с кода обработчиков
+# (search.py/suggestions.py/middleware.py/main.py) — ОГР-29: спека описывает
+# фактическое поведение. /api/health не аннотируется (exempt middleware —
+# ошибок без входа нет). 422 всегда Error-формой (validation-handler в
+# app/main.py), включая семантический 422 unknown user
+# (search.py _validate_user_logins — та же форма sdd §3).
+ANNOTATIONS: dict[tuple[str, str], dict[str, dict]] = {
+    ("/api/search", "get"): {
+        "401": _error_ref_response("unauthorized (без валидной сессии — middleware)"),
+        "422": _error_ref_response(
+            'validation error: {"error", "details"} (handler '
+            "RequestValidationError: невалидные query-параметры; "
+            "несуществующий assigned/creator — та же форма, "
+            "search.py _validate_user_logins)"
+        ),
+    },
+    ("/api/search/advanced", "post"): {
+        "401": _error_ref_response("unauthorized (без валидной сессии — middleware)"),
+        "400": _error_ref_response(
+            'filter syntax error: {"error": "filter syntax: position N: '
+            'причина"} (синтаксическая ошибка — запрос к БД не выполняется) '
+            'или {"error": "filter syntax: invalid JSON body"} (невалидное '
+            "тело; endpoint-форма, sdd §3.5)"
+        ),
+        "422": _error_ref_response(
+            'validation error: {"error", "details"} (тело читается, но query '
+            "— не строка)"
+        ),
+    },
+    ("/api/suggestions", "get"): {
+        "401": _error_ref_response("unauthorized (без валидной сессии — middleware)"),
+        "422": _error_ref_response(
+            'validation error: {"error", "details"} (kind вне tags/categories '
+            "— handler RequestValidationError)"
+        ),
+    },
+    ("/api/suggestions/users", "get"): {
+        "401": _error_ref_response("unauthorized (без валидной сессии — middleware)"),
+    },
+}
+
+# FastAPI-заготовки (HTTPValidationError/ValidationError): после замены 422
+# на фактическую форму не ссылаются ни одной операцией — удаляются
+# (сервис валидационные тела такой формы не возвращает).
+_STALE_FASTAPI_SCHEMAS = ("HTTPValidationError", "ValidationError")
+
+
+def annotate(schema: dict) -> dict:
+    """Детерминированное аннотирование ошибок (design §2, ОВ-7).
+
+    Живая схема остается 1:1 по путям/операциям/схемам 200 — добавляются
+    ТОЛЬКО описания error-ответов, отсутствующие или неверные в
+    FastAPI-экспорте (middleware-401 через OpenAPI не декларируется;
+    422-заготовка HTTPValidationError не соответствует фактическому телу).
+    """
+    paths = schema["paths"]
+    for (path, method), statuses in ANNOTATIONS.items():
+        op = paths[path][method]
+        responses = op.setdefault("responses", {})
+        for status, response in statuses.items():
+            responses[str(status)] = response
+
+    components = schema.setdefault("components", {}).setdefault("schemas", {})
+    for stale in _STALE_FASTAPI_SCHEMAS:
+        components.pop(stale, None)
+    components["Error"] = dict(ERROR_SCHEMA)
+    return schema
+
+
+# --------------------------------------------------------------------------
+# Механика живого экспорта
+# --------------------------------------------------------------------------
 
 # Минимальная схема БД для сессионного middleware сервиса (users +
 # sessions; сервис — read-only потребитель, экспорту /openapi.json
@@ -197,6 +306,8 @@ def main() -> int:
             f"лишние {sorted(paths - EXPECTED_PATHS)}, "
             f"недостающие {sorted(EXPECTED_PATHS - paths)}"
         )
+
+    schema = annotate(schema)
 
     CONTRACT_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONTRACT_PATH.write_text(

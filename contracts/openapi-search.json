@@ -1,57 +1,15 @@
 {
   "components": {
     "schemas": {
-      "HTTPValidationError": {
+      "Error": {
         "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "title": "Detail",
-            "type": "array"
-          }
-        },
-        "title": "HTTPValidationError",
-        "type": "object"
-      },
-      "ValidationError": {
-        "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "title": "Location",
-            "type": "array"
-          },
-          "msg": {
-            "title": "Message",
-            "type": "string"
-          },
-          "type": {
-            "title": "Error Type",
+          "error": {
             "type": "string"
           }
         },
         "required": [
-          "loc",
-          "msg",
-          "type"
+          "error"
         ],
-        "title": "ValidationError",
         "type": "object"
       }
     }
@@ -228,15 +186,25 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "validation error: {\"error\", \"details\"} (handler RequestValidationError: невалидные query-параметры; несуществующий assigned/creator — та же форма, search.py _validate_user_logins)"
           }
         },
         "summary": "Search"
@@ -254,6 +222,36 @@
               }
             },
             "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "filter syntax error: {\"error\": \"filter syntax: position N: причина\"} (синтаксическая ошибка — запрос к БД не выполняется) или {\"error\": \"filter syntax: invalid JSON body\"} (невалидное тело; endpoint-форма, sdd §3.5)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "validation error: {\"error\", \"details\"} (тело читается, но query — не строка)"
           }
         },
         "summary": "Search Advanced"
@@ -298,15 +296,25 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "validation error: {\"error\", \"details\"} (kind вне tags/categories — handler RequestValidationError)"
           }
         },
         "summary": "Suggestions"
@@ -328,6 +336,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
           }
         },
         "summary": "User Suggestions"

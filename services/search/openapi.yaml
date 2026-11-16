@@ -11,5 +11,10 @@
 #   GET  /api/suggestions/users
 #   GET  /api/health
 #
+# Error-ответы (401/400/422) ссылаются на components.schemas.Error
+# {"error": …} — ОВ-7 (design add-p20-contracts §2); аннотирование —
+# шаг экспорт-скрипта (повторный экспорт стабилен).
+#
 # См. tasks.md пакета add-microservices-full (0.1, 0.2) и design §2/§3;
-# tasks.md пакета add-p20-contracts (волна 1, design §1).
+# tasks.md пакета add-p20-contracts (волна 1, design §1/§2; возврат Д-1
+# code-review-001).
