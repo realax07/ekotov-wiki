@@ -1,7 +1,7 @@
 # contracts Specification
 
 ## Purpose
-TBD - created by archiving change add-p20-contracts. Update Purpose after archive.
+Машиночитаемые контракты межсервисного API. Каждый HTTP-сервис (search, images, video, weather) и ядро имеют замороженную OpenAPI-спеку в `contracts/openapi-*.json` (источник истины — живой app-код, детерминированный экспорт), якорь у сервиса и схемную валидацию ответов в тестах. Ворота дрейфа (impact_rules IR-01/07/08–12) отвергают изменение обработчика без синхронной перегенерации контракта, nginx-тест фиксирует маршрутизацию. Потребители контрактов — браузерные JS через nginx и nginx auth_request; сервер-сервер вызовов нет (ОГР-30).
 
 ## Requirements
 
