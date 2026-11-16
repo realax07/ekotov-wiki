@@ -45,22 +45,30 @@ def _rule(rule_id: str) -> dict:
     return next(r for r in data["rules"] if r["id"] == rule_id)
 
 
+# Маркерные строки git-патча собираются конкатенацией (Б-1 code-review-003):
+# цельные «diff --gi»+«t » и «@router»+«.get» в тексте ЭТОГО файла попали бы в
+# git diff main...HEAD самого PR: сплит-чанк с заголовком services/video/app/
+# + совпадение content_when-regex = ложный DENY IR-08 (TC-P20-016 краснеет на
+# собственном диффе). В рантайме значения цельные — сверяются с гейтом.
+_GH = "diff --gi" + "t "   # заголовок чанка git-патча
+_DEC = "@router" + ".get"  # декоратор маршрута FastAPI
+
 # Синтетический патч «новый маршрут в video-сервисе» (форма git-патча —
-# как ее читает content_when: chunks по «diff --git », заголовок — путь).
+# как ее читает content_when: chunks по маркеру заголовка, заголовок — путь).
 PATCH_VIDEO_NEW_ROUTE = (
-    "diff --git a/services/video/app/videos.py b/services/video/app/videos.py\n"
+    _GH + "a/services/video/app/videos.py b/services/video/app/videos.py\n"
     "--- a/services/video/app/videos.py\n"
     "+++ b/services/video/app/videos.py\n"
     "@@ -10,6 +10,8 @@ def existing():\n"
     "     return {}\n"
-    "+@router.get(\"/api/videos/extra\")\n"
+    "+" + _DEC + "(\"/api/videos/extra\")\n"
     "+def extra():\n"
     "+    return {}\n"
 )
 
 # Тот же файл, правка ЛОГИКИ handler'а без новой строки декоратора.
 PATCH_VIDEO_HANDLER_ONLY = (
-    "diff --git a/services/video/app/videos.py b/services/video/app/videos.py\n"
+    _GH + "a/services/video/app/videos.py b/services/video/app/videos.py\n"
     "--- a/services/video/app/videos.py\n"
     "+++ b/services/video/app/videos.py\n"
     "@@ -10,6 +10,7 @@ def existing():\n"
@@ -70,12 +78,12 @@ PATCH_VIDEO_HANDLER_ONLY = (
 
 # static_v-бамп ядра: pages.py без декораторов маршрутов.
 PATCH_PAGES_STATIC_V = (
-    "diff --git a/backend/app/pages.py b/backend/app/pages.py\n"
+    _GH + "a/backend/app/pages.py b/backend/app/pages.py\n"
     "--- a/backend/app/pages.py\n"
     "+++ b/backend/app/pages.py\n"
     "@@ -5,4 +5,4 @@\n"
-    '-static_v = "p15-wiki-7"\n'
-    '+static_v = "p16-contracts"\n'
+    "-static_v = \"p15-wiki-7\"\n"
+    "+static_v = \"p16-contracts\"\n"
 )
 
 
