@@ -30,16 +30,22 @@ FastAPI, отдается только под сессией), нигде не �
 
 1. **Замороженные контракты**: `contracts/openapi-{search,video,images,weather}.json`
    (OpenAPI 3.x JSON) + навигационные yaml-якоря `services/<svc>/openapi.yaml`
-   по образцу search (ОВ-2). Контракт search подтверждается экспортом на
-   свежем HEAD как эталон формата (FR-133); при расхождении с единым
-   форматом пакета — приводится (условная задача волны 1).
+   по образцу search (ОВ-2). Контракт search приводится волной 1 к живой
+   схеме сервиса 1:1: упразднение фильтрации экспорт-скрипта, переэкспорт
+   (4 пути → 5, с `/api/health`), синхронные path-ассерты
+   TC-openapi-201…210 (Д-З2); далее подтверждается экспортом на свежем
+   HEAD как эталон формата (FR-133).
 2. **Экспорт-скрипты** `scripts/export_openapi_{video,images,weather}.py`
    по образцу `export_openapi_search.py` (источник истины — живой код,
-   нулевое ручное дублирование, NFR-46).
+   нулевое ручное дублирование, NFR-46); плюс правка
+   `export_openapi_search.py` волной 1 (снятие фильтрации — код сервиса
+   search не меняется, ОГР-29).
 3. **Единая error-схема** `{"error": …}` через `$ref` во всех спеках (ОВ-7).
 4. **Схемная валидация** ответов в сервисных тестах: jsonschema (draft-07+),
    happy-path 200 каждого маршрута + типовая ошибка 401/422 (ОВ-1б);
-   существующие ассерты множеств путей сохраняются (FR-138).
+   существующие ассерты множеств путей сохраняются (FR-138; исключение —
+   path-ассерты TC-openapi-201…210 правятся синхронно с переэкспортом
+   search в волне 1, behavior-neutral).
 5. **Карта вызовов**: раздел «Контракты и зависимости» в
    `architecture/map.md` — nginx-маршруты, потребители, деградации
    `@*_down`, контракты-файлы, внешние зависимости (Open-Meteo — Д-17,
@@ -48,29 +54,40 @@ FastAPI, отдается только под сессией), нигде не �
 6. **CI-гейт дрейфа** — механический DENY (ОВ-5): декларативные правила
    в `scripts/impact_rules.json` (IR-08…IR-12, база IR-01/IR-07),
    исполняются существующим CI-шагом pr_validate; охват — 4 сервиса +
-   монолитный `contracts/openapi.json` ядра (ОВ-6) (FR-140).
+   монолитный `contracts/openapi.json` ядра (ОВ-6) (FR-140). Сопутствующие
+   сужения IR-01 (`^services/[^/]+/openapi\.json$`) и IR-07
+   (`^contracts/openapi\.json$`) — волной 0, ДО первой волны с якорем или
+   контрактом (иначе волны заморозки немержибельны — Д-Б1/Д-Б2); сами
+   сужения гейт не включают.
 7. **nginx-тест**: набор проксируемых префиксов фиксируется тестом против
    `services/frontend/nginx/ekotov-wiki.conf` (парсинг location-строк)
    (FR-141, ОВ-8).
 
-Порядок волн: search → video → images → weather → гейт (ОВ-4: Д-16 с
-заменой; гейт дрейфа — последняя волна, ТЗ §10.3).
+Порядок волн: волна 0 (сужения IR-01/IR-07, подготовка) → search → video
+→ images → weather → гейт (ОВ-4: Д-16 с заменой; гейт дрейфа — последняя
+волна, ТЗ §10.3).
 
 ## Scope
 
 ### In
 
 - `contracts/openapi-video.json`, `contracts/openapi-images.json`,
-  `contracts/openapi-weather.json` (+ подтверждение
-  `contracts/openapi-search.json`).
-- `scripts/export_openapi_{video,images,weather}.py`.
-- yaml-якоря `services/{video,images,weather}/openapi.yaml`.
-- Схемная валидация в `services/*/tests` (добавление проверок, НЕ правка
-  существующих ассертов — NFR-45) + зависимость `jsonschema` для тестов.
+  `contracts/openapi-weather.json` (+ переэкспорт
+  `contracts/openapi-search.json` волной 1 — полный охват живой схемы).
+- `scripts/export_openapi_{video,images,weather}.py` + правка
+  `scripts/export_openapi_search.py` (снятие фильтрации, волна 1).
+- yaml-якоря `services/{video,images,weather}/openapi.yaml` (+ обновление
+  `services/search/openapi.yaml` волной 1).
+- Схемная валидация в `services/*/tests` (добавление проверок; правка
+  существующих ассертов — только path-ассерты TC-openapi-201…210
+  синхронно с переэкспортом search, behavior-neutral) + зависимость
+  `jsonschema` для тестов.
 - Раздел «Контракты и зависимости» в `architecture/map.md`.
-- Правила IR-08…IR-12 в `scripts/impact_rules.json` (+ сужение триггера
-  IR-01 до `services/*/openapi.json`, чтобы yaml-якоря не давали ложный
-  DENY — design §5) + негативный тест гейта.
+- Правила IR-08…IR-12 в `scripts/impact_rules.json` + сужения триггеров
+  IR-01 (`^services/[^/]+/openapi\.json$`) и IR-07
+  (`^contracts/openapi\.json$`) волной 0 — чтобы yaml-якоря, новые
+  сервисные контракты и ОГР-31-PR сервисов не давали ложный DENY
+  (design §5) — + негативный тест гейта.
 - Новый тест `tests/api/test_nginx_routes_contract.py` (FR-141).
 - Спецификация: дельты новой capability `contracts` (ADDED-only).
 
@@ -84,7 +101,9 @@ FastAPI, отдается только под сессией), нигде не �
 - Версионирование API — ломающие изменения одним PR без версий (ОВ-3,
   ОГР-31).
 - Выделение новых сервисов (auth — снято 2026-10-19).
-- `services/search/**` — код не меняется (контракт актуален, §2.1 ТЗ).
+- `services/search/**` — код не меняется (правится только экспорт-скрипт
+  `scripts/export_openapi_search.py` и path-ассерты тестов, волна 1;
+  behavior-neutral — ОГР-29).
 - deploy-матрица, RUNBOOK, compose, docker — не трогаются (новых сервисов
   и образов нет; IR-02 не срабатывает).
 
