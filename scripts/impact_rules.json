@@ -141,6 +141,116 @@
      "hint": "перегенерируй contracts/openapi.json (урок релиза weather: неперегенерированный контракт = FAIL regress-final, круг зря). Процедурная правка (штампы/доки без /api/, методов, schemas) — не требует"
     }
    ]
+  },
+  {
+   "id": "IR-08",
+   "title": "маршрут video изменился — контракт перегенерирован",
+   "when": [
+    {
+     "path": "^services/video/app/"
+    }
+   ],
+   "content_when": [
+    {
+     "path": "services/video/app/",
+     "regex": "\\+\\s*@(router|app)\\.(get|post|put|patch|delete|api_route)"
+    }
+   ],
+   "require": [
+    {
+     "path": "^contracts/openapi-video\\.json$",
+     "label": "contracts/openapi-video.json",
+     "hint": "перегенерируй контракт: запусти scripts/export_openapi_video.py и закоммить обновленный contracts/openapi-video.json тем же PR (ОГР-31; FR-140)"
+    }
+   ]
+  },
+  {
+   "id": "IR-09",
+   "title": "маршрут images изменился — контракт перегенерирован",
+   "when": [
+    {
+     "path": "^services/images/app/"
+    }
+   ],
+   "content_when": [
+    {
+     "path": "services/images/app/",
+     "regex": "\\+\\s*@(router|app)\\.(get|post|put|patch|delete|api_route)"
+    }
+   ],
+   "require": [
+    {
+     "path": "^contracts/openapi-images\\.json$",
+     "label": "contracts/openapi-images.json",
+     "hint": "перегенерируй контракт: запусти scripts/export_openapi_images.py и закоммить обновленный contracts/openapi-images.json тем же PR (ОГР-31; FR-140)"
+    }
+   ]
+  },
+  {
+   "id": "IR-10",
+   "title": "маршрут weather изменился — контракт перегенерирован",
+   "when": [
+    {
+     "path": "^services/weather/app/"
+    }
+   ],
+   "content_when": [
+    {
+     "path": "services/weather/app/",
+     "regex": "\\+\\s*@(router|app)\\.(get|post|put|patch|delete|api_route)"
+    }
+   ],
+   "require": [
+    {
+     "path": "^contracts/openapi-weather\\.json$",
+     "label": "contracts/openapi-weather.json",
+     "hint": "перегенерируй контракт: запусти scripts/export_openapi_weather.py и закоммить обновленный contracts/openapi-weather.json тем же PR (ОГР-31; FR-140)"
+    }
+   ]
+  },
+  {
+   "id": "IR-11",
+   "title": "маршрут search изменился — контракт перегенерирован",
+   "when": [
+    {
+     "path": "^services/search/app/"
+    }
+   ],
+   "content_when": [
+    {
+     "path": "services/search/app/",
+     "regex": "\\+\\s*@(router|app)\\.(get|post|put|patch|delete|api_route)"
+    }
+   ],
+   "require": [
+    {
+     "path": "^contracts/openapi-search\\.json$",
+     "label": "contracts/openapi-search.json",
+     "hint": "перегенерируй контракт: запусти scripts/export_openapi_search.py и закоммить обновленный contracts/openapi-search.json тем же PR (ОГР-31; FR-140)"
+    }
+   ]
+  },
+  {
+   "id": "IR-12",
+   "title": "маршрут ядра изменился — монолитный контракт перегенерирован",
+   "when": [
+    {
+     "path": "^backend/app/"
+    }
+   ],
+   "content_when": [
+    {
+     "path": "backend/app/",
+     "regex": "\\+\\s*@(router|app)\\.(get|post|put|patch|delete|api_route)"
+    }
+   ],
+   "require": [
+    {
+     "path": "^contracts/openapi\\.json$",
+     "label": "contracts/openapi.json",
+     "hint": "перегенерируй контракт: запусти scripts/export_openapi.py и закоммить обновленный contracts/openapi.json тем же PR (ОГР-31; FR-140, ОВ-6). static_v-бампы pages.py и миграции без нового декоратора маршрута правило не триггерят"
+    }
+   ]
   }
  ]
 }
