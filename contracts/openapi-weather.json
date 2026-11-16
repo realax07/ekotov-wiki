@@ -1,0 +1,254 @@
+{
+  "components": {
+    "schemas": {
+      "Error": {
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "WeatherResponse": {
+        "properties": {
+          "days": {
+            "items": {
+              "properties": {
+                "code": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "date": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "precipitation": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "temp_max": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "temp_min": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "wind": {
+                  "properties": {
+                    "dir": {
+                      "type": "string"
+                    },
+                    "speed": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "dir",
+                    "speed"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "date",
+                "code",
+                "description",
+                "temp_max",
+                "temp_min",
+                "precipitation",
+                "wind"
+              ],
+              "type": "object"
+            },
+            "maxItems": 7,
+            "minItems": 7,
+            "type": "array"
+          },
+          "fetched_at": {
+            "type": "string"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "today": {
+            "properties": {
+              "apparent": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "code": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "description": {
+                "type": "string"
+              },
+              "humidity": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "precipitation": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "pressure_mmhg": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "temp_max": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "temp_min": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "temperature": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "wind": {
+                "properties": {
+                  "dir": {
+                    "type": "string"
+                  },
+                  "speed": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "dir",
+                  "speed"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "code",
+              "description",
+              "temp_max",
+              "temp_min",
+              "precipitation",
+              "wind",
+              "temperature",
+              "apparent",
+              "humidity",
+              "pressure_mmhg"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "fetched_at",
+          "stale",
+          "today",
+          "days"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "ekotov-wiki",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/health": {
+      "get": {
+        "description": "Health-check (exempt middleware; без БД и без провайдера —\nhealth 200 и на пустом томе кэша; design §6).",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Api Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/api/weather": {
+      "get": {
+        "description": "API погоды (контракт design §6; сессия проверена middleware).\n\nБез аннотации ответа: успешная ветка возвращает dict (контракт §6),\nдеградация — JSONResponse 503; Union-аннотация не валидируется\nPydantic'ом как response_model (и не нужна — контракт фиксируют тесты).",
+        "operationId": "get_weather_api_weather_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeatherResponse"
+                }
+              }
+            },
+            "description": "Карточка погоды: fetched_at + stale + today («Сегодня») + days (ровно 7 дней, включая сегодня); числовые метрики могут быть null (деградация «—» во фронтенде)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "деградация: нет кэша И провайдер недоступен — {\"error\": \"weather_unavailable\"}, заголовок Retry-After: 60"
+          }
+        },
+        "summary": "Get Weather"
+      }
+    }
+  }
+}

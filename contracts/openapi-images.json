@@ -1,0 +1,821 @@
+{
+  "components": {
+    "schemas": {
+      "Body_upload_image_api_images_post": {
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_image_api_images_post",
+        "type": "object"
+      },
+      "Error": {
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "ekotov-wiki",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/health": {
+      "get": {
+        "description": "Health-check (exempt middleware; без БД-запроса — паритет search).",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Api Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/api/images": {
+      "get": {
+        "description": "Фильтры category/tag комбинируются; пустые — все; created_at DESC.",
+        "operationId": "list_images_api_images_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Images"
+      },
+      "post": {
+        "description": "multipart: file, category? (id | новое имя), tags? («a,b» | повторяемое).\n\nВалидация типа (magic-байты) и размера (≤10 МБ) — ДО записи файлов в том:\nпри 422 файлы не создаются (scenario «Негативный: превышение размера»).\nМетаданные + связи (категория/теги) — одна транзакция.",
+        "operationId": "upload_image_api_images_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_image_api_images_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "две формы: {\"error\", \"details\"} (битый multipart/файл — validation-handler) и {\"detail\": \"invalid file: unknown category\"} (семантическая — HTTPException)"
+          }
+        },
+        "summary": "Upload Image"
+      }
+    },
+    "/api/images/{image_id}": {
+      "get": {
+        "description": "Полные метаданные + реакции (счетчики + мой голос) + комментарии.",
+        "operationId": "get_image_api_images__image_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "картинка не найдена: {\"detail\": \"image not found\"}"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "validation error: {\"error\", \"details\"} (нечисловой image_id)"
+          }
+        },
+        "summary": "Get Image"
+      }
+    },
+    "/api/images/{image_id}/comments": {
+      "post": {
+        "description": "{body}: непустой после trim → иначе 422 (design §3).",
+        "operationId": "add_comment_api_images__image_id__comments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Payload",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "картинка не найдена: {\"detail\": \"image not found\"}"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "две формы: {\"error\", \"details\"} (битый JSON/тело — validation-handler; нечисловой image_id) и {\"detail\": \"comment body is empty\"} (семантическая — HTTPException)"
+          }
+        },
+        "summary": "Add Comment"
+      }
+    },
+    "/api/images/{image_id}/comments/{comment_id}": {
+      "delete": {
+        "description": "Только автор; чужой → 403, нет такого → 404 (design §3).",
+        "operationId": "delete_comment_api_images__image_id__comments__comment_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "title": "Comment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "чужой комментарий: {\"detail\": \"not your comment\"}"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "картинка/комментарий не найден: {\"detail\"}"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "validation error: {\"error\", \"details\"} (нечисловой image_id/comment_id)"
+          }
+        },
+        "summary": "Delete Comment"
+      }
+    },
+    "/api/images/{image_id}/dislike": {
+      "delete": {
+        "operationId": "delete_dislike_api_images__image_id__dislike_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "картинка не найдена: {\"detail\": \"image not found\"}"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "validation error: {\"error\", \"details\"} (нечисловой image_id)"
+          }
+        },
+        "summary": "Delete Dislike"
+      },
+      "put": {
+        "operationId": "put_dislike_api_images__image_id__dislike_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "картинка не найдена: {\"detail\": \"image not found\"}"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "validation error: {\"error\", \"details\"} (нечисловой image_id); повторный дизлайк — идемпотентный no-op 200 (BUG-026), 409 НЕТ"
+          }
+        },
+        "summary": "Put Dislike"
+      }
+    },
+    "/api/images/{image_id}/like": {
+      "delete": {
+        "operationId": "delete_like_api_images__image_id__like_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "картинка не найдена: {\"detail\": \"image not found\"}"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "validation error: {\"error\", \"details\"} (нечисловой image_id)"
+          }
+        },
+        "summary": "Delete Like"
+      },
+      "put": {
+        "operationId": "put_like_api_images__image_id__like_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "картинка не найдена: {\"detail\": \"image not found\"}"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "validation error: {\"error\", \"details\"} (нечисловой image_id); повторный лайк — идемпотентный no-op 200 (BUG-026), 409 НЕТ"
+          }
+        },
+        "summary": "Put Like"
+      }
+    },
+    "/api/images/{image_id}/name": {
+      "put": {
+        "description": "PUT {\"name\"}: меняет ТОЛЬКО original_name в БД (design §4).\n\nФизические файлы (filename/thumb_name) и пути /images/… НЕ меняются —\nссылки и кеш не инвалидируются. Оба пользователя паритетно (ОВ-4).\nОтвет 200: {\"id\", \"name\"} — паритет форме реакций (минимальные поля).",
+        "operationId": "rename_image_api_images__image_id__name_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Payload",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "unauthorized (без валидной сессии — middleware)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "detail"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "картинка не найдена: {\"detail\": \"image not found\"}"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "validation error: {\"error\", \"details\"} (пустое/длинное/недопустимое name; нечисловой image_id)"
+          }
+        },
+        "summary": "Rename Image"
+      }
+    }
+  }
+}

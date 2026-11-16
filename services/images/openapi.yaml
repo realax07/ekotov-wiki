@@ -1,0 +1,20 @@
+# Заглушка-указатель: контракт images-сервиса заморожен в
+# contracts/openapi-images.json (add-p20-contracts, волна 3, задачи 3.1/3.2).
+# Этот файл — навигационный якорь структуры monorepo (services/README.md);
+# источник истины контракта — JSON, экспорт scripts/export_openapi_images.py.
+#
+# Пути контракта (ровно, = живой /openapi.json сервиса 1:1;
+# 8 path-items / 11 операций):
+#   POST /api/images
+#   GET  /api/images
+#   GET  /api/images/{image_id}
+#   PUT  /api/images/{image_id}/like
+#   PUT  /api/images/{image_id}/dislike
+#   DELETE /api/images/{image_id}/like
+#   DELETE /api/images/{image_id}/dislike
+#   POST /api/images/{image_id}/comments
+#   DELETE /api/images/{image_id}/comments/{comment_id}
+#   PUT  /api/images/{image_id}/name
+#   GET  /api/health
+#
+# См. tasks.md пакета add-p20-contracts (волна 3, design §1/§2).
