@@ -1,12 +1,15 @@
 # Заглушка-указатель: контракт сервиса поиска заморожен в
-# contracts/openapi-search.json (задача 0.1, ЭТАП A).
+# contracts/openapi-search.json (задача 0.1, ЭТАП A; полный охват —
+# волна 1 add-p20-contracts, задача 1.1).
 # Этот файл — навигационный якорь структуры monorepo (services/README.md);
 # источник истины контракта — JSON, экспорт scripts/export_openapi_search.py.
 #
-# Пути контракта (ровно):
+# Пути контракта (ровно, = живой /openapi.json сервиса 1:1):
 #   GET  /api/search
 #   POST /api/search/advanced
 #   GET  /api/suggestions
 #   GET  /api/suggestions/users
+#   GET  /api/health
 #
-# См. tasks.md пакета add-microservices-full (0.1, 0.2) и design §2/§3.
+# См. tasks.md пакета add-microservices-full (0.1, 0.2) и design §2/§3;
+# tasks.md пакета add-p20-contracts (волна 1, design §1).

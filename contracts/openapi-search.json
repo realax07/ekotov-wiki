@@ -1,65 +1,6 @@
 {
   "components": {
     "schemas": {
-      "Body_upload_avatar_api_profile_avatar_post": {
-        "properties": {
-          "file": {
-            "contentMediaType": "application/octet-stream",
-            "title": "File",
-            "type": "string"
-          }
-        },
-        "required": [
-          "file"
-        ],
-        "title": "Body_upload_avatar_api_profile_avatar_post",
-        "type": "object"
-      },
-      "CategoryCreate": {
-        "additionalProperties": false,
-        "description": "Тело POST /api/categories: только name (sdd r2 §3.1).",
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "title": "CategoryCreate",
-        "type": "object"
-      },
-      "CategoryUpdate": {
-        "additionalProperties": false,
-        "description": "Тело PATCH /api/categories/{id}: только name (sdd r2 §3.1).",
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "title": "CategoryUpdate",
-        "type": "object"
-      },
-      "CommentCreate": {
-        "additionalProperties": false,
-        "description": "Тело POST /api/tasks/{id}/comments: обязателен непустой текст (sdd §4\ncomments.body NOT NULL; пустой текст — 422). Поле author_id в теле не\nсуществует: автор всегда из сессии (extra=forbid отсекает подмену).",
-        "properties": {
-          "body": {
-            "title": "Body",
-            "type": "string"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "title": "CommentCreate",
-        "type": "object"
-      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -71,283 +12,6 @@
           }
         },
         "title": "HTTPValidationError",
-        "type": "object"
-      },
-      "LoginRequest": {
-        "properties": {
-          "login": {
-            "title": "Login",
-            "type": "string"
-          },
-          "password": {
-            "title": "Password",
-            "type": "string"
-          }
-        },
-        "required": [
-          "login",
-          "password"
-        ],
-        "title": "LoginRequest",
-        "type": "object"
-      },
-      "PasswordChange": {
-        "properties": {
-          "current_password": {
-            "title": "Current Password",
-            "type": "string"
-          },
-          "new_password": {
-            "title": "New Password",
-            "type": "string"
-          }
-        },
-        "required": [
-          "current_password",
-          "new_password"
-        ],
-        "title": "PasswordChange",
-        "type": "object"
-      },
-      "ProfileUpdate": {
-        "properties": {
-          "bio": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bio"
-          },
-          "display_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Display Name"
-          },
-          "role": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Role"
-          }
-        },
-        "title": "ProfileUpdate",
-        "type": "object"
-      },
-      "TaskCreate": {
-        "additionalProperties": false,
-        "description": "Тело POST /api/tasks: title обязателен, остальное опционально (sdd §3.2).",
-        "properties": {
-          "assigned_to_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assigned To Id"
-          },
-          "category": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "due_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Due Date"
-          },
-          "is_fast": {
-            "default": false,
-            "title": "Is Fast",
-            "type": "boolean"
-          },
-          "priority": {
-            "anyOf": [
-              {
-                "enum": [
-                  "low",
-                  "medium",
-                  "high"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Priority"
-          },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Tags",
-            "type": "array"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "title"
-        ],
-        "title": "TaskCreate",
-        "type": "object"
-      },
-      "TaskMove": {
-        "additionalProperties": false,
-        "description": "Тело POST /api/tasks/{id}/move (sdd §3.2 дословно):\n{\"status\": \"todo|in_progress|done\"}; иное значение — 422.",
-        "properties": {
-          "status": {
-            "enum": [
-              "todo",
-              "in_progress",
-              "done"
-            ],
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "status"
-        ],
-        "title": "TaskMove",
-        "type": "object"
-      },
-      "TaskUpdate": {
-        "additionalProperties": false,
-        "description": "Тело PATCH /api/tasks/{id}: все поля опциональны, применяется только\nпереданное (model_fields_set). status/is_fast/archived_at не входят\n(см. докстринг модуля).",
-        "properties": {
-          "assigned_to_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assigned To Id"
-          },
-          "category": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "due_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Due Date"
-          },
-          "priority": {
-            "anyOf": [
-              {
-                "enum": [
-                  "low",
-                  "medium",
-                  "high"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Priority"
-          },
-          "tags": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tags"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          }
-        },
-        "title": "TaskUpdate",
         "type": "object"
       },
       "ValidationError": {
@@ -398,6 +62,27 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/health": {
+      "get": {
+        "description": "Health-check сервиса (exempt-список middleware — монитор/deploy до входа).",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Api Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
     "/api/search": {
       "get": {
         "description": "GET /api/search — структурированные условия (sdd §3.5, FR-10/11/8).\n\nВалидация типов/значений — FastAPI/pydantic: невалидный priority,\nдата не формата YYYY-MM-DD, archived вне true|false|all → 422\n(обработчик RequestValidationError, sdd §3). 401 без сессии —\nmiddleware. Пустой набор параметров = все задачи.\nРелиз 4 (FR-46, ОВ-24): assigned = login | none («без исполнителя»),\ncreator = login; несуществующий логин → 422 (5.2, «422 на\nневозможное значение»).",
