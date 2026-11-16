@@ -76,7 +76,7 @@
   `grep -c internal contracts/openapi-video.json` ≥ 1; якорь содержит
   все path-items контракта (сверка с живым `/openapi.json` — design §1).
   FR-135, FR-137, ОВ-2, ОВ-7.
-- [ ] 2.3 Контрактный тест путей в `services/video/tests`
+- [x] 2.3 Контрактный тест путей в `services/video/tests`
   (тест-файл по образцу существующих path-ассертов): множество путей
   замороженной спеки = живому `/openapi.json` под сессией, 1:1.
   Проверка: `pytest services/video/tests -k contract` зеленый.
@@ -97,7 +97,7 @@
   ассертится ОТСУТСТВИЕ 409-ответов, 409 упоминается только в
   поясняющих description. [критерий скорректирован; закрытие — после code_review волн 0-4]
   FR-134, ОВ-2, ОВ-7.
-- [ ] 3.3 Контрактный тест путей в `services/images/tests`
+- [x] 3.3 Контрактный тест путей в `services/images/tests`
   (спека = живой `/openapi.json` под сессией). Проверка:
   `pytest services/images/tests -k contract` зеленый. FR-134.
 
@@ -110,7 +110,7 @@
   «Сегодня» + 7 дней, null-метрики «—», Error+$ref) + якорь
   `services/weather/openapi.yaml`. Проверка: как 2.2; в paths спеки
   нет упоминаний Open-Meteo. FR-136, Д-17, ОВ-7.
-- [ ] 4.3 Контрактный тест путей в `services/weather/tests`
+- [x] 4.3 Контрактный тест путей в `services/weather/tests`
   (существующий TC-weather-003 401-паттерн сохраняется). Проверка:
   `pytest services/weather/tests -k contract` зеленый. FR-136.
 
@@ -206,3 +206,6 @@
   (5 файлов контрактов) — пусто; CI на PR зелен, длительность шага
   ворот ≤ 30 c в логе (NFR-46). FR-140, ОГР-31, NFR-46.
   <!-- факт: повторный экспорт ×5 — дельта пуста; openspec strict CI green; CI PR #298 green (code-review-004 approve) -->
+
+
+> Архивировано ПМ 2026-11-16 (2026-11-16-add-p20-contracts): regress-final PASS 1008/0, все волны слиты, гейт дрейфа IR-08…12 активен.
