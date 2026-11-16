@@ -185,3 +185,69 @@ ffmpeg/ffprobe бинарь в образе — НЕ apt, паритет images:
 - **Замечания к разделу:** том `videos-data` в бэкап-контур backup-sidecar
   НЕ входит (наблюдение O1 ревью №1 — решение за Заказчиком при приемке);
   третий RW-клиент SQLite (после app и images) — наследует риск Д-б/§6.5.
+
+## 8. Контракты и зависимости
+
+> Раздел добавлен пакетом add-p20-contracts (волна 6, задача 6.1;
+> FR-139, ОГР-30, Д-17, ОВ-9). Фиксирует вызовы nginx → сервисы и
+> браузер → nginx, деградации, файлы контрактов и внешние зависимости.
+> Источник истины каждого контракта — JSON, экспорт живой схемы
+> сервис-скриптом (ручное редактирование запрещено, ОГР-29/ОГР-31);
+> гейт дрейфа — IR-08…IR-12 в `scripts/impact_rules.json` (FR-140).
+
+**Правило уровня карты (ОГР-30):** ядро (`backend/app`) НЕ ходит в
+выделенные сервисы по HTTP — инвариант теста TC-openapi-202
+(test_core_has_no_search_routes), распространенный на все сервисы.
+Единственный server-сервер-потребитель — nginx `auth_request` →
+`GET /api/videos/authcheck` (video); всё остальное — браузерные JS
+через nginx. Порты сервисов (8377–8381) наружу не публикуются — вход
+только nginx :10443 (FR-65).
+
+| Сервис | nginx-маршруты | Порт | Потребители | Деградация |
+|---|---|---|---|---|
+| app (ядро) | `/` (всё остальное, страницы Jinja2 + прочее `/api/*`) | 8377 | браузер; страницы `backend/app/pages.py` | — (ядро не деградирует через nginx) |
+| search | `= /api/search` + `^~ /api/search/`; `= /api/suggestions` + `^~ /api/suggestions/` | 8378 | `frontend/static/js/search.js`, `frontend/static/js/board/task-form.js`, `frontend/static/js/board/tag-combobox.js` (suggestions) | `@search_down` → 503 JSON + `Retry-After: 5` |
+| images | `= /api/images` + `^~ /api/images/`; файлы `/images/` — alias тома images-data (без сервиса) | 8379 | `frontend/static/js/gallery.js`, `frontend/static/js/wiki/editor.js` (загрузка картинок в редактор) | `@images_down` → 503 JSON + `Retry-After: 5` |
+| video | `= /api/videos` + `^~ /api/videos/`; файлы `/videos/` — alias тома + `auth_request /_video_auth` → `GET /api/videos/authcheck` | 8380 | `frontend/static/js/video.js`; server-сервер: только nginx authcheck | `@videos_down` → 503 JSON + `Retry-After: 5`; 401 authcheck → `@login_redirect` (302 `/login`) |
+| weather | `= /api/weather` + `^~ /api/weather/` | 8381 | inline-JS `frontend/templates/weather.html` (страница рендерится ядром) | `@weather_down` → 503 JSON + `Retry-After: 5` (только отказ соединения 502/504 — честный 503 живого сервиса проходит без подмены, intercept off) |
+| netdata | `= /netdata` (301) + `= /netdata/` + `^~ /netdata/` | 19999 (внутри compose) | браузер owner'а (basic auth netdata.htpasswd) | — |
+| games (standalone, ОВ-9) | `= /games` (301) + `^~ /games/api/` + `^~ /games/previews/` + regex-страницы игр + `/games/` | 8080 (вне compose) | браузер (без auth) | — |
+
+Деградации — named-локации `@search_down` / `@images_down` /
+`@videos_down` / `@weather_down` в
+`services/frontend/nginx/ekotov-wiki.conf`: return 503 JSON-тела
+`{"error": "<svc> service unavailable"}` + `Retry-After: 5`;
+назначаются `error_page` в `services/frontend/nginx/<svc>-proxy.inc`
+(у weather — только 502/504). Набор location-семейств зафиксирован
+тестом `tests/api/test_nginx_routes_contract.py` (FR-141, ОВ-8).
+
+**Контракты (заморожены, экспорт 1:1 живой схемы):**
+
+| Сервис | Контракт-файл | Якорь | Экспорт-скрипт |
+|---|---|---|---|
+| search | `contracts/openapi-search.json` | `services/search/openapi.yaml` | `scripts/export_openapi_search.py` |
+| video | `contracts/openapi-video.json` | `services/video/openapi.yaml` | `scripts/export_openapi_video.py` |
+| images | `contracts/openapi-images.json` | `services/images/openapi.yaml` | `scripts/export_openapi_images.py` |
+| weather | `contracts/openapi-weather.json` | `services/weather/openapi.yaml` | `scripts/export_openapi_weather.py` |
+| ядро (app) | `contracts/openapi.json` | — | `scripts/export_openapi.py` |
+
+Схемная валидация ответов сервисов в тестах — `services/<svc>/tests/`
+(helper `contract_helpers.py`, FR-138). Гейт дрейфа поверхности —
+IR-08…IR-12 (`scripts/impact_rules.json`, FR-140): правка
+`services/<svc>/app/**` / `backend/app/**` с новой строкой декоратора
+маршрута требует контракта того же сервиса в диффе одним PR (ОГР-31).
+
+**Внешние зависимости:**
+
+- weather → Open-Meteo (Д-17 — документированная зависимость, БЕЗ
+  спеки-контракта чужого API): таймауты 5с×2 (connect/total),
+  кэш 60м (файл в томе weather-cache, `CACHE_TTL_SECONDS`),
+  User-Agent из env `EKOTOV_WEATHER_USER_AGENT` (дефолт
+  `ekotov-wiki/1.0 (https://ekotov-wiki)`) — по
+  `services/weather/app/provider.py` / `cache.py`;
+- games — standalone-контейнер ВНЕ compose (поднимает ПМ, RUNBOOK §9),
+  внешний апстрим-репо: строка-зависимость карты, контракт не
+  контролируется (ОВ-9);
+- netdata — sidecar-телеметрия внутри compose-сети (наружу только
+  nginx + basic auth); Docker API — через docker-socket-proxy
+  (whitelist GET-only).
