@@ -450,3 +450,74 @@ def test_error_responses_match_contract_schema(client, anon_client):
     _error_schema_of(
         client.post("/api/search/advanced", json={"query": 123}).json()
     )  # 422 query not a string
+
+
+# --------------------------------------------------------------------------
+# Волна 5 (add-p20-contracts, FR-138/ОВ-1б, NFR-46): схемная валидация
+# ответов по замороженному контракту — helper tests/contract_helpers.py
+# (копия одного файла, design §3). Существующие ассерты не правятся
+# (NFR-45) — только ДОБАВЛЕНИЕ проверок.
+# --------------------------------------------------------------------------
+
+from tests.contract_helpers import validate_response  # noqa: E402
+
+
+def test_contract_helper_unit_positive_and_negative():
+    """TC-openapi-217 (волна 5, задача 5.2): юнит helper'а — позитивный
+    payload валиден (в т.ч. с details — ОВ-1б, без additionalProperties:false);
+    негативный (error не строка) падает с маршрутом и несовпавшим полем;
+    неизвестные маршрут/статус — AssertionError (ловушка дрейфа)."""
+    # Позитив: Error-схема — required «error» строка, details не запрещены.
+    validate_response("/api/search", "GET", 401,
+                      {"error": "unauthorized", "details": {"x": 1}})
+    # Позитив: 200-схема маршрута — `{}` (любой payload валиден).
+    validate_response("/api/suggestions", "GET", 200, {"suggestions": []})
+    # Негатив: поле «error» не строка — сообщение содержит маршрут и поле.
+    with pytest.raises(AssertionError) as ei:
+        validate_response("/api/search", "GET", 401, {"error": 123})
+    msg = str(ei.value)
+    assert "GET /api/search" in msg and "[401]" in msg and "$.error" in msg
+    # Ловушки дрейфа: неизвестные маршрут и статус.
+    with pytest.raises(AssertionError, match="маршрут отсутствует"):
+        validate_response("/api/ghost", "GET", 200, {})
+    with pytest.raises(AssertionError, match="статус 503 не описан"):
+        validate_response("/api/search", "GET", 503, {})
+
+
+def test_search_happy_paths_match_contract(client):
+    """TC-openapi-218 (волна 5, задача 5.3): happy-path 200 КАЖДОГО маршрута
+    search-сервиса валидируется по схеме из contracts/openapi-search.json."""
+    validate_response("/api/search", "GET", 200,
+                      client.get("/api/search").json())
+    validate_response("/api/search", "GET", 200,
+                      client.get("/api/search", params={"priority": "high"}).json())
+    validate_response("/api/search/advanced", "POST", 200,
+                      client.post("/api/search/advanced",
+                                  json={"query": 'priority = "high"'}).json())
+    validate_response("/api/suggestions", "GET", 200,
+                      client.get("/api/suggestions").json())
+    validate_response("/api/suggestions/users", "GET", 200,
+                      client.get("/api/suggestions/users").json())
+    validate_response("/api/health", "GET", 200,
+                      client.get("/api/health").json())
+
+
+def test_search_error_payloads_match_contract(client, anon_client):
+    """TC-openapi-219 (волна 5, задача 5.3): типовые ошибки — 401 без сессии
+    и ОБЕ формы 422 (validation-handler и семантическая unknown user) плюс
+    400 filter syntax — валидируются по Error-схеме контракта."""
+    validate_response("/api/search", "GET", 401,
+                      anon_client.get("/api/search").json())
+    # Форма 1: validation-handler — {"error": "validation error", "details": …}.
+    resp = client.get("/api/search", params={"priority": "urgent"})
+    assert resp.status_code == 422
+    validate_response("/api/search", "GET", 422, resp.json())
+    # Форма 2: семантическая — {"error": "validation error",
+    # "details": {"assigned": "unknown user"}}.
+    resp = client.get("/api/search", params={"assigned": "ghost"})
+    assert resp.status_code == 422
+    validate_response("/api/search", "GET", 422, resp.json())
+    # 400 advanced (filter syntax) — тоже Error-схема.
+    resp = client.post("/api/search/advanced", json={"query": 'x = "a" OR y'})
+    assert resp.status_code == 400
+    validate_response("/api/search/advanced", "POST", 400, resp.json())
