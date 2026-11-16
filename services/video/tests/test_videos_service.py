@@ -634,7 +634,7 @@ from tests.contract_helpers import validate_response  # noqa: E402
 
 
 def test_contract_helper_positive_and_negative():
-    """TC-vid-112 (волна 5, задача 5.2): юнит копии helper'а — позитивный
+    """TC-vid-115 (волна 5, задача 5.2): юнит копии helper'а — позитивный
     payload валиден (details не запрещены — ОВ-1б); негативный (error не
     строка) падает с маршрутом и несовпавшим полем; неизвестный маршрут —
     AssertionError (ловушка дрейфа)."""
