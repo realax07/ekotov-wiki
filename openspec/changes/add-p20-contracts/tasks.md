@@ -10,7 +10,7 @@
 
 ## Волна 0. Подготовка: сужение IR-01 и IR-07 (FR-140, ОВ-5/ОВ-6) — [S]
 
-- [ ] 0.1 Сузить IR-01 в `scripts/impact_rules.json`:
+- [x] 0.1 Сузить IR-01 в `scripts/impact_rules.json`:
   `when[].path` → `^services/[^/]+/openapi\.json$` (yaml-якоря
   `services/<svc>/openapi.yaml` перестают триггерить ложный DENY —
   design §5). Проверка:
@@ -19,7 +19,7 @@
   services/video/openapi.yaml» через `python3 scripts/pr_validate.py .`
   (PR_CHANGED_FILES-конвенция) — DENY нет; прогон на чистом HEAD без
   DENY. FR-140.
-- [ ] 0.2 Сузить IR-07 там же: `when[].path` →
+- [x] 0.2 Сузить IR-07 там же: `when[].path` →
   `^contracts/openapi\.json$` (новые сервисные контракты
   `contracts/openapi-<svc>.json` и будущие ОГР-31-PR сервисов правило
   не триггерит — design §5). Проверка: JSON читается; симуляция
@@ -32,7 +32,7 @@
 
 ## Волна 1. Эталон: контракт search с полным охватом (FR-133, FR-137, ОГР-29) — [M]
 
-- [ ] 1.1 Привести search-контракт к живой схеме сервиса 1:1: правка
+- [x] 1.1 Привести search-контракт к живой схеме сервиса 1:1: правка
   `scripts/export_openapi_search.py` — упразднение фильтрации по
   префиксам (полный экспорт живого `/openapi.json`: 5 path-items,
   включая `/api/health`; замороженный контракт сейчас содержит 4 пути),
@@ -43,7 +43,7 @@
   `git diff --exit-code -- contracts/openapi-search.json` пуст;
   `git diff --stat -- services/search/app` пуст (код сервиса не
   меняется — ОГР-29). FR-133, FR-137.
-- [ ] 1.2 Синхронные правки path-ассертов TC-openapi-201…210
+- [x] 1.2 Синхронные правки path-ассертов TC-openapi-201…210
   (tests/api/test_openapi_search_service.py, services/search/tests):
   только множества путей («ровно 4 пути» → 5 путей с `/api/health` —
   включая TC-openapi-201/205); ассерты поведения не трогаются
@@ -55,7 +55,7 @@
 
 ## Волна 2. Контракт video (FR-135, FR-137) — [S]
 
-- [ ] 2.1 Скрипт `scripts/export_openapi_video.py` по образцу
+- [x] 2.1 Скрипт `scripts/export_openapi_video.py` по образцу
   export_openapi_search.py (design §1): старт
   `services/video/app/main.py` на свободном порту с tmp-томом, вход
   seed-юзером, контроль `anon /openapi.json → 401`, запись
@@ -64,7 +64,7 @@
   `videos.py` 7 + `social.py` 6 + `/api/health`; включая PATCH rename
   и `GET /api/videos/authcheck`) — design §1, Д-З1. Проверка: скрипт
   завершается 0; повторный запуск → `git diff --exit-code` пуст.
-- [ ] 2.2 Заморозить контракт: запустить скрипт, в спеке — схемы
+- [x] 2.2 Заморозить контракт: запустить скрипт, в спеке — схемы
   200/ошибок (401/404/409/422) и `components.schemas.Error`
   `{"error": …}` с `$ref` на error-ответы (ОВ-7, design §2); пометка
   «internal: потребитель — nginx auth_request, не браузер» в
@@ -84,11 +84,11 @@
 
 ## Волна 3. Контракт images (FR-134, FR-137) — [S]
 
-- [ ] 3.1 Скрипт `scripts/export_openapi_images.py` (design §1,
+- [x] 3.1 Скрипт `scripts/export_openapi_images.py` (design §1,
   tmp-том картинок + БД, ассерт множества path-items живого
   `/openapi.json` — 11 операций: `gallery.py` 10 + `/api/health`).
   Проверка: как 2.1 (повторный экспорт = пустой дифф).
-- [ ] 3.2 Заморозить `contracts/openapi-images.json` (схемы 200/ошибок
+- [x] 3.2 Заморозить `contracts/openapi-images.json` (схемы 200/ошибок
   401/404/422/409 реакций, Error+$ref — ОВ-7) + якорь
   `services/images/openapi.yaml`. Проверка: как 2.2; пути = живому
   /openapi.json 1:1. Критерий «grep -c 409 ≥ 1» снят решением ПМ
@@ -103,10 +103,10 @@
 
 ## Волна 4. Контракт weather (FR-136, FR-137) — [S]
 
-- [ ] 4.1 Скрипт `scripts/export_openapi_weather.py` (design §1:
+- [x] 4.1 Скрипт `scripts/export_openapi_weather.py` (design §1:
   tmpdir кэш-файла, провайдер не вызывается, ассерт
   `/api/weather` + `/api/health`). Проверка: как 2.1.
-- [ ] 4.2 Заморозить `contracts/openapi-weather.json` (схема карточки
+- [x] 4.2 Заморозить `contracts/openapi-weather.json` (схема карточки
   «Сегодня» + 7 дней, null-метрики «—», Error+$ref) + якорь
   `services/weather/openapi.yaml`. Проверка: как 2.2; в paths спеки
   нет упоминаний Open-Meteo. FR-136, Д-17, ОВ-7.
