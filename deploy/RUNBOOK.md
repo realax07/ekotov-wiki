@@ -394,3 +394,14 @@ curl -sk -o /dev/null -w '%{http_code}\n' https://127.0.0.1:10443/games/<id>/api
 - sub_filter абсолютных путей хаба (href="/ → href="/games/, src="/ → src="/games/, fetch('/api/ → fetch('/games/api/, "/previews/ → "/games/previews/ — JSON /api/games) на text/html + application/javascript + text/javascript + application/json, sub_filter_once off; Accept-Encoding "" — сжатое тело не субфильтится; X-Frame-Options SAMEORIGIN — хаб сам фреймит игры в iframe
 - контейнер убит → 502/504 от nginx на /games/*; остальные разделы живы. Деградации @*_down для хаба НЕ заведено (вне матрицы)
 - auth на прокси НЕТ (P26 ТЗ)
+
+## 10. manchkin — standalone в отдельном разделе сайта (2026-11-16)
+
+Отдельное развертывание манчкина (репо `realax07/manchkin`), НЕ связано с версией в составе game-portal (`/games/munchkin/`, §9) — свои пулы лобби (in-memory, restart теряет лобби).
+
+- **Контейнер:** `manchkin`, сеть `ekotov-wiki-par_default`, БЕЗ published-портов; внутренний порт **8382** (HOST=0.0.0.0, PORT=8382); код ro-маунтом: `-v /home/openclaw/manchkin:/srv:ro`, рабочая каталог `/srv`, команда `node server.mjs`. Поднимает ПМ (как §9).
+- **URI:** `/manchkin/` (nginx `^~` со срезом префикса → `manchkin:8382`, `manchkin-proxy.inc`); `/manchkin` → 301.
+- **Обновление:** `git -C /home/openclaw/manchkin pull` → `docker restart manchkin` (lobbies теряются).
+- **Recreate:**
+  `docker rm -f manchkin && docker run -d --name manchkin --network ekotov-wiki-par_default --restart unless-stopped -w /srv -v /home/openclaw/manchkin:/srv:ro -e HOST=0.0.0.0 -e PORT=8382 node:26-alpine node server.mjs`
+- **Смоук:** `curl -sk https://127.0.0.1:10443/manchkin/` → 200; `/manchkin/api/lobbies` → JSON; сайдбар «Манчкин» → 200.
