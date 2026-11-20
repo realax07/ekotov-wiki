@@ -326,7 +326,7 @@ EnvironmentFile `/opt/ekotov-wiki/.env`). Условие применимост�
 ## 9. game-portal (standalone-контейнер, P26; актуализировано TD-C 2026-11-15)
 
 ### 9.1 Матрица / «вне compose — осознанно»
-- ВНЕ compose: внешний игровой хаб (github realax07/game-portal, Node, 7 игр: kosynka, durak, vice, munchkin, poker, tanks, evolution), поднимает ПМ отдельно — в матрице deploy.sh НЕ участвует. Это ОСОЗНАННОЕ решение, не недоработка (TD-C фиксация):
+- ВНЕ compose: внешний игровой хаб (github realax07/game-portal, Node, 6 игр: kosynka, durak, vice, poker, tanks, evolution (munchkin вынесен из хаба апстримом 7d64d04, 2026-11-19: отдельный сервис manchkin — RUNBOOK §10, раздел сайта /manchkin/)), поднимает ПМ отдельно — в матрице deploy.sh НЕ участвует. Это ОСОЗНАННОЕ решение, не недоработка (TD-C фиксация):
   - код — внешний апстрим-репозиторий со своими локальными патч-коммитами (HOST, GAME_HUB_PROXY), не собирается в образы релизных тегов;
   - НЕ добавлять его в SERVICES/<SVC>_IMAGE deploy.sh, в бэкап-контур и в зависимые матрицы — деплой-скрипт его не знает и не должен знать (up/down матрицы стек хаба не трогают);
   - обновление кода — git-циклом в клоне + recreate контейнера (§9.4), обновление НЕ через deploy.sh;
