@@ -10,9 +10,44 @@
  * Закрытие: клик по пункту, клик по подложке, Esc, повторный бургер.
  * Фокус-менеджмент минимальный: при открытии — на первый пункт drawer,
  * при закрытии — возврат на бургер. Без внешних библиотек (ОГР-8).
+ *
+ * redesign-ui-a (§1.6 sdd; ОВ-2): переключатель темы — делегат на
+ * #theme-toggle: flip data-theme="light" на <html>, запись localStorage
+ * ("theme" = "light"/"dark"), синхронизация aria-pressed (в т.ч. начальная —
+ * по факту атрибута при загрузке: сервер тему не знает). Начальную тему
+ * ставит инлайн-инициализатор в head (анти-FOUC). Явный выбор пользователя
+ * приоритетен: слушателя prefers-color-scheme change нет. Блокировка
+ * localStorage (private mode) — try/catch, тема живет до перезагрузки.
  */
 (function () {
   "use strict";
+
+  /* --- Переключатель темы (redesign-ui-a §1.6). --- */
+  var themeToggle = document.getElementById("theme-toggle");
+  if (themeToggle) {
+    var syncThemePressed = function () {
+      themeToggle.setAttribute(
+        "aria-pressed",
+        String(document.documentElement.getAttribute("data-theme") === "light")
+      );
+    };
+    syncThemePressed();
+    themeToggle.addEventListener("click", function () {
+      var root = document.documentElement;
+      var light = root.getAttribute("data-theme") === "light";
+      if (light) {
+        root.removeAttribute("data-theme");
+      } else {
+        root.setAttribute("data-theme", "light");
+      }
+      try {
+        localStorage.setItem("theme", light ? "dark" : "light");
+      } catch (e) {
+        /* private mode: тема живет до перезагрузки, ошибка молчит */
+      }
+      syncThemePressed();
+    });
+  }
 
   var button = document.getElementById("logout-button");
   if (button) {

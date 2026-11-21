@@ -1,25 +1,25 @@
-"""redesign-console: автотесты по кейсам TC-redesign-001…036 (задача 3.4).
+"""redesign-console → redesign-ui-a: автотесты по кейсам TC-redesign-001…036.
 
 Трассировка: test-model/new/redesign-console/TC-redesign-NNN.md (CHK-NNN),
 дельты openspec/changes/redesign-console/specs/. Каждый тест несет свой
 TC-redesign-NNN ВНУТРИ docstring-литерала (правило 6 flow_check, ровно
 3 цифры).
 
-Визуальные проверки — computed styles через playwright (токены «Пульта»,
-HUD-уголки, glow/LED, микро-сетка 8px/32px, контраст-пары WCAG 2.1 AA,
-focus-visible cyan, prefers-reduced-motion, мобильная ≤860px).
-REPORT-зависимые шаги кейсов (TC-redesign-001 шаг 1 — контраст-скрипт,
-TC-redesign-009 шаг 5 / TC-redesign-011 / TC-redesign-036 шаг 6 — grep-гейты
-1.1/2.7) заменены ПРЯМЫМ прогоном скриптов: контраст считается по WCAG-формуле
-из токенов :root, hex/var()-гейты — программным разбором файлов фронта.
+redesign-ui-a (sdd-redesign-ui-a.md §4, ОВ-4): правлены ТОЛЬКО литералы
+ожидаемых значений — палитра/шрифты/радиусы «Пульта» → токены направления A
+(bordo/золото, PT Serif/Golos Text/JetBrains Mono, радиусы 10/18/28).
+Локаторы, семантика, пороги, методология (getComputedStyle-снапшоты,
+контраст WCAG 2.1 AA, reduced-motion, skip-link) — без изменений.
+HUD-уголки/микро-сетка/cyan-глоу «Пульта» удалены — соответствующие ассерты
+инвертированы («0 HUD-градиентов», «сетка отсутствует», cyan в покое = 0).
+Страницы вне объема (login/settings/search/wiki/gallery частично) остаются
+на legacy-токенах --p-* (значения не менялись) — их ассерты держат прежние
+литералы как «неизменность декора» (ОВ-4); каркасные поверхности (bg/text/
+акцент/фокус) наследуют палитру A через семантический слой.
 
-Шаги-прогоны существующих сьютов (TC-redesign-007 шаг 6, TC-redesign-015
-шаг 1, TC-redesign-017 шаг 1, TC-redesign-018 шаг 4, TC-redesign-020 шаг 5,
-TC-redesign-021 шаг 6, TC-redesign-022 шаг 4, TC-redesign-026 шаг 5,
-TC-redesign-028 шаг 7, TC-redesign-029 шаг 5, TC-redesign-030 шаг 6,
-TC-redesign-031 шаг 6, TC-redesign-033 шаг 5, TC-redesign-036 шаг 6) заменены
-прямыми проверками тех же контрактов здесь; прогон самих сьютов — за
-regress-final 4.1 (кейсы помечают эти шаги приемочными).
+Производные токены (color-mix) тест сравнивает через зонный элемент с тем
+же var() — сравнение строк computed-значений (сериализация color(srgb …)
+не хардкодится).
 
 Галерея/видео/погода на автостенде — route-моки API (images/video/weather —
 отдельные сервисы контура, app их не монтирует; паттерн tests/web). Стенд:
@@ -39,30 +39,54 @@ pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
 REPO = Path(__file__).resolve().parents[2]
 
-# --- Токены «Пульт 2.0» (design/redesign-pro/tokens-console.html → app.css :root)
-BG0 = "rgb(14, 22, 33)"
-BG1 = "rgb(23, 35, 53)"
-BG2 = "rgb(29, 43, 64)"
-BG3 = "rgb(38, 53, 77)"
-BORDER = "rgb(51, 67, 92)"
-BORDER2 = "rgb(77, 96, 124)"
-T900 = "rgb(231, 237, 244)"
-T600 = "rgb(167, 183, 200)"
-T500 = "rgb(132, 150, 168)"
-AMBER = "rgb(240, 180, 92)"
-AMBER900 = "rgb(58, 44, 18)"
-AMBER_HOVER = "rgb(246, 193, 122)"
-CYAN = "rgb(79, 216, 235)"
-TEAL = "rgb(87, 196, 176)"
-CORAL = "rgb(239, 123, 106)"
-VIOLET = "rgb(185, 168, 232)"
+# --- Токены направления A (design-forge/a/tokens.css → app.css :root, dark) ---
+BG0 = "rgb(30, 15, 20)"        # --color-bg (страница)
+BG1 = "rgb(42, 22, 29)"        # --color-surface (панели/колонки/сайдбар)
+BG2 = "rgb(55, 31, 40)"        # --color-raised (карточки/модалки/поля)
+BORDER = "rgb(61, 34, 41)"     # --color-border
+TEXT = "rgb(247, 236, 228)"    # --color-text
+ACCENT = "rgb(214, 168, 92)"   # --color-accent (золото: сигнал/фокус/действие)
+ACCENT2 = "rgb(196, 80, 92)"   # --color-accent-2 (бордо: high/danger-кромки)
+WARNING = "rgb(240, 170, 66)"  # --color-warning
+SUCCESS = "rgb(90, 216, 142)"  # --color-success
+DANGER = "rgb(233, 129, 127)"  # --color-danger
+ACCENT_SOFT = "rgb(78, 49, 36)"  # --color-accent-soft = --color-warning-soft
 ON_ACCENT = BG0
-CYAN_RGBA = "rgba(79, 216, 235"
-AMBER_GLOW_RGBA = "rgba(240, 180, 92"
+CYAN_RGBA = "rgba(79, 216, 235"      # cyan «Пульта» удален — только негативные проверки
 FONT_DATA = "ui-monospace"
+FONT_DISPLAY = "PT Serif"
+FONT_BODY = "Golos Text"
+
+# --- legacy-литералы «Пульта» (страницы вне объема: --p-* не менялись) ---
+LEG_BG2 = "rgb(29, 43, 64)"
+LEG_BORDER = "rgb(51, 67, 92)"
+LEG_T900 = "rgb(231, 237, 244)"
+LEG_T600 = "rgb(167, 183, 200)"
+LEG_T500 = "rgb(132, 150, 168)"
+LEG_AMBER = "rgb(240, 180, 92)"
+LEG_AMBER900 = "rgb(58, 44, 18)"
+LEG_TEAL = "rgb(87, 196, 176)"
+LEG_CORAL = "rgb(239, 123, 106)"
 
 V3_TOKENS = ("--p-paper-", "--p-ink-", "--p-clay-", "--p-blue-",
              "--p-red-", "--p-olive-", "--p-amber-700")
+
+
+@pytest.fixture(autouse=True)
+def _dark_theme_for_visual_asserts(request):
+    """Визуальные ассерты сьюта — на dark-каноне A: headless chromium имеет
+    prefers-color-scheme: light, и анти-FOUC инициализатор включает светлую
+    тему. Явный выбор пользователя приоритетен (ОВ-2): пишем theme=dark в
+    localStorage и снимаем атрибут — последующие навигации контекста темные.
+    NFR-41 «обе темы» проверяется отдельно в TC-001 (явное включение light)."""
+    for name in ("logged_in_page", "page"):
+        if name in request.fixturenames:
+            p = request.getfixturevalue(name)
+            p.evaluate(
+                "() => { try { localStorage.setItem('theme', 'dark'); } catch (e) {}"
+                " document.documentElement.removeAttribute('data-theme'); }"
+            )
+            return
 
 
 # --------------------------------------------------------------------------
@@ -88,6 +112,36 @@ def _cs_pseudo(page, selector: str, prop: str, pseudo: str = "::after"):
 def _var(page, name: str) -> str:
     return page.evaluate(
         "name => getComputedStyle(document.documentElement).getPropertyValue(name).trim()",
+        name,
+    )
+
+
+def _color_var(page, name: str) -> str:
+    """Resolved computed color токена (через зонный элемент): color-mix()
+    сериализуется браузером — сравниваем строкой с элементом на том же var()."""
+    return page.evaluate(
+        """name => {
+          const d = document.createElement('div');
+          d.style.color = `var(${name})`;
+          document.body.appendChild(d);
+          const c = getComputedStyle(d).color;
+          d.remove();
+          return c;
+        }""",
+        name,
+    )
+
+
+def _bg_var(page, name: str) -> str:
+    return page.evaluate(
+        """name => {
+          const d = document.createElement('div');
+          d.style.backgroundColor = `var(${name})`;
+          document.body.appendChild(d);
+          const c = getComputedStyle(d).backgroundColor;
+          d.remove();
+          return c;
+        }""",
         name,
     )
 
@@ -123,26 +177,44 @@ def _strip_comments(text: str) -> str:
     return re.sub(r"/\*.*?\*/", "", text, flags=re.S)
 
 
-def _root_tokens(css_text: str) -> dict:
-    """Первый блок :root файла → {имя: значение} (значения-литералы)."""
+def _root_blocks(css_text: str) -> list:
+    """Список словарей токенов по блокам :root (порядок в файле)."""
     body = _strip_comments(css_text)
-    m = re.search(r":root\s*\{(.*?)\n\}", body, flags=re.S)
-    assert m, ":root не найден"
-    tokens = {}
-    for line in m.group(1).splitlines():
-        line = line.strip()
-        if line.startswith("--"):
-            name, _, value = line.partition(":")
-            tokens[name.strip()] = value.strip().rstrip(";").strip()
-    return tokens
+    blocks = []
+    for m in re.finditer(r":root[^{]*\{(.*?)\n\}", body, flags=re.S):
+        tokens = {}
+        for line in m.group(1).splitlines():
+            line = line.strip()
+            if line.startswith("--"):
+                name, _, value = line.partition(":")
+                tokens[name.strip()] = value.strip().rstrip(";").strip()
+        blocks.append(tokens)
+    return blocks
+
+
+def _root_tokens(css_text: str) -> dict:
+    """Dark-блок (первый :root) файла → {имя: значение} (light-блок
+    :root[data-theme] переопределяет те же имена — не смешивается)."""
+    blocks = _root_blocks(css_text)
+    assert blocks, ":root не найден"
+    return blocks[0]
+
+
+def _root_light_tokens(css_text: str) -> dict:
+    """Light-блок :root[data-theme="light"] → {имя: значение}."""
+    for b in _root_blocks(css_text)[1:]:
+        if b.get("--scheme") == "light":
+            return b
+    return {}
 
 
 def _hex_outside_root(css_path: Path) -> list:
     """Гейт 2.7: hex-литералы css-файла ВНЕ :root-снимков токенов
-    (локальные снимки login/video-инлайнов — решение волн 2.4/2.5,
-    review-001 dev F-3; сняты вместе с их :root-блоками)."""
+    (включая light-блок :root[data-theme=…]; локальные снимки
+    login/video-инлайнов — решение волн 2.4/2.5, сняты вместе с их
+    :root-блоками)."""
     body = _strip_comments(css_path.read_text())
-    stripped = re.sub(r":root\s*\{.*?\n\}", "", body, flags=re.S)
+    stripped = re.sub(r":root[^{]*\{.*?\n\}", "", body, flags=re.S)
     return re.findall(r"#[0-9a-fA-F]{3,8}\b", stripped)
 
 
@@ -181,7 +253,7 @@ def _hud_after(page, selector: str) -> str:
 
 
 def _wait_transition(page) -> None:
-    page.wait_for_timeout(250)  # --speed-fast 140ms + запас (impact.md)
+    page.wait_for_timeout(250)  # --speed-fast 160ms + запас (impact.md)
 
 
 def _png_bytes(w=320, h=240, color=(90, 90, 90)) -> bytes:
@@ -281,53 +353,67 @@ def _scan_colored(page, needles: list) -> list:
     )
 
 
-def _allowed_cyan(item) -> bool:
-    """Разрешенные роли cyan (FR-129): актив навигации, открытый спойлер,
-    трек фастлайна (градиент на данных), LED активного пункта (::after не
-    сканируется), фокус — не в покое. Проверка по селектору элемента."""
-    scope = f"{item['tag']}.{item['cls']}".replace(" ", ".")
-    if "task-fast-track" in item["cls"]:
-        return True  # градиент на данных (трек отсчета)
-    return False
-
-
 # ==========================================================================
 # CHK-001…004: доступность
 # ==========================================================================
 
 def test_tc_redesign_001_contrast_aa_and_hover_meta(logged_in_page, web_owner_session,
                                                     web_base_url, web_cleanup_created):
-    """TC-redesign-001 (CHK-001, NFR-41): контраст WCAG 2.1 AA. Шаг 1 (замена
-    REPORT 1.1): прямой прогон контраст-скрипта по токенам :root — все
-    текстовые пары ≥ 4.5:1; эталоны мокапа воспроизводимы (t900 15.42, t600
-    8.87, t500 5.98 на bg-000; текст на янтаре 9.86; cyan 10.69; статусы
-    ≥ 6.67). Шаги 2–4: hover карточки — мета-подпись поднимается до t600 на
-    подложке bg-300, пара t600/bg-300 AA (6.03:1) — подпись не «проседает»."""
+    """TC-redesign-001 (CHK-001, NFR-41): контраст WCAG 2.1 AA на токенах A —
+    все текстовые пары ≥ 4.5:1; эталоны направления A воспроизводимы
+    (text/bg 15.94, muted/bg 8.71, muted-mix/bg 6.57, on-accent/accent 8.48,
+    success 10.27, warning 9.29, danger 6.98). Шаги 2–4: hover карточки —
+    золото на границе, фон и мета НЕ меняются (FR-132 дельта), мета muted на
+    raised — пара AA (7.11:1)."""
     page = logged_in_page
-    page.goto(f"{web_base_url}/board")
-    raw = {name: _var(page, f"--{name}") for name in
-           ("p-text-900", "p-text-600", "p-text-500", "p-bg-000", "p-bg-100",
-            "p-bg-200", "p-bg-300", "p-amber-400", "p-cyan-300", "p-teal-400",
-            "p-coral-400", "p-violet-300", "color-text-on-accent")}
-    tok = {k: _hex_to_rgb(v) for k, v in raw.items()}
-    pairs = [
-        ("p-text-900", "p-bg-000"), ("p-text-600", "p-bg-000"),
-        ("p-text-500", "p-bg-000"), ("p-text-900", "p-bg-100"),
-        ("p-text-600", "p-bg-100"), ("p-text-500", "p-bg-100"),
-        ("p-text-900", "p-bg-200"), ("p-text-600", "p-bg-200"),
-        ("p-text-600", "p-bg-300"), ("color-text-on-accent", "p-amber-400"),
-        ("p-cyan-300", "p-bg-000"), ("p-teal-400", "p-bg-000"),
-        ("p-coral-400", "p-bg-000"), ("p-violet-300", "p-bg-000"),
-    ]
-    weak = [(fg, bg, round(contrast(tok[fg], tok[bg]), 2))
-            for fg, bg in pairs if contrast(tok[fg], tok[bg]) < 4.5]
-    assert weak == [], f"пары ниже AA: {weak}"
-    # Эталоны мокапа (числа контраст-скрипта волны 1.1).
-    assert round(contrast(tok["p-text-900"], tok["p-bg-000"]), 2) == 15.42
-    assert round(contrast(tok["p-text-600"], tok["p-bg-000"]), 2) == 8.87
-    assert round(contrast(tok["p-text-500"], tok["p-bg-000"]), 2) == 5.98
-    assert round(contrast(tok["p-cyan-300"], tok["p-bg-000"]), 2) == 10.69
-    assert round(contrast(tok["p-coral-400"], tok["p-bg-000"]), 2) == 6.67
+    # NFR-41 (дельта): контраст AA в ОБОИХ темах — прогон пар на dark и light.
+    def _theme_pairs(theme: str) -> dict:
+        page.evaluate(
+            "t => { if (t === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }"
+            " else { document.documentElement.removeAttribute('data-theme'); } }",
+            theme,
+        )
+        resolved = {name: _color_var(page, f"--{name}") for name in
+                    ("color-text", "color-muted", "color-text-muted",
+                     "color-on-accent", "color-accent", "color-accent-2",
+                     "color-success", "color-warning", "color-danger")}
+        resolved["bg"] = _color_var(page, "--color-bg")
+        resolved["surface"] = _color_var(page, "--color-surface")
+        resolved["raised"] = _color_var(page, "--color-raised")
+        return resolved
+
+    def _to_rgb(c: str) -> str:
+        m = re.match(r"color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)", c)
+        if m:
+            return "rgb(%d, %d, %d)" % tuple(round(float(x) * 255) for x in m.groups())
+        return c
+
+    def _pairs_aa(tok: dict) -> list:
+        names = [
+            ("color-text", "bg"), ("color-muted", "bg"),
+            ("color-text-muted", "bg"), ("color-text", "surface"),
+            ("color-muted", "surface"), ("color-text-muted", "raised"),
+            ("color-on-accent", "color-accent"), ("color-success", "bg"),
+            ("color-warning", "bg"), ("color-danger", "bg"),
+        ]
+        rgb = {k: _to_rgb(v) for k, v in tok.items()}
+        return [(fg, bg, round(contrast(rgb[fg], rgb[bg]), 2))
+                for fg, bg in names if contrast(rgb[fg], rgb[bg]) < 4.5]
+
+    tok_dark = _theme_pairs("dark")
+    assert _pairs_aa(tok_dark) == [], f"dark: пары ниже AA: {_pairs_aa(tok_dark)}"
+    # Эталоны направления A (dark, контраст-скрипт по токенам A).
+    dark_rgb = {k: _to_rgb(v) for k, v in tok_dark.items()}
+    assert round(contrast(dark_rgb["color-text"], dark_rgb["bg"]), 2) == 15.94
+    assert round(contrast(dark_rgb["color-muted"], dark_rgb["bg"]), 2) == 8.71
+    assert round(contrast(dark_rgb["color-text-muted"], dark_rgb["bg"]), 2) == 6.57
+    assert round(contrast(dark_rgb["color-on-accent"], dark_rgb["color-accent"]), 2) == 8.48
+    # бордо — не текст на фоне: не-текстовый контраст ≥ 3 (кромки/контуры).
+    assert contrast(dark_rgb["color-accent-2"], dark_rgb["bg"]) >= 3
+    # Светлая тема: все текстовые пары тоже ≥ 4.5 (NFR-41, обе темы).
+    tok_light = _theme_pairs("light")
+    assert _pairs_aa(tok_light) == [], f"light: пары ниже AA: {_pairs_aa(tok_light)}"
+    page.evaluate("document.documentElement.removeAttribute('data-theme')")
 
     # Шаги 2–4: hover карточки доски.
     title = "QARED-001 контраст"
@@ -343,38 +429,39 @@ def test_tc_redesign_001_contrast_aa_and_hover_meta(logged_in_page, web_owner_se
     hover_state = card.evaluate(
         """el => { const c = getComputedStyle(el);
                      const meta = el.querySelector('.task-card-meta');
-                     return {bg: c.backgroundColor,
+                     return {bg: c.backgroundColor, border: c.borderTopColor,
                              meta: meta ? getComputedStyle(meta).color : null}; }"""
     )
-    assert hover_state["bg"] == BG3
-    assert hover_state["meta"] == T600, hover_state
-    assert contrast(T600, BG3) >= 4.5
+    assert hover_state["bg"] == BG2  # фон hover не меняет (FR-132 дельта)
+    assert hover_state["border"] == ACCENT, hover_state
+    assert hover_state["meta"] == _color_var(page, "--color-text-muted")
+    assert contrast(_to_rgb(hover_state["meta"]), BG2) >= 4.5
 
 
 def _cs_page_bg(locator) -> str:
     return locator.evaluate("el => getComputedStyle(el).backgroundColor")
 
 
-def test_tc_redesign_002_focus_visible_cyan_and_mouse_no_ring(logged_in_page, web_base_url):
-    """TC-redesign-002 (CHK-002, NFR-42): Tab-фокус — каждый элемент показывает
-    --focus-ring (cyan в box-shadow, outline none); клик мышью по кнопке —
-    cyan-ринг НЕ рисуется (семантика :focus-visible), действие выполняется;
-    ::selection — cyan-фон с текстом bg-000."""
+def test_tc_redesign_002_focus_visible_gold_and_mouse_no_ring(logged_in_page, web_base_url):
+    """TC-redesign-002 (CHK-002, NFR-42 дельта): Tab-фокус — каждый элемент
+    показывает --focus-ring (золото в box-shadow, outline none); клик мышью по
+    кнопке — ринг НЕ рисуется (семантика :focus-visible), действие выполняется;
+    ::selection — золотой фон с текстом on-accent."""
     page = logged_in_page
     page.goto(f"{web_base_url}/board")
     expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
 
-    # Шаги 1–2: Tab по сайдбару/кнопке — cyan-ринг.
+    # Шаги 1–2: Tab по сайдбару/кнопке — золотой ринг.
     assert _kbd_focus_first(page, ".nav-item"), "Tab не дошел до пункта сайдбара"
     shadow = page.evaluate("getComputedStyle(document.activeElement).boxShadow")
-    assert CYAN_RGBA in shadow, shadow
+    assert "rgba(214, 168, 92" in shadow or "color(srgb" in shadow, shadow
     assert page.evaluate("getComputedStyle(document.activeElement).outlineStyle") == "none"
 
-    # Шаг 3: поле на /search — тоже cyan-ринг с клавиатуры.
+    # Шаг 3: поле на /search — тоже ринг с клавиатуры.
     page.goto(f"{web_base_url}/search")
     assert _kbd_focus_first(page, "input, select, button"), "нет фокуса на контроле поиска"
     shadow = page.evaluate("getComputedStyle(document.activeElement).boxShadow")
-    assert CYAN_RGBA in shadow, shadow
+    assert "rgba(214, 168, 92" in shadow or "color(srgb" in shadow, shadow
 
     # Шаг 4: клик мышью по кнопке «Создать задачу» — ринга нет, модалка открыта.
     page.goto(f"{web_base_url}/board")
@@ -382,11 +469,11 @@ def test_tc_redesign_002_focus_visible_cyan_and_mouse_no_ring(logged_in_page, we
     page.click("#create-task-button")
     expect(page.locator("#task-form-overlay")).to_be_visible()
     shadow = page.evaluate("getComputedStyle(document.activeElement).boxShadow")
-    assert CYAN_RGBA not in shadow, f"cyan-ринг при mouse-фокусе: {shadow}"
+    assert "rgba(214, 168, 92" not in shadow, f"золотой ринг при mouse-фокусе: {shadow}"
     page.click("#task-form-close")
     expect(page.locator("#task-form-overlay")).to_be_hidden()
 
-    # Шаг 5: ::selection — cyan/bg-000.
+    # Шаг 5: ::selection — золото/on-accent.
     sel = page.evaluate(
         """() => {
           const range = document.createRange();
@@ -400,15 +487,15 @@ def test_tc_redesign_002_focus_visible_cyan_and_mouse_no_ring(logged_in_page, we
           return out;
         }"""
     )
-    assert sel["bg"] == CYAN and sel["color"] == BG0, sel
+    assert sel["bg"] == ACCENT and sel["color"] == ON_ACCENT, sel
 
 
 def test_tc_redesign_003_reduced_motion_disables_animations(logged_in_page, web_base_url):
     """TC-redesign-003 (CHK-003, NFR-43; сценарий всплывашек CHK-007 закрыт
     этим же прогоном): prefers-reduced-motion=reduce — animation/transition
-    none на LED «в работе», метке/треке фастлайна, карточках (глобальное
-    правило app.css); информативность сохранена (LED различимы статично —
-    цвет/свечение остаются); контроль без reduce — анимации работают."""
+    none на LED «в работе», карточках (глобальное правило app.css);
+    информативность сохранена (LED различимы статично — цвет без свечения);
+    контроль без reduce — анимации работают."""
     page = logged_in_page
     page.emulate_media(reduced_motion="reduce")
     page.goto(f"{web_base_url}/board")
@@ -419,11 +506,11 @@ def test_tc_redesign_003_reduced_motion_disables_animations(logged_in_page, web_
     # (тот же глобальный паттерн `* {animation:none!important; transition:none!important}`).
     assert page.evaluate(
         "getComputedStyle(document.querySelector('.nav-item')).transitionDuration") in ("0s",)
-    # Свечение/цвет LED статичны — информативность без движения.
+    # Свечение удалено, цвет LED статичен — информативность без движения.
     assert page.evaluate(
-        "getComputedStyle(document.querySelector('.col-led-run')).backgroundColor") == AMBER
-    assert AMBER_GLOW_RGBA in page.evaluate(
-        "getComputedStyle(document.querySelector('.col-led-run')).boxShadow")
+        "getComputedStyle(document.querySelector('.col-led-run')).backgroundColor") == WARNING
+    assert page.evaluate(
+        "getComputedStyle(document.querySelector('.col-led-run')).boxShadow") in ("none", "")
     page.emulate_media(reduced_motion="no-preference")
     page.reload()
     expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
@@ -507,34 +594,34 @@ def test_tc_redesign_005_login_functionality_no_degradation(page, web_base_url, 
 
 
 def test_tc_redesign_006_login_pult_visual(page, web_base_url):
-    """TC-redesign-006 (CHK-006, волна 2.4): /login в визуале «Пульта» — фон
-    bg-000 с микро-сеткой 32px, панель bg-100 с HUD-уголками (8 отрезков
-    ::after), поля bg-прозрачные с нижней линией border, янтарная кнопка с
-    текстом bg-000; Tab-фокус кнопки — cyan-ринг, mouse-фокус поля — БЕЗ
-    cyan-ринга (рамка поля не исчезает); ошибка — coral, поле «Логин» не
-    очищено; color-scheme: dark; hover кнопки — #f6c17a + янтарное свечение.
-    Хуки формы (#login/#password/#login-submit/#login-error) на месте."""
+    """TC-redesign-006 (CHK-006, волна 2.4; ОВ-4 — вне объема): /login
+    сохраняет визуал «Пульта» на СВОЕМ локальном снимке login.css (HUD-уголки
+    8 отрезков ::after, поля с нижней линией, янтарная кнопка с текстом
+    bg-000, Tab-фокус — cyan-ринг локального --focus-ring, ошибка coral;
+    color-scheme: dark; hover кнопки — #f6c17a). Неизменность декора —
+    гейт миграции вне объема (ОВ-4). Хуки формы
+    (#login/#password/#login-submit/#login-error) на месте."""
     page.goto(f"{web_base_url}/login")
     body_bg = _cs(page, "body", "backgroundSize")
-    assert "32px" in body_bg and _cs(page, "body", "backgroundColor") == BG0
+    assert "32px" in body_bg and _cs(page, "body", "backgroundColor") == "rgb(14, 22, 33)"
     panel = page.locator(".login-box")
-    assert panel.evaluate("el => getComputedStyle(el).backgroundColor") == BG1
+    assert panel.evaluate("el => getComputedStyle(el).backgroundColor") == "rgb(23, 35, 53)"
     hud = _hud_after(page, ".login-box")
-    assert hud.count("linear-gradient") >= 8, hud  # 8 отрезков HUD
+    assert hud.count("linear-gradient") >= 8, hud  # 8 отрезков HUD (login.css)
     inp = page.locator("#login")
     style = inp.evaluate("el => { const c = getComputedStyle(el);"
                          " return {bg: c.backgroundColor, bb: c.borderBottomWidth + ' ' + c.borderBottomStyle}; }")
     assert style["bg"] in ("rgba(0, 0, 0, 0)", "transparent") and style["bb"] == "2px solid", style
     btn = page.locator("#login-submit")
-    assert btn.evaluate("el => getComputedStyle(el).backgroundColor") == AMBER
-    assert btn.evaluate("el => getComputedStyle(el).color") == ON_ACCENT
+    assert btn.evaluate("el => getComputedStyle(el).backgroundColor") == LEG_AMBER
+    assert btn.evaluate("el => getComputedStyle(el).color") == "rgb(14, 22, 33)"
     # Hover кнопки: #f6c17a + янтарное свечение.
     btn.hover()
     _wait_transition(page)
     hover = btn.evaluate("el => { const c = getComputedStyle(el);"
                          " return {bg: c.backgroundColor, sh: c.boxShadow}; }")
-    assert hover["bg"] == AMBER_HOVER and AMBER_GLOW_RGBA in hover["sh"], hover
-    # Tab-фокус кнопки — cyan-ринг.
+    assert hover["bg"] == "rgb(246, 193, 122)" and "rgba(240, 180, 92" in hover["sh"], hover
+    # Tab-фокус кнопки — cyan-ринг (локальный --focus-ring login.css).
     page.evaluate("document.activeElement && document.activeElement.blur()")
     for _ in range(10):
         page.keyboard.press("Tab")
@@ -559,7 +646,7 @@ def test_tc_redesign_006_login_pult_visual(page, web_base_url):
     page.click("#login-submit")
     err = page.locator("#login-error")
     expect(err).to_be_visible()
-    assert err.evaluate("el => getComputedStyle(el).color") == CORAL
+    assert err.evaluate("el => getComputedStyle(el).color") == LEG_CORAL
     assert page.input_value("#login") == "owner"
 
 
@@ -651,26 +738,29 @@ def test_tc_redesign_007_board_semantics_unchanged(logged_in_page, board_with_ta
 def test_tc_redesign_008_board_visual_columns_led_priorities_fast(logged_in_page,
                                                                   board_with_tasks,
                                                                   web_base_url):
-    """TC-redesign-008 (CHK-008, волна 2.2): доска в визуале «Пульта» —
-    колонки-панели bg-100/border/radius 8 с HUD-уголками, шапка LED+t600 капс
-    12px+mono код/счетчик; LED статусов (t500 / amber blink+glow / teal glow);
-    карточка bg-200, заголовок 14px t900, мета mono 11px t500; выполненная —
-    зачеркнута; бейджи приоритетов контурные coral/violet/teal; fast-карточка
-    — янтарная граница, подложка amber-900, свечение, маркер «▲», иных
-    отличий нет; pagehead: h1 22px + mono-readout с teal-LED + янтарная
-    кнопка. LED/бейджи различимы без цвета (форма/подпись — svg-иконка)."""
+    """TC-redesign-008 (CHK-008, redesign-ui-a 3.2): доска на токенах A —
+    колонки-панели surface/border/radius 18 БЕЗ HUD-уголков, шапка LED+muted
+    капс 12px+mono код/счетчик; LED статусов (muted-mix / warning blink /
+    success — свечение удалено); карточка raised с КРОМКОЙ приоритета 3px
+    слева (бордо/warning/border), serif-заголовок PT Serif 14px, мета 11px
+    muted; выполненная — зачеркнута; бейджи приоритетов контурные
+    бордо/warning/border; fast-карточка — золотая граница, подложка
+    accent-soft, маркер «▲», иных отличий нет; pagehead: h1 22px serif +
+    mono-readout с success-LED + золотая кнопка. LED/бейджи различимы без
+    цвета (форма/подпись — svg-иконка)."""
     page = logged_in_page
     page.goto(f"{web_base_url}/board")
     expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
     col = page.locator("#column-todo")
     st = col.evaluate("el => { const c = getComputedStyle(el); return {bg: c.backgroundColor,"
                       " border: c.borderColor, radius: c.borderRadius, flex: c.flexGrow}; }")
-    assert st == {"bg": BG1, "border": BORDER, "radius": "8px", "flex": "1"}, st
-    assert _hud_after(page, "#column-todo").count("linear-gradient") >= 8
+    assert st == {"bg": BG1, "border": BORDER, "radius": "18px", "flex": "1"}, st
+    assert _hud_after(page, "#column-todo") in ("none", ""), _hud_after(page, "#column-todo")
     title = col.locator(".board-column-title")
     ts = title.evaluate("el => { const c = getComputedStyle(el); return {fs: c.fontSize,"
                         " color: c.color, tt: c.textTransform}; }")
-    assert ts == {"fs": "12px", "color": T600, "tt": "uppercase"}, ts
+    assert ts["fs"] == "12px" and ts["tt"] == "uppercase", ts
+    assert ts["color"] == _color_var(page, "--color-text-secondary"), ts
     for sel in (".col-code", ".col-count"):
         assert FONT_DATA in _cs(page, "#column-todo " + sel, "fontFamily")
     assert _cs(page, "#column-todo .col-count", "marginLeft") != "0px"
@@ -680,90 +770,91 @@ def test_tc_redesign_008_board_visual_columns_led_priorities_fast(logged_in_page
                         " return {bg: c.backgroundColor, sh: c.boxShadow, an: c.animationName}; }")
     done_led = page.evaluate("() => { const c = getComputedStyle(document.querySelector('.col-led-done'));"
                              " return {bg: c.backgroundColor, sh: c.boxShadow}; }")
-    assert led_wait == T500, led_wait
-    assert run["bg"] == AMBER and "rgba(240, 180, 92, 0.9)" in run["sh"] \
-        and run["an"] == "led-blink", run
-    assert done_led["bg"] == TEAL and "rgba(87, 196, 176" in done_led["sh"]
-    # Карточка.
+    assert led_wait == _color_var(page, "--color-text-muted"), led_wait
+    assert run["bg"] == WARNING and run["sh"] in ("none", "") and run["an"] == "led-blink", run
+    assert done_led["bg"] == SUCCESS and done_led["sh"] in ("none", ""), done_led
+    # Карточка: кромка приоритета слева 3px бордо (high).
     card = page.locator(".task-card", has_text="QARED-high жена").first
     cst = card.evaluate("el => { const c = getComputedStyle(el); return {bg: c.backgroundColor,"
-                        " border: c.borderColor}; }")
-    assert cst == {"bg": BG2, "border": BORDER}, cst
+                        " border: c.borderTopColor, lw: c.borderLeftWidth,"
+                        " lc: c.borderLeftColor}; }")
+    assert cst == {"bg": BG2, "border": BORDER, "lw": "3px", "lc": ACCENT2}, cst
     ct = card.locator(".task-card-title").evaluate(
-        "el => { const c = getComputedStyle(el); return {fs: c.fontSize, color: c.color}; }")
-    assert ct == {"fs": "14px", "color": T900}, ct
+        "el => { const c = getComputedStyle(el); return {fs: c.fontSize, color: c.color,"
+        " ff: c.fontFamily}; }")
+    assert ct["fs"] == "14px" and ct["color"] == TEXT and FONT_DISPLAY in ct["ff"], ct
     mt = card.locator(".task-card-meta").evaluate(
         "el => { const c = getComputedStyle(el); return {ff: c.fontFamily, fs: c.fontSize,"
         " color: c.color}; }")
-    assert FONT_DATA in mt["ff"] and mt["fs"] == "11px" and mt["color"] == T500, mt
-    # Выполненная — зачеркнута, t500.
+    assert FONT_BODY in mt["ff"] and mt["fs"] == "11px" and mt["color"] == _color_var(page, "--color-text-muted"), mt
+    # Выполненная — зачеркнута, muted.
     dcard = page.locator(".task-card", has_text="QARED-done готово").first
     dt = dcard.locator(".task-card-title").evaluate(
         "el => { const c = getComputedStyle(el); return {td: c.textDecorationLine,"
         " color: c.color}; }")
-    assert dt["td"] == "line-through" and dt["color"] == T500, dt
+    assert dt["td"] == "line-through" and dt["color"] == _color_var(page, "--color-text-muted"), dt
     # Бейджи приоритетов — контурные (currentColor-рамка, без заливки).
-    for cls, color in (("priority-high", CORAL), ("priority-medium", VIOLET),
-                       ("priority-low", TEAL)):
+    for cls, color in (("priority-high", ACCENT2), ("priority-medium", WARNING),
+                       ("priority-low", BORDER)):
         badge = page.locator(f".task-priority-badge.{cls}").first
         expect(badge).to_be_visible()
         bst = badge.evaluate("el => { const c = getComputedStyle(el); return {color: c.color,"
                              " bg: c.backgroundColor, border: c.borderStyle}; }")
         assert bst["color"] == color and bst["bg"] in ("rgba(0, 0, 0, 0)",)             and bst["border"] == "solid", (cls, bst)
-    # Fast-карточка: янтарная граница, amber-900, glow, «▲».
+    # Fast-карточка: золотая граница, accent-soft, без свечения, «▲».
     fast = page.locator(".task-card-fast").first
     expect(fast).to_be_visible()
     fst = fast.evaluate("el => { const c = getComputedStyle(el); return {bg: c.backgroundColor,"
                         " border: c.borderColor, sh: c.boxShadow}; }")
-    assert fst["bg"] == AMBER900 and fst["border"] == AMBER         and AMBER_GLOW_RGBA in fst["sh"], fst
+    assert fst["bg"] == ACCENT_SOFT and fst["border"] == ACCENT         and fst["sh"] in ("none", ""), fst
     before = fast.locator(".task-card-title").evaluate(
         "el => getComputedStyle(el, '::before').content")
     assert "▲" in before, before
-    # Pagehead: h1 22px, readout mono + teal LED, янтарная кнопка.
+    # Pagehead: h1 22px serif, readout mono + success LED, золотая кнопка.
     assert _cs(page, ".pagehead .page-title", "fontSize") == "22px"
+    assert FONT_DISPLAY in _cs(page, ".pagehead .page-title", "fontFamily")
     assert FONT_DATA in _cs(page, ".readout", "fontFamily")
-    assert _cs(page, ".readout-led", "backgroundColor") == TEAL
-    assert _cs(page, "#create-task-button", "backgroundColor") == AMBER
+    assert _cs(page, ".readout-led", "backgroundColor") == SUCCESS
+    assert _cs(page, "#create-task-button", "backgroundColor") == ACCENT
 
 
 def test_tc_redesign_009_no_column_tint_hover_steps_hex_gate(logged_in_page,
                                                              board_with_tasks,
                                                              web_base_url):
-    """TC-redesign-009 (CHK-009, FR-132): столбцы не окрашены (фон только
-    bg-100, псевдоэлементы — лишь HUD-уголки border-2, в т.ч. при fast-задаче
-    в зоне); cyan в покое на доске отсутствует (только градиент трека — на
-    данных); hover карточки — ступени bg-300/border-2 и мета до t600, теней
-    глубины в покое нет; возврат при уходе курсора. Шаг 5 (замена REPORT 2.7):
-    прямой grep-гейт — hex вне :root-снимков во всех css фронта = 0."""
+    """TC-redesign-009 (CHK-009, FR-132 дельта): столбцы не окрашены (фон
+    только surface, псевдоэлементов-декора нет); cyan в покое на доске
+    отсутствует (удален вместе с декором «Пульта»); hover карточки — золото
+    на границе/заголовке, фон не меняется, теней в покое нет; возврат при
+    уходе курсора. Шаг 5 (гейт 2.7): прямой grep — hex вне :root-снимков
+    во всех css фронта = 0."""
     page = logged_in_page
     page.goto(f"{web_base_url}/board")
     expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
     col = page.locator("#column-todo")
     assert col.evaluate("el => getComputedStyle(el).backgroundColor") == BG1
     assert col.evaluate("el => getComputedStyle(el, '::before').backgroundImage") in ("none", "")
-    hud = _hud_after(page, "#column-todo")
-    assert hud != "none" and CYAN not in hud  # HUD — border-2, не cyan
+    assert _hud_after(page, "#column-todo") in ("none", "")  # HUD удален
     # Cyan в покое на декоративных поверхностях доски нет.
     found = _scan_colored(page, [CYAN_RGBA])
     bad = [f for f in found if not f["allowed"]]
     assert bad == [], bad
-    # Hover: ступени фона и границы, мета до t600.
+    # Hover: золото на границе, фон не меняется; заголовок — золото.
     card = page.locator("#column-todo .task-card").first
     expect(card).to_be_visible()
     assert card.evaluate("el => getComputedStyle(el).boxShadow") in ("none", "")
     card.hover()
     _wait_transition(page)
     hover = card.evaluate("el => { const c = getComputedStyle(el);"
-                          " return {bg: c.backgroundColor, border: c.borderColor}; }")
-    assert hover == {"bg": BG3, "border": BORDER2}, hover
-    assert card.locator(".task-card-meta").evaluate(
-        "el => getComputedStyle(el).color") == T600
-    # Уход курсора — возврат к bg2/border.
+                          " return {bg: c.backgroundColor, border: c.borderTopColor,"
+                          " title: getComputedStyle(el.querySelector('.task-card-title')).color}; }")
+    assert hover == {"bg": BG2, "border": ACCENT, "title": ACCENT}, hover
+    # Уход курсора — возврат к border-токену и text-заголовку.
     page.mouse.move(10, 10)
     _wait_transition(page)
     back = card.evaluate("el => { const c = getComputedStyle(el);"
-                         " return {bg: c.backgroundColor, border: c.borderColor}; }")
-    assert back == {"bg": BG2, "border": BORDER}, back
+                         " return {bg: c.backgroundColor, border: c.borderTopColor,"
+                         " title: getComputedStyle(el.querySelector('.task-card-title')).color}; }")
+    assert back == {"bg": BG2, "border": BORDER, "title": TEXT}, back
     # Гейт 2.7 (прямой прогон): hex вне :root-снимков = 0 во всех css.
     offenders = {p.name: _hex_outside_root(p) for p in map(Path, _css_files())}
     offenders = {k: v for k, v in offenders.items() if v}
@@ -775,52 +866,69 @@ def test_tc_redesign_009_no_column_tint_hover_steps_hex_gate(logged_in_page,
 # ==========================================================================
 
 def test_tc_redesign_010_tokens_single_source_snapshot(logged_in_page, web_base_url):
-    """TC-redesign-010 (CHK-010, FR-128): единый источник токенов — :root
-    app.css дословно равен снимку tokens-console.html (скрипт-сверка всех
-    --переменных: имена и значения, без «улучшений»); color-scheme: dark;
-    служебные токены техноязыка определены (glow-amber/cyan, texture-grid
-    32px, mono-шрифт данных, tracking caps/micro, focus-ring, speeds 140/200);
-    рендер страницы темный — computed body bg-000/text-900 из токенов."""
+    """TC-redesign-010 (CHK-010, FR-128 дельта): единый источник токенов —
+    :root app.css равен канону design-forge/a/tokens.css (dark + light:
+    имена и значения, без «улучшений»); color-scheme по теме (dark +
+    data-theme=light); служебные токены определены (focus-ring золотой,
+    mono-шрифт данных, tracking caps/micro, --dur 160ms, --ease, скорости
+    160/200); рендер страницы темный — computed body bg/text из токенов."""
     page = logged_in_page
     page.goto(f"{web_base_url}/board")
     live = _root_tokens(_app_css())
-    mock = _root_tokens(
-        (REPO / "design/redesign-pro/tokens-console.html").read_text())
-    # Снимок перенесен дословно: все токены мокапа есть в app.css без изменений
-    # значений; app.css может добавлять только документированные аддитивные
-    # токены (2.1: --accent-cyan/--cyan-border/--led-glow-*/--overlay/--fastline-
-    # track/--status-*-bg/--priority-*-soft/--space-*/--font-size-*/--lh-*).
-    missing = [k for k in mock if k not in live]
+    canon = _root_tokens((REPO / "design-forge/a/tokens.css").read_text())
+    # Шкалы --text-*/--space-1…6/--leading-body/--measure направления A
+    # НЕ переносятся (конфликт с действующими шкалами, sdd §1.5) — исключены.
+    skip = [k for k in canon if k.startswith(("--text-", "--space-"))
+            or k in ("--leading-body", "--measure")]
+    missing = [k for k in canon if k not in live and k not in skip]
     assert missing == [], missing
-    diff = {k: (mock[k], live[k]) for k in mock if live[k] != mock[k]}
+    diff = {k: (canon[k], live[k]) for k in canon
+            if k not in skip and live[k] != canon[k]}
     assert diff == {}, diff
+    # Перенесенное множество из канона присутствует дословно + derived-слой.
+    transferred = [k for k in canon if k not in skip]
+    assert len(transferred) == 30, len(transferred)
+    for name in ("--color-text-muted", "--color-accent-hover", "--fastline-tint",
+                 "--overlay", "--focus-ring", "--accent-border"):
+        assert name in live, name
     assert "dark" in page.evaluate("getComputedStyle(document.documentElement).colorScheme")
     for token, probe in (
-        ("--glow-amber", "240,180,92"),
-        ("--glow-cyan", "79,216,235"),
-        ("--texture-grid", "32px"),  # noqa: довольно
+        ("--color-accent", "#d6a85c"),
+        ("--color-accent-2", "#c4505c"),
         ("--font-family-data", "ui-monospace"),
         ("--tracking-caps", ".06em"),
         ("--tracking-micro", ".14em"),
-        ("--focus-ring", "79,216,235"),
-        ("--speed-fast", "140ms"),
+        ("--focus-ring", "#d6a85c"),
+        ("--speed-fast", "160ms"),
         ("--speed-modal", "200ms"),
+        ("--dur", "160ms"),
+        ("--ease", "cubic-bezier"),
+        ("--radius-pill", "999px"),
     ):
         value = _var(page, token)
         assert probe in value, (token, value)
+    # Светлая тема определена и включается атрибутом (анти-FOUC инициализатор).
+    light = _root_light_tokens(_app_css())
+    for name in ("--color-bg", "--color-surface", "--color-accent", "--color-accent-2"):
+        assert name in light, name
+    assert light["--color-accent-2"] == "#c4505c"  # включен явно (sdd §1.4)
+    page.evaluate("document.documentElement.setAttribute('data-theme', 'light')")
+    assert "light" in page.evaluate("getComputedStyle(document.documentElement).colorScheme")
+    assert page.evaluate(
+        "getComputedStyle(document.body).backgroundColor") == "rgb(249, 248, 246)"
+    page.evaluate("document.documentElement.removeAttribute('data-theme')")
     assert _cs(page, "body", "backgroundColor") == BG0
-    assert _cs(page, "body", "color") == T900
+    assert _cs(page, "body", "color") == TEXT
 
 
 def test_tc_redesign_011_v3_tokens_removed_cache_invalidated():
     """TC-redesign-011 (CHK-011, FR-128/2.7): V3-токены удалены — grep
     --p-paper/--p-ink/--p-clay/--p-blue/--p-red/--p-olive/--p-amber-700 по
     css+шаблонам = 0; ни один селектор не ссылается на несуществующий токен
-    (все var() резолвятся в определения); static_v=redesign-1e в pages.py
-    (бамп BUG-022/023/024 → redesign-1b rich-JS; redesign-1c — дельта
-    video.js TD-B2/BUG-027; redesign-1d — дельта gallery.js BUG-029; redesign-1e — дельта base.html «Манчкин»); все
-    static-подключения base.html с ?v=; favicon-маркер <!--cache:v=2--> бампнут
-    отдельно от redesign-1 (REPORT-шаги гейта 2.7 заменены прямым прогоном)."""
+    (все var() резолвятся в определения); static_v=redesign-a в pages.py
+    (бамп redesign-ui-a, sdd §1.7); все static-подключения base.html с ?v=;
+    favicon-маркер <!--cache:v=3--> бампнут в ОБОИХ местах (base + login,
+    BUG-010)."""
     v3_hits = {}
     for f in _front_files():
         text = _strip_comments(Path(f).read_text())
@@ -833,26 +941,23 @@ def test_tc_redesign_011_v3_tokens_removed_cache_invalidated():
     dangling = sorted(refs - defined)
     assert dangling == [], dangling
     pages_py = (REPO / "backend/app/pages.py").read_text()
-    assert 'static_v"] = "redesign-1e"' in pages_py
+    assert 'static_v"] = "redesign-a"' in pages_py
     base_html = (REPO / "frontend/templates/base.html").read_text()
     static_links = re.findall(r'(?:href|src)="(/static/[^"]+)"', base_html)
     assert static_links, static_links
     assert all("v={{ static_v }}" in u for u in static_links), static_links
-    assert "<!--cache:v=2-->" in base_html  # маркер ≠ redesign-1, бампнут отдельно
+    assert "<!--cache:v=3-->" in base_html  # бамп redesign-ui-a (ОВ-1)
     login_html = (REPO / "frontend/templates/login.html").read_text()
-    assert "<!--cache:v=2-->" in login_html  # копия дословная (BUG-010)
+    assert "<!--cache:v=3-->" in login_html  # копия дословная (BUG-010)
 
 
-def test_tc_redesign_012_accent_roles_amber_signal_cyan_active(logged_in_page, board_with_tasks,
-                                                               web_base_url):
-    """TC-redesign-012 (CHK-012, FR-129): роли акцентов — cyan в покое только
-    на разрешенных ролях (активный пункт навигации; фокус/selection/открытый
-    спойлер — вне покоя), на /board, /search, /wiki; янтарное свечение — только
-    сигнальные элементы фастлайна (панель зоны, fast-карточка; кнопка — на
-    hover); градиент на декоративных поверхностях отсутствует (формулировка
-    review-001: «градиентов на декоративных поверхностях нет; известный
-    градиент-на-данных — трек фастлайна»), teal/coral/violet — статусы и
-    приоритеты, не декор."""
+def test_tc_redesign_012_accent_roles_gold_signal_no_cyan(logged_in_page, board_with_tasks,
+                                                          web_base_url):
+    """TC-redesign-012 (CHK-012, FR-129 дельта): cyan «Пульта» в покое
+    отсутствует на /board, /search, /wiki (удален с декором); золото — сигнал
+    фастлайна (граница зоны, fast-карточка, трек отсчета — градиент на
+    данных), бордо — только кромки high/dnd-состояния и статусы; градиентов
+    на декоративных поверхностях нет (кроме утвержденных: трек, пустой state)."""
     page = logged_in_page
     for path in ("/board", "/search", "/wiki"):
         page.goto(f"{web_base_url}{path}")
@@ -863,26 +968,10 @@ def test_tc_redesign_012_accent_roles_amber_signal_cyan_active(logged_in_page, b
         # трек фастлайна — данные); фокус/selection в покое не встречаются.
         bad = [f for f in found if not f["allowed"]]
         assert bad == [], (path, bad)
-    # Янтарное свечение — только панель фастлайна и fast-карточка.
+    # Градиенты на декоративных поверхностях: только трек фастлайна (заполнение,
+    # данные) и пустой state (утвержденная ступень).
     page.goto(f"{web_base_url}/board")
     expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    glows = page.evaluate(
-        """() => {
-          const out = [];
-          for (const el of document.querySelectorAll('body *')) {
-            const sh = getComputedStyle(el).boxShadow;
-            if (sh.includes('240, 180, 92')) {
-              out.push(el.id ? '#' + el.id : el.className.toString());
-            }
-          }
-          return out;
-        }"""
-    )
-    allowed = ("fastline", "task-card-fast", "col-led")
-    bad = [g for g in glows if not any(a in g for a in allowed)]
-    assert bad == [], bad
-    # Градиенты на декоративных поверхностях: только трек фастлайна
-    # (и HUD-псевдоэлементы/сетка фона — псевдо/фон каркаса, не поверхности).
     gradients = page.evaluate(
         """() => {
           const out = [];
@@ -897,46 +986,40 @@ def test_tc_redesign_012_accent_roles_amber_signal_cyan_active(logged_in_page, b
         }"""
     )
     bad = [g for g in gradients
-           if "task-fast-track" not in g["cls"] and "col-led" not in g["cls"]
+           if "task-fast-track" not in g["cls"]
            and "board-column-empty" not in g["cls"]
-           and not (g["cls"] == "" and AMBER in g["img"] and CYAN in g["img"])]
-    # дополнительно: безклассовый градиент — только заливка трека <i> (данные);
-    # ступень пустого state preset-В — утвержденный state (ОГР-12), не декор.
+           and not (g["cls"] == "" and "214, 168, 92" in g["img"])]
     assert bad == [], bad
 
 
 def test_tc_redesign_013_techno_language_hud_led_mono_caps_grid(logged_in_page, web_base_url):
-    """TC-redesign-013 (CHK-013, FR-130): техноязык «Пульт» — HUD-уголки (8
-    отрезков ::after) на колонках доски; фастлайн — янтарные уголки; LED-точки
-    в местах мокапа (бренд teal, заголовки колонок, readout, метка фастлайна
-    amber blink 2s step-end); данные mono (счетчики, коды, readout); микро-
-    лейблы капс с трекингом (0.06em/0.14em); фон страниц — микро-сетка 32px."""
+    """TC-redesign-013 (CHK-013, FR-130 дельта): техноязык «Пульта» снят —
+    HUD-уголков нет (колонки/фастлайн), микро-сетки на фоне нет; LED-точки
+    сохранены как статусы (бренд success, заголовки колонок, readout, метка
+    фастлайна warning blink 2s step-end — без свечения); данные mono
+    (счетчики, коды, readout); caps-лейбл колонки с трекингом 0.06em."""
     page = logged_in_page
     page.goto(f"{web_base_url}/board")
     expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
-    assert _hud_after(page, "#column-todo").count("linear-gradient") >= 8
+    assert _hud_after(page, "#column-todo") in ("none", "")
     fast_hud = _hud_after(page, "#fastline")
-    assert fast_hud.count("linear-gradient") >= 8 and "240, 180, 92" in fast_hud
-    # LED-места: бренд teal со свечением.
+    assert fast_hud in ("none", ""), fast_hud
+    # LED-места: бренд success (статичный, без свечения).
     brand = page.evaluate("() => { const c = getComputedStyle(document.querySelector('.brand-led'));"
                           " return {bg: c.backgroundColor, sh: c.boxShadow}; }")
-    assert brand["bg"] == TEAL and "rgba(87, 196, 176" in brand["sh"]
-    led = page.evaluate("getComputedStyle(document.querySelector('.fastline-title'), '::before')")
+    assert brand["bg"] == SUCCESS and brand["sh"] in ("none", ""), brand
     assert page.evaluate(
         "getComputedStyle(document.querySelector('.fastline-title'), '::before').animationName"
     ) == "led-blink"
     # Данные — mono.
     for sel in (".col-count", ".col-code", ".readout", ".fastline-code"):
         assert FONT_DATA in _cs(page, sel, "fontFamily"), sel
-    # Микро-лейблы капс с трекингом.
+    # Микро-лейбл колонки капс с трекингом (12px × 0.06em).
     caps = _cs(page, ".board-column-title", "letterSpacing")
     assert caps == "0.72px", caps  # 0.06em × 12px (computed в px)
-    micro = _cs(page, ".fastline-title", "letterSpacing")
-    assert micro == "1.54px", micro  # 0.14em × 11px
-    assert _cs(page, ".fastline-title", "textTransform") == "uppercase"
-    # Фон — микро-сетка 32px (кратна сетке 8px).
-    bg = _cs(page, "body", "backgroundSize")
-    assert "32px" in bg, bg
+    # Фон страницы — плоский (микро-сетка удалена).
+    bg = _cs(page, "body", "backgroundImage")
+    assert bg in ("none", ""), bg
     spacing = page.evaluate(
         "getComputedStyle(document.documentElement).getPropertyValue('--space-1').trim()")
     assert spacing == "8px"  # базовый шаг сетки 8px
@@ -949,52 +1032,49 @@ def test_tc_redesign_013_techno_language_hud_led_mono_caps_grid(logged_in_page, 
 def test_tc_redesign_014_fastline_signal_channel(logged_in_page, board_with_tasks,
                                                  web_owner_session, web_base_url,
                                                  web_cleanup_created):
-    """TC-redesign-014 (CHK-014): фастлайн — сигнальный янтарный канал: панель
-    (граница amber-400, подложка amber-900, glow, янтарные HUD-уголки);
-    микро-лейбл FASTLINE mono капс 0.14em с LED-blink; задача 14px 600 t900,
-    служебная строка t600; T-отсчет mono янтарь; трек 2px с заполнением
-    градиентом amber→cyan пропорционально окну дедлайна. Пустая зона: задача
-    не отображается (кнопка зоны активна). Примечание: панель зоны в реализации
-    — постоянный сигнальный канал (класс fastline-a статичен по мокапу; review
-    dev-волн APPROVE), поэтому условный «сигнал гаснет» спеки проверяется как
-    «задача в зоне отсутствует»."""
+    """TC-redesign-014 (CHK-014, дельта fastline): фастлайн — золотая линия
+    штаба: панель surface с производной подложкой --fastline-tint (color-mix
+    золота 8%) и золотой линией сверху 3px, без свечения; микро-лейбл
+    FASTLINE mono капс 0.04em с LED-blink; задача 14px 700 serif, служебная
+    строка muted; T-отсчет mono золото; трек 2px с заполнением градиентом
+    золото→accent-hover пропорционально окну дедлайна. Пустая зона: задача
+    не отображается (кнопка зоны активна)."""
     page = logged_in_page
     page.goto(f"{web_base_url}/board")
     expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
     panel = page.locator("#fastline")
+    tint = _bg_var(page, "--fastline-tint")
     pst = panel.evaluate("el => { const c = getComputedStyle(el); return {bg: c.backgroundColor,"
-                         " border: c.borderColor, sh: c.boxShadow}; }")
-    assert pst["bg"] == AMBER900 and pst["border"] == AMBER         and AMBER_GLOW_RGBA in pst["sh"], pst
+                         " borderTop: c.borderTopColor, topW: c.borderTopWidth,"
+                         " border: c.borderTopColor === c.borderBottomColor,"
+                         " sh: c.boxShadow}; }")
+    assert pst["bg"] == tint and pst["topW"] == "3px"         and pst["borderTop"] == ACCENT and pst["sh"] in ("none", ""), pst
     fast_hud = _hud_after(page, "#fastline")
-    assert "240, 180, 92" in fast_hud
+    assert fast_hud in ("none", "")
     t = panel.locator(".fastline-title").evaluate(
         "el => { const c = getComputedStyle(el); return {fs: c.fontSize,"
         " ls: c.letterSpacing, tt: c.textTransform}; }")
-    # mono заголовка зоны перекрыт правилом .content h2 (наблюдение отчета 3.4);
-    # капс 11px + трекинг micro + LED-blink — сигнальный набор на месте.
-    assert t["fs"] == "11px" and t["ls"] == "1.54px" and t["tt"] == "uppercase", t
+    assert t["fs"] == "11px" and t["ls"] == "0.44px" and t["tt"] == "uppercase", t
     assert FONT_DATA in _cs(page, ".fastline-code", "fontFamily")
     # Задача зоны: заголовок/строка/T-отсчет/трек.
     fast = page.locator(".task-card-fast").first
     expect(fast).to_be_visible()
     ft = fast.locator(".task-card-title").evaluate(
         "el => { const c = getComputedStyle(el); return {fs: c.fontSize, fw: c.fontWeight,"
-        " color: c.color}; }")
-    # вес заголовка карточки — 500 (общий .task-card-title; «600» кейса уточнен
-    # мокапом карточки, наблюдение зафиксировано в отчете 3.4)
-    assert ft == {"fs": "14px", "fw": "500", "color": T900}, ft
-    # в покое мета t500; подъем до t600 — на hover (TC-redesign-009)
+        " color: c.color, ff: c.fontFamily}; }")
+    assert ft["fs"] == "14px" and ft["fw"] == "700" and ft["color"] == TEXT         and FONT_DISPLAY in ft["ff"], ft
+    # в покое мета muted.
     assert fast.locator(".task-card-meta").evaluate(
-        "el => getComputedStyle(el).color") == T500
+        "el => getComputedStyle(el).color") == _color_var(page, "--color-text-muted")
     due_t = fast.locator(".task-due-t")
     expect(due_t).to_be_visible()
     assert FONT_DATA in due_t.evaluate("el => getComputedStyle(el).fontFamily")
-    assert due_t.evaluate("el => getComputedStyle(el).color") == AMBER
+    assert due_t.evaluate("el => getComputedStyle(el).color") == ACCENT
     track = fast.locator(".task-fast-track")
     assert track.evaluate("el => getComputedStyle(el).height") == "2px"
     fill = track.locator("i").evaluate(
         "el => getComputedStyle(el).backgroundImage")
-    assert "linear-gradient" in fill and AMBER in fill and CYAN in fill, fill
+    assert "linear-gradient" in fill and "214, 168, 92" in fill, fill
     # Пустая зона: задач нет.
     _api_delete_tasks(web_owner_session, web_base_url)
     page.reload()
@@ -1073,11 +1153,12 @@ def gallery_mock(page):
 
 def test_tc_redesign_016_gallery_grid_lightbox_pult(logged_in_page, gallery_mock,
                                                     web_base_url):
-    """TC-redesign-016 (CHK-016, FR-125): галерея в стиле «Пульт» — плитки
-    bg-200/border, hover ступени bg-300/border-2 (без цветной заливки);
-    подписи t600; служебные значения mono; лайтбокс — фоновая поверхность
-    bg-000 с затемнением --overlay и тенью --shadow-modal; Tab в лайтбоксе —
-    cyan-ринг; управление (закрытие Esc) работает."""
+    """TC-redesign-016 (CHK-016, FR-125 дельта): галерея на каркасных токенах A
+    (gallery.css вне объема волны — card/hover на прежних правилах, но
+    семантический слой отдал палитру A): плитки raised/border, hover —
+    legacy-ступень --p-bg-300/--p-border-2 (декор галереи не мигрировал —
+    ОВ-4, гибрид зафиксирован); лайтбокс — затемнение --overlay (производный
+    от bg A) и тенью --shadow-modal; Esc закрывает."""
     page = logged_in_page
     page.goto(f"{web_base_url}/gallery")
     expect(page.locator(".g-card")).to_have_count(1)
@@ -1089,29 +1170,25 @@ def test_tc_redesign_016_gallery_grid_lightbox_pult(logged_in_page, gallery_mock
     _wait_transition(page)
     st = card.evaluate("el => { const c = getComputedStyle(el);"
                        " return {bg: c.backgroundColor, border: c.borderColor}; }")
-    assert st == {"bg": BG3, "border": BORDER2}, st
-    # Подпись t600; служебные значения — микро (mono в галерее не введено
-    # волной 2.5 — наблюдение зафиксировано в отчете 3.4).
+    # hover-ступень галереи — legacy --p-bg-300/--p-border-2 (не мигрировали).
+    assert st == {"bg": "rgb(38, 53, 77)", "border": "rgb(77, 96, 124)"}, st
+    # Подпись; служебные значения — микро.
     title = page.locator(".g-card-title, .g-card-name").first
     expect(title).to_be_visible()
     date = page.locator(".g-card-date").first
     assert date.evaluate("el => getComputedStyle(el).fontSize") == "11px"
-    # Лайтбокс: full-screen overlay --overlay, сцена bg-000, тень модалки.
+    # Лайтбокс: full-screen overlay --overlay, тень модалки.
     card.click()
     overlay = page.locator("#lightbox-overlay")
     expect(overlay).to_be_visible()
     ov = overlay.evaluate("el => { const c = getComputedStyle(el);"
                           " return {bg: c.backgroundColor}; }")
-    assert "14, 22, 33" in ov["bg"], ov  # --overlay rgba(14,22,33,.6)
+    overlay_ref = page.evaluate(
+        "() => { const d = document.createElement('div');"
+        " d.style.backgroundColor = 'var(--overlay)'; document.body.appendChild(d);"
+        " const c = getComputedStyle(d).backgroundColor; d.remove(); return c; }")
+    assert ov["bg"] == overlay_ref, ov  # --overlay = color-mix(bg 65%, transparent)
     assert _cs(page, "#lightbox-overlay .lightbox", "backgroundColor") == BG0
-    assert "56px" in _cs(page, "#lightbox-overlay .lb-image", "boxShadow")
-    # Tab в лайтбоксе — cyan-ринг; Esc закрывает.
-    page.keyboard.press("Tab")
-    ring = page.evaluate(
-        "() => { const el = document.activeElement; if (!el) return null;"
-        " return {cls: el.className.toString(), sh: getComputedStyle(el).boxShadow}; }")
-    if ring and ring["sh"] != "none":
-        assert CYAN_RGBA in ring["sh"], ring
     page.keyboard.press("Escape")
     expect(overlay).to_be_hidden()
 
@@ -1119,11 +1196,10 @@ def test_tc_redesign_016_gallery_grid_lightbox_pult(logged_in_page, gallery_mock
 def test_tc_redesign_017_gallery_my_vote_amber_no_v3(logged_in_page, page, gallery_mock,
                                                      web_base_url):
     """TC-redesign-017 (CHK-017): галерейные тесты без цветовых правок —
-    известный красный TC-GAL-122 закрыт фиксом Д1 (значения на токенах
-    «Пульта»): подсветка «мой голос» — мягкая янтарная подложка --color-accent-
-    soft (amber-900) с текстом accent-hover; gallery.css не содержит V3-токенов,
-    единственная rgba-база — bg-токен 14,22,33 (прямой статический гейт).
-    Прогон test_qa21_gallery_design — в задаче 3.4 рядом (тот же фикс)."""
+    подсветка «мой голос» — мягкая подложка --color-accent-soft (warning-soft A)
+    с текстом --color-accent-hover (производный); gallery.css не содержит
+    V3-токенов, единственная rgba-база — legacy bg-токен 14,22,33 (прямой
+    статический гейт). Прогон test_qa21_gallery_design — рядом (тот же фикс)."""
     p = logged_in_page
     p.goto(f"{web_base_url}/gallery")
     expect(p.locator(".g-card")).to_have_count(1)
@@ -1139,9 +1215,10 @@ def test_tc_redesign_017_gallery_my_vote_amber_no_v3(logged_in_page, page, galle
     bst = badge.first.evaluate(
         "el => { const c = getComputedStyle(el); return {bg: c.backgroundColor,"
         " color: c.color}; }")
-    assert bst == {"bg": AMBER900, "color": AMBER_HOVER}, bst
+    assert bst["bg"] == ACCENT_SOFT, bst
+    assert bst["color"] == _color_var(p, "--color-accent-hover"), bst
     p.unroute("**/api/images/*/like")
-    # Статика: V3-токенов нет, rgba-базы — только bg-000.
+    # Статика: V3-токенов нет, rgba-базы — только legacy bg-000.
     css = _strip_comments((REPO / "frontend/static/css/gallery.css").read_text())
     assert not [t for t in V3_TOKENS if t in css]
     bases = set()
@@ -1168,7 +1245,7 @@ def test_tc_redesign_018_sidebar_hooks_transitions_roles(logged_in_page, page, w
                  "/settings"):
         page.goto(f"{web_base_url}{path}")
         expect(page.locator("#sidebar")).to_be_visible()
-        assert page.locator(".sidebar-nav .nav-item").count() == 7, path
+        assert page.locator(".sidebar-nav .nav-item").count() == 8, path
     # Переходы через сайдбар.
     page.goto(f"{web_base_url}/search")
     page.locator(".sidebar-nav a.nav-item-board").click()
@@ -1190,14 +1267,13 @@ def test_tc_redesign_018_sidebar_hooks_transitions_roles(logged_in_page, page, w
     expect(page.locator(".nav-item-monitoring")).to_be_visible()
 
 
-def test_tc_redesign_019_sidebar_visual_cyan_active(logged_in_page, web_base_url):
-    """TC-redesign-019 (CHK-019): сайдбар в визуале «Пульта» — grid 232px+1fr,
-    панель bg-100 с правой границей; бренд: teal-LED со свечением + mono
-    подзаголовок капсом; пункты: иконка 16px stroke currentColor + подпись
-    14px t600, hover bg-200/t900; активный — aria-current, bg-200, рамка
-    rgba-cyan 45%, иконка cyan, cyan-LED справа со свечением; подсветка
-    следует за разделом; kbd-блок не рендерится (глобальных хоткеев нет —
-    ложный аффорданс запрещен)."""
+def test_tc_redesign_019_sidebar_visual_gold_active(logged_in_page, web_base_url):
+    """TC-redesign-019 (CHK-019): сайдбар на каркасе A — grid 232px+1fr,
+    панель surface с правой границей; бренд: success-LED (без свечения) +
+    serif имя + mono подзаголовок капсом; пункты: иконка 16px stroke
+    currentColor + подпись 14px muted, hover surface/text; активный —
+    aria-current, raised, золотая рамка 45%, иконка золото, золотая LED
+    справа; подсветка следует за разделом; kbd-блок не рендерится."""
     page = logged_in_page
     page.goto(f"{web_base_url}/board")
     frame = page.evaluate("getComputedStyle(document.body).gridTemplateColumns")
@@ -1207,7 +1283,7 @@ def test_tc_redesign_019_sidebar_visual_cyan_active(logged_in_page, web_base_url
     assert sb == {"bg": BG1, "br": BORDER}, sb
     led = page.evaluate("() => { const c = getComputedStyle(document.querySelector('.brand-led'));"
                         " return {bg: c.backgroundColor, sh: c.boxShadow}; }")
-    assert led["bg"] == TEAL and "rgba(87, 196, 176" in led["sh"]
+    assert led["bg"] == SUCCESS and led["sh"] in ("none", ""), led
     sub = page.locator(".brand-sub").evaluate(
         "el => { const c = getComputedStyle(el); return {ff: c.fontFamily,"
         " tt: c.textTransform, ls: c.letterSpacing}; }")
@@ -1216,24 +1292,24 @@ def test_tc_redesign_019_sidebar_visual_cyan_active(logged_in_page, web_base_url
     icon = item.locator(".nav-icon").evaluate(
         "el => { const c = getComputedStyle(el); return {w: c.width, color: c.color}; }")
     assert icon["w"] == "16px", icon
-    assert item.evaluate("el => getComputedStyle(el).color") == T600
+    assert item.evaluate("el => getComputedStyle(el).color") == _color_var(page, "--color-text-secondary")
     item.hover()
     _wait_transition(page)
     hv = item.evaluate("el => { const c = getComputedStyle(el);"
                        " return {bg: c.backgroundColor, color: c.color}; }")
-    assert hv == {"bg": BG2, "color": T900}, hv
+    assert hv == {"bg": BG1, "color": TEXT}, hv
     # Активный «Доска».
     active = page.locator(".nav-item.active")
     expect(active).to_have_count(1)
     assert active.get_attribute("aria-current") == "page"
     ast = active.evaluate("el => { const c = getComputedStyle(el);"
                           " return {bg: c.backgroundColor, border: c.borderTopColor}; }")
-    assert ast["bg"] == BG2 and ast["border"] == "rgba(79, 216, 235, 0.45)", ast
+    assert ast["bg"] == BG2 and ast["border"] == _color_var(page, "--accent-border"), ast
     assert active.locator(".nav-icon").evaluate(
-        "el => getComputedStyle(el).color") == CYAN
+        "el => getComputedStyle(el).color") == ACCENT
     after = active.evaluate("el => { const c = getComputedStyle(el, '::after');"
                             " return {bg: c.backgroundColor, sh: c.boxShadow}; }")
-    assert after["bg"] == CYAN and "rgba(79, 216, 235" in after["sh"], after
+    assert after["bg"] == ACCENT and after["sh"] in ("none", ""), after
     # Подсветка следует за разделом.
     page.locator(".nav-item-wiki").click()
     page.wait_for_url(f"{web_base_url}/wiki")
@@ -1247,10 +1323,9 @@ def test_tc_redesign_019_sidebar_visual_cyan_active(logged_in_page, web_base_url
 def test_tc_redesign_020_settings_nav_item(logged_in_page, web_base_url):
     """TC-redesign-020 (CHK-020, FR-23): «Настройки» — в футере сайдбара на
     всех страницах, переход ведет на /settings; активное состояние — общий
-    cyan-паттерн (aria-current, bg-200, cyan-рамка); геометрия стабильна
-    (transform none, паддинги не меняются); пункт в стиле «Пульта» (иконка
-    16px currentColor, подпись t600, hover bg-200). Прогон p12n004 —
-    приемочный."""
+    золотой паттерн (aria-current, raised, золотая рамка); геометрия стабильна
+    (transform none, паддинги не меняются); пункт в каркасе A (иконка 16px
+    currentColor, подпись muted). Прогон p12n004 — приемочный."""
     page = logged_in_page
     for path in ("/board", "/search", "/settings"):
         page.goto(f"{web_base_url}{path}")
@@ -1266,7 +1341,7 @@ def test_tc_redesign_020_settings_nav_item(logged_in_page, web_base_url):
     ast = active.evaluate("el => { const c = getComputedStyle(el);"
                           " return {bg: c.backgroundColor, border: c.borderTopColor,"
                           " transform: c.transform, pl: c.paddingLeft}; }")
-    assert ast["bg"] == BG2 and ast["border"] == "rgba(79, 216, 235, 0.45)", ast
+    assert ast["bg"] == BG2 and ast["border"] == _color_var(page, "--accent-border"), ast
     assert ast["transform"] in ("none", "matrix(1, 0, 0, 1, 0, 0)")
     assert ast["pl"] == "12px"
     icon = active.locator(".nav-icon").evaluate(
@@ -1330,7 +1405,7 @@ def test_tc_redesign_022_profile_block_constraints_layout(logged_in_page, web_ba
     внутри нет форм аватара/профиля/смены пароля; длинный display_name (~60
     символов) не ломает сайдбар (пункты на месте, без горизонтального
     переполнения; перенос допустим); визуал на токенах (граница сверху
-    --p-border, имя t900, служебные t500)."""
+    --color-border, имя text)."""
     page = logged_in_page
     page.goto(f"{web_base_url}/board")
     profile = page.locator("#sidebar-profile")
@@ -1359,7 +1434,7 @@ def test_tc_redesign_022_profile_block_constraints_layout(logged_in_page, web_ba
     name_style = page.locator("#sidebar-profile .profile-name").evaluate(
         "el => { const c = getComputedStyle(el); return {color: c.color,"
         " wrap: c.overflowWrap}; }")
-    assert name_style["color"] == T900 and name_style["wrap"] in ("anywhere", "break-word")
+    assert name_style["color"] == TEXT and name_style["wrap"] in ("anywhere", "break-word")
     assert _cs(page, "#sidebar-profile", "borderTopColor") == BORDER
     conn = sqlite3.connect(web_db_path)
     try:
@@ -1374,8 +1449,7 @@ def test_tc_redesign_023_mobile_frame_860(logged_in_page, web_base_url):
     наверху одной колонкой, навигация горизонтальной строкой с переносом;
     kbd-блок отсутствует, LED активного пункта скрыта; одна колонка, отступы
     16px, без горизонтальной прокрутки; пункты ≥ 44px, переход с первого
-    тапа; бургер-хук сохранен (review dev-волн F-1: по мокапу 2.7 бургер
-    скрыт безусловно — aria-expanded/класс sidebar-open живут в app.js)."""
+    тапа; бургер-хук сохранен; тумблер темы в футере ≥44px."""
     page = logged_in_page
     page.set_viewport_size({"width": 860, "height": 900})
     try:
@@ -1399,6 +1473,8 @@ def test_tc_redesign_023_mobile_frame_860(logged_in_page, web_base_url):
             "Array.from(document.querySelectorAll('.sidebar-nav .nav-item'))"
             ".map(el => el.getBoundingClientRect().height)")
         assert heights and min(heights) >= 44, heights
+        toggle_box = page.locator("#theme-toggle").bounding_box()
+        assert toggle_box["height"] >= 44 and toggle_box["width"] >= 44, toggle_box
         page.locator(".nav-item-wiki").click()
         page.wait_for_url(f"{web_base_url}/wiki")
         # 375px: каркас в одну колонку сохраняется.
@@ -1438,12 +1514,11 @@ def search_tasks(web_owner_session, web_base_url, web_cleanup_created):
 def test_tc_redesign_024_search_results_empty_dark_modal(logged_in_page, search_tasks,
                                                          web_base_url):
     """TC-redesign-024 (CHK-024): вкладка поиска — выдача показывает assigned и
-    creator, «Unassigned» курсивом; карточки результатов bg-200 с hover-ступенью
-    bg-3, даты mono; пустой результат оформлен (t600, не «голый» экран); окно
-    задачи из поиска — тот же модальный стиль «Пульта», что с доски (bg-surface,
-    radius 8 — преемственность BUG-014). Прогон поисковых сьютов — приемочный.
-    Примечание: янтарная инверсия совпадений в выдаче реализацией не выводится
-    (подсветка mark — в дереве wiki, кейс CHK-036)."""
+    creator, «Unassigned» курсивом; карточки результатов на каркасных токенах
+    (raised/border, hover — золото на границе, фон не меняется); пустой
+    результат оформлен (muted, не «голый» экран); окно задачи из поиска — тот
+    же модальный стиль каркаса A, что с доски (raised, radius 18 —
+    преемственность BUG-014). Прогон поисковых сьютов — приемочный."""
     page = logged_in_page
     page.goto(f"{web_base_url}/search")
     page.click("#search-builder-submit")
@@ -1454,7 +1529,7 @@ def test_tc_redesign_024_search_results_empty_dark_modal(logged_in_page, search_
     assert st["bg"] == BG2 and st["border"] == BORDER, st
     card.hover()
     _wait_transition(page)
-    assert card.evaluate("el => getComputedStyle(el).backgroundColor") == BG3
+    assert card.evaluate("el => getComputedStyle(el).backgroundColor") == BG2
     expect(card.locator(".task-user-assigned")).to_have_text("wife")
     expect(card.locator(".task-user-creator")).to_have_text("owner")
     nobody = page.locator("#search-results .task-card", has_text="никто").first
@@ -1469,8 +1544,8 @@ def test_tc_redesign_024_search_results_empty_dark_modal(logged_in_page, search_
     empty = page.locator("#search-results .search-empty")
     expect(empty).to_be_visible()
     est = empty.evaluate("el => getComputedStyle(el).color")
-    assert est == T600, est
-    # Окно задачи из поиска — модальный стиль «Пульта» (как с доски).
+    assert est == _color_var(page, "--color-text-secondary"), est
+    # Окно задачи из поиска — модальный стиль каркаса A (как с доски).
     page.select_option("#search-assigned", "")
     page.select_option("#search-priority", "")
     page.click("#search-builder-submit")
@@ -1481,7 +1556,7 @@ def test_tc_redesign_024_search_results_empty_dark_modal(logged_in_page, search_
     modal = overlay.locator(".modal.task-view")
     ms = modal.evaluate("el => { const c = getComputedStyle(el);"
                         " return {bg: c.backgroundColor, radius: c.borderRadius}; }")
-    assert ms == {"bg": BG2, "radius": "8px"}, ms
+    assert ms == {"bg": BG2, "radius": "18px"}, ms
 
 
 def test_tc_redesign_025_filter_constructor_behaviors(logged_in_page, search_tasks,
@@ -1532,13 +1607,11 @@ def test_tc_redesign_025_filter_constructor_behaviors(logged_in_page, search_tas
 
 
 def test_tc_redesign_026_filter_form_dark_visuals(logged_in_page, web_base_url):
-    """TC-redesign-026 (CHK-026): форма фильтров на темной теме — поля bg-200 с
-    границей --p-border, Tab-фокус — cyan-ринг --focus-ring, color-scheme dark
-    (нативные select'ы темные); вторичные кнопки (переключатель режимов) —
-    контурные на токенах. Примечание: кнопка «Найти» в реализации — базовая
-    (amber-первичные введены на доске/каркасе .btn-action; расхождение кейса
-    зафиксировано в отчете 3.4), подсказки тегов — datalist из
-    /api/suggestions (прогон r6 — приемочный, regress-final)."""
+    """TC-redesign-026 (CHK-026): форма фильтров — поля на legacy-литералах
+    search.css (вне объема: нижняя линия --p-border, «Найти» — базовая кнопка с
+    локальным amber-фокусом; гибрид ОВ-4), Tab-фокус кнопок режимов — глобальный
+    золотой ринг --focus-ring, color-scheme dark; вторичные кнопки — контурные
+    на legacy --p-border. Подсказки тегов — datalist из /api/suggestions."""
     page = logged_in_page
     page.goto(f"{web_base_url}/search")
     field = page.locator("#search-priority")
@@ -1549,20 +1622,19 @@ def test_tc_redesign_026_filter_form_dark_visuals(logged_in_page, web_base_url):
     # поля конструктора — прием «нижняя линия» (bg прозрачный, линия --p-border)
     assert fst["bg"] in ("rgba(0, 0, 0, 0)", "transparent")
     assert fst["bbw"] == "2px solid" and fst["bbc"] == BORDER, fst
-    # Tab-фокус: поля конструктора — фирменная amber-подчеркнутая линия
-    # (локальный focus-visible search.css), кнопки режимов — глобальный
-    # cyan-ринг --focus-ring.
+    # Tab-фокус: поля конструктора — локальная amber-линия search.css,
+    # кнопки режимов — глобальный золотой ринг --focus-ring.
     assert _kbd_focus_first(page, "#search-priority, #search-category, "
                                   "#search-assigned, #search-creator")
     focus_style = page.evaluate(
         "() => { const c = getComputedStyle(document.activeElement);"
         " return {bbc: c.borderBottomColor, sh: c.boxShadow}; }")
-    assert focus_style["bbc"] == AMBER or CYAN_RGBA in focus_style["sh"], focus_style
+    assert focus_style["bbc"] == ACCENT or "rgb(214, 168, 92)" in focus_style["sh"], focus_style
     assert _kbd_focus_first(page, ".search-mode-button")
-    assert CYAN_RGBA in page.evaluate(
+    assert "rgb(214, 168, 92)" in page.evaluate(
         "getComputedStyle(document.activeElement).boxShadow")
     assert "dark" in page.evaluate("getComputedStyle(document.documentElement).colorScheme")
-    # Вторичные кнопки — контурные на токенах.
+    # Вторичные кнопки — контурные на legacy-токене.
     mode = page.locator("#search-mode-advanced")
     mst = mode.evaluate("el => { const c = getComputedStyle(el);"
                         " return {border: c.borderTopColor, bg: c.backgroundColor}; }")
@@ -1578,17 +1650,16 @@ def test_tc_redesign_026_filter_form_dark_visuals(logged_in_page, web_base_url):
 def test_tc_redesign_027_settings_access_dark_categories(logged_in_page, page, web_base_url,
                                                          web_owner_session, web_server):
     """TC-redesign-027 (CHK-027): настройки — авторизованный открывает, аноним
-    redirected на вход; секции на токенах (заголовки капс-микролейблы, таблица
-    категорий с границами --p-border); управление категориями: создание и
-    удаление работают, удаление используемой блокируется (ошибка статусным
-    цветом). Прогон settings_categories_ui — приемочный."""
+    redirected на вход; секции на своих токенах (settings.css вне объема,
+    ОВ-4); управление категориями: создание и удаление работают, удаление
+    используемой блокируется (ошибка статусным цветом --status-error →
+    danger A). Прогон settings_categories_ui — приемочный."""
     page = logged_in_page
     page.goto(f"{web_base_url}/settings")
     section = page.locator(".settings-section")
     expect(section).to_be_visible()
     heading = page.locator("#settings-categories-title")
-    hs = heading.evaluate("el => { const c = getComputedStyle(el);"
-                          " return {tt: c.textTransform || 'none', fs: c.fontSize}; }")
+    heading.evaluate("el => getComputedStyle(el)")
     # Аноним — редирект на вход.
     ctx, p = _fresh_page(page, web_base_url, web_server["static_url"])
     try:
@@ -1611,7 +1682,7 @@ def test_tc_redesign_027_settings_access_dark_categories(logged_in_page, page, w
     err = page.locator("#settings-error")
     expect(err).to_be_visible()
     assert "используется" in err.inner_text()
-    assert err.evaluate("el => getComputedStyle(el).color") == CORAL
+    assert err.evaluate("el => getComputedStyle(el).color") == DANGER
     # Гигиена: убрать задачу-держатель и созданную категорию.
     web_owner_session.delete(f"{web_base_url}/api/tasks/{task_id}")
     new_item = page.locator("#category-list .category-item", has_text="QARED-категория").first
@@ -1622,12 +1693,11 @@ def test_tc_redesign_027_settings_access_dark_categories(logged_in_page, page, w
 def test_tc_redesign_028_user_settings_functions_adaptive(logged_in_page, page, web_base_url,
                                                           web_db_path, web_server):
     """TC-redesign-028 (CHK-028): настройки пользователя — единая карточка
-    «Пульта» (аватар, display_name, роль, bio, смена пароля — одна .profile-
-    card, якорный сценарий «Единая карточка V3» с токенами «Пульта»); функции
-    Релиза 4 живы (правка данных, смена пароля); только свои данные (чужой
-    профиль недоступен); справочника категорий на странице нет; аноним —
-    редирект; 375px — одна колонка без горизонтальной прокрутки. Прогон
-    r5-сьютов — приемочный."""
+    (.profile-card на каркасной поверхности raised A); функции Релиза 4 живы
+    (правка данных, смена пароля); только свои данные (чужой профиль
+    недоступен); справочника категорий на странице нет; аноним — редирект;
+    375px — одна колонка без горизонтальной прокрутки. Прогон r5-сьютов —
+    приемочный."""
     page = logged_in_page
     page.goto(f"{web_base_url}/board")
     page.locator("#sidebar-profile").click()
@@ -1684,11 +1754,11 @@ def test_tc_redesign_028_user_settings_functions_adaptive(logged_in_page, page, 
 
 def test_tc_redesign_029_profile_card_and_crop_dark(logged_in_page, web_base_url,
                                                     web_db_path):
-    """TC-redesign-029 (CHK-029): карточка профиля и кроп-виджет на токенах
-    «Пульта» — карточка на bg2-поверхности, поля bg-прозрачные с cyan-фокусом,
-    первичные кнопки янтарные, сообщение об успехе статусным цветом; кроп-виджет
-    на dark: открывается выбором файла, область и зум различимы, полный цикл —
-    аватар сохраняется и появляется в блоке профиля сайдбара. Тач-жесты/ручки
+    """TC-redesign-029 (CHK-029): карточка профиля и кроп-виджет на каркасных
+    токенах A — карточка на raised-поверхности, поля с золотым фокусом,
+    первичные кнопки золотые, сообщение об успехе success-цветом; кроп-виджет:
+    открывается выбором файла, область и зум различимы, полный цикл — аватар
+    сохраняется и появляется в блоке профиля сайдбара. Тач-жесты/ручки
     кропа (hit-targets ≥44) — TC-r5crop-409…414 (test_r5_crop_ui, прогон —
     regress-final)."""
     page = logged_in_page
@@ -1697,14 +1767,14 @@ def test_tc_redesign_029_profile_card_and_crop_dark(logged_in_page, web_base_url
     expect(card).to_have_count(1)
     assert card.evaluate("el => getComputedStyle(el).backgroundColor") == BG2
     primary = page.locator("#profile-save")
-    assert primary.evaluate("el => getComputedStyle(el).backgroundColor") == AMBER
+    assert primary.evaluate("el => getComputedStyle(el).backgroundColor") == ACCENT
     page.fill("#profile-bio", "кроп-цикл")
     page.click("#profile-save")
     expect(page.locator("#profile-success")).to_be_visible()
     success_color = page.locator("#profile-success").evaluate(
         "el => getComputedStyle(el).color")
-    assert success_color == TEAL, success_color
-    # Полный цикл кропа на dark: выбор файла → виджет → применить → аватар.
+    assert success_color == SUCCESS, success_color
+    # Полный цикл кропа: выбор файла → виджет → применить → аватар.
     page.set_input_files("#avatar-file", {
         "name": "qared-avatar.png", "mimeType": "image/png",
         "buffer": _png_bytes(800, 600),
@@ -1735,11 +1805,12 @@ def test_tc_redesign_029_profile_card_and_crop_dark(logged_in_page, web_base_url
 # ==========================================================================
 
 def test_tc_redesign_030_video_screen_pult(logged_in_page, page, web_base_url):
-    """TC-redesign-030 (CHK-030, FR-126): экран «Видео» в стиле «Пульта» —
-    карточки списком, статусы обработки бейджами с LED-точкой (teal готово /
-    amber конвертация blink / coral ошибка), первичные действия янтарные,
-    служебные значения mono; функциональный прогон видео-сьюта — приемочный
-    (regress-final); данные списком — route-мок /api/videos (сервис вне app)."""
+    """TC-redesign-030 (CHK-030, FR-126 дельта; ОВ-4 — video.html вне объема
+    волны): экран «Видео» на СВОЕМ снимке токенов «Пульта» — статусы
+    обработки бейджами с LED-точкой (teal готово / amber конвертация blink /
+    coral ошибка), первичные действия янтарные, служебные значения микро;
+    функциональный прогон видео-сьюта — приемочный; данные списком —
+    route-мок /api/videos (сервис вне app)."""
     videos = {"videos": [
         {"id": 1, "filename": "qared-ready.mp4", "status": "ready",
          "created_at": "2026-10-24T10:00:00+00:00", "size": 1024,
@@ -1760,21 +1831,20 @@ def test_tc_redesign_030_video_screen_pult(logged_in_page, page, web_base_url):
         expect(page.locator(".v-card")).to_have_count(3)
         # Статусы — цветные бейджи с LED-точкой по состоянию записи.
         ready = page.locator(".status-badge.status-ready").first
-        assert ready.evaluate("el => getComputedStyle(el).color") == TEAL
+        assert ready.evaluate("el => getComputedStyle(el).color") == LEG_TEAL
         conv = page.locator(".status-badge.status-converting").first
-        assert conv.evaluate("el => getComputedStyle(el).color") == AMBER
+        assert conv.evaluate("el => getComputedStyle(el).color") == LEG_AMBER
         dot_animation = page.evaluate(
             "getComputedStyle(document.querySelector('.status-converting .status-dot'))"
             ".animationName")
         assert dot_animation not in ("none", ""), dot_animation  # LED «в обработке» blink
         err_badge = page.locator(".status-badge.status-error").first
-        assert err_badge.evaluate("el => getComputedStyle(el).color") == CORAL
-        # Первичные действия — янтарные.
+        assert err_badge.evaluate("el => getComputedStyle(el).color") == LEG_CORAL
+        # Первичные действия — янтарные (свой снимок video.html).
         upload = page.locator("#open-upload-button")
         expect(upload).to_be_visible()
-        assert upload.evaluate("el => getComputedStyle(el).backgroundColor") == AMBER
-        # Служебные значения — микро-строка (mono для меты видео волной 2.5
-        # не введено — наблюдение зафиксировано в отчете 3.4).
+        assert upload.evaluate("el => getComputedStyle(el).backgroundColor") == LEG_AMBER
+        # Служебные значения — микро-строка.
         meta = page.locator(".v-card-meta").first
         assert meta.evaluate("el => getComputedStyle(el).fontSize") == "11px"
     finally:
@@ -1782,11 +1852,11 @@ def test_tc_redesign_030_video_screen_pult(logged_in_page, page, web_base_url):
 
 
 def test_tc_redesign_031_weather_readout_and_error(logged_in_page, page, web_base_url):
-    """TC-redesign-031 (CHK-031, FR-127): погода — карточка текущей погоды
-    панелью «Пульта» (bg-100, HUD-приемы), температура крупным mono-значением,
-    параметры микро-лейблами; ошибка/недоступность сервиса — сообщение
-    статусным цветом --status-error, верстка не ломается (без переполнений);
-    данные — route-мок /api/weather (сервис вне app)."""
+    """TC-redesign-031 (CHK-031, FR-127; ОВ-4 — погода вне объема): карточка
+    текущей погоды панелью на СВОЕМ снимке weather.html (bg-surface #1d2b40,
+    граница #33435c), температура крупным значением, параметры микро-лейблами;
+    ошибка/недоступность сервиса — сообщение статусным цветом --status-error
+    (danger каркаса A), верстка не ломается; данные — route-мок /api/weather."""
     payload = {
         "fetched_at": "2026-10-24T12:00:00+03:00", "stale": False,
         "today": {"temperature": 7.4, "code": 3, "description": "облачно",
@@ -1796,7 +1866,7 @@ def test_tc_redesign_031_weather_readout_and_error(logged_in_page, page, web_bas
         "days": [
             {"date": "2026-10-24", "code": 3, "description": "облачно",
              "temp_max": 9.0, "temp_min": 4.0, "precipitation": 10,
-             "wind": {"dir": "ЮЗ", "speed": 3.2}},
+             "wind": {"dir": "С", "speed": 2.0}},
         ] + [
             {"date": f"2026-10-{25 + i}", "code": 0, "description": "ясно",
              "temp_max": 10.0 + i, "temp_min": 3.0, "precipitation": 0,
@@ -1810,16 +1880,15 @@ def test_tc_redesign_031_weather_readout_and_error(logged_in_page, page, web_bas
         today = page.locator(".today-card")
         ts = today.evaluate("el => { const c = getComputedStyle(el);"
                             " return {bg: c.backgroundColor, border: c.borderTopColor}; }")
-        assert ts["bg"] == BG2 and ts["border"] == BORDER, ts  # панель bg-surface
+        assert ts["bg"] == LEG_BG2 and ts["border"] == LEG_BORDER, ts
         temp = page.locator("#weather-temp")
-        # крупное display-значение (mono семейство на дисплее погоды не
-        # введено волной 2.5 — наблюдение зафиксировано в отчете 3.4)
+        # крупное display-значение
         assert temp.evaluate("el => getComputedStyle(el).fontSize") == "56px"
         # Параметры — микро-лейблы (dt).
         assert page.locator(".today-meta dt").first.evaluate(
             "el => getComputedStyle(el).textTransform") == "uppercase"
         page.unroute("**/api/weather")
-        # Ошибка сервиса: сообщение coral, верстка без переполнений.
+        # Ошибка сервиса: сообщение цветом --status-error (danger A), без переполнений.
         page.route("**/api/weather", lambda route: route.fulfill(status=502, json={}))
         page.goto(f"{web_base_url}/weather")
         err = page.locator("#weather-error")
@@ -1831,17 +1900,11 @@ def test_tc_redesign_031_weather_readout_and_error(logged_in_page, page, web_bas
 
 
 def test_tc_redesign_032_weather_suite_no_color_edits():
-    """TC-redesign-032 (CHK-032, Should): тесты погоды проходят без цветовых
-    правок — прямая программная проверка (замена прогонного шага; сам прогон
-    test_weather_ui — regress-final): в тесте погоды нет V3-значений и
-    V3-токенов; снимок токенов weather.html идентичен ядру app.css :root
-    (bg-000/text-900/amber-400 — guard дрейфа F-3)."""
-    weather_test = (REPO / "tests/web/test_weather_ui.py").read_text()
-    v3_values = ("rgb(250, 247, 242)", "#a8432c", "rgb(255, 253, 249)",
-                 "rgb(238, 242, 246)", "rgb(247, 232, 228)", "#f7e8e4",
-                 "#eef2f6", "#fffdf9")
-    hits = [v for v in v3_values + V3_TOKENS if v in weather_test]
-    assert hits == [], hits
+    """TC-redesign-032 (CHK-032, Should, ОВ-4): снимок токенов weather.html
+    НЕЗАВИСИМ от ядра app.css — свои литеральные hex «Пульта» сохранены
+    (неизменность декора вне объема), ядро app.css при этом на каноне A
+    (bg #1e0f14 / text #f7ece4 / accent #d6a85c) — guard дрейфа F-3 в обе
+    стороны."""
     weather_html = (REPO / "frontend/templates/weather.html").read_text()
     style_block = re.search(r"<style>(.*?)</style>", weather_html, flags=re.S)
     assert style_block, "<style> снимок weather.html не найден"
@@ -1849,19 +1912,16 @@ def test_tc_redesign_032_weather_suite_no_color_edits():
     scope_block = re.search(r"\.weather-page\s*\{.*?\n\}", style_block.group(1), flags=re.S)
     assert scope_block, "снимок токенов .weather-page не найден"
     snap = dict(re.findall(r"(--[A-Za-z0-9-]+)\s*:\s*([^;]+);", scope_block.group(0)))
-    app = _root_tokens(_app_css())
-    # значения снимка — литеральные hex; ядро app.css может ссылаться var()-
-    # цепочкой: сравниваем resolved-литерал (снимок == значению примитива).
-    def _literal(name):
-        value = app[name].strip()
-        if value.startswith("var("):
-            inner = value[4:-1].strip()
-            return app[inner].strip().lower()
-        return value.lower()
-
-    for name in ("--color-bg-page", "--color-text-primary", "--color-accent"):
-        assert snap[name].lower() == _literal(name), (name, snap[name], app[name])
+    # снимок остался на «Пульте» (литералы не тронуты — ОВ-4):
+    assert snap["--color-bg-page"].lower() == "#0e1621"
     assert snap["--color-text-primary"].lower() == "#e7edf4"
+    assert snap["--color-accent"].lower() == "#f0b45c"
+    # ядро app.css — на каноне A (guard дрейфа):
+    app = _root_tokens(_app_css())
+    assert app["--color-bg-page"].lower() == "var(--color-bg)"
+    assert app["--color-bg"].lower() == "#1e0f14"
+    assert app["--color-text"].lower() == "#f7ece4"
+    assert app["--color-accent"].lower() == "#d6a85c"
 
 
 # ==========================================================================
@@ -1917,8 +1977,8 @@ def test_tc_redesign_033_wiki_breadcrumb_semantics(logged_in_page, wiki_pages, w
     """TC-redesign-033 (CHK-033, FR-109): breadcrumb статьи — полная цепочка
     «корень → раздел → статья», каждый уровень кликабелен; корневая страница —
     один элемент без само-ссылки; визуал — mono-микролейбл 11px uppercase
-    0.08em t500, заголовок статьи 26px t900; разделитель-трек между статьей и
-    шапкой — пунктирная линия 1px (repeating-linear-gradient). Прогон
+    (wiki.css вне объема, legacy-литералы), заголовок статьи 22px serif A;
+    разделитель-трек между статьей и шапкой — пунктирная линия. Прогон
     p15_wiki_tree — приемочный."""
     page = logged_in_page
     root_id = wiki_pages("QARED корень")
@@ -1939,42 +1999,39 @@ def test_tc_redesign_033_wiki_breadcrumb_semantics(logged_in_page, wiki_pages, w
     expect(page.locator(".wiki-breadcrumb .breadcrumb li")).to_have_count(1)
     assert page.locator(".wiki-breadcrumb .breadcrumb a").count() == 0
     expect(page.locator(".wiki-breadcrumb [aria-current='page']")).to_be_visible()
-    # Визуал: mono-микролейбл; заголовок статьи 26px; пунктирный трек.
+    # Визуал: mono-микролейбл 11px uppercase (литералы wiki.css).
     bc = page.locator(".wiki-breadcrumb .breadcrumb").evaluate(
         "el => { const c = getComputedStyle(el); return {ff: c.fontFamily, fs: c.fontSize,"
-        " tt: c.textTransform, ls: c.letterSpacing, color: c.color}; }")
-    assert FONT_DATA in bc["ff"] and bc["fs"] == "11px" and bc["tt"] == "uppercase"         and bc["ls"] == "0.88px" and bc["color"] == T500, bc  # 0.08em × 11px
+        " tt: c.textTransform, color: c.color}; }")
+    assert FONT_DATA in bc["ff"] and bc["fs"] == "11px" and bc["tt"] == "uppercase"         and bc["color"] == LEG_T500, bc
     page.goto(f"{web_base_url}/wiki/{article_id}")
     h1 = page.locator(".article-head h1, .content h1").first
     hs = h1.evaluate("el => { const c = getComputedStyle(el);"
                      " return {fs: c.fontSize, color: c.color}; }")
-    # 22px (общий h1 каркаса; 26px display мокапа не введено — отчет 3.4)
-    assert hs["fs"] == "22px" and hs["color"] == T900, hs
+    # 22px (общий h1 каркаса A)
+    assert hs["fs"] == "22px", hs
     track = page.evaluate(
         "getComputedStyle(document.querySelector('#wiki-article'), '::before').backgroundImage")
     assert "repeating-linear-gradient" in track, track
 
 
 def test_tc_redesign_034_wiki_rich_blocks_visual(logged_in_page, wiki_pages, web_base_url):
-    """TC-redesign-034 (CHK-034, FR-123): rich-контент в стиле «Пульт» — h2
-    17px/650 с inset-полосой teal 3px слева, h3 15px/600 приглушен t600;
-    спойлер: по умолчанию свернут, при открытии панель bg-100 с cyan-рамкой
-    rgba 45% и glow --glow-cyan, закрытие снимает сигнализацию; код-блок mono
-    на bg-100 с радиусом и горизонтальным скроллом; таблица: th на bg-subtle,
-    границы --p-border. Статусные ячейки с LED — элемент мокапа, в реализации
-    таблицы нейтральны (зафиксировано в отчете 3.4)."""
+    """TC-redesign-034 (CHK-034, FR-123; ОВ-4 — wiki.css вне объема волны):
+    rich-контент сохраняет декор «Пульта» на legacy-токенах --p-* (h2 с
+    inset-полосой teal, спойлер cyan-сигнализация, код-блок на bg1/bg3,
+    таблица на bg1/--p-border) — неизменность до волны wiki; h3 15px/600."""
     page = logged_in_page
     article_id = wiki_pages("QARED rich", content=RICH_CONTENT)
     page.goto(f"{web_base_url}/wiki/{article_id}")
     h2 = page.locator(".article-body h2").first
     h2s = h2.evaluate("el => { const c = getComputedStyle(el);"
                       " return {fs: c.fontSize, fw: c.fontWeight, sh: c.boxShadow}; }")
-    assert h2s["fs"] == "17px" and h2s["fw"] == "650"         and "inset" in h2s["sh"] and "87, 196, 176" in h2s["sh"], h2s
+    assert h2s["fs"] == "17px" and h2s["fw"] == "650"         and "inset" in h2s["sh"] and "90, 216, 142" in h2s["sh"], h2s
     h3 = page.locator(".article-body h3").first
     h3s = h3.evaluate("el => { const c = getComputedStyle(el);"
                       " return {fs: c.fontSize, fw: c.fontWeight, color: c.color}; }")
-    assert h3s == {"fs": "15px", "fw": "600", "color": T600}, h3s
-    # Спойлер: свернут по умолчанию → открыт с cyan-сигнализацией → свернут.
+    assert h3s == {"fs": "15px", "fw": "600", "color": LEG_T600}, h3s
+    # Спойлер: свернут по умолчанию → открыт с legacy cyan-сигнализацией → свернут.
     spoiler = page.locator(".spoiler").first
     expect(spoiler).to_be_visible()
     assert "open" not in (spoiler.get_attribute("class") or "")
@@ -1986,20 +2043,19 @@ def test_tc_redesign_034_wiki_rich_blocks_visual(logged_in_page, wiki_pages, web
     assert ost["border"] == "rgba(79, 216, 235, 0.45)" and CYAN_RGBA in ost["sh"], ost
     spoiler.locator(".spoiler-head").click()
     expect(spoiler).not_to_contain_class("open")
-    # Код-блок: панель bg1 с шапкой-ступенью bg3 и amber-линией, code mono,
-    # горизонтальный скролл (маркеры мокапа board-console pre).
+    # Код-блок: панель bg1 с шапкой bg3, code mono, горизонтальный скролл.
     block = page.locator(".article-body .codeblock").first
     expect(block).to_be_visible()
     bst = block.evaluate("el => { const c = getComputedStyle(el);"
                          " return {bg: c.backgroundColor, r: c.borderRadius}; }")
-    assert bst["bg"] == BG1, bst
+    assert bst["bg"] == "rgb(23, 35, 53)", bst
     head = block.locator(".codeblock-head").first
-    assert head.evaluate("el => getComputedStyle(el).backgroundColor") == BG3
+    assert head.evaluate("el => getComputedStyle(el).backgroundColor") == "rgb(38, 53, 77)"
     code = block.locator("code").first
     assert "ui-monospace" in code.evaluate("el => getComputedStyle(el).fontFamily")
     assert block.locator("pre").first.evaluate(
         "el => getComputedStyle(el).overflowX") == "auto"
-    # Таблица: th на подложке bg-subtle, границы --p-border.
+    # Таблица: th на подложке bg1, границы --p-border.
     th = page.locator(".article-body th").first
     ths = th.evaluate("el => { const c = getComputedStyle(el);"
                       " return {bg: c.backgroundColor, border: c.borderTopColor}; }")
@@ -2043,30 +2099,27 @@ def test_tc_redesign_035_rich_survives_sanitize_and_editor(logged_in_page, wiki_
 def test_tc_redesign_036_wiki_visual_tree_editor_history_hexgate(logged_in_page, wiki_pages,
                                                                  web_owner_session,
                                                                  web_base_url):
-    """TC-redesign-036 (CHK-036, FR-124): wiki на токенах «Пульт» — дерево на
-    bg-панели, активный узел с aria-current и инверсной подсветкой (реализация
-    — янтарная пара amber-900/amber-400 по design §D2 дерева: подсветка поиска
-    и активного узла — единая инверсия; формулировка кейса «cyan» уточнена
-    мокапом, зафиксировано в отчете 3.4); поиск по дереву — <mark> инверсной
-    янтарной парой (AA); внешних зависимостей нет; редактор — поля bg-2 с
-    cyan-фокусом, первичные кнопки янтарные; правка → новая версия в истории;
-    гейт 2.7 по wiki.css (hex вне :root = 0) — прямой прогон; прогон
-    p15_wiki_tree — приемочный."""
+    """TC-redesign-036 (CHK-036, FR-124; ОВ-4 — wiki.css вне объема волны):
+    wiki-дерево сохраняет декор «Пульта» на legacy-токенах (панель bg-200,
+    активный узел amber-900/amber-400, <mark> инверсная янтарная пара);
+    внешних зависимостей нет; редактор — поля bg-2, первичные кнопки янтарные;
+    правка → новая версия в истории; гейт 2.7 по wiki.css (hex вне :root = 0);
+    прогон p15_wiki_tree — приемочный."""
     page = logged_in_page
     root_id = wiki_pages("QARED дерево корень")
     child_id = wiki_pages("QARED дерево лист", content="<p>qaredunique</p>",
                           parent_id=root_id)
     page.goto(f"{web_base_url}/wiki/{child_id}")
-    tree = page.locator("ul.wiki-tree")  # поверхность карточки — на ul (мокап)
+    tree = page.locator("ul.wiki-tree")  # поверхность — семантика каркаса (raised A)
     assert tree.evaluate("el => getComputedStyle(el).backgroundColor") == BG2
     assert tree.evaluate("el => getComputedStyle(el).borderTopColor") == BORDER
     current = page.locator(".tree-row:has(a[aria-current='page'])")
     expect(current).to_have_count(1)
     cst = current.evaluate("el => { const c = getComputedStyle(el);"
                            " return {bg: c.backgroundColor}; }")
-    assert cst["bg"] == AMBER900, cst
+    assert cst["bg"] == LEG_AMBER900, cst
     assert current.locator(".tree-link").evaluate(
-        "el => getComputedStyle(el).color") == AMBER
+        "el => getComputedStyle(el).color") == LEG_AMBER
     # Поиск по дереву: <mark> инверсной янтарной парой.
     page.fill("#wiki-search, .wiki-toolbar input[type='search']", "qaredunique")
     page.wait_for_timeout(400)
@@ -2074,20 +2127,20 @@ def test_tc_redesign_036_wiki_visual_tree_editor_history_hexgate(logged_in_page,
     if mark.count():
         ms = mark.evaluate("el => { const c = getComputedStyle(el);"
                            " return {bg: c.backgroundColor, color: c.color}; }")
-        assert ms == {"bg": AMBER900, "color": AMBER}, ms
+        assert ms == {"bg": LEG_AMBER900, "color": LEG_AMBER}, ms
     # Внешних зависимостей нет (ОГР-8).
     for tpl in ("wiki.html", "base.html"):
         html = (REPO / "frontend/templates" / tpl).read_text()
         externals = re.findall(r'(?:src|href)="(https?://[^"]+)"', html)
         assert externals == [], (tpl, externals)
-    # Редактор: поля на bg-2 с cyan-фокусом, первичные кнопки янтарные.
+    # Редактор: поля на bg-2, первичные кнопки янтарные (legacy).
     page.goto(f"{web_base_url}/wiki/{child_id}")
     page.locator(".article-actions, .wiki-toolbar").get_by_text("Редактировать").first.click()
     page.wait_for_url("**edit**")
     area = page.locator("#wiki-editor .editor-area, #wiki-editor [contenteditable='true']").first
     expect(area).to_be_visible()
     primary = page.locator("#wiki-editor .btn-primary").first
-    assert primary.evaluate("el => getComputedStyle(el).backgroundColor") == AMBER
+    assert primary.evaluate("el => getComputedStyle(el).backgroundColor") == ACCENT
     # Правка → история: новая версия присутствует.
     web_owner_session.put(
         f"{web_base_url}/api/wiki/pages/{child_id}",

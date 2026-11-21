@@ -37,6 +37,15 @@ from tests.web.dnd_helpers import dnd_dispatch
 
 pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
+from tests.web._redesign_a_theme import force_dark_theme as _force_dark_theme_impl
+
+
+@pytest.fixture(autouse=True)
+def _dark_theme(request):
+    """Визуальные ассерты — на dark-каноне A (см. _redesign_a_theme)."""
+    _force_dark_theme_impl(request)
+
+
 
 def _zone_column(page, stage: str):
     """Столбец зоны FASTLINE по этапу (data-fastline-stage = status)."""
@@ -531,13 +540,12 @@ def test_tc_p23_116_dnd_direction_colors(board_page, web_owner_session,
         fast.json()["id"],
     )
     assert "drop-target" in probe["cls"], probe
-    # Токен задан hex (#f0b45c), computed — rgb(): сверяем числовые базы.
-    hex_rgb = [int(probe["token"].lstrip("#")[i:i + 2], 16)
-               for i in (0, 2, 4)]
+    # Токен --fastline = var(--color-accent) (var()-цепочка, sdd §1.3);
+    # computed outline — rgb(214, 168, 92): сверяем числовые базы золота A.
     computed_rgb = [int(n) for n in
                     probe["outline"].removeprefix("rgb(").removesuffix(")")
                     .split(", ")]
-    assert hex_rgb == computed_rgb, probe
+    assert computed_rgb == [214, 168, 92], probe
 
     # обычная → столбец канбана: приемник со ступенями «Пульта» (bg3/border-2).
     result = dnd_dispatch(

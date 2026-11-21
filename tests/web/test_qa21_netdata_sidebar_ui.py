@@ -19,6 +19,15 @@ from playwright.sync_api import expect
 
 pytestmark = [pytest.mark.web, pytest.mark.must]
 
+from tests.web._redesign_a_theme import force_dark_theme as _force_dark_theme_impl
+
+
+@pytest.fixture(autouse=True)
+def _dark_theme(request):
+    """Визуальные ассерты — на dark-каноне A (см. _redesign_a_theme)."""
+    _force_dark_theme_impl(request)
+
+
 MONITORING_LABEL = "Мониторинг"
 ALLOWED_ROLE = "Product manager"
 
@@ -129,8 +138,8 @@ def test_design_validator_markup_and_tokens(logged_in_page, web_base_url):
     ссылки): структура a.nav-item.nav-item-monitoring > svg.nav-icon(polyline,
     stroke=currentColor) + span.nav-label; токены (не хардкод), значения
     «Пульта» (redesign-console, impact.md п.1): color = --p-text-600
-    (#a7b7c8), hover-фон = ступень фона bg2 (#1d2b40), focus-visible =
-    inset focus-ring (cyan), active = ступень фона bg3 (#26354d);
+    (#c6ad9f), hover-фон = ступень фона surface (#2a161d), focus-visible =
+    inset focus-ring (золото), active = ступень фона raised (#371f28);
     иконка 16px."""
     page = logged_in_page
     item = _monitoring_item(page)
@@ -156,30 +165,28 @@ def test_design_validator_markup_and_tokens(logged_in_page, web_base_url):
           const read = (n) => root.getPropertyValue(n).trim();
           return {
             color: cs.color,
-            text600: read('--p-text-600'),
+            textSecondary: read('--color-text-secondary'),
             accent: read('--color-accent'),
-            cyan: read('--p-cyan-300'),
             focusRing: read('--focus-ring'),
             radius: cs.borderRadius,
           };
         }"""
     )
-    # Цвет текста пункта = токен --p-text-600 (#a7b7c8), не хардкод вне токена
-    # (дельта navigation: подпись пункта --p-text-600).
-    assert eval_res["color"] == "rgb(167, 183, 200)", eval_res
-    assert eval_res["text600"].lower() == "#a7b7c8", eval_res
+    # Цвет текста пункта = токен --color-text-secondary (#c6ad9f), не хардкод вне токена
+    # (дельта navigation, redesign-ui-a: подпись пункта muted A).
+    assert eval_res["color"] == "rgb(198, 173, 159)", eval_res
+    assert eval_res["textSecondary"].lower() == "#c6ad9f", eval_res
     # Акцент = янтарь #f0b45c — сигнальный цвет «Пульта»; cyan — актив/фокус.
-    assert eval_res["accent"].lower() == "#f0b45c", eval_res
-    assert eval_res["cyan"].lower() == "#4fd8eb", eval_res
-    # focus-ring — cyan-токен «Пульта» (сырое значение токена).
-    assert "#4fd8eb" in eval_res["focusRing"], eval_res
+    assert eval_res["accent"].lower() == "#d6a85c", eval_res
+    # focus-ring — золотой токен A (computed custom property: var() подставлен).
+    assert "#d6a85c" in eval_res["focusRing"], eval_res
 
-    # hover: ступень фона bg2 (#1d2b40) — паттерн навигации «Пульта»
-    # (после transition 140ms — иначе захватывается промежуточный кадр).
+    # hover: ступень фона surface (#2a161d) — паттерн навигации A
+    # (после transition 160ms — иначе захватывается промежуточный кадр).
     item.hover()
     page.wait_for_timeout(250)
     hover_bg = item.evaluate("(el) => getComputedStyle(el).backgroundColor")
-    assert hover_bg == "rgb(29, 43, 64)", hover_bg
+    assert hover_bg == "rgb(42, 22, 29)", hover_bg
     assert item.evaluate("(el) => getComputedStyle(el).opacity") == "1"
 
     # focus-visible: keyboard-фокус → inset focus-ring (box-shadow).
@@ -195,7 +202,7 @@ def test_design_validator_markup_and_tokens(logged_in_page, web_base_url):
           return {matches: el.matches(':focus-visible'), shadow: cs.boxShadow};
         }"""
     )
-    assert "rgba(79, 216, 235, 0.35)" in focus_style["shadow"], focus_style
+    assert "rgb(214, 168, 92)" in focus_style["shadow"], focus_style
 
     # active: зажатие ЛКМ — акцентная заливка var(--color-accent).
     box = item.bounding_box()
@@ -205,4 +212,4 @@ def test_design_validator_markup_and_tokens(logged_in_page, web_base_url):
     active_bg = item.evaluate("(el) => getComputedStyle(el).backgroundColor")
     page.mouse.up()
     # #26354d = rgb(38, 53, 77) — ступень фона bg3 (нажатие).
-    assert active_bg == "rgb(38, 53, 77)", active_bg
+    assert active_bg == "rgb(55, 31, 40)", active_bg

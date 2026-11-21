@@ -65,15 +65,19 @@ def test_tc_gal_122_tokens_from_css_vars_not_hardcoded():
     assert not js_hex and not js_rgb, f"gallery.js: цветовые литералы {js_hex[:3]}{js_rgb[:3]}"
 
     root = open(os.path.join(REPO, "frontend/static/css/app.css")).read()
-    # определения :root (пробелы выравнивания не значимы)
-    root_pairs = dict(re.findall(r"(--[A-Za-z0-9-]+)\s*:\s*([^;]+);", root))
+    # определения ПЕРВОГО (:root, dark) блока — light-блок :root[data-theme]
+    # переопределяет те же имена, dict по всему файлу дал бы light-значения.
+    m = re.search(r":root\s*\{(.*?)\n\}", re.sub(r"/\*.*?\*/", "", root, flags=re.S), flags=re.S)
+    assert m, "app.css: :root не найден"
+    root_pairs = dict(re.findall(r"(--[A-Za-z0-9-]+)\s*:\s*([^;]+);", m.group(1)))
     for name, value in (
-        ("--color-accent", "var(--p-amber-400)"),
-        ("--p-amber-400", "#f0b45c"),
-        ("--color-accent-soft", "var(--p-amber-900)"),
-        ("--p-amber-900", "#3a2c12"),
-        ("--radius-field", "6px"),
-        ("--radius-card", "8px"),
+        ("--color-accent", "#d6a85c"),
+        ("--color-accent-soft", "var(--color-warning-soft)"),
+        ("--color-warning-soft", "#4e3124"),
+        ("--radius-field", "var(--radius-sm)"),
+        ("--radius-card", "var(--radius-md)"),
+        ("--radius-sm", "10px"),
+        ("--radius-md", "18px"),
         ("--focus-ring", None),
     ):
         assert name in root_pairs, f"app.css :root: нет {name}"
@@ -151,22 +155,24 @@ def test_tc_gal_122_live_computed_styles_and_states(browser_instance):
         # значение — сверяем сам цвет (жестких литералов в delta-CSS нет,
         # проверено статикой: значения приходят из цепочки
         # --color-accent→--p-amber-400).
+        # --p-amber-400 — legacy-токен «Пульта» (значения не менялись);
+        # акцент каркаса — золото A #d6a85c (redesign-ui-a).
         assert props["clay_var"].lower() == "#f0b45c", props["clay_var"]
-        assert props["accent_var"].strip().lower() == "#f0b45c", props["accent_var"]
-        assert props["radius_card_var"] == "8px", props["radius_card_var"]
-        assert props["radius_field_var"] == "6px", props["radius_field_var"]
-        assert "apple-system" in props["font_display_var"], props["font_display_var"]
+        assert props["accent_var"].strip().lower() == "#d6a85c", props["accent_var"]
+        assert props["radius_card_var"] == "18px", props["radius_card_var"]
+        assert props["radius_field_var"] == "10px", props["radius_field_var"]
+        assert "PT Serif" in props["font_display_var"], props["font_display_var"]
         if props["card_radius"]:
-            assert props["card_radius"] == "8px", (
+            assert props["card_radius"] == "18px", (
                 f"радиус карточки не из --radius-card: {props['card_radius']}")
         if props["btn_bg"] and props["btn_bg"] != "rgba(0, 0, 0, 0)":
-            assert props["btn_bg"] == "rgb(240, 180, 92)", (
-                f"кнопка загрузки не янтарная из токена: {props['btn_bg']}")
+            assert props["btn_bg"] == "rgb(214, 168, 92)", (
+                f"кнопка загрузки не золотая из токена: {props['btn_bg']}")
         if props["page_bg"]:
-            assert props["page_bg"] == "rgb(14, 22, 33)", (
-                f"фон страницы не bg-000: {props['page_bg']}")
+            assert props["page_bg"] == "rgb(30, 15, 20)", (
+                f"фон страницы не bg A: {props['page_bg']}")
         if props["card_font_display"]:
-            assert "apple-system" in props["card_font_display"], props["card_font_display"]
+            assert "PT Serif" in props["card_font_display"], props["card_font_display"]
 
         # --- Шаг 5а: hover на карточке — тень/сдвиг по мокапу ---
         card = page.locator(".g-card").first

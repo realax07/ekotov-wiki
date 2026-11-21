@@ -89,7 +89,19 @@ def test_fastline_zone_empty_no_hints(board_page):
           return { bg: cs.backgroundColor, border: cs.borderTopStyle };
         }"""
     )
-    assert styles["bg"] == "rgb(58, 44, 18)", styles  # --p-amber-900 («Пульт»)
+    # --fastline-tint (color-mix золота 8% на surface — производный токен A);
+    # сравнение через зонный элемент с тем же var() (сериализация color(srgb…)).
+    expected_tint = page.evaluate(
+        """() => {
+          const d = document.createElement('div');
+          d.style.backgroundColor = 'var(--fastline-tint)';
+          document.body.appendChild(d);
+          const c = getComputedStyle(d).backgroundColor;
+          d.remove();
+          return c;
+        }"""
+    )
+    assert styles["bg"] == expected_tint, styles
     assert styles["border"] == "solid", styles
 
     expect(zone.get_by_role("heading", name="FASTLINE")).to_be_visible()

@@ -30,6 +30,15 @@ from playwright.sync_api import expect
 
 pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
+from tests.web._redesign_a_theme import force_dark_theme as _force_dark_theme_impl
+
+
+@pytest.fixture(autouse=True)
+def _dark_theme(request):
+    """Визуальные ассерты — на dark-каноне A (см. _redesign_a_theme)."""
+    _force_dark_theme_impl(request)
+
+
 NAV_PAGES = ("/board", "/search", "/wiki", "/gallery", "/settings")
 
 
@@ -50,12 +59,11 @@ def test_sidebar_icons_inline_svg_unified_style(logged_in_page, web_base_url):
     for path in NAV_PAGES:
         page.goto(f"{web_base_url}{path}")
         items = _nav_items(page)
-        # P18 weather-service: шестой пункт «Погода» после «Видео»
-        # (утвержденный мокап A, design/p18-weather/variant-a.html) —
-        # было 5, стало 6 (прецедент расширения 1.5 video-hosting).
-        # P26 game-portal: седьмой пункт «Игры» после «Погода» —
-        # было 6, стало 7.
-        assert items.count() == 7, (path, items.count())
+        # P18 weather-service: шестой пункт «Погода» после «Видео»;
+        # P26 game-portal: седьмой пункт «Игры» после «Погода»;
+        # P20-хвост: восьмой пункт «Манчкин» после «Игры» (/manchkin/,
+        # standalone — апстрим 5c9ab55; литералы счетчика обновлены).
+        assert items.count() == 8, (path, items.count())
         for i in range(items.count()):
             item = items.nth(i)
             svg = item.locator("svg.nav-icon")
@@ -80,9 +88,9 @@ def test_sidebar_icons_inline_svg_unified_style(logged_in_page, web_base_url):
             assert box and abs(box["width"] - 16) <= 1 and abs(box["height"] - 16) <= 1, (
                 path, i, box,
             )
-            # Токенная окраска «Пульта» (redesign-console, design §D2): иконка —
-            # свой токен (--p-text-500 = rgb(132, 150, 168), мокап .nav svg),
-            # подпись пункта — t600; на активном пункте иконка — cyan.
+            # Токенная окраска каркаса A (redesign-ui-a, sdd §1.3): иконка —
+            # свой токен (--color-text-muted = color-mix muted 85%/bg), подпись
+            # пункта — secondary muted; на активном пункте иконка — золото.
             colors = svg.evaluate(
                 """el => {
                   const a = el.closest('a');
@@ -93,14 +101,15 @@ def test_sidebar_icons_inline_svg_unified_style(logged_in_page, web_base_url):
                   };
                 }"""
             )
-            # Неактивный пункт: иконка --p-text-500, подпись --p-text-600;
-            # активный: иконка cyan --p-cyan-300 (rgb(79, 216, 235)).
+            # Неактивный пункт: иконка --color-text-muted (color-mix → сериализация
+            # color(srgb …) = rgb(173, 149, 138)), подпись muted A;
+            # активный: иконка золото --color-accent (rgb(214, 168, 92)).
             if colors["active"]:
-                assert colors["icon"] == "rgb(79, 216, 235)", (path, i, colors)
+                assert colors["icon"] == "rgb(214, 168, 92)", (path, i, colors)
             else:
-                assert colors["icon"] == "rgb(132, 150, 168)", (path, i, colors)
-                assert colors["text"] == "rgb(167, 183, 200)", (path, i, colors)
-        # Активный раздел: иконка окрашена cyan «Пульта» (--accent-cyan).
+                assert colors["icon"] == "color(srgb 0.677647 0.58549 0.541765)", (path, i, colors)
+                assert colors["text"] == "rgb(198, 173, 159)", (path, i, colors)
+        # Активный раздел: иконка окрашена золотом A (--color-accent).
         # Скоуп .sidebar: активный пункт «Настройки» живет в footer.
         active = page.locator(".sidebar a.nav-item.active")
         expect(active).to_have_count(1)
@@ -121,7 +130,7 @@ def test_nav_items_clickable_not_overlaid(logged_in_page, web_base_url):
     targets = [items.nth(i).get_attribute("href") for i in range(items.count())]
     # P18 weather-service: шестой пункт — «Погода» (/weather);
     # P26 game-portal: седьмой — «Игры» (/games/, прокси внешнего хаба).
-    assert targets == ["/board", "/search", "/wiki", "/gallery", "/video", "/weather", "/games/"]
+    assert targets == ["/board", "/search", "/wiki", "/gallery", "/video", "/weather", "/games/", "/manchkin/"]
 
     # elementFromPoint в центре каждого пункта.
     hits = page.evaluate(
@@ -131,7 +140,7 @@ def test_nav_items_clickable_not_overlaid(logged_in_page, web_base_url):
           return hit ? (a === hit || a.contains(hit)) : false;
         })"""
     )
-    assert hits == [True] * 7, hits
+    assert hits == [True] * 8, hits
 
     # Клик по каждому пункту → навигация.
     for href in ("/search", "/wiki", "/gallery"):
@@ -154,10 +163,10 @@ def test_favicon_data_uri_decodable_with_cache_marker(logged_in_page, web_base_u
     """TC-P12N-003 (CHK-P12-19, FR-95): на всех страницах функционала —
     ровно один <link rel="icon" type="image/svg+xml">, href —
     data:image/svg+xml; декодированный SVG парсится и рендерится
-    (naturalWidth > 0); внутри URI — кеш-маркер <!--cache:v=2--> (бамп
+    (naturalWidth > 0); внутри URI — кеш-маркер <!--cache:v=3--> (бамп
     маркера меняет href — политика design §3 при зафиксированном
-    отклонении от буквы spec «?v=»); янтарный акцент #f0b45c «Пульта»
-    (redesign-console, impact.md п.8).
+    отклонении от буквы spec «?v=»); золотой акцент #d6a85c направления A
+    (redesign-ui-a, ОВ-1).
     /login — отдельный тест (BUG-010: login.html вне base.html)."""
     page = logged_in_page
     hrefs = {}
@@ -173,7 +182,7 @@ def test_favicon_data_uri_decodable_with_cache_marker(logged_in_page, web_base_u
 
     # Маркер внутри URI и валидность href как атрибута (без сырого #).
     first = hrefs["/board"]
-    assert "cache:v=2" in first, "кеш-маркер отсутствует в data-URI"
+    assert "cache:v=3" in first, "кеш-маркер отсутствует в data-URI"
     assert "%23" in first and '"' not in first.replace("%23", ""), "href невалиден"
 
     # Декодируемость: рендер SVG в изолированном документе (naturalWidth>0).
@@ -191,8 +200,8 @@ def test_favicon_data_uri_decodable_with_cache_marker(logged_in_page, web_base_u
     )
     assert ok, "favicon data-URI не рендерится (naturalWidth=0)"
 
-    # Стиль «Пульта»: янтарный акцент в SVG (impact.md п.8).
-    assert "%23f0b45c" in first, "янтарный акцент #f0b45c отсутствует"
+    # Стиль A: золотой акцент в SVG (ОВ-1, redesign-ui-a).
+    assert "%23d6a85c" in first, "золотой акцент #d6a85c отсутствует"
 
     # Один и тот же URI на всех страницах (base-механизм head).
     assert len(set(hrefs.values())) == 1, set(map(len, hrefs.values()))
@@ -261,10 +270,10 @@ def test_nav_order_addresses_states_unchanged(logged_in_page, web_base_url):
         re.sub(r"todo", "", items.nth(i).inner_text()).strip()
         for i in range(items.count())
     ]
-    assert labels == ["Доска", "Поиск", "Wiki", "Галерея", "Видео", "Погода", "Игры"], labels
+    assert labels == ["Доска", "Поиск", "Wiki", "Галерея", "Видео", "Погода", "Игры", "Манчкин"], labels
 
     hrefs = [items.nth(i).get_attribute("href") for i in range(items.count())]
-    assert hrefs == ["/board", "/search", "/wiki", "/gallery", "/video", "/weather", "/games/"]
+    assert hrefs == ["/board", "/search", "/wiki", "/gallery", "/video", "/weather", "/games/", "/manchkin/"]
 
     # SVG внутри <a> (не рядом, не вместо) — у всех семи пунктов,
     # включая «Игры» (иконка P21 п.9 в едином стиле эталона).

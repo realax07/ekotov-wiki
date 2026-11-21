@@ -48,11 +48,11 @@ def _computed(page, selector: str, prop: str, pseudo: str | None = None) -> str:
 # TC-vis-101 — «hover-переход карточки (обязательный минимум)» (Must)
 # --------------------------------------------------------------------------
 def test_card_hover_transition_and_accent_title(board_page, web_cleanup_created):
-    """TC-vis-101 («Пульт», impact.md п.7): #board несет preset-v;
-    transition ненулевой; hover → рамка карточки меняется на border-2
-    (--p-border-2) и фон — на bg3; заголовок — t900 (--p-text-900).
-    Семантика «hover дает видимую токенную реакцию, заголовок из токена»
-    сохранена (подъем/тень V3 в «Пульте» не используются)."""
+    """TC-vis-101 (направление A, redesign-ui-a §2.1/FR-132 дельта):
+    #board несет preset-v; transition ненулевой; hover → рамка карточки
+    меняется на золото (--color-accent), фон НЕ меняется; заголовок —
+    золото. Семантика «hover дает видимую токенную реакцию, заголовок из
+    токена» сохранена."""
     page = board_page
     create_task_via_ui(page, "QAT-vis-hover")
     card = _card(page, "QAT-vis-hover")
@@ -75,26 +75,23 @@ def test_card_hover_transition_and_accent_title(board_page, web_cleanup_created)
     after_border = _card_prop("borderTopColor")
     after_bg = _card_prop("backgroundColor")
     assert after_border != before_border, (before_border, after_border)
-    assert after_bg != before_bg, (before_bg, after_bg)
+    # фон hover НЕ меняет (FR-132 дельта: hover — золото на границе/заголовке)
+    assert after_bg == before_bg, (before_bg, after_bg)
 
     def _rgb(token: str) -> str:
         h = token.lstrip("#")
         return f"rgb({int(h[0:2], 16)}, {int(h[2:4], 16)}, {int(h[4:6], 16)})"
 
-    border2 = page.evaluate(
-        "getComputedStyle(document.documentElement).getPropertyValue('--p-border-2').trim()"
+    accent = page.evaluate(
+        "getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim()"
     )
-    assert border2, "токен --p-border-2 пуст"
-    assert _rgb(border2) == after_border, (border2, after_border)
+    assert accent, "токен --color-accent пуст"
+    assert _rgb(accent) == after_border, (accent, after_border)
 
     title_color = card.evaluate(
         "el => getComputedStyle(el.querySelector('.task-card-title')).color"
     )
-    t900 = page.evaluate(
-        "getComputedStyle(document.documentElement).getPropertyValue('--p-text-900').trim()"
-    )
-    assert t900, "токен --p-text-900 пуст"
-    assert _rgb(t900) == title_color, (t900, title_color)
+    assert _rgb(accent) == title_color, (accent, title_color)
 
 
 # --------------------------------------------------------------------------
