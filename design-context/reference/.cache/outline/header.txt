@@ -1,0 +1,10 @@
+<header class="topbar wrap">
+ <a class="brand" href="board.html">ekotov-wiki</a>
+ <nav class="board-tabs" aria-label="Доски">
+  <a class="board-tab" href="board.html" aria-current="page">Разработка</a>
+  <!-- …повтор ×2 -->
+ </nav>
+ <button class="theme-btn" type="button" aria-label="Переключить тему">
+  <svg/>
+ </button>
+</header>

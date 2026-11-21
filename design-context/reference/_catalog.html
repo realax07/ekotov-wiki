@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокапы · сборка ../design-forge/a</title>
+<style>
+  :root { --bg:#f6f6f4; --fg:#1b1b1a; --muted:#6b6b66; --line:#e2e2dc; --card:#fff; --accent:#3b5bdb; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --fg:#ededea; --muted:#9a9a93; --line:#2c2c2a; --card:#1d1d1c; --accent:#8ea2ff; } }
+  * { box-sizing:border-box } body { margin:0; font:14px/1.5 system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--fg); display:grid; grid-template-columns:260px 1fr; }
+  aside { position:sticky; top:0; height:100vh; overflow:auto; padding:20px 16px; border-right:1px solid var(--line) }
+  aside a { display:block; color:var(--accent); text-decoration:none; padding:2px 0; padding-left:calc(var(--depth) * 14px) }
+  main { padding:0 24px 40px; min-width:0 } header { padding:24px 0 8px } h1 { margin:0 0 4px; font-size:20px } .muted, header p { color:var(--muted); margin:0 }
+  section { padding:16px 0; border-top:1px solid var(--line) } h2 { font-size:16px; margin:8px 0 12px } h2 code { font-weight:400 } h2 a { font-size:12px; font-weight:400; color:var(--accent) }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; display:flex; flex-direction:column }
+  .thumb { display:flex; align-items:flex-start; justify-content:center; height:170px; overflow:hidden; padding:8px; background:repeating-conic-gradient(var(--line) 0 25%, transparent 0 50%) 0 0/16px 16px }
+  .thumb img { max-width:100%; height:auto } .thumb span { margin:auto; color:var(--muted) }
+  .meta { padding:10px 12px; display:flex; flex-direction:column; gap:2px; min-width:0 } .meta a { color:inherit; text-decoration:none }
+  code { font:12px ui-monospace,monospace; color:var(--muted); overflow-wrap:anywhere } small { color:var(--muted) }
+  .swatches { display:flex; flex-wrap:wrap; gap:8px } .sw { width:110px; font-size:11px } .sw i { display:block; height:36px; border-radius:6px; border:1px solid var(--line) }
+  @media (max-width: 760px) { body { grid-template-columns:1fr } aside { position:static; height:auto; border-right:0; border-bottom:1px solid var(--line) } }
+</style>
+</head>
+<body>
+<aside>
+  <b>Разделы</b>
+  <a href="#s-root" style="--depth:0">/ главная</a>
+  <a href="#s-board.html" style="--depth:1">board.html/</a>
+  <a href="#s-kit.html" style="--depth:1">kit.html/</a>
+  <a href="#s-task.html" style="--depth:1">task.html/</a>
+  <a href="#tokens" style="--depth:0">Токены</a>
+</aside>
+<main>
+<header><h1>Мокапы сайта</h1><p>сборка ../design-forge/a · 10 снимков · 4 разделов · 2026-11-21T15:48:30.615Z</p></header>
+<section id="s-root" style="--depth:0">
+    <h2>Главная <code>/</code> <a href="README.md">README</a></h2>
+    <p class="muted">Страница раздела не снималась — см. подразделы.</p>
+  </section>
+<section id="s-board.html" style="--depth:1">
+    <h2>Доска <code>/board.html</code> <a href="board.html/README.md">README</a></h2>
+    <div class="grid">
+      <article class="card">
+        <a class="thumb" href="board.html/index.html" target="_blank"><img loading="lazy" src="board.html/index.jpg" alt=""></a>
+        <div class="meta">
+          <a href="board.html/index.html" target="_blank"><b>Доска</b></a>
+          <code>board.html/index.html</code>
+          <small>page · desktop</small>
+        </div>
+      </article>
+      <article class="card">
+        <a class="thumb" href="board.html/index.html" target="_blank"><img loading="lazy" src="board.html/index--mobile.jpg" alt=""></a>
+        <div class="meta">
+          <a href="board.html/index.html" target="_blank"><b>Доска</b></a>
+          <code>board.html/index.html</code>
+          <small>page · mobile</small>
+        </div>
+      </article>
+      <article class="card">
+        <a class="thumb" href="board.html/_components/layout/header.html" target="_blank"><img loading="lazy" src="board.html/_components/layout/header.png" alt=""></a>
+        <div class="meta">
+          <a href="board.html/_components/layout/header.html" target="_blank"><b>Шапка</b></a>
+          <code>board.html/_components/layout/header.html</code>
+          <small>component · desktop · 1240×109</small>
+        </div>
+      </article>
+      <article class="card">
+        <a class="thumb" href="board.html/_components/layout/nav.html" target="_blank"><img loading="lazy" src="board.html/_components/layout/nav.png" alt=""></a>
+        <div class="meta">
+          <a href="board.html/_components/layout/nav.html" target="_blank"><b>Навигация</b></a>
+          <code>board.html/_components/layout/nav.html</code>
+          <small>component · desktop · 317×44</small>
+        </div>
+      </article>
+      <article class="card">
+        <a class="thumb" href="board.html/_components/layout/header--mobile.html" target="_blank"><img loading="lazy" src="board.html/_components/layout/header--mobile.png" alt=""></a>
+        <div class="meta">
+          <a href="board.html/_components/layout/header--mobile.html" target="_blank"><b>Шапка</b></a>
+          <code>board.html/_components/layout/header--mobile.html</code>
+          <small>component · mobile · 390×213</small>
+        </div>
+      </article>
+      <article class="card">
+        <a class="thumb" href="board.html/_components/layout/nav--mobile.html" target="_blank"><img loading="lazy" src="board.html/_components/layout/nav--mobile.png" alt=""></a>
+        <div class="meta">
+          <a href="board.html/_components/layout/nav--mobile.html" target="_blank"><b>Навигация</b></a>
+          <code>board.html/_components/layout/nav--mobile.html</code>
+          <small>component · mobile · 317×44</small>
+        </div>
+      </article></div>
+  </section>
+<section id="s-kit.html" style="--depth:1">
+    <h2>UI-кит: детали и состояния <code>/kit.html</code> <a href="kit.html/README.md">README</a></h2>
+    <div class="grid">
+      <article class="card">
+        <a class="thumb" href="kit.html/index.html" target="_blank"><img loading="lazy" src="kit.html/index.jpg" alt=""></a>
+        <div class="meta">
+          <a href="kit.html/index.html" target="_blank"><b>UI-кит: детали и состояния</b></a>
+          <code>kit.html/index.html</code>
+          <small>page · desktop</small>
+        </div>
+      </article>
+      <article class="card">
+        <a class="thumb" href="kit.html/index--mobile.html" target="_blank"><img loading="lazy" src="kit.html/index--mobile.jpg" alt=""></a>
+        <div class="meta">
+          <a href="kit.html/index--mobile.html" target="_blank"><b>UI-кит: детали и состояния</b></a>
+          <code>kit.html/index--mobile.html</code>
+          <small>page · mobile</small>
+        </div>
+      </article></div>
+  </section>
+<section id="s-task.html" style="--depth:1">
+    <h2>Карточка задачи <code>/task.html</code> <a href="task.html/README.md">README</a></h2>
+    <div class="grid">
+      <article class="card">
+        <a class="thumb" href="task.html/index.html" target="_blank"><img loading="lazy" src="task.html/index.jpg" alt=""></a>
+        <div class="meta">
+          <a href="task.html/index.html" target="_blank"><b>Карточка задачи</b></a>
+          <code>task.html/index.html</code>
+          <small>page · desktop</small>
+        </div>
+      </article>
+      <article class="card">
+        <a class="thumb" href="task.html/index--mobile.html" target="_blank"><img loading="lazy" src="task.html/index--mobile.jpg" alt=""></a>
+        <div class="meta">
+          <a href="task.html/index--mobile.html" target="_blank"><b>Карточка задачи</b></a>
+          <code>task.html/index--mobile.html</code>
+          <small>page · mobile</small>
+        </div>
+      </article></div>
+  </section>
+<section id="tokens" style="--depth:0">
+  <h2>Токены</h2>
+  <div class="swatches"><div class="sw"><i style="background:rgb(198, 173, 159)"></i><code>rgb(198, 173, 159)</code> ×82</div><div class="sw"><i style="background:rgb(247, 236, 228)"></i><code>rgb(247, 236, 228)</code> ×73</div><div class="sw"><i style="background:rgb(233, 129, 127)"></i><code>rgb(233, 129, 127)</code> ×9</div><div class="sw"><i style="background:rgb(30, 15, 20)"></i><code>rgb(30, 15, 20)</code> ×8</div><div class="sw"><i style="background:rgb(214, 168, 92)"></i><code>rgb(214, 168, 92)</code> ×4</div><div class="sw"><i style="background:rgb(90, 216, 142)"></i><code>rgb(90, 216, 142)</code> ×2</div><div class="sw"><i style="background:rgb(55, 31, 40)"></i><code>rgb(55, 31, 40)</code> ×19</div><div class="sw"><i style="background:rgb(42, 22, 29)"></i><code>rgb(42, 22, 29)</code> ×15</div><div class="sw"><i style="background:rgb(51, 57, 49)"></i><code>rgb(51, 57, 49)</code> ×3</div><div class="sw"><i style="background:rgb(61, 34, 41)"></i><code>rgb(61, 34, 41)</code> ×3</div><div class="sw"><i style="background:rgb(76, 41, 47)"></i><code>rgb(76, 41, 47)</code> ×2</div><div class="sw"><i style="background:rgb(240, 170, 66)"></i><code>rgb(240, 170, 66)</code> ×1</div><div class="sw"><i style="background:rgb(78, 49, 36)"></i><code>rgb(78, 49, 36)</code> ×1</div></div>
+  <div style="font-family:&quot;Golos Text&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif;margin:6px 0">Съешь же ещё этих мягких булок — <code>&quot;Golos Text&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif</code></div><div style="font-family:&quot;PT Serif&quot;, Georgia, &quot;Times New Roman&quot;, serif;margin:6px 0">Съешь же ещё этих мягких булок — <code>&quot;PT Serif&quot;, Georgia, &quot;Times New Roman&quot;, serif</code></div><div style="font-family:&quot;JetBrains Mono&quot;, ui-monospace, &quot;Cascadia Mono&quot;, Consolas, monospace;margin:6px 0">Съешь же ещё этих мягких булок — <code>&quot;JetBrains Mono&quot;, ui-monospace, &quot;Cascadia Mono&quot;, Consolas, monospace</code></div><div style="font-family:monospace;margin:6px 0">Съешь же ещё этих мягких булок — <code>monospace</code></div>
+</section>
+</main>
+</body>
+</html>

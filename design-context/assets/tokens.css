@@ -1,0 +1,70 @@
+/* CSS-переменные сайта (собраны wd-scan) */
+:root {
+  --scheme: dark;
+  --color-bg: #1e0f14;
+  --color-surface: #2a161d;
+  --color-raised: #371f28;
+  --color-text: #f7ece4;
+  --color-muted: #c6ad9f;
+  --color-border: #3d2229;
+  --color-accent: #d6a85c;
+  --color-on-accent: #1e0f14;
+  --color-accent-2: #c4505c;
+  --color-link: #d6a85c;
+  --color-success: #5ad88e;
+  --color-success-soft: #333931;
+  --color-warning: #f0aa42;
+  --color-warning-soft: #4e3124;
+  --color-danger: #e9817f;
+  --color-danger-soft: #4c292f;
+  --color-on-danger: #111111;
+  --font-display: "PT Serif", Georgia, "Times New Roman", serif;
+  --font-body: "Golos Text", system-ui, "Segoe UI", sans-serif;
+  --font-ui: "Golos Text", system-ui, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 25px;
+  --text-2xl: 31px;
+  --text-3xl: 39px;
+  --text-4xl: 43px;
+  --leading-body: 1.55;
+  --measure: 66ch;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+  --space-6: 64px;
+  --radius-sm: 10px;
+  --radius-md: 18px;
+  --radius-lg: 28px;
+  --radius-pill: 999px;
+  --shadow-1: 0 1px 3px rgb(0 0 0 / .08), 0 4px 12px rgb(0 0 0 / .06);
+  --shadow-2: 0 4px 8px rgb(0 0 0 / .08), 0 18px 40px rgb(0 0 0 / .10);
+  --dur: 160ms;
+  --ease: cubic-bezier(.2,.7,.2,1);
+}
+
+/* тема light: атрибут `data-theme="light"` на <html> */
+:root[data-theme="light"] {
+  --scheme: light;
+  --color-bg: #f9f8f6;
+  --color-surface: #ffffff;
+  --color-raised: #f3f0ea;
+  --color-text: #282115;
+  --color-muted: #6b6050;
+  --color-border: #e0ddd6;
+  --color-accent: #b7842e;
+  --color-on-accent: #111111;
+  --color-link: #8a631f;
+  --color-success: #1c7842;
+  --color-success-soft: #e8f2ec;
+  --color-warning: #975f0c;
+  --color-warning-soft: #f5efe7;
+  --color-danger: #b62520;
+  --color-danger-soft: #f8e9e9;
+  --color-on-danger: #ffffff;
+}

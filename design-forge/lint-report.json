@@ -1,0 +1,216 @@
+{
+  "checkedAt": "2026-11-21T15:18:59.713Z",
+  "variants": {
+    "a": {
+      "name": "Доска и поток",
+      "errors": 0,
+      "warnings": 3,
+      "screens": {
+        "kit.html": {
+          "issues": [
+            {
+              "level": "warn",
+              "rule": "nested-cards",
+              "what": "карточка внутри карточки",
+              "n": 3,
+              "ex": [
+                "a.task-card «BUG-031: комментарии не сохраняются при »",
+                "a.task-card «Добавить фильтр по тегам Функция канбан »",
+                "div.task-card «Вынести конфиг в .env Бэкенд сегодня, 10»"
+              ],
+              "viewport": "desktop",
+              "viewports": [
+                "desktop",
+                "tablet",
+                "mobile",
+                "desktop light"
+              ]
+            }
+          ]
+        },
+        "board.html": {
+          "issues": [
+            {
+              "level": "warn",
+              "rule": "nested-cards",
+              "what": "карточка внутри карточки",
+              "n": 8,
+              "ex": [
+                "a.task-card «BUG-031: комментарии не сохраняются при »",
+                "a.task-card «Миграция SQLite→PostgreSQL Бэкенд be pos»",
+                "a.task-card «Добавить фильтр по тегам Функция канбан »"
+              ],
+              "viewport": "desktop",
+              "viewports": [
+                "desktop",
+                "tablet",
+                "mobile",
+                "desktop light"
+              ]
+            },
+            {
+              "level": "warn",
+              "rule": "eyebrows",
+              "what": "мелкие заглавные с разрядкой над заголовками (eyebrow) — шаблонный приём",
+              "n": 3,
+              "ex": [
+                "h2.col-title «ОЖИДАЕТ»",
+                "h2.col-title «В РАБОТЕ»",
+                "h2.col-title «ВЫПОЛНЕНО»"
+              ],
+              "viewport": "desktop",
+              "viewports": [
+                "desktop",
+                "tablet",
+                "mobile",
+                "desktop light"
+              ]
+            }
+          ]
+        },
+        "task.html": {
+          "issues": []
+        }
+      },
+      "plan": [],
+      "stats": {
+        "elements": 94,
+        "headFont": "PT Serif",
+        "bodyFont": "Golos Text",
+        "bgLum": 0.007,
+        "radius": "18px",
+        "layout": "topbar",
+        "sections": 5,
+        "centeredShare": 0
+      }
+    },
+    "b": {
+      "name": "Расписание",
+      "errors": 0,
+      "warnings": 0,
+      "screens": {
+        "kit.html": {
+          "issues": []
+        },
+        "board.html": {
+          "issues": []
+        },
+        "task.html": {
+          "issues": []
+        }
+      },
+      "plan": [],
+      "stats": {
+        "elements": 70,
+        "headFont": "Ysabeau",
+        "bodyFont": "Ysabeau Office",
+        "bgLum": 0.927,
+        "radius": "50%",
+        "layout": "topbar",
+        "sections": 5,
+        "centeredShare": 0.25
+      }
+    },
+    "c": {
+      "name": "Таблица-рабочий стол",
+      "errors": 0,
+      "warnings": 3,
+      "screens": {
+        "kit.html": {
+          "issues": [
+            {
+              "level": "warn",
+              "rule": "eyebrows",
+              "what": "мелкие заглавные с разрядкой над заголовками (eyebrow) — шаблонный приём",
+              "n": 15,
+              "ex": [
+                "span.badge «ЧЕРНОВИК»",
+                "span.badge «В РАБОТЕ»",
+                "span.badge «ГОТОВО»"
+              ],
+              "viewport": "desktop",
+              "viewports": [
+                "desktop",
+                "tablet",
+                "mobile",
+                "desktop light"
+              ]
+            }
+          ]
+        },
+        "board.html": {
+          "issues": [
+            {
+              "level": "warn",
+              "rule": "eyebrows",
+              "what": "мелкие заглавные с разрядкой над заголовками (eyebrow) — шаблонный приём",
+              "n": 9,
+              "ex": [
+                "p.mlabel «ФАСТЛАЙН · ВЫПОЛНЯЕТСЯ СЕЙЧАС»",
+                "span.led «RUN»",
+                "span.badge «В РАБОТЕ»"
+              ],
+              "viewport": "desktop",
+              "viewports": [
+                "desktop",
+                "tablet",
+                "mobile",
+                "desktop light"
+              ]
+            }
+          ]
+        },
+        "task.html": {
+          "issues": [
+            {
+              "level": "warn",
+              "rule": "eyebrows",
+              "what": "мелкие заглавные с разрядкой над заголовками (eyebrow) — шаблонный приём",
+              "n": 10,
+              "ex": [
+                "span.badge «В РАБОТЕ»",
+                "th «ПРИОРИТЕТ»",
+                "th «КАТЕГОРИЯ»"
+              ],
+              "viewport": "desktop",
+              "viewports": [
+                "desktop",
+                "tablet",
+                "mobile",
+                "desktop light"
+              ]
+            }
+          ]
+        }
+      },
+      "plan": [],
+      "stats": {
+        "elements": 71,
+        "headFont": "Literata",
+        "bodyFont": "Literata",
+        "bgLum": 0.01,
+        "radius": "2px",
+        "layout": "topbar",
+        "sections": 8,
+        "centeredShare": 0
+      }
+    }
+  },
+  "divergence": [
+    {
+      "pair": "ab",
+      "level": "ok",
+      "same": []
+    },
+    {
+      "pair": "ac",
+      "level": "ok",
+      "same": []
+    },
+    {
+      "pair": "bc",
+      "level": "ok",
+      "same": []
+    }
+  ]
+}

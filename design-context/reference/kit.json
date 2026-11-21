@@ -1,0 +1,2626 @@
+{
+ "pages": [
+  {
+   "id": "home",
+   "url": "/board.html"
+  },
+  {
+   "id": "kit",
+   "url": "/kit.html"
+  },
+  {
+   "id": "task",
+   "url": "/task.html"
+  }
+ ],
+ "colors": {
+  "text": [
+   {
+    "color": "#c6ad9f",
+    "n": 82,
+    "vars": [
+     "--color-muted"
+    ]
+   },
+   {
+    "color": "#f7ece4",
+    "n": 73,
+    "vars": [
+     "--color-text"
+    ]
+   },
+   {
+    "color": "#e9817f",
+    "n": 9,
+    "vars": [
+     "--color-danger"
+    ]
+   },
+   {
+    "color": "#1e0f14",
+    "n": 8,
+    "vars": [
+     "--color-bg",
+     "--color-on-accent"
+    ]
+   },
+   {
+    "color": "#d6a85c",
+    "n": 4,
+    "vars": [
+     "--color-accent",
+     "--color-link"
+    ]
+   },
+   {
+    "color": "#5ad88e",
+    "n": 2,
+    "vars": [
+     "--color-success"
+    ]
+   }
+  ],
+  "background": [
+   {
+    "color": "#371f28",
+    "n": 19,
+    "vars": [
+     "--color-raised"
+    ]
+   },
+   {
+    "color": "#2a161d",
+    "n": 15,
+    "vars": [
+     "--color-surface"
+    ]
+   },
+   {
+    "color": "#d6a85c",
+    "n": 9,
+    "vars": [
+     "--color-accent",
+     "--color-link"
+    ]
+   },
+   {
+    "color": "#333931",
+    "n": 3,
+    "vars": [
+     "--color-success-soft"
+    ]
+   },
+   {
+    "color": "#3d2229",
+    "n": 3,
+    "vars": [
+     "--color-border"
+    ]
+   },
+   {
+    "color": "#c6ad9f",
+    "n": 2,
+    "vars": [
+     "--color-muted"
+    ]
+   },
+   {
+    "color": "#4c292f",
+    "n": 2,
+    "vars": [
+     "--color-danger-soft"
+    ]
+   },
+   {
+    "color": "#f0aa42",
+    "n": 1,
+    "vars": [
+     "--color-warning"
+    ]
+   },
+   {
+    "color": "#5ad88e",
+    "n": 1,
+    "vars": [
+     "--color-success"
+    ]
+   },
+   {
+    "color": "#4e3124",
+    "n": 1,
+    "vars": [
+     "--color-warning-soft"
+    ]
+   }
+  ],
+  "border": [
+   {
+    "color": "#3d2229",
+    "n": 55,
+    "vars": [
+     "--color-border"
+    ]
+   },
+   {
+    "color": "#c4505c",
+    "n": 6,
+    "vars": [
+     "--color-accent-2"
+    ]
+   },
+   {
+    "color": "#d6a85c",
+    "n": 2,
+    "vars": [
+     "--color-accent",
+     "--color-link"
+    ]
+   },
+   {
+    "color": "#e9817f",
+    "n": 2,
+    "vars": [
+     "--color-danger"
+    ]
+   },
+   {
+    "color": "#5ad88e",
+    "n": 1,
+    "vars": [
+     "--color-success"
+    ]
+   },
+   {
+    "color": "#f0aa42",
+    "n": 1,
+    "vars": [
+     "--color-warning"
+    ]
+   }
+  ],
+  "icon": []
+ },
+ "type": [
+  {
+   "key": "Golos Text|12px|500|18.6px|normal|none|normal",
+   "family": "Golos Text",
+   "size": "12px",
+   "weight": "500",
+   "lineHeight": "18.6px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 31,
+   "ex": [
+    {
+     "tag": "span",
+     "text": "В работе"
+    },
+    {
+     "tag": "span",
+     "text": "kanban"
+    }
+   ]
+  },
+  {
+   "key": "Golos Text|13px|400|20.15px|normal|none|normal",
+   "family": "Golos Text",
+   "size": "13px",
+   "weight": "400",
+   "lineHeight": "20.15px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 24,
+   "ex": [
+    {
+     "tag": "p",
+     "text": "Гейт занят: следующая задача войдёт на фастлайн после закрыт"
+    },
+    {
+     "tag": "span",
+     "text": "Срок: 28.11"
+    }
+   ]
+  },
+  {
+   "key": "Golos Text|16px|400|24.8px|normal|none|normal",
+   "family": "Golos Text",
+   "size": "16px",
+   "weight": "400",
+   "lineHeight": "24.8px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 23,
+   "ex": [
+    {
+     "tag": "span",
+     "text": "21 ноября, суббота"
+    },
+    {
+     "tag": "p",
+     "text": "Детали и состояния направления. Тексты — примеры."
+    }
+   ]
+  },
+  {
+   "key": "Golos Text|13px|600|20.15px|normal|none|normal",
+   "family": "Golos Text",
+   "size": "13px",
+   "weight": "600",
+   "lineHeight": "20.15px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 18,
+   "ex": [
+    {
+     "tag": "button",
+     "text": "Добавить"
+    },
+    {
+     "tag": "label",
+     "text": "Имя"
+    }
+   ]
+  },
+  {
+   "key": "Golos Text|13px|500|20.15px|normal|none|normal",
+   "family": "Golos Text",
+   "size": "13px",
+   "weight": "500",
+   "lineHeight": "20.15px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 14,
+   "ex": [
+    {
+     "tag": "span",
+     "text": "Баг"
+    },
+    {
+     "tag": "span",
+     "text": "Срок: 18.11, просрочен"
+    }
+   ]
+  },
+  {
+   "key": "Golos Text|16px|600|24.8px|normal|none|normal",
+   "family": "Golos Text",
+   "size": "16px",
+   "weight": "600",
+   "lineHeight": "24.8px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 14,
+   "ex": [
+    {
+     "tag": "button",
+     "text": "Создать задачу"
+    },
+    {
+     "tag": "button",
+     "text": "Сохранить"
+    }
+   ]
+  },
+  {
+   "key": "PT Serif|16px|700|21.6px|normal|none|normal",
+   "family": "PT Serif",
+   "size": "16px",
+   "weight": "700",
+   "lineHeight": "21.6px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 11,
+   "ex": [
+    {
+     "tag": "h3",
+     "text": "BUG-031: комментарии не сохраняются при перетаскивании"
+    },
+    {
+     "tag": "h3",
+     "text": "Миграция SQLite→PostgreSQL"
+    }
+   ]
+  },
+  {
+   "key": "JetBrains Mono|13px|400|20.15px|normal|none|normal",
+   "family": "JetBrains Mono",
+   "size": "13px",
+   "weight": "400",
+   "lineHeight": "20.15px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 8,
+   "ex": [
+    {
+     "tag": "span",
+     "text": "ACT · DONE"
+    },
+    {
+     "tag": "span",
+     "text": "4"
+    }
+   ]
+  },
+  {
+   "key": "PT Serif|25px|700|27.5px|normal|none|normal",
+   "family": "PT Serif",
+   "size": "25px",
+   "weight": "700",
+   "lineHeight": "27.5px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 7,
+   "ex": [
+    {
+     "tag": "h2",
+     "text": "Кнопки"
+    },
+    {
+     "tag": "h2",
+     "text": "Поля"
+    }
+   ]
+  },
+  {
+   "key": "Golos Text|16px|500|24.8px|normal|none|normal",
+   "family": "Golos Text",
+   "size": "16px",
+   "weight": "500",
+   "lineHeight": "24.8px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 4,
+   "ex": [
+    {
+     "tag": "a",
+     "text": "Разработка"
+    },
+    {
+     "tag": "a",
+     "text": "Контент"
+    }
+   ]
+  },
+  {
+   "key": "Golos Text|13px|600|14.3px|0.78px|uppercase|normal",
+   "family": "Golos Text",
+   "size": "13px",
+   "weight": "600",
+   "lineHeight": "14.3px",
+   "letterSpacing": "0.78px",
+   "transform": "uppercase",
+   "style": "normal",
+   "n": 4,
+   "ex": [
+    {
+     "tag": "h2",
+     "text": "Ожидает"
+    },
+    {
+     "tag": "h2",
+     "text": "В работе"
+    }
+   ]
+  },
+  {
+   "key": "PT Serif|20px|700|31px|normal|none|normal",
+   "family": "PT Serif",
+   "size": "20px",
+   "weight": "700",
+   "lineHeight": "31px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 4,
+   "ex": [
+    {
+     "tag": "a",
+     "text": "ekotov-wiki"
+    },
+    {
+     "tag": "a",
+     "text": "Переработать дизайн канбан-доски"
+    }
+   ]
+  },
+  {
+   "key": "JetBrains Mono|13px|600|20.15px|0.52px|none|normal",
+   "family": "JetBrains Mono",
+   "size": "13px",
+   "weight": "600",
+   "lineHeight": "20.15px",
+   "letterSpacing": "0.52px",
+   "transform": "none",
+   "style": "normal",
+   "n": 3,
+   "ex": [
+    {
+     "tag": "span",
+     "text": "FST-01"
+    },
+    {
+     "tag": "span",
+     "text": "FST-01"
+    }
+   ]
+  },
+  {
+   "key": "PT Serif|18.72px|700|20.592px|normal|none|normal",
+   "family": "PT Serif",
+   "size": "18.72px",
+   "weight": "700",
+   "lineHeight": "20.592px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 3,
+   "ex": [
+    {
+     "tag": "h3",
+     "text": "Заголовок карточки"
+    },
+    {
+     "tag": "h3",
+     "text": "Здесь пока пусто"
+    }
+   ]
+  },
+  {
+   "key": "Golos Text|16px|700|24.8px|normal|none|normal",
+   "family": "Golos Text",
+   "size": "16px",
+   "weight": "700",
+   "lineHeight": "24.8px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 3,
+   "ex": [
+    {
+     "tag": "strong",
+     "text": "Сохранено"
+    },
+    {
+     "tag": "strong",
+     "text": "Не удалось сохранить"
+    }
+   ]
+  },
+  {
+   "key": "JetBrains Mono|13px|600|20.15px|normal|none|normal",
+   "family": "JetBrains Mono",
+   "size": "13px",
+   "weight": "600",
+   "lineHeight": "20.15px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 2,
+   "ex": [
+    {
+     "tag": "b",
+     "text": "6"
+    },
+    {
+     "tag": "b",
+     "text": "3"
+    }
+   ]
+  },
+  {
+   "key": "PT Serif|32px|700|35.2px|normal|none|normal",
+   "family": "PT Serif",
+   "size": "32px",
+   "weight": "700",
+   "lineHeight": "35.2px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 2,
+   "ex": [
+    {
+     "tag": "h1",
+     "text": "UI-кит"
+    },
+    {
+     "tag": "h1",
+     "text": "Переработать дизайн канбан-доски"
+    }
+   ]
+  },
+  {
+   "key": "PT Serif|31px|700|34.1px|normal|none|normal",
+   "family": "PT Serif",
+   "size": "31px",
+   "weight": "700",
+   "lineHeight": "34.1px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 1,
+   "ex": [
+    {
+     "tag": "h1",
+     "text": "Доска"
+    }
+   ]
+  },
+  {
+   "key": "PT Serif|16px|400|24.8px|normal|none|normal",
+   "family": "PT Serif",
+   "size": "16px",
+   "weight": "400",
+   "lineHeight": "24.8px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 1,
+   "ex": [
+    {
+     "tag": "span",
+     "text": "Основная доска"
+    }
+   ]
+  },
+  {
+   "key": "monospace|16px|400|24.8px|normal|none|normal",
+   "family": "monospace",
+   "size": "16px",
+   "weight": "400",
+   "lineHeight": "24.8px",
+   "letterSpacing": "normal",
+   "transform": "none",
+   "style": "normal",
+   "n": 1,
+   "ex": [
+    {
+     "tag": "code",
+     "text": "feature/board-redesign"
+    }
+   ]
+  }
+ ],
+ "spacing": [
+  {
+   "v": "8px",
+   "n": 160
+  },
+  {
+   "v": "16px",
+   "n": 141
+  },
+  {
+   "v": "4px",
+   "n": 40
+  },
+  {
+   "v": "24px",
+   "n": 40
+  },
+  {
+   "v": "40px",
+   "n": 5
+  },
+  {
+   "v": "64px",
+   "n": 4
+  },
+  {
+   "v": "1px",
+   "n": 3
+  },
+  {
+   "v": "6px",
+   "n": 3
+  },
+  {
+   "v": "13px",
+   "n": 2
+  }
+ ],
+ "radius": [
+  {
+   "v": "10px",
+   "n": 39
+  },
+  {
+   "v": "18px",
+   "n": 24
+  },
+  {
+   "v": "999px",
+   "n": 22
+  },
+  {
+   "v": "50%",
+   "n": 4
+  },
+  {
+   "v": "28px",
+   "n": 1
+  }
+ ],
+ "shadow": [
+  {
+   "v": "rgba(0, 0, 0, 0.08) 0px 4px 8px 0px, rgba(0, 0, 0, 0.1) 0px 18px 40px 0px",
+   "n": 1
+  }
+ ],
+ "fonts": [
+  {
+   "family": "Golos Text",
+   "n": 135
+  },
+  {
+   "family": "PT Serif",
+   "n": 29
+  },
+  {
+   "family": "JetBrains Mono",
+   "n": 13
+  },
+  {
+   "family": "monospace",
+   "n": 1
+  }
+ ],
+ "fontFaces": [
+  "Golos Text 400 normal",
+  "Golos Text 500 normal",
+  "Golos Text 600 normal",
+  "JetBrains Mono 400 normal",
+  "JetBrains Mono 600 normal",
+  "PT Serif 400 normal",
+  "PT Serif 700 normal"
+ ],
+ "cssVars": 46,
+ "motion": {
+  "transitions": [
+   {
+    "v": "transform, background-color | 0.16s, 0.16s | cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)",
+    "n": 15
+   },
+   {
+    "v": "transform | 0.16s | cubic-bezier(0.2, 0.7, 0.2, 1)",
+    "n": 11
+   },
+   {
+    "v": "background-color | 0.16s | cubic-bezier(0.2, 0.7, 0.2, 1)",
+    "n": 1
+   }
+  ],
+  "animations": [
+   {
+    "v": "pulse | 1.4s | cubic-bezier(0.2, 0.7, 0.2, 1) | infinite",
+    "n": 3
+   }
+  ],
+  "keyframes": [
+   "pulse"
+  ],
+  "js": {
+   "gsap": 0,
+   "framerMotion": 0,
+   "lottie": 0,
+   "canvas": 0,
+   "webgl": 0,
+   "video": 0,
+   "threeJs": 0
+  }
+ },
+ "icons": [
+  {
+   "id": "1q6mmt3",
+   "n": 3,
+   "svg": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\"> <path d=\"M21 12.8A8.5 8.5 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z\"></path> </svg>",
+   "w": 20,
+   "h": 20,
+   "label": "Переключить тему"
+  },
+  {
+   "id": "u7ty99",
+   "n": 1,
+   "svg": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M12 5v14M5 12h14\"></path></svg>",
+   "w": 18,
+   "h": 18,
+   "label": ""
+  },
+  {
+   "id": "1pzp4oi",
+   "n": 1,
+   "svg": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M19 12H5m6-7-7 7 7 7\"></path></svg>",
+   "w": 18,
+   "h": 18,
+   "label": ""
+  },
+  {
+   "id": "14iobj",
+   "n": 1,
+   "svg": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M20 6 9 17l-5-5\"></path></svg>",
+   "w": 18,
+   "h": 18,
+   "label": ""
+  }
+ ],
+ "logos": [],
+ "parts": {
+  "buttons": [
+   {
+    "id": "1nsbyv8",
+    "sig": "#d6a85c · #1e0f14 · - · 10px · 16px · 600 · 0/24 ·  · ",
+    "n": 5,
+    "kit": "k4",
+    "html": "<button class=\"btn btn-primary\" type=\"button\"> <svg></svg> Создать задачу </button>",
+    "w": 201,
+    "h": 44,
+    "name": "Кнопка основная",
+    "text": "Создать задачу",
+    "style": {
+     "background": "rgb(214, 168, 92)",
+     "color": "rgb(30, 15, 20)",
+     "border": "1px solid rgba(0, 0, 0, 0)",
+     "radius": "10px",
+     "font": "600 16px/24.8px \"Golos Text\"",
+     "padding": "0px 24px",
+     "shadow": "",
+     "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+    },
+    "crop": "parts/buttons-1nsbyv8.png",
+    "pages": [
+     "/board.html",
+     "/kit.html",
+     "/task.html"
+    ]
+   },
+   {
+    "id": "91zl6r",
+    "sig": "- · #c6ad9f · - · 10px · 16px · 400 · 0/8 ·  · ",
+    "n": 3,
+    "kit": "k3",
+    "html": "<button class=\"theme-btn\" type=\"button\" aria-label=\"Переключить тему\"> <svg></svg> </button>",
+    "w": 44,
+    "h": 44,
+    "name": "Переключатель темы",
+    "text": "Переключить тему",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(198, 173, 159)",
+     "border": "0px none rgb(198, 173, 159)",
+     "radius": "10px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "1px 6px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/buttons-91zl6r.png",
+    "pages": [
+     "/board.html",
+     "/kit.html",
+     "/task.html"
+    ]
+   },
+   {
+    "id": "1n537io",
+    "sig": "- · #e9817f · #c4505c · 10px · 16px · 600 · 0/24 ·  · ",
+    "n": 3,
+    "kit": "k4",
+    "html": "<button class=\"btn btn-danger\">Удалить</button>",
+    "w": 116,
+    "h": 44,
+    "name": "Кнопка опасная",
+    "text": "Удалить",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(233, 129, 127)",
+     "border": "1px solid rgb(196, 80, 92)",
+     "radius": "10px",
+     "font": "600 16px/24.8px \"Golos Text\"",
+     "padding": "0px 24px",
+     "shadow": "",
+     "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+    },
+    "crop": "parts/buttons-1n537io.png",
+    "pages": [
+     "/kit.html",
+     "/task.html"
+    ]
+   },
+   {
+    "id": "wnqgba",
+    "sig": "- · #f7ece4 · #c4505c · 10px · 16px · 600 · 0/24 ·  · ",
+    "n": 2,
+    "kit": "k2",
+    "html": "<button class=\"btn btn-secondary\">Отмена</button>",
+    "w": 110,
+    "h": 44,
+    "name": "Кнопка вторичная",
+    "text": "Отмена",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(247, 236, 228)",
+     "border": "1px solid rgb(196, 80, 92)",
+     "radius": "10px",
+     "font": "600 16px/24.8px \"Golos Text\"",
+     "padding": "0px 24px",
+     "shadow": "",
+     "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+    },
+    "crop": "parts/buttons-wnqgba.png",
+    "pages": [
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "zertex",
+    "sig": "- · #c6ad9f · - · 0px · 16px · 400 · 0/16 ·  · ",
+    "n": 2,
+    "kit": "k19",
+    "html": "<button class=\"tab\" role=\"tab\" aria-selected=\"false\">Активные</button>",
+    "w": 110,
+    "h": 44,
+    "text": "Активные",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(198, 173, 159)",
+     "border": "0px none rgb(198, 173, 159)",
+     "radius": "0px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "0px 16px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/buttons-zertex.png",
+    "pages": [
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "1ybo7fw",
+    "sig": "#d6a85c · #1e0f14 · - · 10px · 13px · 600 · 0/16 ·  · ",
+    "n": 2,
+    "kit": "k5",
+    "html": "<button class=\"btn btn-primary btn-sm\">Добавить</button>",
+    "w": 96,
+    "h": 36,
+    "name": "Кнопка основная маленькая",
+    "text": "Добавить",
+    "style": {
+     "background": "rgb(214, 168, 92)",
+     "color": "rgb(30, 15, 20)",
+     "border": "1px solid rgba(0, 0, 0, 0)",
+     "radius": "10px",
+     "font": "600 13px/20.15px \"Golos Text\"",
+     "padding": "0px 16px",
+     "shadow": "",
+     "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+    },
+    "crop": "parts/buttons-1ybo7fw.png",
+    "pages": [
+     "/kit.html",
+     "/task.html"
+    ]
+   },
+   {
+    "id": "zh09zq",
+    "sig": "- · #f7ece4 · - · 10px · 16px · 600 · 0/24 ·  · ",
+    "n": 1,
+    "kit": "k3",
+    "html": "<button class=\"btn btn-ghost\">Подробнее</button>",
+    "w": 140,
+    "h": 44,
+    "name": "Кнопка текстовая",
+    "text": "Подробнее",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(247, 236, 228)",
+     "border": "1px solid rgba(0, 0, 0, 0)",
+     "radius": "10px",
+     "font": "600 16px/24.8px \"Golos Text\"",
+     "padding": "0px 24px",
+     "shadow": "",
+     "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+    },
+    "crop": "parts/buttons-zh09zq.png",
+    "pages": [
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "73uixi",
+    "sig": "- · #f7ece4 · #c4505c · 10px · 13px · 600 · 0/16 ·  · ",
+    "n": 1,
+    "kit": "k17",
+    "html": "<a class=\"btn btn-secondary btn-sm\" href=\"#\">Открыть</a>",
+    "w": 90,
+    "h": 36,
+    "text": "Открыть",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(247, 236, 228)",
+     "border": "1px solid rgb(196, 80, 92)",
+     "radius": "10px",
+     "font": "600 13px/20.15px \"Golos Text\"",
+     "padding": "0px 16px",
+     "shadow": "",
+     "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+    },
+    "crop": "parts/buttons-73uixi.png",
+    "pages": [
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "5ync5g",
+    "sig": "- · #f7ece4 · - · 0px · 16px · 400 · 0/16 ·  · ",
+    "n": 1,
+    "kit": "k18",
+    "html": "<button class=\"tab\" role=\"tab\" aria-selected=\"true\">Все</button>",
+    "w": 61,
+    "h": 44,
+    "text": "Все",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(247, 236, 228)",
+     "border": "0px none rgb(247, 236, 228)",
+     "radius": "0px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "0px 16px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/buttons-5ync5g.png",
+    "pages": [
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "gtlsd2",
+    "sig": "- · #f7ece4 · - · 10px · 13px · 600 · 0/16 ·  · ",
+    "n": 1,
+    "kit": "k22",
+    "html": "<button class=\"btn btn-ghost btn-sm\" type=\"button\">Копировать</button>",
+    "w": 111,
+    "h": 36,
+    "text": "Копировать",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(247, 236, 228)",
+     "border": "1px solid rgba(0, 0, 0, 0)",
+     "radius": "10px",
+     "font": "600 13px/20.15px \"Golos Text\"",
+     "padding": "0px 16px",
+     "shadow": "",
+     "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+    },
+    "crop": "parts/buttons-gtlsd2.png",
+    "pages": [
+     "/kit.html"
+    ]
+   }
+  ],
+  "inputs": [
+   {
+    "id": "kqbmiv",
+    "sig": "- · #f7ece4 · - · 0px · 16px · 400 · 0/0 ·  · ",
+    "n": 3,
+    "kit": "k10",
+    "html": "<input type=\"checkbox\" checked=\"\">",
+    "w": 20,
+    "h": 20,
+    "name": "Флажок",
+    "text": "on",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(247, 236, 228)",
+     "border": "0px none rgb(247, 236, 228)",
+     "radius": "0px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "0px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/inputs-kqbmiv.png",
+    "pages": [
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "1d6xyos",
+    "sig": "#371f28 · #f7ece4 · #3d2229 · 10px · 16px · 400 · 0/16 ·  · ",
+    "n": 2,
+    "kit": "k7",
+    "html": "<input class=\"input\" placeholder=\"Как к вам обращаться\">",
+    "w": 524,
+    "h": 44,
+    "name": "Поле ввода",
+    "text": "Как к вам обращаться",
+    "style": {
+     "background": "rgb(55, 31, 40)",
+     "color": "rgb(247, 236, 228)",
+     "border": "1px solid rgb(61, 34, 41)",
+     "radius": "10px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "0px 16px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/inputs-1d6xyos.png",
+    "pages": [
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "rf1c78",
+    "sig": "#371f28 · #f7ece4 · #3d2229 · 10px · 16px · 400 · 8/16 ·  · ",
+    "n": 2,
+    "kit": "k9",
+    "html": "<textarea class=\"input\"></textarea>",
+    "w": 524,
+    "h": 96,
+    "name": "Многострочное поле",
+    "text": "",
+    "style": {
+     "background": "rgb(55, 31, 40)",
+     "color": "rgb(247, 236, 228)",
+     "border": "1px solid rgb(61, 34, 41)",
+     "radius": "10px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "8px 16px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/inputs-rf1c78.png",
+    "pages": [
+     "/kit.html",
+     "/task.html"
+    ]
+   },
+   {
+    "id": "13ws6ci",
+    "sig": "#371f28 · #f7ece4 · #e9817f · 10px · 16px · 400 · 0/16 ·  · ",
+    "n": 1,
+    "kit": "k8",
+    "html": "<input class=\"input\" value=\"name@\">",
+    "w": 524,
+    "h": 44,
+    "name": "Поле с ошибкой",
+    "text": "name@",
+    "style": {
+     "background": "rgb(55, 31, 40)",
+     "color": "rgb(247, 236, 228)",
+     "border": "1px solid rgb(233, 129, 127)",
+     "radius": "10px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "0px 16px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/inputs-13ws6ci.png",
+    "pages": [
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "821o7f",
+    "sig": "#d6a85c · #f7ece4 · - · pill · 16px · 400 · 0/0 ·  · ",
+    "n": 1,
+    "kit": "k11",
+    "html": "<input type=\"checkbox\" class=\"switch\" role=\"switch\" checked=\"\">",
+    "w": 40,
+    "h": 24,
+    "name": "Тумблер",
+    "text": "on",
+    "style": {
+     "background": "rgb(214, 168, 92)",
+     "color": "rgb(247, 236, 228)",
+     "border": "0px none rgb(247, 236, 228)",
+     "radius": "999px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "0px",
+     "shadow": "",
+     "transition": "background-color 0.16s cubic-bezier(0.2, 0.7, 0.2, 1)"
+    },
+    "crop": "parts/inputs-821o7f.png",
+    "pages": [
+     "/kit.html"
+    ]
+   }
+  ],
+  "links": [
+   {
+    "id": "124mjqv",
+    "sig": "#371f28 · #f7ece4 · #3d2229 · 18px · 16px · 400 · 16/16 ·  · ",
+    "n": 7,
+    "kit": "k8",
+    "html": "<a class=\"task-card p-high\" href=\"task.html\"> <h3 class=\"t-title\">BUG-031: комментарии не сохраняются при перетаскивании</h3> <div class=\"t-meta\"> <span class=\"t-cat\">Баг</span> <span class=\"chip\">kanban</span> <span class=\"chip\">fe</span> <span class=\"t-due t-due-over\">Срок: 18.11, просрочен</span> </div> </a>",
+    "w": 347,
+    "h": 109,
+    "name": "Карточка задачи",
+    "text": "BUG-031: комментарии не сохраняются при ",
+    "style": {
+     "background": "rgb(55, 31, 40)",
+     "color": "rgb(247, 236, 228)",
+     "border": "1px solid rgb(61, 34, 41)",
+     "radius": "18px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "16px",
+     "shadow": "",
+     "transition": "transform 0.16s cubic-bezier(0.2, 0.7, 0.2, 1)"
+    },
+    "crop": "parts/links-124mjqv.png",
+    "pages": [
+     "/board.html",
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "1jbrrct",
+    "sig": "- · #f7ece4 · - · 0px · 20px · 700 · 0/0 ·  · ",
+    "n": 4,
+    "kit": "k0",
+    "html": "<a class=\"brand\" href=\"board.html\">ekotov-wiki</a>",
+    "w": 116,
+    "h": 44,
+    "text": "ekotov-wiki",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(247, 236, 228)",
+     "border": "0px none rgb(247, 236, 228)",
+     "radius": "0px",
+     "font": "700 20px/31px \"PT Serif\"",
+     "padding": "0px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/links-1jbrrct.png",
+    "pages": [
+     "/board.html",
+     "/kit.html",
+     "/task.html"
+    ]
+   },
+   {
+    "id": "s4kkl8",
+    "sig": "- · #c6ad9f · - · 0px · 16px · 500 · 0/16 ·  · ",
+    "n": 2,
+    "kit": "k2",
+    "html": "<a class=\"board-tab\" href=\"board.html\">Контент</a>",
+    "w": 98,
+    "h": 44,
+    "text": "Контент",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(198, 173, 159)",
+     "border": "0px none rgb(198, 173, 159)",
+     "radius": "0px",
+     "font": "500 16px/24.8px \"Golos Text\"",
+     "padding": "0px 16px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/links-s4kkl8.png",
+    "pages": [
+     "/board.html"
+    ]
+   },
+   {
+    "id": "1t7yr81",
+    "sig": "- · #f7ece4 · - · 0px · 16px · 500 · 0/16 ·  · ",
+    "n": 1,
+    "kit": "k1",
+    "html": "<a class=\"board-tab\" href=\"board.html\" aria-current=\"page\">Разработка</a>",
+    "w": 126,
+    "h": 44,
+    "text": "Разработка",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(247, 236, 228)",
+     "border": "0px none rgb(247, 236, 228)",
+     "radius": "0px",
+     "font": "500 16px/24.8px \"Golos Text\"",
+     "padding": "0px 16px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/links-1t7yr81.png",
+    "pages": [
+     "/board.html"
+    ]
+   },
+   {
+    "id": "bf30h6",
+    "sig": "- · #d6a85c · - · 0px · 16px · 400 · 0/0 ·  · underline",
+    "n": 1,
+    "kit": "k6",
+    "html": "<a class=\"link\" href=\"#\">условия сервиса</a>",
+    "w": 134,
+    "h": 20,
+    "name": "Ссылка в тексте",
+    "text": "условия сервиса",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(214, 168, 92)",
+     "border": "0px none rgb(214, 168, 92)",
+     "radius": "0px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "0px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/links-bf30h6.png",
+    "pages": [
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "ybttvx",
+    "sig": "- · #c6ad9f · - · 0px · 16px · 500 · 0/8 ·  · ",
+    "n": 1,
+    "kit": "k0",
+    "html": "<a class=\"back\" href=\"board.html\"> <svg></svg> Доска </a>",
+    "w": 91,
+    "h": 44,
+    "text": "Доска",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(198, 173, 159)",
+     "border": "0px none rgb(198, 173, 159)",
+     "radius": "0px",
+     "font": "500 16px/24.8px \"Golos Text\"",
+     "padding": "0px 8px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/links-ybttvx.png",
+    "pages": [
+     "/task.html"
+    ]
+   }
+  ],
+  "badges": [
+   {
+    "id": "x0jwaj",
+    "sig": "- · #c6ad9f · #3d2229 · pill · 12px · 500 · 0/8 ·  · ",
+    "n": 21,
+    "kit": "k9",
+    "html": "<span class=\"chip\">kanban</span>",
+    "w": 60,
+    "h": 24,
+    "text": "kanban",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(198, 173, 159)",
+     "border": "1px solid rgb(61, 34, 41)",
+     "radius": "999px",
+     "font": "500 12px/18.6px \"Golos Text\"",
+     "padding": "0px 8px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/badges-x0jwaj.png",
+    "pages": [
+     "/board.html",
+     "/kit.html",
+     "/task.html"
+    ]
+   },
+   {
+    "id": "1h950cg",
+    "sig": "#2a161d · #c6ad9f · #3d2229 · 10px · 12px · 500 · 0/8 ·  · ",
+    "n": 5,
+    "kit": "k6",
+    "html": "<span class=\"badge\">В работе</span>",
+    "w": 70,
+    "h": 24,
+    "text": "В работе",
+    "style": {
+     "background": "rgb(42, 22, 29)",
+     "color": "rgb(198, 173, 159)",
+     "border": "1px solid rgb(61, 34, 41)",
+     "radius": "10px",
+     "font": "500 12px/18.6px \"Golos Text\"",
+     "padding": "0px 8px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/badges-1h950cg.png",
+    "pages": [
+     "/board.html",
+     "/kit.html",
+     "/task.html"
+    ],
+    "name": "Метка"
+   },
+   {
+    "id": "1qco8tn",
+    "sig": "#333931 · #5ad88e · - · 10px · 12px · 500 · 0/8 ·  · ",
+    "n": 2,
+    "kit": "k14",
+    "html": "<span class=\"badge badge-success\">Оплачено</span>",
+    "w": 76,
+    "h": 24,
+    "name": "Метка успех",
+    "text": "Оплачено",
+    "style": {
+     "background": "rgb(51, 57, 49)",
+     "color": "rgb(90, 216, 142)",
+     "border": "1px solid rgba(0, 0, 0, 0)",
+     "radius": "10px",
+     "font": "500 12px/18.6px \"Golos Text\"",
+     "padding": "0px 8px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/badges-1qco8tn.png",
+    "pages": [
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "149ctjx",
+    "sig": "#371f28 · #f7ece4 · #3d2229 · 10px · 13px · 400 · 0/4 ·  · ",
+    "n": 2,
+    "kit": "k23",
+    "html": "<code class=\"inline-code\">feature/board-redesign</code>",
+    "w": 186,
+    "h": 19,
+    "name": "Код встроенный",
+    "text": "feature/board-redesign",
+    "style": {
+     "background": "rgb(55, 31, 40)",
+     "color": "rgb(247, 236, 228)",
+     "border": "1px solid rgb(61, 34, 41)",
+     "radius": "10px",
+     "font": "400 13px/20.15px \"JetBrains Mono\"",
+     "padding": "0px 4px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/badges-149ctjx.png",
+    "pages": [
+     "/kit.html",
+     "/task.html"
+    ]
+   },
+   {
+    "id": "1b21rqi",
+    "sig": "#d6a85c · #1e0f14 · - · 10px · 12px · 500 · 0/8 ·  · ",
+    "n": 1,
+    "kit": "k13",
+    "html": "<span class=\"badge badge-accent\">Новое</span>",
+    "w": 55,
+    "h": 24,
+    "name": "Метка акцентная",
+    "text": "Новое",
+    "style": {
+     "background": "rgb(214, 168, 92)",
+     "color": "rgb(30, 15, 20)",
+     "border": "1px solid rgba(0, 0, 0, 0)",
+     "radius": "10px",
+     "font": "500 12px/18.6px \"Golos Text\"",
+     "padding": "0px 8px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/badges-1b21rqi.png",
+    "pages": [
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "k0lkio",
+    "sig": "#4c292f · #e9817f · - · 10px · 12px · 500 · 0/8 ·  · ",
+    "n": 1,
+    "kit": "k15",
+    "html": "<span class=\"badge badge-danger\">Просрочено</span>",
+    "w": 90,
+    "h": 24,
+    "name": "Метка ошибка",
+    "text": "Просрочено",
+    "style": {
+     "background": "rgb(76, 41, 47)",
+     "color": "rgb(233, 129, 127)",
+     "border": "1px solid rgba(0, 0, 0, 0)",
+     "radius": "10px",
+     "font": "500 12px/18.6px \"Golos Text\"",
+     "padding": "0px 8px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/badges-k0lkio.png",
+    "pages": [
+     "/kit.html"
+    ]
+   }
+  ],
+  "cards": [
+   {
+    "id": "x56uax",
+    "sig": "#2a161d · #f7ece4 · #3d2229 · 18px · 16px · 400 · 16/16 ·  · ",
+    "n": 4,
+    "kit": "k7",
+    "html": "<div class=\"col\"> <div class=\"col-head\"> <span class=\"dot dot-wait\"></span> <h2 class=\"col-title\">Ожидает</h2> <span class=\"count\">4</span> </div> <a class=\"task-card p-high\" href=\"task.html\"> <h3 class=\"t-title\">BUG-031: комментарии не сохраняются при перетаскивании</h3> <div class=\"t-meta\"> <span class=\"t-cat\">Баг</span> <span class=\"chip\">kanban</span> <span class=\"chip\">fe</span> <span class=\"t-due t-due-over\">Срок: 18.11, просрочен</span> </div> </a> <a class=\"task-card p-high\" href=\"task.html\"> <h3 class=\"t-title\">Миграция SQLite→PostgreSQL</h3> <div class=\"t-meta\"> <span class=\"t-cat\">Бэкенд</span> <span class=\"chip\">be</span> <span class=\"chip\">postgres</span> <span class=\"t-due\">Срок: 28.11</span> </div> </a> <a class=\"task-card p-mid\" href=\"task.html\"> <h3 class=\"t-title\">Добавить фильтр по тегам</h3> <div class=\"t-meta\"> <span class=\"t-cat\">Функция</span> <span class=\"chip\">ка…",
+    "w": 381,
+    "h": 538,
+    "name": "Колонка доски",
+    "text": "ОЖИДАЕТ 4 BUG-031: комментарии не сохран",
+    "style": {
+     "background": "rgb(42, 22, 29)",
+     "color": "rgb(247, 236, 228)",
+     "border": "1px solid rgb(61, 34, 41)",
+     "radius": "18px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "16px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/cards-x56uax.png",
+    "pages": [
+     "/board.html",
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "15nexgh",
+    "sig": "#2a161d · #f7ece4 · #d6a85c · 18px · 16px · 400 · 16/24 ·  · ",
+    "n": 2,
+    "kit": "k5",
+    "html": "<section class=\"fastlane\" aria-label=\"Фастлайн\"> <div class=\"fast-line\"> <span class=\"fast-label\">FST-01</span> <a class=\"fast-name\" href=\"task.html\">Переработать дизайн канбан-доски</a> <span class=\"badge\">В работе</span> </div> <p class=\"fast-hint\">Гейт занят: следующая задача войдёт на фастлайн после закрытия FST-01.</p> </section>",
+    "w": 1192,
+    "h": 121,
+    "text": "FST-01 Переработать дизайн канбан-доски ",
+    "style": {
+     "background": "rgb(42, 22, 29)",
+     "color": "rgb(247, 236, 228)",
+     "border": "3px solid rgb(214, 168, 92)",
+     "radius": "18px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "16px 24px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/cards-15nexgh.png",
+    "pages": [
+     "/board.html",
+     "/kit.html"
+    ],
+    "name": "Фастлайн"
+   },
+   {
+    "id": "uv7q0h",
+    "sig": "#371f28 · #f7ece4 · #3d2229 · 18px · 16px · 400 · 16/16 ·  · ",
+    "n": 1,
+    "kit": "k10",
+    "html": "<div class=\"task-card p-low is-done\"> <h3 class=\"t-title\">Починить подсветку синтаксиса в вики</h3> <div class=\"t-meta\"><span class=\"t-cat\">Фронтенд</span><span class=\"t-due\">сегодня, 11:48</span></div> </div>",
+    "w": 347,
+    "h": 105,
+    "name": "Карточка задачи",
+    "text": "Починить подсветку синтаксиса в вики Фро",
+    "style": {
+     "background": "rgb(55, 31, 40)",
+     "color": "rgb(247, 236, 228)",
+     "border": "1px solid rgb(61, 34, 41)",
+     "radius": "18px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "16px",
+     "shadow": "",
+     "transition": "transform 0.16s cubic-bezier(0.2, 0.7, 0.2, 1)"
+    },
+    "crop": "parts/cards-uv7q0h.png",
+    "pages": [
+     "/board.html"
+    ]
+   },
+   {
+    "id": "d9juvb",
+    "sig": "#2a161d · #f7ece4 · #3d2229 · 18px · 16px · 400 · 24/24 ·  · ",
+    "n": 1,
+    "kit": "k16",
+    "html": "<article class=\"card\"> <h3>Заголовок карточки</h3> <p>Короткое описание объекта в две строки — пример текста.</p> <div class=\"row\"><a class=\"btn btn-secondary btn-sm\" href=\"#\">Открыть</a></div> </article>",
+    "w": 524,
+    "h": 179,
+    "name": "Карточка",
+    "text": "Заголовок карточки Короткое описание объ",
+    "style": {
+     "background": "rgb(42, 22, 29)",
+     "color": "rgb(247, 236, 228)",
+     "border": "1px solid rgb(61, 34, 41)",
+     "radius": "18px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "24px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/cards-d9juvb.png",
+    "pages": [
+     "/kit.html"
+    ]
+   },
+   {
+    "id": "hrvw7m",
+    "sig": "- · #f7ece4 · #3d2229 · 18px · 16px · 400 · 40/40 ·  · ",
+    "n": 1,
+    "kit": "k27",
+    "html": "<div class=\"empty\"> <h3>Здесь пока пусто</h3> <p>Когда появятся записи, они будут здесь. Начните с первой.</p> <button class=\"btn btn-primary\">Создать</button> </div>",
+    "w": 1072,
+    "h": 187,
+    "name": "Пустое состояние",
+    "text": "Здесь пока пусто Когда появятся записи, ",
+    "style": {
+     "background": "rgba(0, 0, 0, 0)",
+     "color": "rgb(247, 236, 228)",
+     "border": "1px dashed rgb(61, 34, 41)",
+     "radius": "18px",
+     "font": "400 16px/24.8px \"Golos Text\"",
+     "padding": "40px",
+     "shadow": "",
+     "transition": ""
+    },
+    "crop": "parts/cards-hrvw7m.png",
+    "pages": [
+     "/kit.html"
+    ]
+   }
+  ]
+ },
+ "themes": {
+  "light": {
+   "how": {
+    "htmlAttr": {
+     "data-theme": "light"
+    }
+   },
+   "vars": {
+    "--scheme": {
+     "light": "dark",
+     "value": "light"
+    },
+    "--color-bg": {
+     "light": "#1e0f14",
+     "value": "#f9f8f6"
+    },
+    "--color-surface": {
+     "light": "#2a161d",
+     "value": "#ffffff"
+    },
+    "--color-raised": {
+     "light": "#371f28",
+     "value": "#f3f0ea"
+    },
+    "--color-text": {
+     "light": "#f7ece4",
+     "value": "#282115"
+    },
+    "--color-muted": {
+     "light": "#c6ad9f",
+     "value": "#6b6050"
+    },
+    "--color-border": {
+     "light": "#3d2229",
+     "value": "#e0ddd6"
+    },
+    "--color-accent": {
+     "light": "#d6a85c",
+     "value": "#b7842e"
+    },
+    "--color-on-accent": {
+     "light": "#1e0f14",
+     "value": "#111111"
+    },
+    "--color-link": {
+     "light": "#d6a85c",
+     "value": "#8a631f"
+    },
+    "--color-success": {
+     "light": "#5ad88e",
+     "value": "#1c7842"
+    },
+    "--color-success-soft": {
+     "light": "#333931",
+     "value": "#e8f2ec"
+    },
+    "--color-warning": {
+     "light": "#f0aa42",
+     "value": "#975f0c"
+    },
+    "--color-warning-soft": {
+     "light": "#4e3124",
+     "value": "#f5efe7"
+    },
+    "--color-danger": {
+     "light": "#e9817f",
+     "value": "#b62520"
+    },
+    "--color-danger-soft": {
+     "light": "#4c292f",
+     "value": "#f8e9e9"
+    },
+    "--color-on-danger": {
+     "light": "#111111",
+     "value": "#ffffff"
+    }
+   },
+   "colors": {
+    "text": [
+     {
+      "color": "#6b6050",
+      "n": 82,
+      "vars": [
+       "--color-muted"
+      ]
+     },
+     {
+      "color": "#282115",
+      "n": 73,
+      "vars": [
+       "--color-text"
+      ]
+     },
+     {
+      "color": "#b62520",
+      "n": 9,
+      "vars": [
+       "--color-danger"
+      ]
+     },
+     {
+      "color": "#111111",
+      "n": 8,
+      "vars": [
+       "--color-on-accent"
+      ]
+     },
+     {
+      "color": "#8a631f",
+      "n": 4,
+      "vars": [
+       "--color-link"
+      ]
+     },
+     {
+      "color": "#1c7842",
+      "n": 2,
+      "vars": [
+       "--color-success"
+      ]
+     }
+    ],
+    "background": [
+     {
+      "color": "#f3f0ea",
+      "n": 19,
+      "vars": [
+       "--color-raised"
+      ]
+     },
+     {
+      "color": "#ffffff",
+      "n": 15,
+      "vars": [
+       "--color-surface",
+       "--color-on-danger"
+      ]
+     },
+     {
+      "color": "#b7842e",
+      "n": 9,
+      "vars": [
+       "--color-accent"
+      ]
+     },
+     {
+      "color": "#e8f2ec",
+      "n": 3,
+      "vars": [
+       "--color-success-soft"
+      ]
+     },
+     {
+      "color": "#e0ddd6",
+      "n": 3,
+      "vars": [
+       "--color-border"
+      ]
+     },
+     {
+      "color": "#6b6050",
+      "n": 2,
+      "vars": [
+       "--color-muted"
+      ]
+     },
+     {
+      "color": "#f8e9e9",
+      "n": 2,
+      "vars": [
+       "--color-danger-soft"
+      ]
+     },
+     {
+      "color": "#975f0c",
+      "n": 1,
+      "vars": [
+       "--color-warning"
+      ]
+     },
+     {
+      "color": "#1c7842",
+      "n": 1,
+      "vars": [
+       "--color-success"
+      ]
+     },
+     {
+      "color": "#f5efe7",
+      "n": 1,
+      "vars": [
+       "--color-warning-soft"
+      ]
+     }
+    ],
+    "border": [
+     {
+      "color": "#e0ddd6",
+      "n": 55,
+      "vars": [
+       "--color-border"
+      ]
+     },
+     {
+      "color": "#c4505c",
+      "n": 6,
+      "vars": [
+       "--color-accent-2"
+      ]
+     },
+     {
+      "color": "#b7842e",
+      "n": 2,
+      "vars": [
+       "--color-accent"
+      ]
+     },
+     {
+      "color": "#b62520",
+      "n": 2,
+      "vars": [
+       "--color-danger"
+      ]
+     },
+     {
+      "color": "#1c7842",
+      "n": 1,
+      "vars": [
+       "--color-success"
+      ]
+     },
+     {
+      "color": "#975f0c",
+      "n": 1,
+      "vars": [
+       "--color-warning"
+      ]
+     }
+    ],
+    "icon": []
+   },
+   "fonts": [
+    {
+     "family": "Golos Text",
+     "n": 135
+    },
+    {
+     "family": "PT Serif",
+     "n": 29
+    },
+    {
+     "family": "JetBrains Mono",
+     "n": 13
+    },
+    {
+     "family": "monospace",
+     "n": 1
+    }
+   ],
+   "parts": {
+    "buttons": [
+     {
+      "id": "1jd4tsa",
+      "sig": "#b7842e · #111111 · - · 10px · 16px · 600 · 0/24 ·  · ",
+      "n": 5,
+      "kit": "k4",
+      "html": "<button class=\"btn btn-primary\" type=\"button\"> <svg></svg> Создать задачу </button>",
+      "w": 201,
+      "h": 44,
+      "name": "Кнопка основная",
+      "text": "Создать задачу",
+      "style": {
+       "background": "rgb(183, 132, 46)",
+       "color": "rgb(17, 17, 17)",
+       "border": "1px solid rgba(0, 0, 0, 0)",
+       "radius": "10px",
+       "font": "600 16px/24.8px \"Golos Text\"",
+       "padding": "0px 24px",
+       "shadow": "",
+       "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+      },
+      "pages": [
+       "http://127.0.0.1:39555/board.html",
+       "http://127.0.0.1:39555/kit.html",
+       "http://127.0.0.1:39555/task.html"
+      ]
+     },
+     {
+      "id": "mx3pxn",
+      "sig": "- · #6b6050 · - · 10px · 16px · 400 · 0/8 ·  · ",
+      "n": 3,
+      "kit": "k3",
+      "html": "<button class=\"theme-btn\" type=\"button\" aria-label=\"Переключить тему\"> <svg></svg> </button>",
+      "w": 44,
+      "h": 44,
+      "name": "Переключатель темы",
+      "text": "Переключить тему",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(107, 96, 80)",
+       "border": "0px none rgb(107, 96, 80)",
+       "radius": "10px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "1px 6px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/board.html",
+       "http://127.0.0.1:39555/kit.html",
+       "http://127.0.0.1:39555/task.html"
+      ]
+     },
+     {
+      "id": "1vpf6lp",
+      "sig": "- · #b62520 · #c4505c · 10px · 16px · 600 · 0/24 ·  · ",
+      "n": 3,
+      "kit": "k4",
+      "html": "<button class=\"btn btn-danger\">Удалить</button>",
+      "w": 116,
+      "h": 44,
+      "name": "Кнопка опасная",
+      "text": "Удалить",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(182, 37, 32)",
+       "border": "1px solid rgb(196, 80, 92)",
+       "radius": "10px",
+       "font": "600 16px/24.8px \"Golos Text\"",
+       "padding": "0px 24px",
+       "shadow": "",
+       "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html",
+       "http://127.0.0.1:39555/task.html"
+      ]
+     },
+     {
+      "id": "spc473",
+      "sig": "- · #282115 · #c4505c · 10px · 16px · 600 · 0/24 ·  · ",
+      "n": 2,
+      "kit": "k2",
+      "html": "<button class=\"btn btn-secondary\">Отмена</button>",
+      "w": 110,
+      "h": 44,
+      "name": "Кнопка вторичная",
+      "text": "Отмена",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(40, 33, 21)",
+       "border": "1px solid rgb(196, 80, 92)",
+       "radius": "10px",
+       "font": "600 16px/24.8px \"Golos Text\"",
+       "padding": "0px 24px",
+       "shadow": "",
+       "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "ibozhd",
+      "sig": "- · #6b6050 · - · 0px · 16px · 400 · 0/16 ·  · ",
+      "n": 2,
+      "kit": "k19",
+      "html": "<button class=\"tab\" role=\"tab\" aria-selected=\"false\">Активные</button>",
+      "w": 110,
+      "h": 44,
+      "text": "Активные",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(107, 96, 80)",
+       "border": "0px none rgb(107, 96, 80)",
+       "radius": "0px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "0px 16px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "tbi8tu",
+      "sig": "#b7842e · #111111 · - · 10px · 13px · 600 · 0/16 ·  · ",
+      "n": 2,
+      "kit": "k5",
+      "html": "<button class=\"btn btn-primary btn-sm\">Добавить</button>",
+      "w": 96,
+      "h": 36,
+      "name": "Кнопка основная маленькая",
+      "text": "Добавить",
+      "style": {
+       "background": "rgb(183, 132, 46)",
+       "color": "rgb(17, 17, 17)",
+       "border": "1px solid rgba(0, 0, 0, 0)",
+       "radius": "10px",
+       "font": "600 13px/20.15px \"Golos Text\"",
+       "padding": "0px 16px",
+       "shadow": "",
+       "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html",
+       "http://127.0.0.1:39555/task.html"
+      ]
+     },
+     {
+      "id": "11b80bb",
+      "sig": "- · #282115 · - · 10px · 16px · 600 · 0/24 ·  · ",
+      "n": 1,
+      "kit": "k3",
+      "html": "<button class=\"btn btn-ghost\">Подробнее</button>",
+      "w": 140,
+      "h": 44,
+      "name": "Кнопка текстовая",
+      "text": "Подробнее",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(40, 33, 21)",
+       "border": "1px solid rgba(0, 0, 0, 0)",
+       "radius": "10px",
+       "font": "600 16px/24.8px \"Golos Text\"",
+       "padding": "0px 24px",
+       "shadow": "",
+       "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "1coe05v",
+      "sig": "- · #282115 · #c4505c · 10px · 13px · 600 · 0/16 ·  · ",
+      "n": 1,
+      "kit": "k17",
+      "html": "<a class=\"btn btn-secondary btn-sm\" href=\"#\">Открыть</a>",
+      "w": 90,
+      "h": 36,
+      "text": "Открыть",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(40, 33, 21)",
+       "border": "1px solid rgb(196, 80, 92)",
+       "radius": "10px",
+       "font": "600 13px/20.15px \"Golos Text\"",
+       "padding": "0px 16px",
+       "shadow": "",
+       "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "bydok3",
+      "sig": "- · #282115 · - · 0px · 16px · 400 · 0/16 ·  · ",
+      "n": 1,
+      "kit": "k18",
+      "html": "<button class=\"tab\" role=\"tab\" aria-selected=\"true\">Все</button>",
+      "w": 61,
+      "h": 44,
+      "text": "Все",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(40, 33, 21)",
+       "border": "0px none rgb(40, 33, 21)",
+       "radius": "0px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "0px 16px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "59k8mj",
+      "sig": "- · #282115 · - · 10px · 13px · 600 · 0/16 ·  · ",
+      "n": 1,
+      "kit": "k22",
+      "html": "<button class=\"btn btn-ghost btn-sm\" type=\"button\">Копировать</button>",
+      "w": 111,
+      "h": 36,
+      "text": "Копировать",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(40, 33, 21)",
+       "border": "1px solid rgba(0, 0, 0, 0)",
+       "radius": "10px",
+       "font": "600 13px/20.15px \"Golos Text\"",
+       "padding": "0px 16px",
+       "shadow": "",
+       "transition": "transform, background-color 0.16s, 0.16s cubic-bezier(0.2, 0.7, 0.2, 1), cubic-bezier(0.2, 0.7, 0.2, 1)"
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     }
+    ],
+    "inputs": [
+     {
+      "id": "qpktpe",
+      "sig": "- · #282115 · - · 0px · 16px · 400 · 0/0 ·  · ",
+      "n": 3,
+      "kit": "k10",
+      "html": "<input type=\"checkbox\" checked=\"\">",
+      "w": 20,
+      "h": 20,
+      "name": "Флажок",
+      "text": "on",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(40, 33, 21)",
+       "border": "0px none rgb(40, 33, 21)",
+       "radius": "0px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "0px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "d960ci",
+      "sig": "#f3f0ea · #282115 · #e0ddd6 · 10px · 16px · 400 · 0/16 ·  · ",
+      "n": 2,
+      "kit": "k7",
+      "html": "<input class=\"input\" placeholder=\"Как к вам обращаться\">",
+      "w": 524,
+      "h": 44,
+      "name": "Поле ввода",
+      "text": "Как к вам обращаться",
+      "style": {
+       "background": "rgb(243, 240, 234)",
+       "color": "rgb(40, 33, 21)",
+       "border": "1px solid rgb(224, 221, 214)",
+       "radius": "10px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "0px 16px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "wxeut6",
+      "sig": "#f3f0ea · #282115 · #e0ddd6 · 10px · 16px · 400 · 8/16 ·  · ",
+      "n": 2,
+      "kit": "k9",
+      "html": "<textarea class=\"input\"></textarea>",
+      "w": 524,
+      "h": 96,
+      "name": "Многострочное поле",
+      "text": "",
+      "style": {
+       "background": "rgb(243, 240, 234)",
+       "color": "rgb(40, 33, 21)",
+       "border": "1px solid rgb(224, 221, 214)",
+       "radius": "10px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "8px 16px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html",
+       "http://127.0.0.1:39555/task.html"
+      ]
+     },
+     {
+      "id": "ky23l2",
+      "sig": "#f3f0ea · #282115 · #b62520 · 10px · 16px · 400 · 0/16 ·  · ",
+      "n": 1,
+      "kit": "k8",
+      "html": "<input class=\"input\" value=\"name@\">",
+      "w": 524,
+      "h": 44,
+      "name": "Поле с ошибкой",
+      "text": "name@",
+      "style": {
+       "background": "rgb(243, 240, 234)",
+       "color": "rgb(40, 33, 21)",
+       "border": "1px solid rgb(182, 37, 32)",
+       "radius": "10px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "0px 16px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "71129x",
+      "sig": "#b7842e · #282115 · - · pill · 16px · 400 · 0/0 ·  · ",
+      "n": 1,
+      "kit": "k11",
+      "html": "<input type=\"checkbox\" class=\"switch\" role=\"switch\" checked=\"\">",
+      "w": 40,
+      "h": 24,
+      "name": "Тумблер",
+      "text": "on",
+      "style": {
+       "background": "rgb(183, 132, 46)",
+       "color": "rgb(40, 33, 21)",
+       "border": "0px none rgb(40, 33, 21)",
+       "radius": "999px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "0px",
+       "shadow": "",
+       "transition": "background-color 0.16s cubic-bezier(0.2, 0.7, 0.2, 1)"
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     }
+    ],
+    "links": [
+     {
+      "id": "17mthp5",
+      "sig": "#f3f0ea · #282115 · #e0ddd6 · 18px · 16px · 400 · 16/16 ·  · ",
+      "n": 7,
+      "kit": "k8",
+      "html": "<a class=\"task-card p-high\" href=\"task.html\"> <h3 class=\"t-title\">BUG-031: комментарии не сохраняются при перетаскивании</h3> <div class=\"t-meta\"> <span class=\"t-cat\">Баг</span> <span class=\"chip\">kanban</span> <span class=\"chip\">fe</span> <span class=\"t-due t-due-over\">Срок: 18.11, просрочен</span> </div> </a>",
+      "w": 347,
+      "h": 109,
+      "name": "Карточка задачи",
+      "text": "BUG-031: комментарии не сохраняются при ",
+      "style": {
+       "background": "rgb(243, 240, 234)",
+       "color": "rgb(40, 33, 21)",
+       "border": "1px solid rgb(224, 221, 214)",
+       "radius": "18px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "16px",
+       "shadow": "",
+       "transition": "transform 0.16s cubic-bezier(0.2, 0.7, 0.2, 1)"
+      },
+      "pages": [
+       "http://127.0.0.1:39555/board.html",
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "1ada5rs",
+      "sig": "- · #282115 · - · 0px · 20px · 700 · 0/0 ·  · ",
+      "n": 4,
+      "kit": "k0",
+      "html": "<a class=\"brand\" href=\"board.html\">ekotov-wiki</a>",
+      "w": 116,
+      "h": 44,
+      "text": "ekotov-wiki",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(40, 33, 21)",
+       "border": "0px none rgb(40, 33, 21)",
+       "radius": "0px",
+       "font": "700 20px/31px \"PT Serif\"",
+       "padding": "0px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/board.html",
+       "http://127.0.0.1:39555/kit.html",
+       "http://127.0.0.1:39555/task.html"
+      ]
+     },
+     {
+      "id": "kvjxdw",
+      "sig": "- · #6b6050 · - · 0px · 16px · 500 · 0/16 ·  · ",
+      "n": 2,
+      "kit": "k2",
+      "html": "<a class=\"board-tab\" href=\"board.html\">Контент</a>",
+      "w": 98,
+      "h": 44,
+      "text": "Контент",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(107, 96, 80)",
+       "border": "0px none rgb(107, 96, 80)",
+       "radius": "0px",
+       "font": "500 16px/24.8px \"Golos Text\"",
+       "padding": "0px 16px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/board.html"
+      ]
+     },
+     {
+      "id": "1h7drly",
+      "sig": "- · #282115 · - · 0px · 16px · 500 · 0/16 ·  · ",
+      "n": 1,
+      "kit": "k1",
+      "html": "<a class=\"board-tab\" href=\"board.html\" aria-current=\"page\">Разработка</a>",
+      "w": 126,
+      "h": 44,
+      "text": "Разработка",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(40, 33, 21)",
+       "border": "0px none rgb(40, 33, 21)",
+       "radius": "0px",
+       "font": "500 16px/24.8px \"Golos Text\"",
+       "padding": "0px 16px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/board.html"
+      ]
+     },
+     {
+      "id": "vwcig2",
+      "sig": "- · #8a631f · - · 0px · 16px · 400 · 0/0 ·  · underline",
+      "n": 1,
+      "kit": "k6",
+      "html": "<a class=\"link\" href=\"#\">условия сервиса</a>",
+      "w": 134,
+      "h": 20,
+      "name": "Ссылка в тексте",
+      "text": "условия сервиса",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(138, 99, 31)",
+       "border": "0px none rgb(138, 99, 31)",
+       "radius": "0px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "0px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "1joxmnp",
+      "sig": "- · #6b6050 · - · 0px · 16px · 500 · 0/8 ·  · ",
+      "n": 1,
+      "kit": "k0",
+      "html": "<a class=\"back\" href=\"board.html\"> <svg></svg> Доска </a>",
+      "w": 91,
+      "h": 44,
+      "text": "Доска",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(107, 96, 80)",
+       "border": "0px none rgb(107, 96, 80)",
+       "radius": "0px",
+       "font": "500 16px/24.8px \"Golos Text\"",
+       "padding": "0px 8px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/task.html"
+      ]
+     }
+    ],
+    "badges": [
+     {
+      "id": "1u83hvu",
+      "sig": "- · #6b6050 · #e0ddd6 · pill · 12px · 500 · 0/8 ·  · ",
+      "n": 21,
+      "kit": "k9",
+      "html": "<span class=\"chip\">kanban</span>",
+      "w": 60,
+      "h": 24,
+      "text": "kanban",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(107, 96, 80)",
+       "border": "1px solid rgb(224, 221, 214)",
+       "radius": "999px",
+       "font": "500 12px/18.6px \"Golos Text\"",
+       "padding": "0px 8px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/board.html",
+       "http://127.0.0.1:39555/kit.html",
+       "http://127.0.0.1:39555/task.html"
+      ]
+     },
+     {
+      "id": "1j6csua",
+      "sig": "#ffffff · #6b6050 · #e0ddd6 · 10px · 12px · 500 · 0/8 ·  · ",
+      "n": 5,
+      "kit": "k6",
+      "html": "<span class=\"badge\">В работе</span>",
+      "w": 70,
+      "h": 24,
+      "text": "В работе",
+      "style": {
+       "background": "rgb(255, 255, 255)",
+       "color": "rgb(107, 96, 80)",
+       "border": "1px solid rgb(224, 221, 214)",
+       "radius": "10px",
+       "font": "500 12px/18.6px \"Golos Text\"",
+       "padding": "0px 8px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/board.html",
+       "http://127.0.0.1:39555/kit.html",
+       "http://127.0.0.1:39555/task.html"
+      ],
+      "name": "Метка"
+     },
+     {
+      "id": "kd53p8",
+      "sig": "#e8f2ec · #1c7842 · - · 10px · 12px · 500 · 0/8 ·  · ",
+      "n": 2,
+      "kit": "k14",
+      "html": "<span class=\"badge badge-success\">Оплачено</span>",
+      "w": 76,
+      "h": 24,
+      "name": "Метка успех",
+      "text": "Оплачено",
+      "style": {
+       "background": "rgb(232, 242, 236)",
+       "color": "rgb(28, 120, 66)",
+       "border": "1px solid rgba(0, 0, 0, 0)",
+       "radius": "10px",
+       "font": "500 12px/18.6px \"Golos Text\"",
+       "padding": "0px 8px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "9zjd0z",
+      "sig": "#f3f0ea · #282115 · #e0ddd6 · 10px · 13px · 400 · 0/4 ·  · ",
+      "n": 2,
+      "kit": "k23",
+      "html": "<code class=\"inline-code\">feature/board-redesign</code>",
+      "w": 186,
+      "h": 19,
+      "name": "Код встроенный",
+      "text": "feature/board-redesign",
+      "style": {
+       "background": "rgb(243, 240, 234)",
+       "color": "rgb(40, 33, 21)",
+       "border": "1px solid rgb(224, 221, 214)",
+       "radius": "10px",
+       "font": "400 13px/20.15px \"JetBrains Mono\"",
+       "padding": "0px 4px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html",
+       "http://127.0.0.1:39555/task.html"
+      ]
+     },
+     {
+      "id": "189d4",
+      "sig": "#b7842e · #111111 · - · 10px · 12px · 500 · 0/8 ·  · ",
+      "n": 1,
+      "kit": "k13",
+      "html": "<span class=\"badge badge-accent\">Новое</span>",
+      "w": 55,
+      "h": 24,
+      "name": "Метка акцентная",
+      "text": "Новое",
+      "style": {
+       "background": "rgb(183, 132, 46)",
+       "color": "rgb(17, 17, 17)",
+       "border": "1px solid rgba(0, 0, 0, 0)",
+       "radius": "10px",
+       "font": "500 12px/18.6px \"Golos Text\"",
+       "padding": "0px 8px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "1567q31",
+      "sig": "#f8e9e9 · #b62520 · - · 10px · 12px · 500 · 0/8 ·  · ",
+      "n": 1,
+      "kit": "k15",
+      "html": "<span class=\"badge badge-danger\">Просрочено</span>",
+      "w": 90,
+      "h": 24,
+      "name": "Метка ошибка",
+      "text": "Просрочено",
+      "style": {
+       "background": "rgb(248, 233, 233)",
+       "color": "rgb(182, 37, 32)",
+       "border": "1px solid rgba(0, 0, 0, 0)",
+       "radius": "10px",
+       "font": "500 12px/18.6px \"Golos Text\"",
+       "padding": "0px 8px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     }
+    ],
+    "cards": [
+     {
+      "id": "1y43ye0",
+      "sig": "#ffffff · #282115 · #e0ddd6 · 18px · 16px · 400 · 16/16 ·  · ",
+      "n": 4,
+      "kit": "k7",
+      "html": "<div class=\"col\"> <div class=\"col-head\"> <span class=\"dot dot-wait\"></span> <h2 class=\"col-title\">Ожидает</h2> <span class=\"count\">4</span> </div> <a class=\"task-card p-high\" href=\"task.html\"> <h3 class=\"t-title\">BUG-031: комментарии не сохраняются при перетаскивании</h3> <div class=\"t-meta\"> <span class=\"t-cat\">Баг</span> <span class=\"chip\">kanban</span> <span class=\"chip\">fe</span> <span class=\"t-due t-due-over\">Срок: 18.11, просрочен</span> </div> </a> <a class=\"task-card p-high\" href=\"task.html\"> <h3 class=\"t-title\">Миграция SQLite→PostgreSQL</h3> <div class=\"t-meta\"> <span class=\"t-cat\">Бэкенд</span> <span class=\"chip\">be</span> <span class=\"chip\">postgres</span> <span class=\"t-due\">Срок: 28.11</span> </div> </a> <a class=\"task-card p-mid\" href=\"task.html\"> <h3 class=\"t-title\">Добавить фильтр по тегам</h3> <div class=\"t-meta\"> <span class=\"t-cat\">Функция</span> <span class=\"chip\">ка…",
+      "w": 381,
+      "h": 538,
+      "name": "Колонка доски",
+      "text": "ОЖИДАЕТ 4 BUG-031: комментарии не сохран",
+      "style": {
+       "background": "rgb(255, 255, 255)",
+       "color": "rgb(40, 33, 21)",
+       "border": "1px solid rgb(224, 221, 214)",
+       "radius": "18px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "16px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/board.html",
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "1gzy03s",
+      "sig": "#ffffff · #282115 · #b7842e · 18px · 16px · 400 · 16/24 ·  · ",
+      "n": 2,
+      "kit": "k5",
+      "html": "<section class=\"fastlane\" aria-label=\"Фастлайн\"> <div class=\"fast-line\"> <span class=\"fast-label\">FST-01</span> <a class=\"fast-name\" href=\"task.html\">Переработать дизайн канбан-доски</a> <span class=\"badge\">В работе</span> </div> <p class=\"fast-hint\">Гейт занят: следующая задача войдёт на фастлайн после закрытия FST-01.</p> </section>",
+      "w": 1192,
+      "h": 121,
+      "text": "FST-01 Переработать дизайн канбан-доски ",
+      "style": {
+       "background": "rgb(255, 255, 255)",
+       "color": "rgb(40, 33, 21)",
+       "border": "3px solid rgb(183, 132, 46)",
+       "radius": "18px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "16px 24px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/board.html",
+       "http://127.0.0.1:39555/kit.html"
+      ],
+      "name": "Фастлайн"
+     },
+     {
+      "id": "nn0ytj",
+      "sig": "#f3f0ea · #282115 · #e0ddd6 · 18px · 16px · 400 · 16/16 ·  · ",
+      "n": 1,
+      "kit": "k10",
+      "html": "<div class=\"task-card p-low is-done\"> <h3 class=\"t-title\">Починить подсветку синтаксиса в вики</h3> <div class=\"t-meta\"><span class=\"t-cat\">Фронтенд</span><span class=\"t-due\">сегодня, 11:48</span></div> </div>",
+      "w": 347,
+      "h": 105,
+      "name": "Карточка задачи",
+      "text": "Починить подсветку синтаксиса в вики Фро",
+      "style": {
+       "background": "rgb(243, 240, 234)",
+       "color": "rgb(40, 33, 21)",
+       "border": "1px solid rgb(224, 221, 214)",
+       "radius": "18px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "16px",
+       "shadow": "",
+       "transition": "transform 0.16s cubic-bezier(0.2, 0.7, 0.2, 1)"
+      },
+      "pages": [
+       "http://127.0.0.1:39555/board.html"
+      ]
+     },
+     {
+      "id": "1gdoj0i",
+      "sig": "#ffffff · #282115 · #e0ddd6 · 18px · 16px · 400 · 24/24 ·  · ",
+      "n": 1,
+      "kit": "k16",
+      "html": "<article class=\"card\"> <h3>Заголовок карточки</h3> <p>Короткое описание объекта в две строки — пример текста.</p> <div class=\"row\"><a class=\"btn btn-secondary btn-sm\" href=\"#\">Открыть</a></div> </article>",
+      "w": 524,
+      "h": 179,
+      "name": "Карточка",
+      "text": "Заголовок карточки Короткое описание объ",
+      "style": {
+       "background": "rgb(255, 255, 255)",
+       "color": "rgb(40, 33, 21)",
+       "border": "1px solid rgb(224, 221, 214)",
+       "radius": "18px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "24px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     },
+     {
+      "id": "1k7oaj4",
+      "sig": "- · #282115 · #e0ddd6 · 18px · 16px · 400 · 40/40 ·  · ",
+      "n": 1,
+      "kit": "k27",
+      "html": "<div class=\"empty\"> <h3>Здесь пока пусто</h3> <p>Когда появятся записи, они будут здесь. Начните с первой.</p> <button class=\"btn btn-primary\">Создать</button> </div>",
+      "w": 1072,
+      "h": 187,
+      "name": "Пустое состояние",
+      "text": "Здесь пока пусто Когда появятся записи, ",
+      "style": {
+       "background": "rgba(0, 0, 0, 0)",
+       "color": "rgb(40, 33, 21)",
+       "border": "1px dashed rgb(224, 221, 214)",
+       "radius": "18px",
+       "font": "400 16px/24.8px \"Golos Text\"",
+       "padding": "40px",
+       "shadow": "",
+       "transition": ""
+      },
+      "pages": [
+       "http://127.0.0.1:39555/kit.html"
+      ]
+     }
+    ]
+   },
+   "pages": 3
+  }
+ }
+}

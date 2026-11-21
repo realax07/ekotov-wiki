@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru"><head>
+<meta name="mockup-source" content="/task.html">
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FST-01 · Переработать дизайн канбан-доски — Трекер задач ekotov-wiki</title>
+  <!-- Направление A «Доска и поток»: карточка задачи как «документ» — serif-заголовок, мета Golos,
+       золото только на действии. Детали — теми же классами, что в kit.html. -->
+  
+  
+  
+<link rel="stylesheet" href="__MOCKUP_BLOB_tokens-13de5c9f.css__">
+<link rel="stylesheet" href="__MOCKUP_BLOB_base-5add1c65.css__">
+<link rel="stylesheet" href="__MOCKUP_BLOB_inline-87f306cf.css__">
+</head>
+<body>
+  <header class="topbar wrap">
+    <a class="back" href="/board.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m6-7-7 7 7 7"></path></svg>
+      Доска
+    </a>
+    <a class="brand" href="/board.html">ekotov-wiki</a>
+    <button class="theme-btn" type="button" data-part="Переключатель темы" aria-label="Переключить тему" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path>
+      </svg>
+    </button>
+  </header>
+
+  <main class="wrap">
+    <article>
+      <div class="task-head">
+        <span class="task-id">FST-01</span>
+        <span class="badge">В работе</span>
+        <button class="btn btn-primary" type="button" data-part="Кнопка основная">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>
+          Выполнить
+        </button>
+      </div>
+
+      <h1>Переработать дизайн канбан-доски</h1>
+
+      <div class="meta-card" data-part="Таблица">
+        <table>
+          <tbody>
+            <tr>
+              <th scope="row">Приоритет</th>
+              <td><span class="prio-high">Высокий</span></td>
+            </tr>
+            <tr>
+              <th scope="row">Категория</th>
+              <td>Дизайн</td>
+            </tr>
+            <tr>
+              <th scope="row">Теги</th>
+              <td><span class="td-chips"><span class="chip">канбан</span><span class="chip">дизайн</span><span class="chip">fe</span></span></td>
+            </tr>
+            <tr>
+              <th scope="row">Срок</th>
+              <td>24.11.2026</td>
+            </tr>
+            <tr>
+              <th scope="row">Создана</th>
+              <td>14.11.2026</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <section class="desc" aria-label="Описание">
+        <p>Текущая доска выглядит как сторонний плагин: синие бейджи, тенями различается глубина,
+          статусы приходится читать по подписям. Нужно привести её к общему языку вики — тёмный кабинет,
+          карточки-«документы» с serif-заголовками, приоритет — кромкой на карточке.</p>
+        <p>Готовая ветка — <code class="inline-code">feature/board-redesign</code>; макеты колонок и фастлайна согласованы,
+          осталось сверстать мобильную версию и проверить обе темы.</p>
+      </section>
+
+      <section class="comments" aria-label="Комментарии">
+        <h2>Комментарии</h2>
+
+        <div class="comment">
+          <div class="comment-head">
+            <span class="comment-author">А. Экотов</span>
+            <span class="comment-time">вчера, 09:12</span>
+          </div>
+          <p>Собрал референсы: сильнейший кандидат — «архив решений», где доска тихая, а цветом отмечено только
+            то, что требует действия. Фастлайн оставляем золотой линией над канбаном.</p>
+        </div>
+
+        <div class="comment">
+          <div class="comment-head">
+            <span class="comment-author">ekotov-bot</span>
+            <span class="comment-time">вчера, 09:15</span>
+          </div>
+          <p>Ветка <code>feature/board-redesign</code> создана из main, CI зелёный. Deploy на превью — после первого пуша.</p>
+        </div>
+
+        <div class="comment">
+          <div class="comment-head">
+            <span class="comment-author">А. Экотов</span>
+            <span class="comment-time">сегодня, 08:47</span>
+          </div>
+          <p>Панель фастлайна и кромки приоритета готовы, счётчики колонок перевёл на табличные цифры.
+            Осталось: мобильные колонки в один поток и тап-цели не меньше 44px.</p>
+        </div>
+
+        <form class="comment-form">
+          <label for="c-new">Новый комментарий</label>
+          <textarea class="input" id="c-new" rows="3" placeholder="Написать комментарий…"></textarea>
+          <button class="btn btn-primary btn-sm" type="submit">Отправить</button>
+        </form>
+      </section>
+
+      <footer class="task-foot">
+        <button class="btn btn-danger" type="button" data-part="Кнопка опасная">Удалить</button>
+        <p>Задача вернётся в «Ожидает» без следа в истории — действие нельзя отменить.</p>
+      </footer>
+    </article>
+  </main>
+
+  
+
+
+</body></html>

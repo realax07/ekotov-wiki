@@ -1,0 +1,72 @@
+/* Направление B — Расписание · Ледник · Ysabeau / Ysabeau Office
+   Сгенерировано deal.mjs. Меняй осознанно и отражай в PLAN.md: lint.mjs сверяет страницы с этими токенами. */
+@import url("https://fonts.googleapis.com/css2?family=Ysabeau:wght@500;700&family=Ysabeau+Office:wght@400;500;600&display=swap");
+:root {
+  --scheme: light;
+  --color-bg: #f4f7fb;
+  --color-surface: #ffffff;
+  --color-text: #0f1b2d;
+  --color-muted: #4d5b74;
+  --color-border: #d6dee9;
+  --color-accent: #1f56e0;
+  --color-on-accent: #ffffff;
+  --color-accent-2: #007f86;
+  --color-link: #1f56e0;
+  --color-success: #1c7842;
+  --color-success-soft: #e8f2ec;
+  --color-warning: #935c0c;
+  --color-warning-soft: #f4efe7;
+  --color-danger: #b62520;
+  --color-danger-soft: #f8e9e9;
+  --color-on-danger: #ffffff;
+  --font-display: "Ysabeau", system-ui, "Segoe UI", sans-serif;
+  --font-body: "Ysabeau Office", system-ui, "Segoe UI", sans-serif;
+  --font-ui: "Ysabeau Office", system-ui, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 25px;
+  --text-2xl: 31px;
+  --text-3xl: 39px;
+  --text-4xl: 43px;
+  --leading-body: 1.55;
+  --measure: 66ch;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+  --space-6: 64px;
+  --radius-sm: 10px;
+  --radius-md: 18px;
+  --radius-lg: 28px;
+  --radius-pill: 999px;
+  --shadow-1: 0 1px 3px rgb(0 0 0 / .08), 0 4px 12px rgb(0 0 0 / .06);
+  --shadow-2: 0 4px 8px rgb(0 0 0 / .08), 0 18px 40px rgb(0 0 0 / .10);
+  --dur: 0ms;
+  --ease: linear;
+}
+
+/* Вторая тема (тёмная): выведена из палитры, контраст проверен. Включается атрибутом на <html>:
+   <html data-theme="dark">. Вёрстка та же — только переменные, поэтому литерал цвета сломает одну из тем. */
+:root[data-theme="dark"] {
+  --scheme: dark;
+  --color-bg: #111318;
+  --color-surface: #1a1d23;
+  --color-text: #eeeff1;
+  --color-muted: #a0a5b1;
+  --color-border: #383c47;
+  --color-accent: #1f56e0;
+  --color-on-accent: #ffffff;
+  --color-accent-2: #007f86;
+  --color-link: #5982e8;
+  --color-success: #5ad88e;
+  --color-success-soft: #263f36;
+  --color-warning: #f0aa42;
+  --color-warning-soft: #413629;
+  --color-danger: #e9817f;
+  --color-danger-soft: #3f2f34;
+  --color-on-danger: #111111;
+}

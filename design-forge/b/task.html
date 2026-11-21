@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FST-01 · Переработать дизайн канбан-доски — Трекер задач ekotov-wiki</title>
+  <!-- Направление B «Расписание»: карточка задачи как запись в листе — линейки, без теней и анимации. -->
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <style>
+    .wrap { max-width: 800px; margin: 0 auto; padding: var(--space-5) var(--space-4) var(--space-6); }
+
+    /* Детали из kit.html — те же классы, стили направления B */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 44px; min-width: 44px;
+      padding: 0 var(--space-4); border-radius: var(--radius-sm); border: 1px solid transparent; font-family: var(--font-ui);
+      font-size: var(--text-md); font-weight: 500; text-decoration: none; cursor: pointer; transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease); }
+    .btn-primary { background: var(--color-accent); color: var(--color-on-accent); }
+    .btn-secondary { background: var(--color-surface); color: var(--color-link); border-color: var(--color-accent); }
+    .btn-secondary:hover { background: var(--color-bg); }
+    .btn-ghost { background: none; border: 0; color: var(--color-text); cursor: pointer; }
+    .btn-ghost:hover { background: var(--color-bg); }
+    .btn-sm { min-height: 36px; padding: 0 var(--space-3); font-size: var(--text-sm); }
+    .badge { display: inline-flex; align-items: center; min-height: 24px; padding: 0 var(--space-2); border-radius: var(--radius-pill);
+      font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); }
+    .field { display: grid; gap: var(--space-1); font-family: var(--font-ui); }
+    .field label { font-size: var(--text-sm); font-weight: 600; }
+    .input { min-height: 44px; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      background: var(--color-surface); color: var(--color-text); width: 100%; }
+    textarea.input { min-height: 96px; resize: vertical; }
+
+    .sheet { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-5); display: grid; gap: var(--space-4); }
+
+    /* Шапка: назад · статус · id · действие */
+    .card-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); }
+    .card-top .btn-back { margin-right: auto; padding-left: 0; }
+    .status { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-muted); font-size: var(--text-sm); }
+    .status .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--color-accent); }
+    .idline { display: inline-flex; align-items: center; gap: var(--space-2); }
+    .mono { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-muted); }
+    .iconbtn { width: 44px; padding: 0; }
+
+    h1 { font-size: var(--text-2xl); font-weight: 700; margin: 0; }
+
+    /* Мета — список с линейками */
+    .meta { margin: 0; }
+    .meta > div { display: flex; align-items: center; gap: var(--space-3); min-height: 44px; padding: var(--space-2) var(--space-2); border-bottom: 1px solid var(--color-border); }
+    .meta dt { flex: 0 0 9rem; color: var(--color-muted); font-size: var(--text-sm); }
+    .meta dd { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+    .prio { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-link); font-weight: 600; }
+    .prio .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--color-accent); }
+    .meta .due { font-family: var(--font-mono); font-size: var(--text-md); }
+
+    /* Описание — колонка 66ch, спокойный межстрочный (из base.css) */
+    .desc { max-width: var(--measure); margin: 0; }
+
+    /* Комментарии — записи с линейками */
+    .comments { display: grid; gap: 0; }
+    .comments h2 { font-size: var(--text-lg); font-weight: 700; margin-bottom: var(--space-2); }
+    .comment { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-2); border-bottom: 1px solid var(--color-border); }
+    .comment:hover { background: var(--color-bg); }
+    .comment .who { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
+    .comment .who b { font-weight: 600; }
+    .comment .who time { color: var(--color-muted); font-size: var(--text-sm); font-family: var(--font-mono); }
+    .comment p { margin: 0; }
+    .comment p code { font-family: var(--font-mono); font-size: var(--text-sm); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); }
+
+    .comment-form { display: grid; gap: var(--space-2); margin-top: var(--space-3); }
+    .comment-form .btn { justify-self: end; }
+
+    /* Нижние действия: удаление — текстом, приглушённо */
+    .card-foot { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
+    .btn-ghost.danger { color: var(--color-muted); }
+    .btn-ghost.danger:hover { color: var(--color-danger); background: var(--color-bg); }
+
+    @media (max-width: 760px) {
+      .wrap { padding: var(--space-4) var(--space-3) var(--space-5); }
+      .sheet { padding: var(--space-4); }
+      h1 { font-size: var(--text-xl); }
+      .btn-sm { min-height: 44px; }
+      .card-top .btn-back { flex: 1 1 100%; order: 4; justify-content: flex-start; }
+      .card-top .btn-primary { flex: 1 1 100%; order: 5; }
+      .meta > div { flex-wrap: wrap; }
+      .meta dt { flex-basis: 100%; }
+      .comment-form .btn { justify-self: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <article class="sheet">
+      <header class="card-top">
+        <a class="btn btn-ghost btn-back" href="board.html">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 4.5 6.5 10.5l6 6"/></svg>
+          Доска
+        </a>
+        <span class="status"><span class="dot" aria-hidden="true"></span>В работе</span>
+        <span class="idline"><span class="mono">FST-01</span>
+          <button class="btn btn-secondary btn-sm" data-copy="FST-01" aria-label="Скопировать идентификатор задачи">
+            <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7.5" y="7.5" width="8" height="8" rx="1.5"/><path d="M12.5 7.5v-2a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2"/></svg>
+            Копировать
+          </button>
+        </span>
+        <button class="btn btn-primary">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 10.5 4 4 8-9"/></svg>
+          Выполнить
+        </button>
+        <button class="btn btn-secondary iconbtn" id="theme-toggle" aria-label="Переключить тему">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.6 12.4A6.2 6.2 0 0 1 7.6 4.4a6.2 6.2 0 1 0 8 8Z"/></svg>
+        </button>
+      </header>
+
+      <h1>Переработать дизайн канбан-доски</h1>
+
+      <dl class="meta">
+        <div>
+          <dt>Приоритет</dt>
+          <dd><span class="prio"><span class="dot" aria-hidden="true"></span>Высокий</span></dd>
+        </div>
+        <div>
+          <dt>Категория</dt>
+          <dd>Дизайн</dd>
+        </div>
+        <div>
+          <dt>Теги</dt>
+          <dd>
+            <span class="badge">канбан</span>
+            <span class="badge">дизайн</span>
+            <span class="badge">fe</span>
+          </dd>
+        </div>
+        <div>
+          <dt>Срок</dt>
+          <dd><span class="due">24.11.2026</span></dd>
+        </div>
+        <div>
+          <dt>Создана</dt>
+          <dd><span class="due">18.11.2026 · 09:40</span></dd>
+        </div>
+      </dl>
+
+      <p class="desc">Собрать доску в стиле «листа расписания»: три колонки на едином фоне, разделённые тонкими вертикальными линейками, задачи — строки-записи с нижней линейкой вместо плавающих карточек с тенями. Фастлайн подать строкой «Сейчас в работе» с синей точкой над основной сеткой. Анимации убрать полностью: hover и статусы меняют только фон и цвет рамки, синий остаётся на активной задаче, приоритете и основном действии.</p>
+
+      <section class="comments" aria-labelledby="c-title">
+        <h2 id="c-title">Комментарии · 3</h2>
+        <div class="comment">
+          <div class="who"><b>conveyor-bot</b><time>18.11 · 09:45</time></div>
+          <p>Задача заведена из ревью доски: карточки с тенями визуально спорят с остальным wiki. Нужен вариант без глубины — линии вместо коробок.</p>
+        </div>
+        <div class="comment">
+          <div class="who"><b>Алексей</b><time>19.11 · 11:20</time></div>
+          <p>Прототип на линейках читается быстрее: глаз сразу находит строку. Синий оставил только на фастлайне, точках «высокий» и кнопке действия.</p>
+        </div>
+        <div class="comment">
+          <div class="who"><b>Алексей</b><time>20.11 · 18:03</time></div>
+          <p>Осталась тёмная тема: линейки на <code>--color-border</code> читаются хуже, чем в светлой. Проверить контраст на 390px и поднять, если понадобится.</p>
+        </div>
+        <form class="comment-form">
+          <div class="field">
+            <label for="new-comment">Новый комментарий</label>
+            <textarea class="input" id="new-comment" placeholder="Например: перенёс колонку «Выполнено» вправо…"></textarea>
+          </div>
+          <button class="btn btn-primary" type="submit">Отправить</button>
+        </form>
+      </section>
+
+      <footer class="card-foot">
+        <p class="mono">Обновлена 20.11.2026 · 18:03</p>
+        <button class="btn btn-ghost danger">
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2M6.5 6l.8 10h5.4l.8-10"/></svg>
+          Удалить
+        </button>
+      </footer>
+    </article>
+  </main>
+
+  <script>
+    // Тема — мгновенная смена переменных
+    document.getElementById('theme-toggle').addEventListener('click', function () {
+      var root = document.documentElement;
+      if (root.getAttribute('data-theme') === 'dark') { root.removeAttribute('data-theme'); }
+      else { root.setAttribute('data-theme', 'dark'); }
+    });
+    // Копирование идентификатора задачи (отраслевое правило: код — с кнопкой копирования)
+    document.querySelectorAll('[data-copy]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        try { navigator.clipboard.writeText(btn.getAttribute('data-copy')); } catch (e) { /* мокап: без тоста */ }
+      });
+    });
+    var form = document.querySelector('.comment-form');
+    if (form) { form.addEventListener('submit', function (e) { e.preventDefault(); }); }
+  </script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru"><head>
+<meta name="mockup-source" content="/kit.html">
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UI-кит — Трекер задач ekotov-wiki</title>
+  <!-- UI-кит направления: каждая деталь и состояние, которые понадобятся дальше. После утверждения wd-scan снимает
+       этот экран, и детали становятся каноном для wd-fit: чего нет здесь — того не будет в дизайн-контексте.
+       data-part="…" — имя детали в каноне; не удаляй и не переименовывай без причины (lint.mjs проверяет обязательные).
+       АДАПТИРУЙ под направление (PLAN.md): форма кнопок, вес шрифта, регистр, толщина границ, тени, плотность —
+       кит должен выглядеть как этот дизайн, а не как нейтральная заготовка. Только var(--…) из tokens.css. -->
+  
+  
+  
+<link rel="stylesheet" href="../_css/styles.css">
+<link rel="stylesheet" href="_css/styles.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="kit-sec">
+      <h1>UI-кит</h1>
+      <p>Детали и состояния направления. Тексты — примеры.</p>
+      <div class="row">
+        <button class="theme-btn" type="button" data-part="Переключатель темы" aria-label="Переключить тему">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path>
+          </svg>
+        </button>
+        <span class="badge">Переключатель темы — иконка 44×44, тихая</span>
+      </div>
+    </header>
+
+    <section class="kit-sec" aria-labelledby="k-btn">
+      <h2 id="k-btn">Кнопки</h2>
+      <div class="row">
+        <button class="btn btn-primary" data-part="Кнопка основная">Сохранить</button>
+        <button class="btn btn-secondary" data-part="Кнопка вторичная">Отмена</button>
+        <button class="btn btn-ghost" data-part="Кнопка текстовая">Подробнее</button>
+        <button class="btn btn-danger" data-part="Кнопка опасная">Удалить</button>
+        <button class="btn btn-primary btn-sm" data-part="Кнопка основная маленькая">Добавить</button>
+        <button class="btn btn-primary" disabled="" data-part="Кнопка неактивная">Недоступно</button>
+      </div>
+      <p>Ссылка в тексте: <a class="link" href="#" data-part="Ссылка в тексте">условия сервиса</a>.</p>
+    </section>
+
+    <section class="kit-sec" aria-labelledby="k-form">
+      <h2 id="k-form">Поля</h2>
+      <div class="grid2">
+        <div class="field"><label for="f1">Имя</label><input class="input" id="f1" placeholder="Как к вам обращаться" data-part="Поле ввода" value=""><span class="hint">Подсказка под полем</span></div>
+        <div class="field is-error"><label for="f2">Эл. почта</label><input class="input" id="f2" value="name@" aria-invalid="true" data-part="Поле с ошибкой"><span class="hint">Проверьте адрес</span></div>
+        <div class="field"><label for="f3">Тариф</label><select class="input" id="f3" data-part="Список выбора"><option selected="">Базовый</option><option>Расширенный</option></select></div>
+        <div class="field"><label for="f4">Комментарий</label><textarea class="input" id="f4" data-part="Многострочное поле"></textarea></div>
+      </div>
+      <div class="row">
+        <label class="choice"><input type="checkbox" checked="" data-part="Флажок"> Согласен с условиями</label>
+        <label class="choice"><input type="radio" name="r" checked="" data-part="Переключатель"> Вариант 1</label>
+        <label class="choice"><input type="radio" name="r"> Вариант 2</label>
+        <label class="choice"><input type="checkbox" class="switch" role="switch" checked="" data-part="Тумблер"> Уведомления</label>
+      </div>
+    </section>
+
+    <section class="kit-sec" aria-labelledby="k-badge">
+      <h2 id="k-badge">Метки</h2>
+      <div class="row">
+        <span class="badge" data-part="Метка">Черновик</span>
+        <span class="badge badge-accent" data-part="Метка акцентная">Новое</span>
+        <span class="badge badge-success" data-part="Метка успех">Оплачено</span>
+        <span class="badge badge-danger" data-part="Метка ошибка">Просрочено</span>
+      </div>
+    </section>
+
+    <section class="kit-sec" aria-labelledby="k-card">
+      <h2 id="k-card">Карточка и таблица</h2>
+      <div class="grid2">
+        <article class="card" data-part="Карточка">
+          <h3>Заголовок карточки</h3>
+          <p>Короткое описание объекта в две строки — пример текста.</p>
+          <div class="row"><a class="btn btn-secondary btn-sm" href="#">Открыть</a></div>
+        </article>
+        <div class="table-wrap" data-part="Таблица">
+          <table>
+            <thead><tr><th>Объект</th><th>Статус</th><th>Сумма</th></tr></thead>
+            <tbody>
+              <tr><td>Пример 1</td><td><span class="badge badge-success">Готово</span></td><td>1 200</td></tr>
+              <tr><td>Пример 2</td><td><span class="badge">В работе</span></td><td>860</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="tabs" role="tablist" data-part="Вкладки">
+        <button class="tab" role="tab" aria-selected="true">Все</button>
+        <button class="tab" role="tab" aria-selected="false">Активные</button>
+        <button class="tab" role="tab" aria-selected="false">Архив</button>
+      </div>
+    </section>
+
+    <section class="kit-sec" aria-labelledby="k-board">
+      <h2 id="k-board">Доска и поток</h2>
+      <div class="grid2">
+        <div class="fastlane" data-part="Фастлайн">
+          <div class="fast-line">
+            <span class="fast-label">FST-01</span>
+            <a class="fast-name" href="../board.html/index.html" data-mockup-href="/board.html">Переработать дизайн канбан-доски</a>
+            <span class="badge">В работе</span>
+          </div>
+          <p class="fast-hint">Гейт занят: следующая задача войдёт на фастлайн после закрытия FST-01.</p>
+        </div>
+        <div class="code" data-part="Код с копированием">
+          <code>git push origin feature/board-redesign</code>
+          <button class="btn btn-ghost btn-sm" type="button">Копировать</button>
+        </div>
+      </div>
+      <p>Код встроенный — в тексте описания: <code class="inline-code" data-part="Код встроенный">feature/board-redesign</code>.</p>
+      <div class="col" data-part="Колонка доски">
+        <div class="col-head">
+          <span class="dot dot-wait" aria-hidden="true"></span>
+          <h3 class="col-title">Ожидает</h3>
+          <span class="count">4</span>
+        </div>
+        <a class="task-card p-high" href="../board.html/index.html" data-mockup-href="/board.html" data-part="Карточка задачи">
+          <h3 class="t-title">BUG-031: комментарии не сохраняются при перетаскивании</h3>
+          <div class="t-meta">
+            <span class="t-cat">Баг</span>
+            <span class="chip">kanban</span>
+            <span class="chip">fe</span>
+            <span class="t-due t-due-over">Срок: 18.11, просрочен</span>
+          </div>
+        </a>
+        <a class="task-card p-mid" href="../board.html/index.html" data-mockup-href="/board.html" data-part="Карточка задачи">
+          <h3 class="t-title">Добавить фильтр по тегам</h3>
+          <div class="t-meta">
+            <span class="t-cat">Функция</span>
+            <span class="chip">канбан</span>
+            <span class="t-due">Срок: 30.11</span>
+          </div>
+        </a>
+        <div class="task-card p-low" data-part="Карточка задачи выполнена">
+          <h3 class="t-title">Вынести конфиг в .env</h3>
+          <div class="t-meta"><span class="t-cat">Бэкенд</span><span class="t-due">сегодня, 10:12</span></div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="chip" data-part="Чип тега">канбан</span>
+        <span class="chip" data-part="Чип тега">дизайн</span>
+        <span class="chip" data-part="Чип тега">fe</span>
+        <span class="chip" data-part="Чип тега">postgres</span>
+        <span class="chip" data-part="Чип тега">tls</span>
+      </div>
+    </section>
+
+    <section class="kit-sec" aria-labelledby="k-state">
+      <h2 id="k-state">Сообщения и состояния</h2>
+      <div class="grid2">
+        <div class="alert alert-success" role="status" data-part="Сообщение успех"><strong>Сохранено</strong><span>Изменения применены.</span></div>
+        <div class="alert alert-danger" role="alert" data-part="Сообщение ошибка"><strong>Не удалось сохранить</strong><span>Проверьте соединение и повторите.</span></div>
+        <div class="alert alert-warning" data-part="Сообщение предупреждение"><strong>Осталось 3 дня</strong><span>Пример предупреждения.</span></div>
+        <div class="skeleton" aria-label="Загрузка" data-part="Загрузка"><i></i><i></i><i></i></div>
+      </div>
+      <div class="empty" data-part="Пустое состояние">
+        <h3>Здесь пока пусто</h3>
+        <p>Когда появятся записи, они будут здесь. Начните с первой.</p>
+        <button class="btn btn-primary">Создать</button>
+      </div>
+      <div class="dialog" role="dialog" aria-labelledby="k-dlg" data-part="Диалог">
+        <h3 id="k-dlg">Удалить запись?</h3>
+        <p>Действие нельзя отменить.</p>
+        <div class="row"><button class="btn btn-danger">Удалить</button><button class="btn btn-secondary">Отмена</button></div>
+      </div>
+    </section>
+  </main>
+
+
+</body></html>
