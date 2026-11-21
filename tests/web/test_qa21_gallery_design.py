@@ -218,8 +218,8 @@ def test_tc_gal_122_live_computed_styles_and_states(browser_instance):
             expect(my_vote.first).to_be_visible()
             color = my_vote.first.evaluate(
                 "el => getComputedStyle(el).backgroundColor")
-            assert color == "rgb(58, 44, 18)", (
-                f"подсветка «мой голос» не --p-amber-900/#3a2c12: {color}")
+            assert color == "rgb(78, 49, 36)", (
+                f"подсветка «мой голос» не --color-accent-soft/#4e3124: {color}")
 
             # --- Шаг 5г: 422-состояние формы загрузки (файл не-изображение) ---
             page.keyboard.press("Escape")

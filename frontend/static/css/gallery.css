@@ -1,9 +1,10 @@
 /* Галерея (tasks.md 1.5 add-gallery-service): стили страницы /gallery.
- * Строго по утвержденным мокапам 1.1 (design/gallery-grid.html,
- * gallery-lightbox.html, gallery-upload.html). Стиль V3 «Бумага» —
- * токены из app.css :root (paper/ink/clay, Georgia display, радиусы
- * 6/10px, focus-ring, 8px-сетка) — НИКАКОГО хардкода цветов (эталон
- * design_validator'а 2.1(г)). Каркас — app.css (сайдбар, .content);
+ * Стиль направления A «Доска и поток» (redesign-ui-a, sdd §5.4; эталон
+ * design-forge/extra/gallery/gallery.html): masonry-плитки естественной
+ * высоты, hover — бордо-кромка + золото заголовка, лайтбокс на bg-токене,
+ * реакции «мой голос» — золото. Селекторы прежние (ОГР-28).
+ * Токены из app.css :root (dark+light) — НИКАКИХ литералов цвета (гейт
+ * TC-GAL-122: 0 hex, 0 rgba). Каркас — app.css (сайдбар, .content);
  * модалки/крестики/ошибки — board.css (.modal-overlay, .modal,
  * .modal-close, .form-error); паттерн фильтров — search.css.
  * Здесь — только компоновка галереи. */
@@ -60,6 +61,8 @@
 
 .filter-count {
   font-size: var(--font-size-micro);
+  font-family: var(--font-family-data);
+  font-variant-numeric: tabular-nums;
   color: var(--color-text-secondary);
   margin-left: var(--space-1);
   padding-bottom: 6px;
@@ -162,10 +165,11 @@
   transition: transform var(--speed-fast) ease, box-shadow var(--speed-fast) ease;
 }
 
-/* Hover «Пульта»: ступени фона/границы, без теней-глубины. */
+/* Hover направления A (мокап extra/gallery .shot:hover): подъем −2px,
+ * бордо-кромка (accent-2), фон не меняется; заголовок — золото. */
 .g-card:hover {
-  border-color: var(--p-border-2);
-  background: var(--p-bg-300);
+  border-color: var(--color-accent-2);
+  transform: translateY(-2px);
 }
 
 .g-card:hover .g-card-title { color: var(--color-accent); }
@@ -331,7 +335,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-4) var(--space-3);
-  background: var(--p-bg-000);
+  background: var(--color-bg);
 }
 
 .lb-image {
@@ -353,7 +357,7 @@
   min-width: 64px;
   border: none;
   background: transparent;
-  color: var(--p-text-900);
+  color: var(--color-text);
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -363,7 +367,7 @@
 
 .lb-nav-zone:hover {
   opacity: 1;
-  background: var(--p-bg-300);
+  background: color-mix(in srgb, var(--color-border) 45%, transparent);
 }
 
 .lb-nav-zone:focus-visible {
@@ -388,10 +392,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--p-text-900);
+  color: var(--color-text);
   font-size: var(--font-size-label);
+  font-family: var(--font-family-data);
+  font-variant-numeric: tabular-nums;
   pointer-events: none;
-  background: rgba(14, 22, 33, 0.72);
+  background: color-mix(in srgb, var(--color-bg) 72%, transparent);
   padding: 4px 14px;
   border-radius: 999px;
 }
@@ -399,11 +405,11 @@
 .lb-counter kbd {
   font-family: inherit;
   font-size: var(--font-size-micro);
-  border: 1px solid var(--p-border-2);
+  border: 1px solid var(--color-border-strong);
   border-bottom-width: 2px;
   border-radius: var(--radius-field);
   padding: 0 5px;
-  color: var(--p-text-900);
+  color: var(--color-text);
 }
 
 /* --- Панель справа: реакции / скачать / комментарии --- */

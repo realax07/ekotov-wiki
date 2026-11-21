@@ -12,10 +12,12 @@ redesign-ui-a (sdd-redesign-ui-a.md §4, ОВ-4): правлены ТОЛЬКО 
 контраст WCAG 2.1 AA, reduced-motion, skip-link) — без изменений.
 HUD-уголки/микро-сетка/cyan-глоу «Пульта» удалены — соответствующие ассерты
 инвертированы («0 HUD-градиентов», «сетка отсутствует», cyan в покое = 0).
-Страницы вне объема (login/settings/search/wiki/gallery частично) остаются
+Страницы вне объема (login/settings/search) остаются
 на legacy-токенах --p-* (значения не менялись) — их ассерты держат прежние
 литералы как «неизменность декора» (ОВ-4); каркасные поверхности (bg/text/
-акцент/фокус) наследуют палитру A через семантический слой.
+акцент/фокус) наследуют палитру A через семантический слой. Wiki/gallery/
+video — в объеме Dev-2 (ступени 3–5 sdd §5): их ассерты переведены на
+токены A (только литералы значений).
 
 Производные токены (color-mix) тест сравнивает через зонный элемент с тем
 же var() — сравнение строк computed-значений (сериализация color(srgb …)
@@ -1153,12 +1155,11 @@ def gallery_mock(page):
 
 def test_tc_redesign_016_gallery_grid_lightbox_pult(logged_in_page, gallery_mock,
                                                     web_base_url):
-    """TC-redesign-016 (CHK-016, FR-125 дельта): галерея на каркасных токенах A
-    (gallery.css вне объема волны — card/hover на прежних правилах, но
-    семантический слой отдал палитру A): плитки raised/border, hover —
-    legacy-ступень --p-bg-300/--p-border-2 (декор галереи не мигрировал —
-    ОВ-4, гибрид зафиксирован); лайтбокс — затемнение --overlay (производный
-    от bg A) и тенью --shadow-modal; Esc закрывает."""
+    """TC-redesign-016 (CHK-016, FR-125 дельта): галерея на токенах A
+    (redesign-ui-a, sdd §5.4 по эталону extra/gallery): плитки raised/border,
+    hover — подъем −2px с бордо-кромкой accent-2 (фон не меняется);
+    лайтбокс — затемнение --overlay (производный от bg A) и тенью
+    --shadow-modal; Esc закрывает."""
     page = logged_in_page
     page.goto(f"{web_base_url}/gallery")
     expect(page.locator(".g-card")).to_have_count(1)
@@ -1170,8 +1171,8 @@ def test_tc_redesign_016_gallery_grid_lightbox_pult(logged_in_page, gallery_mock
     _wait_transition(page)
     st = card.evaluate("el => { const c = getComputedStyle(el);"
                        " return {bg: c.backgroundColor, border: c.borderColor}; }")
-    # hover-ступень галереи — legacy --p-bg-300/--p-border-2 (не мигрировали).
-    assert st == {"bg": "rgb(38, 53, 77)", "border": "rgb(77, 96, 124)"}, st
+    # hover галереи — бордо-кромка accent-2, фон не меняется (мокап extra/gallery).
+    assert st == {"bg": BG2, "border": ACCENT2}, st
     # Подпись; служебные значения — микро.
     title = page.locator(".g-card-title, .g-card-name").first
     expect(title).to_be_visible()
@@ -1805,12 +1806,11 @@ def test_tc_redesign_029_profile_card_and_crop_dark(logged_in_page, web_base_url
 # ==========================================================================
 
 def test_tc_redesign_030_video_screen_pult(logged_in_page, page, web_base_url):
-    """TC-redesign-030 (CHK-030, FR-126 дельта; ОВ-4 — video.html вне объема
-    волны): экран «Видео» на СВОЕМ снимке токенов «Пульта» — статусы
-    обработки бейджами с LED-точкой (teal готово / amber конвертация blink /
-    coral ошибка), первичные действия янтарные, служебные значения микро;
-    функциональный прогон видео-сьюта — приемочный; данные списком —
-    route-мок /api/videos (сервис вне app)."""
+    """TC-redesign-030 (CHK-030, FR-126 дельта; redesign-ui-a — видео на
+    токенах A): статусы обработки бейджами с LED-точкой (success готово /
+    warning конвертация blink / danger ошибка), первичные действия золотые
+    A, служебные значения микро; функциональный прогон видео-сьюта —
+    приемочный; данные списком — route-мок /api/videos (сервис вне app)."""
     videos = {"videos": [
         {"id": 1, "filename": "qared-ready.mp4", "status": "ready",
          "created_at": "2026-10-24T10:00:00+00:00", "size": 1024,
@@ -1829,21 +1829,21 @@ def test_tc_redesign_030_video_screen_pult(logged_in_page, page, web_base_url):
     try:
         page.goto(f"{web_base_url}/video")
         expect(page.locator(".v-card")).to_have_count(3)
-        # Статусы — цветные бейджи с LED-точкой по состоянию записи.
+        # Статусы — цветные бейджи с LED-точкой по состоянию записи (токены A).
         ready = page.locator(".status-badge.status-ready").first
-        assert ready.evaluate("el => getComputedStyle(el).color") == LEG_TEAL
+        assert ready.evaluate("el => getComputedStyle(el).color") == SUCCESS
         conv = page.locator(".status-badge.status-converting").first
-        assert conv.evaluate("el => getComputedStyle(el).color") == LEG_AMBER
+        assert conv.evaluate("el => getComputedStyle(el).color") == WARNING
         dot_animation = page.evaluate(
             "getComputedStyle(document.querySelector('.status-converting .status-dot'))"
             ".animationName")
         assert dot_animation not in ("none", ""), dot_animation  # LED «в обработке» blink
         err_badge = page.locator(".status-badge.status-error").first
-        assert err_badge.evaluate("el => getComputedStyle(el).color") == LEG_CORAL
-        # Первичные действия — янтарные (свой снимок video.html).
+        assert err_badge.evaluate("el => getComputedStyle(el).color") == DANGER
+        # Первичные действия — золотые A.
         upload = page.locator("#open-upload-button")
         expect(upload).to_be_visible()
-        assert upload.evaluate("el => getComputedStyle(el).backgroundColor") == LEG_AMBER
+        assert upload.evaluate("el => getComputedStyle(el).backgroundColor") == ACCENT
         # Служебные значения — микро-строка.
         meta = page.locator(".v-card-meta").first
         assert meta.evaluate("el => getComputedStyle(el).fontSize") == "11px"
@@ -1977,7 +1977,7 @@ def test_tc_redesign_033_wiki_breadcrumb_semantics(logged_in_page, wiki_pages, w
     """TC-redesign-033 (CHK-033, FR-109): breadcrumb статьи — полная цепочка
     «корень → раздел → статья», каждый уровень кликабелен; корневая страница —
     один элемент без само-ссылки; визуал — mono-микролейбл 11px uppercase
-    (wiki.css вне объема, legacy-литералы), заголовок статьи 22px serif A;
+    (цвет подписи — derived --color-text-muted A), заголовок статьи 22px serif A;
     разделитель-трек между статьей и шапкой — пунктирная линия. Прогон
     p15_wiki_tree — приемочный."""
     page = logged_in_page
@@ -2003,7 +2003,7 @@ def test_tc_redesign_033_wiki_breadcrumb_semantics(logged_in_page, wiki_pages, w
     bc = page.locator(".wiki-breadcrumb .breadcrumb").evaluate(
         "el => { const c = getComputedStyle(el); return {ff: c.fontFamily, fs: c.fontSize,"
         " tt: c.textTransform, color: c.color}; }")
-    assert FONT_DATA in bc["ff"] and bc["fs"] == "11px" and bc["tt"] == "uppercase"         and bc["color"] == LEG_T500, bc
+    assert FONT_DATA in bc["ff"] and bc["fs"] == "11px" and bc["tt"] == "uppercase"         and bc["color"] == _color_var(page, "--color-text-muted"), bc
     page.goto(f"{web_base_url}/wiki/{article_id}")
     h1 = page.locator(".article-head h1, .content h1").first
     hs = h1.evaluate("el => { const c = getComputedStyle(el);"
@@ -2016,22 +2016,23 @@ def test_tc_redesign_033_wiki_breadcrumb_semantics(logged_in_page, wiki_pages, w
 
 
 def test_tc_redesign_034_wiki_rich_blocks_visual(logged_in_page, wiki_pages, web_base_url):
-    """TC-redesign-034 (CHK-034, FR-123; ОВ-4 — wiki.css вне объема волны):
-    rich-контент сохраняет декор «Пульта» на legacy-токенах --p-* (h2 с
-    inset-полосой teal, спойлер cyan-сигнализация, код-блок на bg1/bg3,
-    таблица на bg1/--p-border) — неизменность до волны wiki; h3 15px/600."""
+    """TC-redesign-034 (CHK-034, FR-123; redesign-ui-a — wiki на токенах A):
+    rich-контент направления A (h2 — serif 17px/650 с бордовой inset-полосой
+    accent-2, спойлер — золотая сигнализация при открытии, код-блок на
+    bg-странице с шапкой surface, таблица на surface/border) — по sdd §2.2;
+    h3 15px/600 muted."""
     page = logged_in_page
     article_id = wiki_pages("QARED rich", content=RICH_CONTENT)
     page.goto(f"{web_base_url}/wiki/{article_id}")
     h2 = page.locator(".article-body h2").first
     h2s = h2.evaluate("el => { const c = getComputedStyle(el);"
                       " return {fs: c.fontSize, fw: c.fontWeight, sh: c.boxShadow}; }")
-    assert h2s["fs"] == "17px" and h2s["fw"] == "650"         and "inset" in h2s["sh"] and "90, 216, 142" in h2s["sh"], h2s
+    assert h2s["fs"] == "17px" and h2s["fw"] == "650"         and "inset" in h2s["sh"] and "196, 80, 92" in h2s["sh"], h2s
     h3 = page.locator(".article-body h3").first
     h3s = h3.evaluate("el => { const c = getComputedStyle(el);"
                       " return {fs: c.fontSize, fw: c.fontWeight, color: c.color}; }")
-    assert h3s == {"fs": "15px", "fw": "600", "color": LEG_T600}, h3s
-    # Спойлер: свернут по умолчанию → открыт с legacy cyan-сигнализацией → свернут.
+    assert h3s == {"fs": "15px", "fw": "600", "color": _color_var(page, "--color-text-secondary")}, h3s
+    # Спойлер: свернут по умолчанию → открыт с золотой сигнализацией A → свернут.
     spoiler = page.locator(".spoiler").first
     expect(spoiler).to_be_visible()
     assert "open" not in (spoiler.get_attribute("class") or "")
@@ -2040,17 +2041,17 @@ def test_tc_redesign_034_wiki_rich_blocks_visual(logged_in_page, wiki_pages, web
     expect(spoiler).to_contain_class("open")
     ost = spoiler.evaluate("el => { const c = getComputedStyle(el);"
                            " return {border: c.borderTopColor, sh: c.boxShadow}; }")
-    assert ost["border"] == "rgba(79, 216, 235, 0.45)" and CYAN_RGBA in ost["sh"], ost
+    assert ost["border"] == ACCENT and ost["sh"] != "none", ost
     spoiler.locator(".spoiler-head").click()
     expect(spoiler).not_to_contain_class("open")
-    # Код-блок: панель bg1 с шапкой bg3, code mono, горизонтальный скролл.
+    # Код-блок: панель bg-страницы A с шапкой surface, code mono, скролл.
     block = page.locator(".article-body .codeblock").first
     expect(block).to_be_visible()
     bst = block.evaluate("el => { const c = getComputedStyle(el);"
                          " return {bg: c.backgroundColor, r: c.borderRadius}; }")
-    assert bst["bg"] == "rgb(23, 35, 53)", bst
+    assert bst["bg"] == BG0, bst
     head = block.locator(".codeblock-head").first
-    assert head.evaluate("el => getComputedStyle(el).backgroundColor") == "rgb(38, 53, 77)"
+    assert head.evaluate("el => getComputedStyle(el).backgroundColor") == BG1
     code = block.locator("code").first
     assert "ui-monospace" in code.evaluate("el => getComputedStyle(el).fontFamily")
     assert block.locator("pre").first.evaluate(
@@ -2099,10 +2100,10 @@ def test_tc_redesign_035_rich_survives_sanitize_and_editor(logged_in_page, wiki_
 def test_tc_redesign_036_wiki_visual_tree_editor_history_hexgate(logged_in_page, wiki_pages,
                                                                  web_owner_session,
                                                                  web_base_url):
-    """TC-redesign-036 (CHK-036, FR-124; ОВ-4 — wiki.css вне объема волны):
-    wiki-дерево сохраняет декор «Пульта» на legacy-токенах (панель bg-200,
-    активный узел amber-900/amber-400, <mark> инверсная янтарная пара);
-    внешних зависимостей нет; редактор — поля bg-2, первичные кнопки янтарные;
+    """TC-redesign-036 (CHK-036, FR-124; redesign-ui-a — wiki на токенах A):
+    wiki-дерево направления A (панель raised A, активный узел
+    accent-soft/accent, <mark> — warning-soft/accent пара); внешних
+    зависимостей нет; редактор — поля raised, первичные кнопки золотые;
     правка → новая версия в истории; гейт 2.7 по wiki.css (hex вне :root = 0);
     прогон p15_wiki_tree — приемочный."""
     page = logged_in_page
@@ -2117,17 +2118,17 @@ def test_tc_redesign_036_wiki_visual_tree_editor_history_hexgate(logged_in_page,
     expect(current).to_have_count(1)
     cst = current.evaluate("el => { const c = getComputedStyle(el);"
                            " return {bg: c.backgroundColor}; }")
-    assert cst["bg"] == LEG_AMBER900, cst
+    assert cst["bg"] == ACCENT_SOFT, cst
     assert current.locator(".tree-link").evaluate(
-        "el => getComputedStyle(el).color") == LEG_AMBER
-    # Поиск по дереву: <mark> инверсной янтарной парой.
+        "el => getComputedStyle(el).color") == ACCENT
+    # Поиск по дереву: <mark> парой warning-soft/accent направления A.
     page.fill("#wiki-search, .wiki-toolbar input[type='search']", "qaredunique")
     page.wait_for_timeout(400)
     mark = page.locator(".result-snippet mark, .wiki-results mark").first
     if mark.count():
         ms = mark.evaluate("el => { const c = getComputedStyle(el);"
                            " return {bg: c.backgroundColor, color: c.color}; }")
-        assert ms == {"bg": LEG_AMBER900, "color": LEG_AMBER}, ms
+        assert ms == {"bg": ACCENT_SOFT, "color": ACCENT}, ms
     # Внешних зависимостей нет (ОГР-8).
     for tpl in ("wiki.html", "base.html"):
         html = (REPO / "frontend/templates" / tpl).read_text()

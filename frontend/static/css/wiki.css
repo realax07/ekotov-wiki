@@ -1,17 +1,16 @@
 /* =====================================================================
    Wiki — дерево и поиск (tasks.md 3.1 add-wiki; FR-107, FR-114;
-   design §6–§7) — СТРОГО по утвержденному мокапу design/wiki-tree.html.
-   Зона шва 3.1: селекторы дерева (.tree-*, .wiki-tree как поверхность),
+   design §6–§7) — стиль направления A «Доска и поток» (redesign-ui-a,
+   sdd §5.3; эталон design-forge/extra/wiki/wiki.html). Селекторы зон
+   прежние (ОГР-28): дерева (.tree-*, .wiki-tree как поверхность),
    тулбара поиска (.wiki-toolbar, .wiki-search, .filter-count), выдачи
    (.wiki-results, .result-*) и пустого состояния (.wiki-empty).
-   Секции статьи/редактора/истории — швы 3.2/3.3/3.4 (дополняют своими
-   селекторами, общие правила не перекраиваются — tasks.md «Неразделимые
-   зоны»).
+   Секции статьи/редактора/истории — швы 3.2/3.3/3.4.
 
-   Токены — ТОЛЬКО var(--…) из app.css :root (V3 «Бумага»), без хардкода
-   цветов (NFR-33). Кеш-бастинг — ?v={{ static_v }} в wiki.html.
-   Подсветка <mark> — решение дизайнера (review мокапов): фон amber-700,
-   текст on-accent, инверсная.
+   Токены — ТОЛЬКО var(--…) из app.css :root (направление A, dark+light;
+   литералы цвета вне :root запрещены — гейт TC-redesign-036). Золото —
+   на действии/сигнале (текущая страница, акцент код-блока, спойлер);
+   бордо — на h2-полосе (sdd §2.2). Кеш-бастинг — ?v={{ static_v }}.
    ===================================================================== */
 
 /* --- Раскладка (каркас 2.3): двухколоночная сетка — дерево слева
@@ -103,17 +102,18 @@ ul.wiki-tree {
 }
 
 .tree-row:hover {
-  background: var(--p-bg-300);
+  background: var(--color-bg-subtle);
 }
 
-/* Текущая страница — янтарная подсветка (design §D2 «дерево с янтарной
- * подсветкой»): подложка amber-900, текст amber-400; ставит tree.js. */
+/* Текущая страница — золотая подсветка направления A (мокап extra/wiki
+ * .sidenav a[aria-current]): подложка accent-soft, текст accent; ставит
+ * tree.js. */
 .tree-row:has(a[aria-current="page"]) {
-  background: var(--p-amber-900);
+  background: var(--color-accent-soft);
 }
 
 .tree-row:has(a[aria-current="page"]) .tree-link {
-  color: var(--p-amber-400);
+  color: var(--color-accent);
 }
 
 .tree-row:focus-within {
@@ -339,11 +339,11 @@ ul.wiki-results {
   line-height: 1.5;
 }
 
-/* Подсветка «Пульта» (impact.md п.5, design §D1): amber-подложка на dark —
-   фон --p-amber-900, текст --p-amber-400. */
+/* Подсветка направления A (sdd §4/§5.3): фон --color-warning-soft,
+ * текст --color-accent. */
 .result-snippet mark {
-  background: var(--p-amber-900);
-  color: var(--p-amber-400);
+  background: var(--color-warning-soft);
+  color: var(--color-accent);
   border-radius: 3px;
   padding: 0 3px;
 }
@@ -567,7 +567,7 @@ ul.wiki-results {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: var(--p-amber-400);
+  color: var(--color-accent);
 }
 
 .version-body {
@@ -767,7 +767,7 @@ nav.wiki-breadcrumb {
   font-size: var(--font-size-micro);
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--p-text-500);
+  color: var(--color-text-muted);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -825,15 +825,17 @@ nav.wiki-breadcrumb {
   height: 1px;
   background: repeating-linear-gradient(
     90deg,
-    var(--p-border) 0 8px,
+    var(--color-border) 0 8px,
     transparent 8px 16px
   );
 }
 
 .article-head h1 {
   font-family: var(--font-family-display);
-  font-weight: 400;
-  font-size: 30px;
+  font-weight: 700;
+  /* 22px — общий h1 каркаса A (TC-redesign-033; размер каркасного
+   * .content h1, §1.5 sdd — шкала кеглей A не переносится). */
+  font-size: var(--font-size-h1);
   margin: 0 0 var(--space-1);
   overflow-wrap: break-word;
 }
@@ -948,13 +950,14 @@ nav.wiki-breadcrumb {
 }
 
 .article-body h2 {
-  font-family: var(--font-family);
+  font-family: var(--font-family-display);
   font-weight: 650;
   font-size: var(--font-size-h2);
   margin: var(--space-3) 0 var(--space-1);
-  /* teal-полоса слева (мокап board-console .wiki h2) */
+  /* бордовая inset-полоса слева (мокап extra/wiki doc-body h2, sdd §2.2:
+   * h2 — serif с бордовой полосой вместо teal «Пульта») */
   padding-left: 12px;
-  box-shadow: inset 3px 0 0 var(--status-success);
+  box-shadow: inset 3px 0 0 var(--color-accent-2);
 }
 
 .article-body h2:first-child {
@@ -962,10 +965,10 @@ nav.wiki-breadcrumb {
 }
 
 .article-body h3 {
-  font-family: var(--font-family);
+  font-family: var(--font-family-display);
   font-weight: 600;
   font-size: 15px;
-  color: var(--p-text-600);
+  color: var(--color-text-secondary);
   margin: var(--space-2) 0 var(--space-1);
 }
 
@@ -1001,15 +1004,16 @@ nav.wiki-breadcrumb {
 .article-body pre {
   margin: 0 0 var(--space-2);
   padding: var(--space-2);
-  background: var(--p-bg-100);
-  color: var(--p-text-900);
+  background: var(--color-bg-page);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-field);
   overflow-x: auto;
   line-height: 1.6;
 }
 
 .article-body code {
-  font-family: ui-monospace, 'Cascadia Mono', 'Courier New', monospace;
+  font-family: var(--font-family-data);
   font-size: 12px;
   background: var(--color-bg-subtle);
   padding: 1px 5px;
@@ -1379,14 +1383,15 @@ nav.wiki-breadcrumb {
 .editor-area pre {
   margin: 0 0 var(--space-2);
   padding: var(--space-2);
-  background: var(--p-bg-100);
-  color: var(--p-text-900);
+  background: var(--color-bg-page);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-field);
   overflow-x: auto;
 }
 
 .editor-area code {
-  font-family: ui-monospace, 'Cascadia Mono', 'Courier New', monospace;
+  font-family: var(--font-family-data);
   font-size: 12px;
   background: var(--color-bg-subtle);
   padding: 1px 5px;
@@ -1731,22 +1736,22 @@ nav.wiki-breadcrumb {
    design/p12-rich/tool-1..5-*.png). Стили блоков в редакторе
    (.editor-area) и в статье (.article-body) — общие классы: узлы
    создает JS (rich/*.js), в контенте хранятся только data-атрибуты.
-   Токены «Пульт» (redesign-console 2.3, app.css). ОГР-8: без внешних ресурсов.
+   Токены направления A (redesign-ui-a 3.3, app.css). ОГР-8: без внешних ресурсов.
    ===================================================================== */
 
-/* --- Спойлер «Пульта» (мокап details.spoiler): панель bg1; ОТКРЫТЫЙ —
- * cyan-рамка 45% + glow-cyan (cyan — только актив/фокус, design §D1 п.7).
+/* --- Спойлер направления A (мокап extra/wiki): панель surface; ОТКРЫТЫЙ —
+ * золотая сигнализация (sdd §2.2: спойлер — золото вместо HUD+cyan «Пульта»).
  * Редакторный фокус-вариант (пунктир ниже) сохранен. --- */
 .spoiler {
-  background: var(--p-bg-100);
-  border: 1px solid var(--p-border);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-field);
   margin: 0 0 var(--space-2);
 }
 
 .spoiler.open {
-  border-color: var(--cyan-border);
-  box-shadow: var(--glow-cyan);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 .spoiler-head {
   display: flex;
@@ -1808,12 +1813,12 @@ td .spoiler, th .spoiler { margin: 0; } /* страховка на контен�
   outline-offset: 3px;
 }
 
-/* --- Блок кода «Пульта» (мокап board-console pre): панель bg1,
- * граница border, шапка — ступень bg3, линия акцента снизу шапки --- */
+/* --- Блок кода направления A (мокап extra/wiki .codeblock): панель bg,
+ * граница border, шапка — поверхность, линия акцента снизу шапки --- */
 .codeblock {
-  background: var(--p-bg-100);
-  border: 1px solid var(--p-border);
-  border-radius: var(--radius-field);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-soft);
   margin: 0 0 var(--space-2);
   overflow: hidden;
@@ -1823,15 +1828,16 @@ td .spoiler, th .spoiler { margin: 0; } /* страховка на контен�
   align-items: center;
   gap: var(--space-1);
   padding: 5px var(--space-1);
-  background: var(--p-bg-300);
+  background: var(--color-surface);
   border-bottom: 2px solid var(--color-accent);
 }
 .codeblock-lang {
   font: inherit;
+  font-family: var(--font-family-data);
   font-size: var(--font-size-micro);
-  color: var(--p-text-900);
-  background: var(--p-bg-100);
-  border: 1px solid var(--p-border-2);
+  color: var(--color-text);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--space-05);
   padding: 2px var(--space-05);
   cursor: pointer;
@@ -1845,7 +1851,7 @@ td .spoiler, th .spoiler { margin: 0; } /* страховка на контен�
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-field);
-  box-shadow: 0 4px 12px rgba(61, 54, 48, 0.18);
+  box-shadow: var(--shadow-soft);
   padding: var(--space-05);
   min-width: 120px;
 }
@@ -1872,15 +1878,16 @@ td .spoiler, th .spoiler { margin: 0; } /* страховка на контен�
   align-items: center;
   gap: var(--space-05);
   font: inherit;
+  font-family: var(--font-family-data);
   font-size: var(--font-size-micro);
-  color: var(--p-text-900);
+  color: var(--color-text);
   background: transparent;
-  border: 1px solid var(--p-border-2);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--space-05);
   padding: 2px var(--space-1);
   cursor: pointer;
 }
-.copy-btn:hover { border-color: var(--p-text-600); }
+.copy-btn:hover { border-color: var(--color-text-secondary); }
 .copy-btn.ok { color: var(--status-success); border-color: var(--status-success); }
 /* нумерация строк (ОВ-2): гуттер — абсолютный data-editor-сиблинг pre
    (top выставляет JS по высоте шапки; pre смещен left-маржином) */
@@ -1891,11 +1898,11 @@ td .spoiler, th .spoiler { margin: 0; } /* страховка на контен�
   width: 40px;
   padding: var(--space-1) var(--space-05) var(--space-1) 0;
   text-align: right;
-  font-family: ui-monospace, 'Cascadia Mono', 'Courier New', monospace;
+  font-family: var(--font-family-data);
   font-size: 12px;
   line-height: 1.6;
-  color: var(--p-text-500);
-  background: var(--p-bg-300);
+  color: var(--color-text-muted);
+  background: var(--color-surface);
   white-space: pre;
   user-select: none;
 }
@@ -1908,21 +1915,21 @@ td .spoiler, th .spoiler { margin: 0; } /* страховка на контен�
 }
 .codeblock code,
 .codeblock .article-body code {
-  font-family: ui-monospace, 'Cascadia Mono', 'Courier New', monospace;
+  font-family: var(--font-family-data);
   font-size: 12px;
   background: transparent;
   padding: 0;
-  color: var(--p-text-900);
+  color: var(--color-text);
 }
-.editor-area .codeblock pre { color: var(--p-text-900); }
-.editor-area .codeblock pre code { color: var(--p-text-900); }
-/* подсветка — приглушенная «бумажная» палитра на черном (мокап) */
-.tok-kw  { color: var(--fastline); }            /* ключевые — янтарь */
-.tok-str { color: var(--status-success); }      /* строки — teal */
-.tok-com { color: var(--p-text-500); font-style: italic; } /* комментарии */
-.tok-num { color: var(--status-error); }        /* числа — coral */
-.tok-fn  { color: var(--priority-medium); }     /* функции — violet */
-.tok-dec { color: var(--p-text-600); }          /* декораторы/директивы */
+.editor-area .codeblock pre { color: var(--color-text); }
+.editor-area .codeblock pre code { color: var(--color-text); }
+/* подсветка — приглушенная палитра на токенах A (мокап extra/wiki) */
+.tok-kw  { color: var(--fastline); }            /* ключевые — золото */
+.tok-str { color: var(--status-success); }      /* строки — success */
+.tok-com { color: var(--color-text-muted); font-style: italic; } /* комментарии */
+.tok-num { color: var(--status-error); }        /* числа — danger */
+.tok-fn  { color: var(--priority-medium); }     /* функции — warning */
+.tok-dec { color: var(--color-text-secondary); } /* декораторы/директивы */
 .editor-area .codeblock:focus-within {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
@@ -1962,7 +1969,7 @@ td .spoiler, th .spoiler { margin: 0; } /* страховка на контен�
   border-radius: var(--radius-field) var(--radius-field) 0 0;
   flex-shrink: 0;
 }
-.tab:hover { color: var(--color-accent-hover); background: var(--p-bg-300); }
+.tab:hover { color: var(--color-accent-hover); background: var(--color-bg-subtle); }
 .tab.active {
   color: var(--color-accent);
   font-weight: 600;
@@ -2105,8 +2112,8 @@ td .spoiler, th .spoiler { margin: 0; } /* страховка на контен�
   color: var(--color-text-secondary);
   padding-left: var(--space-05);
 }
-/* целевой столбец вставки — ступень фона bg3 (мокап tool-5) */
-.editor-area .col-target { background: var(--p-bg-300) !important; }
+/* целевой столбец вставки — ступень фона surface (мокап tool-5) */
+.editor-area .col-target { background: var(--color-bg-subtle) !important; }
 /* фокус ячейки — терракотовое inset-кольцо (мокап) */
 .editor-area table td:focus,
 .editor-area table th:focus {
