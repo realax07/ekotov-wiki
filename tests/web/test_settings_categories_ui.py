@@ -334,12 +334,17 @@ def test_settings_contains_only_category_management(logged_in_page, web_base_url
     expect(settings.delete_button(SEED_CATEGORIES[0])).to_be_visible()
 
     # Шаг 3: отсутствующие функции — и по доступному имени, и по тексту
-    # страницы, to_have_count(0) каждое.
+    # страницы, to_have_count(0) каждое. Скоуп — контент-область #main-content:
+    # мобайл-волна redesign-ui-a (fa7c8e6) добавляет на КАЖДУЮ страницу
+    # таб-бар + шторку «Ещё» (base.html) с навигационным пунктом «Профиль» —
+    # это каркас навигации, а не функция страницы настроек (эталон
+    # design-forge/extra/mobile-v1, ОГР-28 DOM каркаса).
+    content = page.locator("#main-content")
     for term in ("Профиль", "Сменить пароль", "Справочник тегов"):
-        expect(page.get_by_text(term)).to_have_count(0)
-        expect(page.get_by_role("button", name=term)).to_have_count(0)
-    expect(page.get_by_text("Пароль", exact=True)).to_have_count(0)
-    expect(page.get_by_text("Теги", exact=True)).to_have_count(0)
+        expect(content.get_by_text(term)).to_have_count(0)
+        expect(content.get_by_role("button", name=term)).to_have_count(0)
+    expect(content.get_by_text("Пароль", exact=True)).to_have_count(0)
+    expect(content.get_by_text("Теги", exact=True)).to_have_count(0)
 
     # Шаг 4: инспекция HTML на строки password/profile/тег (допустимы
     # служебные совпадения; input[type=password] на /settings быть не должно).
