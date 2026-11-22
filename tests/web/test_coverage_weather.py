@@ -50,6 +50,20 @@ WEATHER_DIR = REPO_ROOT / "services" / "weather"
 if str(WEATHER_DIR) not in sys.path:
     sys.path.insert(0, str(WEATHER_DIR))
 
+# Коллизия полной коллекции tests/ (regress-final redesign-ui-a, итерация 1):
+# tests/api импортируют монолит backend/app как пакет `app` еще на этапе
+# коллекции, и `from app import provider` здесь резолвится в backend-монолит
+# → ImportError (cannot import name 'provider'). Погодный пакет внутренне
+# использует абсолютные self-импорты (`from app.x import …`) — переименовать
+# его нельзя; выселяем `app` из sys.modules перед импортом. Восстановление
+# backend `app` недопустимо: monkeypatch-строки "app.provider.fetch" в теле
+# файла резолвятся через sys.modules ВО ВРЕМЯ тестов. Выселение безопасно:
+# коллекция алфавитна (tests/api → tests/web), все api-модули уже импортированы
+# и держат прямые ссылки на свои объекты; другие web-модули backend `app`
+# не импортируют (монолит поднимается subprocess'ами).
+for _k in [k for k in sys.modules if k == "app" or k.startswith("app.")]:
+    del sys.modules[_k]
+
 import httpx  # noqa: E402
 from playwright.sync_api import expect  # noqa: E402
 
