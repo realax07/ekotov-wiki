@@ -1,5 +1,5 @@
 """Смоук-проверка задачи 2.1 add-responsive-mobile (dev-самопроверка,
-НЕ QA-артефакт): доска ≤480px — свайп-колонки со scroll-snap, индикатор
+НЕ QA-артефакт): доска ≤760px — свайп-колонки со scroll-snap, индикатор
 точек, быстрое «Выполнено» ≥44px; desktop ≥1024 — без изменений.
 
 Запуск (одной командой, против стенда :18443):
@@ -150,7 +150,7 @@ def test_board_swipe_snap_and_dots_follow(browser):
     context, page = _page(browser)
     try:
         board = page.locator("#board")
-        # Контейнер: overflow-x auto + snap mandatory (board.css ≤480px)
+        # Контейнер: overflow-x auto + snap mandatory (board.css ≤760px)
         styles = page.evaluate(
             """() => {
               const cs = getComputedStyle(document.getElementById('board'));
@@ -328,7 +328,7 @@ def test_desktop_board_unchanged(browser):
         assert styles["snapType"] in ("none", ""), styles
         assert styles["wrap"] == "nowrap" or styles["wrap"] == "initial", styles
         # Точки скрыты на desktop: DOM-заготовка есть (buildDots не зависит
-        # от ширины), но hidden + display:none (CSS-ветка только ≤480px)
+        # от ширины), но hidden + display:none (CSS-ветка только ≤760px)
         dots_hidden = page.evaluate(
             """() => {
               const dots = document.querySelector('.board-dots');
@@ -338,7 +338,7 @@ def test_desktop_board_unchanged(browser):
         )
         assert dots_hidden, styles
         # Quick-done: DOM строится на всех ширинах (инвариант рендера), но
-        # на desktop НЕ ВИДЕН (display:none вне ≤480px; перенос через DnD,
+        # на desktop НЕ ВИДЕН (display:none вне ≤760px; перенос через DnD,
         # NFR-29 «desktop без изменений»)
         quick_visible = page.evaluate(
             """() => Array.from(document.querySelectorAll('.task-quick-done'))

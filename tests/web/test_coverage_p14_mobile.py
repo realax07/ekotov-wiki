@@ -1,15 +1,19 @@
-"""coverage-backfill-1; TC-P14-101: Мобильный drawer — бургер, закрытие
-4 способами, единый DOM, сцена во всю ширину; TC-P14-102: Индикация активного
-раздела на мобильном; TC-P14-103: Доска на мобильном — свайп-колонки
-scroll-snap, индикатор точек, быстрое «Выполнено»; TC-P14-104: Fullscreen-
-модалка тикета — просмотр → «Редактировать» в одной оболочке; TC-P14-105:
+"""coverage-backfill-1 + redesign-ui-a мобайл-волна (эталон
+design-forge/extra/mobile-v1 «Таб-бар»): TC-P14-101: Мобильная навигация —
+нижний таб-бар (Доска/Wiki/Галерея/Видео/Ещё) + шторка «Ещё», сайдбар ≤760px
+скрыт (DOM сохранен, ОГР-28), сцена во всю ширину; TC-P14-102: Индикация
+активного раздела на мобильном (вкладка [aria-current="page"] — золото A);
+TC-P14-103: Доска на мобильном — свайп-колонки scroll-snap, индикатор точек,
+быстрое «Выполнено»; TC-P14-104: Bottom-sheet-модалка тикета (fullscreen,
+грейб-шапка) — просмотр → «Редактировать» в одной оболочке; TC-P14-105:
 Форма задачи на мобильном — одна колонка, поля ≥16px, тач-таргеты,
 Escape-семантика; TC-P14-106: Поиск на мобильном; TC-P14-107: Настройки и
 профиль на мобильном; TC-P14-108: Лайтбокс на таче — свайп/тап/скролл
 комментариев; TC-P14-109: Сквозные НФТ адаптива — брейкпоинты, safe-area,
 meta viewport, ОГР-8; TC-P14-110: Живая приемка Заказчика на проде (ручной).
 
-Группа D change coverage-backfill-1 (add-responsive-mobile, P14). Кейсы:
+Группа D change coverage-backfill-1 (add-responsive-mobile, P14) + дельта
+redesign-ui-a (мобайл-волна, ветка ≤760px по эталону mobile-v1). Кейсы:
 test-model/approved/add-responsive-mobile/TC-P14-101…110.md. Вьюпорт —
 device-эмуляция iPhone-класса (фикстура mobile_page 390×844 touch из
 test_p23_fastline_mobile_ui — тот же класс устройства, что 375×812 кейсов;
@@ -152,56 +156,83 @@ def _upload_three_with_comment(session, base: str, prefix: str):
 # TC-P14-101 — Мобильная навигация (единый DOM, сцена во всю ширину)
 # ---------------------------------------------------------------------------
 def test_tc_p14_101_mobile_drawer(mobile_page, web_base_url):
-    """TC-P14-101: на ≤860px навигация доступна и занимает одну колонку —
-    сцена во всю ширину, тач-таргеты пунктов ≥44px, DOM навигации
-    ЕДИНСТВЕННЫЙ (ОВ-2), переход по пункту ведет в раздел; на ≥1024px —
-    постоянный сайдбар (NFR-29). ФАКТ (merge-ветка): drawer-механика кейса
-    (бургер/подложка/Escape, .header-title в шапке) не воспроизводится —
-    утвержденный мокап редизайна каркаса (2.1/2.7 redesign-console, FR-131)
-    переезжает сайдбар ≤860px наверх ВИДИМОЙ горизонтальной строкой;
-    .mobile-header/.burger/.sidebar-backdrop скрыты CSS (app.css «drawer не
-    предусмотрен, элементы скрыты», DOM и хуки app.js сохранены). Ассерты —
-    по духу кейса (навигация на мобильном, единый DOM, ширина сцены)."""
+    """TC-P14-101: на ≤760px навигация доступна и занимает одну колонку —
+    сцена во всю ширину, тач-таргеты вкладок ≥44px, переход по вкладке
+    ведет в раздел; на ≥1024px — постоянный сайдбар (NFR-29). ФАКТ
+    (redesign-ui-a мобайл-волна, эталон design-forge/extra/mobile-v1/
+    board.html «Таб-бар»): прежняя drawer-механика кейса (бургер/подложка/
+    Escape) и затем редизайн-консольная «nav-строка ≤860px» заменены
+    НИЖНИМ таб-баром: сайдбар ≤760px скрыт CSS (DOM и хуки app.js/profile.js
+    сохранены — ОГР-28); разделы — 5 вкладок (Доска/Wiki/Галерея/Видео/Ещё)
+    + шторка «Ещё» (Профиль/тема/Поиск/Погода/Настройки/Игры/Манчкин/Выйти,
+    mobile-tabbar.js). Ассерты — по духу кейса (навигация на мобильном,
+    единый DOM, ширина сцены, тач-таргеты NFR-23)."""
     page = mobile_page
-    burger = page.locator("#burger-button")
-    sidebar = page.locator("#sidebar")
 
-    # Мобильная ветка ≤860px: каркас в одну колонку, сцена во всю ширину.
+    # Мобильная ветка ≤760px: каркас в одну колонку, сцена во всю ширину.
     assert page.evaluate(
         "getComputedStyle(document.body).gridTemplateColumns"
     ).split(" ")[0] != "", "grid-каркас не активен"
     cols = page.evaluate(
         "getComputedStyle(document.body).gridTemplateColumns.split(' ').length"
     )
-    assert cols == 1, cols  # одна колонка (сайдбар наверх, не слева)
+    assert cols == 1, cols  # одна колонка (сайдбар скрыт, не слева)
     assert _page_overflow(page) <= 0
     scene_w = page.evaluate(
         "document.querySelector('main').getBoundingClientRect().width"
     )
     assert scene_w == pytest.approx(390, abs=1), scene_w
 
-    # Drawer-элементы скрыты утвержденным мокапом (факт в докстринге).
-    expect(burger).to_be_hidden()
+    # Drawer-элементы скрыты (и в прежней, и в таб-бар ветке).
+    expect(page.locator("#burger-button")).to_be_hidden()
 
-    # Единый DOM навигации: все разделы доступны в видимой nav-строке.
+    # Единый DOM навигации: сайдбар один (скрыт CSS, ОГР-28), таб-бар —
+    # видимая навигация ≤760px: 5 вкладок, тач-таргет ≥44px (NFR-23).
     assert page.locator("#sidebar").count() == 1
-    assert page.locator(".sidebar-nav").count() == 1
-    for name in ("Доска", "Поиск", "Wiki", "Галерея", "Настройки"):
-        link = sidebar.get_by_role("link", name=name)
-        expect(link).to_be_visible()
-        box = link.bounding_box()
+    assert page.locator("#sidebar").is_hidden()
+    tabbar = page.locator(".tabbar-nav")
+    expect(tabbar).to_be_visible()
+    assert tabbar.locator(".tabbar-item").count() == 5
+    for name in ("Доска", "Wiki", "Галерея", "Видео", "Ещё"):
+        item = tabbar.get_by_role(
+            "link" if name != "Ещё" else "button", name=name
+        )
+        expect(item).to_be_visible()
+        box = item.bounding_box()
         assert box["height"] >= 44, (name, box)  # тач-таргет NFR-23
-    expect(sidebar.get_by_role("link", name="Мониторинг")).to_be_visible()
 
-    # Выбор пункта ведет в раздел (тач-клик).
-    sidebar.get_by_role("link", name="Поиск").click()
-    page.wait_for_url(f"{web_base_url}/search")
-    expect(page.locator("#sidebar .nav-item.active")).to_contain_text("Поиск")
+    # Активная вкладка текущего раздела (серверный рендер aria-current).
+    expect(page.locator('.tabbar-nav .tabbar-item[aria-current="page"]')).to_have_text(
+        "Доска"
+    )
 
-    # Desktop ≥1024px — сайдбар постоянный колонкой слева (NFR-29).
+    # Выбор вкладки ведет в раздел (тач-клик).
+    tabbar.get_by_role("link", name="Wiki").click()
+    page.wait_for_url(f"{web_base_url}/wiki")
+    expect(page.locator('.tabbar-nav .tabbar-item[aria-current="page"]')).to_have_text(
+        "Wiki"
+    )
+
+    # Разделы вне пяти вкладок — в шторке «Ещё»: строки видимы, ≥44px.
+    tabbar.get_by_role("button", name="Ещё").click()
+    sheet = page.locator("#more-sheet")
+    expect(sheet).to_be_visible()
+    more = ("Профиль", "Светлая тема", "Поиск", "Погода", "Настройки",
+            "Игры", "Манчкин")
+    for name in more:
+        row = sheet.locator(".more-row", has_text=name)
+        expect(row).to_be_visible()
+        box = row.bounding_box()
+        assert box["height"] >= 44, (name, box)
+    page.locator("#more-close").click()
+    expect(sheet).to_be_hidden()
+
+    # Desktop ≥1024px — сайдбар постоянный колонкой слева (NFR-29),
+    # таб-бар скрыт (display:none вне media-ветки ≤760px).
     page.set_viewport_size({"width": 1280, "height": 800})
     page.wait_for_timeout(150)
-    expect(burger).to_be_hidden()
+    expect(page.locator("#burger-button")).to_be_hidden()
+    expect(tabbar).to_be_hidden()
     sidebar_box = page.locator("#sidebar").bounding_box()
     assert sidebar_box["x"] == 0 and sidebar_box["width"] > 200, sidebar_box
     cols = page.evaluate(
@@ -214,35 +245,53 @@ def test_tc_p14_101_mobile_drawer(mobile_page, web_base_url):
 # TC-P14-102 — Индикация активного раздела на мобильном
 # ---------------------------------------------------------------------------
 def test_tc_p14_102_active_section_indicator(mobile_page, web_base_url):
-    """TC-P14-102: на мобильном текущий раздел всегда читаем — активный
-    пункт навигации подсвечен .active + aria-current и виден без прокрутки
-    (факт: drawer/header-title кейса скрыты редизайном каркаса, см.
-    TC-P14-101; подсветка .active сохранена в видимой nav-строке ≤860px);
-    переход в другой раздел переносит подсветку."""
+    """TC-P14-102: на мобильном текущий раздел всегда читаем — активная
+    вкладка таб-бара [aria-current="page"] подсвечена золотом направления A
+    и видна без прокрутки (ФАКТ: nav-строка/дровер кейса скрыты —
+    redesign-ui-a мобайл-волна, эталон mobile-v1 «Таб-бар», см. TC-P14-101;
+    подсветка переезжает на вкладку выбранного раздела; разделы вне пяти
+    вкладок (Поиск/Настройки) активную вкладку не подсвечивают — «Ещё»
+    кнопка, не ссылка)."""
     page = mobile_page
     for section, name in (
         ("/board", "Доска"),
-        ("/search", "Поиск"),
         ("/wiki", "Wiki"),
         ("/gallery", "Галерея"),
-        ("/settings", "Настройки"),
+        ("/video", "Видео"),
     ):
         page.goto(f"{web_base_url}{section}")
-        active = page.locator("#sidebar .nav-item.active")
+        active = page.locator('.tabbar-nav .tabbar-item[aria-current="page"]')
         expect(active).to_have_count(1)
         assert name in active.inner_text(), (section, active.inner_text())
-        # Подсветка видна без прокрутки (nav-строка наверху страницы).
+        # Подсветка видна без прокрутки (таб-бар прибит к низу вьюпорта).
         box = active.bounding_box()
         assert box["y"] >= 0 and box["y"] < 844, (section, box)
-        expect(active).to_have_attribute("aria-current", "page")
+        # Золото направления A: color активной вкладки = --color-accent
+        # (пробный узел с токеном — computed rgb с обеих сторон).
+        color = active.evaluate("el => getComputedStyle(el).color")
+        accent = page.evaluate(
+            """() => { const p = document.createElement('span');
+                 p.style.color = 'var(--color-accent)';
+                 document.body.appendChild(p);
+                 const c = getComputedStyle(p).color;
+                 p.remove(); return c; }"""
+        )
+        assert color == accent, (section, color, accent)
 
-    # Переход по навигации: подсветка переезжает на новый пункт.
-    page.goto(f"{web_base_url}/search")
-    page.locator("#sidebar").get_by_role("link", name="Настройки").click()
-    page.wait_for_url(f"{web_base_url}/settings")
-    active = page.locator("#sidebar .nav-item.active")
+    # Разделы вне пяти вкладок: активной вкладки нет (шторка «Ещё»).
+    for section in ("/search", "/settings"):
+        page.goto(f"{web_base_url}{section}")
+        expect(
+            page.locator('.tabbar-nav .tabbar-item[aria-current="page"]')
+        ).to_have_count(0)
+
+    # Переход по вкладке: подсветка переезжает на новый раздел.
+    page.goto(f"{web_base_url}/board")
+    page.locator(".tabbar-nav").get_by_role("link", name="Галерея").click()
+    page.wait_for_url(f"{web_base_url}/gallery")
+    active = page.locator('.tabbar-nav .tabbar-item[aria-current="page"]')
     expect(active).to_have_count(1)
-    assert "Настройки" in active.inner_text()
+    assert "Галерея" in active.inner_text()
 
 
 # ---------------------------------------------------------------------------
@@ -335,12 +384,13 @@ def test_tc_p14_103_mobile_board_swipe(mobile_page, web_owner_session,
 def test_tc_p14_104_fullscreen_ticket_modal(mobile_page, web_owner_session,
                                             web_base_url,
                                             web_cleanup_created):
-    """TC-P14-104: клик по карточке на 390px открывает fullscreen-модалку
-    (inset 0, radius 0, тело скроллится, фон заблокирован); «Редактировать»
-    заменяет содержимое В ТОЙ ЖЕ оболочке (edit in place, ОВ-4); поля
-    ≥16px (без авто-зума iOS, NFR-24), активное поле под клавиатурой;
-    закрытие возвращает на доску в прежней scroll-позиции; на desktop —
-    прежний вид r4."""
+    """TC-P14-104: клик по карточке на 390px открывает fullscreen bottom-
+    sheet (inset 0, грейб-шапка ::before, верхние углы radius-lg — эталон
+    redesign-ui-a mobile-v1/task.html; тело скроллится, фон заблокирован);
+    «Редактировать» заменяет содержимое В ТОЙ ЖЕ оболочке (edit in place,
+    ОВ-4); поля ≥16px (без авто-зума iOS, NFR-24), активное поле под
+    клавиатурой; закрытие возвращает на доску в прежней scroll-позиции;
+    на desktop — прежний вид r4."""
     page = mobile_page
     r = web_owner_session.post(
         f"{web_base_url}/api/tasks",
@@ -385,7 +435,9 @@ def test_tc_p14_104_fullscreen_ticket_modal(mobile_page, web_owner_session,
                        getComputedStyle(document.body).overflow}; }"""
     )
     assert m == {"pos": "fixed", "top": 0, "left": 0, "w": 390, "h": 844,
-                 "vw": 390, "vh": 844, "radius": "0px",
+                 "vw": 390, "vh": 844,
+                 # bottom-sheet эталона mobile-v1/task.html: радиус top-lg.
+                 "radius": "28px 28px 0px 0px",
                  "bodyCl": "hidden"}, m
     kicker = page.locator(".task-view-kicker")
     expect(kicker).to_have_text(f"Задача · STAND-{task_id}")
@@ -801,10 +853,12 @@ def test_tc_p14_108_mobile_lightbox_swipe(mobile_page, gallery_on_autostand,
 def test_tc_p14_109_responsive_nfr(mobile_page, page, browser, web_base_url):
     """TC-P14-109: без X-скролла страницы на 390/480px во всех разделах
     (горизонталь доски — только в санкционированном контейнере колонок, ОВ-3);
-    768px «не разваливается»; медиавыражения P14-файлов только 480/768px
-    (860px — pre-existing redesign-console); в base.html viewport-fit=cover
-    и нет user-scalable=no/maximum-scale (NFR-25/28); свайпы/drawer —
-    нативные touch-события без внешних gesture-библиотек (ОГР-8)."""
+    768px «не разваливается»; медиавыражения — 480/760/768/860/880/1280px
+    (760px — ветка таб-бара redesign-ui-a mobile-v1, extends прежних 480px
+    доски/формы/модалки; 860px — pre-existing redesign-console); в base.html
+    viewport-fit=cover и нет user-scalable=no/maximum-scale (NFR-25/28);
+    свайпы/drawer — нативные touch-события без внешних gesture-библиотек
+    (ОГР-8)."""
     page_mobile = mobile_page
     for width, height in ((390, 844), (480, 800)):
         page_mobile.set_viewport_size({"width": width, "height": height})
@@ -826,7 +880,7 @@ def test_tc_p14_109_responsive_nfr(mobile_page, page, browser, web_base_url):
     # 480/768 (P14, NFR-27) + 860 (redesign-console, каркас) + 880/1280
     # (masonry-брейкпоинты галереи FR-98, ui-polish-r8). Новых одноразовых
     # «магических» ширин пакет P14 не вводит.
-    allowed = {"480", "768", "860", "880", "1280"}
+    allowed = {"480", "760", "768", "860", "880", "1280"}
     for css in ("board.css", "gallery.css", "search.css", "settings.css",
                 "app.css"):
         text = (REPO / "frontend/static/css" / css).read_text()

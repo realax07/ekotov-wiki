@@ -1,12 +1,13 @@
 """P23 fix-mobile (рапорт Заказчика с прода: «все поехало» — зона FASTLINE
 не адаптирована; требование: «должно быть идентично с основным бордом»).
 
-Зона FASTLINE на мобильных ведет себя как колонки канбана ≤480px
-(board.css, P14-паттерн): свайп-контейнер со scroll-snap, колонка 82vw
-с превью края следующей, страница вне зоны без прокрутки по X (NFR-26),
-тач-таргеты ≥44px (NFR-23), быстрое «Выполнено» — тач-путь переноса.
-Ветка 481–768px — десктопная раскладка (ряд колонок ≥220px), как у
-канбана. Вьюпорт тестов — iPhone-класс 390×844 (device-эмуляция,
+Зона FASTLINE на мобильных ведет себя как колонки канбана ≤760px
+(board.css; P14-паттерн, брейкпоинт расширен до 760px в redesign-ui-a
+мобайл-волне — эталон design-forge/extra/mobile-v1 «Таб-бар»):
+свайп-контейнер со scroll-snap, колонка 82vw с превью края следующей,
+страница вне зоны без прокрутки по X (NFR-26), тач-таргеты ≥44px
+(NFR-23), быстрое «Выполнено» — тач-путь переноса. Ветка 761–768px —
+десктопная раскладка (ряд колонок ≥220px), как у канбана. Вьюпорт тестов — iPhone-класс 390×844 (device-эмуляция,
 has_touch/is_mobile); скриншоты — design/p23-fastline/mobile/.
 """
 
@@ -142,7 +143,7 @@ def _fastline_metrics(page) -> dict:
 
 
 def test_fastline_empty_zone_swipes_like_board(mobile_page):
-    """TC-p23-122: Пустая зона на 390×844 = свайп-паттерн канбана ≤480px: контейнер
+    """TC-p23-122: Пустая зона на 390×844 = свайп-паттерн канбана ≤760px: контейнер
     overflow-x auto + snap mandatory, колонка 82vw (≈319.8px на 390),
     3 столбца, зона скроллится, страница по X не скроллит (NFR-26),
     пустые столбцы без подсказок (ОВ-3). Скриншот — design/. """
@@ -150,7 +151,7 @@ def test_fastline_empty_zone_swipes_like_board(mobile_page):
     m = _fastline_metrics(page)
     assert m["zoneVisible"], m
     assert m["colCount"] == 3, m
-    # Дословно паттерн .board ≤480px (board.css, P14).
+    # Дословно паттерн .board ≤760px (board.css, P14 + mobile-v1).
     assert m["overflowX"] == "auto", m
     assert "mandatory" in m["snapType"], m
     assert m["flexWrap"] == "nowrap", m
@@ -296,9 +297,10 @@ def test_fastline_dnd_states_on_mobile(mobile_page, web_owner_session, web_base_
 
 
 def test_fastline_768_row_layout_like_board(mobile_page):
-    """TC-p23-125: Ветка 481–768px (проверка 768): у зоны и канбана одна десктопная
+    """TC-p23-125: Ветка 761–768px (проверка 768): у зоны и канбана одна десктопная
     раскладка — ряд из 3 колонок (≥220px), контейнер НЕ свайп-контейнер;
-    мобильные включения зоны (82vw/snap) не протекают выше 480px."""
+    мобильные включения зоны (82vw/snap) не протекают выше 760px
+    (redesign-ui-a мобайл-волна: брейкпоинт 480→760, эталон mobile-v1)."""
     page = mobile_page
     page.set_viewport_size({"width": 768, "height": 1024})
     page.wait_for_timeout(150)
@@ -317,7 +319,7 @@ def test_fastline_768_row_layout_like_board(mobile_page):
           };
         }"""
     )
-    # Раскладка ряда — как канбан (у канбана ≤768px свайпа тоже нет).
+    # Раскладка ряда — как канбан (у канбана ≤768px свайпа нет: ветка ≤760px).
     assert m["fbOverflowX"] == "visible", m
     assert m["fbFlexWrap"] == "nowrap", m
     assert m["boardOverflowX"] == "visible", m

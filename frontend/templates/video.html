@@ -204,6 +204,10 @@
 }
 @media (min-width: 880px)  { .video-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 1280px) { .video-grid { grid-template-columns: repeat(4, 1fr); } }
+/* redesign-ui-a мобайл-волна (эталон design-forge/extra/mobile-v1/
+   video.html): ≤760px — лента в ОДНУ колонку (плеер + лента, таб-бар
+   каркаса). Desktop не тронут. */
+@media (max-width: 760px) { .video-grid { grid-template-columns: 1fr; } }
 .v-card {
   display: flex;
   flex-direction: column;

@@ -905,3 +905,207 @@ body.modal-shell-open { overflow: hidden; }
 
   .content { padding: 0 var(--space-2) 40px; }
 }
+
+/* ======================================================================
+   Мобильная версия V1 «Таб-бар» (redesign-ui-a, мобайл-волна; эталон
+   design-forge/extra/mobile-v1/*.html — board/task/wiki/gallery/video,
+   канон a/kit.html, design-context/GUIDE.md): ≤760px сайдбар скрыт —
+   разделы переезжают в НИЖНИЙ ФИКСИРОВАННЫЙ таб-бар (5 вкладок:
+   Доска/Wiki/Галерея/Видео/Ещё — inline-SVG + подписи, активная золото
+   [aria-current="page"], тач-таргеты ≥44px — NFR-23, safe-area-inset-
+   bottom — NFR-25); остальные разделы (Поиск/Погода/Настройки/Игры/
+   Манчкин/Профиль/Выйти/тумблер темы) — шторка «Ещё» (bottom-sheet с
+   грейб-шапкой). Ветка 761–860px прежняя (сайдбар наверху строкой —
+   redesign-console). Только var(--*) — токен-дисциплина; литералов
+   цвета нет (ОГР редизайна). Обе темы — одна разметка на токенах.
+   ====================================================================== */
+
+/* Вне мобильной ветки таб-бар/шторка не существуют (desktop не тронут —
+ * NFR-29: правила видимости живут ТОЛЬКО в media-блоке ниже). */
+.tabbar-nav,
+.tabbar-backdrop,
+.sheet-more { display: none; }
+
+@media (max-width: 760px) {
+  /* Сайдбар скрыт целиком: разделы — в таб-баре и шторке «Ещё» (эталон
+   * mobile-v1 board.html §tabbar). Бренд/футер сайдбара скрыты вместе с ним;
+   * DOM и хуки app.js/profile.js сохранены (ОГР-28). */
+  .sidebar { display: none; }
+
+  body.app-shell { grid-template-columns: minmax(0, 1fr); }
+
+  /* Контент: компактные поля 12px-сетка эталона (мокап main: padding
+   * 12px) + нижний отступ под таб-бар (84px + safe-area — мокап). */
+  .content {
+    padding: 0 12px calc(84px + env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
+  }
+
+  /* --- Нижний таб-бар (эталон §tabbar: fixed, 5 колонок 1fr, верхняя
+   * кромка, safe-area снизу, таб ≥44px — фактически ~56px). --- */
+  .tabbar-nav {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 30;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    padding: var(--space-1) 0 max(env(safe-area-inset-bottom, 0px), var(--space-1));
+  }
+
+  .tabbar-item {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    min-height: 56px;
+    padding: var(--space-1) 0;
+    background: none;
+    border: 0;
+    text-decoration: none;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: var(--font-size-micro);
+    color: var(--color-muted);
+    line-height: 1;
+  }
+
+  .tabbar-item svg { width: 22px; height: 22px; }
+  .tabbar-item:hover { color: var(--color-text); }
+  .tabbar-item:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: var(--radius-sm);
+  }
+
+  /* Активная вкладка — золото направления A (эталон [aria-current=page]). */
+  .tabbar-item[aria-current="page"] { color: var(--color-accent); font-weight: 600; }
+
+  /* --- Шторка «Ещё»: затемнение + bottom-sheet с грейб-шапкой
+   * (эталон §sheet-more; закрытие — крестик/подложка/Escape —
+   * mobile-tabbar.js). --- */
+  .tabbar-backdrop:not([hidden]) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: var(--color-bg);
+    opacity: 0.7;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .sheet-more:not([hidden]) {
+    display: grid;
+    gap: var(--space-1);
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 41;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-bottom: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-2);
+    padding: var(--space-1) var(--space-3) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Грейб — декоративная рукоятка шторки (эталон .grab). */
+  .sheet-more .grab {
+    width: 40px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--color-border);
+    margin: var(--space-1) auto var(--space-1);
+  }
+
+  .sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 44px;
+  }
+
+  .sheet-head h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--font-size-h2);
+  }
+
+  .sheet-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    background: none;
+    border: 0;
+    border-radius: var(--radius-sm);
+    color: var(--color-muted);
+    cursor: pointer;
+  }
+
+  .sheet-close:hover { color: var(--color-text); }
+  .sheet-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+  .sheet-close svg { width: 20px; height: 20px; }
+
+  /* Строки шторки: тач-таргет 48px (эталон .more-row), иконка + подпись. */
+  .more-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 48px;
+    border: 0;
+    background: none;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: var(--font-size-body);
+    color: var(--color-text);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-1);
+  }
+
+  .more-row:hover { background: var(--color-raised); }
+  .more-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+  .more-row svg { width: 20px; height: 20px; color: var(--color-muted); flex: none; }
+
+  /* Тумблер темы (эталон §switch): нативный чекбокс-переключатель 40×24,
+   * checked = светлая тема (data-theme="light") — логика в mobile-tabbar.js,
+   * синхронна #theme-toggle сайдбара (app.js). */
+  .more-row .switch {
+    appearance: none;
+    width: 40px;
+    height: 24px;
+    border-radius: var(--radius-pill);
+    background: var(--color-border);
+    position: relative;
+    cursor: pointer;
+    margin: 0 0 0 auto;
+    flex: none;
+    transition: background-color var(--dur) var(--ease);
+  }
+
+  .more-row .switch::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-surface);
+    transition: transform var(--dur) var(--ease);
+  }
+
+  .more-row .switch:checked { background: var(--color-accent); }
+  .more-row .switch:checked::after { transform: translateX(16px); }
+  .more-row .switch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+  /* ОГР-17: анимации шторки/переключателя отключаются. */
+  @media (prefers-reduced-motion: reduce) {
+    .more-row .switch,
+    .more-row .switch::after { transition: none; }
+  }
+}
