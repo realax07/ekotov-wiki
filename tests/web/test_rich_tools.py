@@ -85,6 +85,54 @@ def wiki_stand_schema(web_server):
         assert mig.returncode == 0, f"{module}: {mig.stderr}"
 
 
+@pytest.fixture(scope="session", autouse=True)
+def wiki_ui_pages_cleanup(web_base_url):
+    """Изоляция полной коллекции на общей БД стенда (regress-final
+    redesign-ui-a, итерации 2–3): UI-save этого файла (editor.save_button →
+    /wiki/<id>) создает страницы в обход wiki_api.create — без очистки
+    хвосты ломают wiki-empty-state (test_p15_wiki_tree TC-wiki-004/005)
+    СЛЕДУЮЩЕГО полного прогона на той же БД. Снапшот id на входе сессии,
+    удаление созданных файлом страниц в teardown (листья раньше родителей —
+    FK RESTRICT на parent_id). Чужие хвосты прошлых прогонов не трогает."""
+    import requests as _rq
+
+    from tests.web.conftest import OWNER_LOGIN, OWNER_PASSWORD
+
+    http = _rq.Session()
+    try:
+        resp = http.post(
+            f"{web_base_url}/api/auth/login",
+            json={"login": OWNER_LOGIN, "password": OWNER_PASSWORD},
+        )
+        assert resp.status_code == 200, f"seed-вход owner не удался: {resp.status_code}"
+        before = {
+            p["id"]: p.get("parent_id")
+            for p in http.get(f"{web_base_url}/api/wiki/pages").json()
+        }
+        yield
+        added = [
+            (p["id"], p.get("parent_id"))
+            for p in http.get(f"{web_base_url}/api/wiki/pages").json()
+            if p["id"] not in before
+        ]
+        # листья раньше родителей: сортировка по глубине цепочки parent_id
+        depth = {}
+
+        def _depth(pid, parent):
+            if pid in depth:
+                return depth[pid]
+            depth[pid] = 1 if not parent else 1 + _depth(parent, before.get(parent))
+            return depth[pid]
+
+        for pid, parent in sorted(added, key=lambda t: -_depth(t[0], t[1])):
+            try:
+                http.delete(f"{web_base_url}/api/wiki/pages/{pid}")
+            except _rq.RequestException:
+                pass
+    finally:
+        http.close()
+
+
 @pytest.fixture
 def wiki_api(web_base_url, web_owner_session):
     """Парные хелперы create/delete wiki-страниц с teardown-очисткой."""

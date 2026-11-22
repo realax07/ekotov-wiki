@@ -112,7 +112,9 @@ def test_tc_gal_122_live_computed_styles_and_states(browser_instance):
 
     from playwright.sync_api import expect
 
-    page = browser_instance.new_context(base_url=BASE_URL).new_page()
+    page = browser_instance.new_context(
+        base_url=BASE_URL, color_scheme="dark"
+    ).new_page()
     try:
         page.goto(f"{BASE_URL}/login")
         page.fill("#login", "owner")
