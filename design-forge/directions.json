@@ -1,0 +1,129 @@
+{
+  "product": "Трекер задач ekotov-wiki",
+  "mode": "operate",
+  "scheme": null,
+  "brand": null,
+  "themes": "both",
+  "lang": "ru",
+  "industry": "devtools",
+  "seed": null,
+  "createdAt": "2026-11-21T14:49:23.238Z",
+  "directions": [
+    {
+      "letter": "a",
+      "archetype": "board-flow",
+      "archetypeName": "Доска и поток",
+      "palette": "burgundy-gold",
+      "paletteName": "Бордо и золото",
+      "scheme": "dark",
+      "accent": "#d6a85c",
+      "type": "golos-pt",
+      "display": "PT Serif",
+      "body": "Golos Text",
+      "shape": "round",
+      "density": "regular",
+      "motion": "subtle",
+      "screens": [
+        {
+          "file": "board.html",
+          "what": "Доска"
+        },
+        {
+          "file": "task.html",
+          "what": "Карточка задачи"
+        },
+        {
+          "file": "kit.html",
+          "what": "UI-кит: детали и состояния",
+          "kit": true
+        }
+      ],
+      "themes": [
+        "dark",
+        "light"
+      ]
+    },
+    {
+      "letter": "b",
+      "archetype": "calendar-schedule",
+      "archetypeName": "Расписание",
+      "palette": "glacier",
+      "paletteName": "Ледник",
+      "scheme": "light",
+      "accent": "#1f56e0",
+      "type": "ysabeau-pair",
+      "display": "Ysabeau",
+      "body": "Ysabeau Office",
+      "shape": "round",
+      "density": "regular",
+      "motion": "still",
+      "screens": [
+        {
+          "file": "board.html",
+          "what": "Доска"
+        },
+        {
+          "file": "task.html",
+          "what": "Карточка задачи"
+        },
+        {
+          "file": "kit.html",
+          "what": "UI-кит: детали и состояния",
+          "kit": true
+        }
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ]
+    },
+    {
+      "letter": "c",
+      "archetype": "data-grid",
+      "archetypeName": "Таблица-рабочий стол",
+      "palette": "midnight-teal",
+      "paletteName": "Полночный бирюзовый",
+      "scheme": "dark",
+      "accent": "#3fd0c9",
+      "type": "literata-commissioner",
+      "display": "Literata",
+      "body": "Literata",
+      "shape": "sharp",
+      "density": "compact",
+      "motion": "subtle",
+      "screens": [
+        {
+          "file": "board.html",
+          "what": "Доска"
+        },
+        {
+          "file": "task.html",
+          "what": "Карточка задачи"
+        },
+        {
+          "file": "kit.html",
+          "what": "UI-кит: детали и состояния",
+          "kit": true
+        }
+      ],
+      "themes": [
+        "dark",
+        "light"
+      ]
+    }
+  ],
+  "distances": [
+    {
+      "pair": "ab",
+      "distance": 11.42
+    },
+    {
+      "pair": "ac",
+      "distance": 11.44
+    },
+    {
+      "pair": "bc",
+      "distance": 11.39
+    }
+  ]
+}

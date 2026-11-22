@@ -1,0 +1,177 @@
+{
+  "serve": "../design-forge/a",
+  "stance": "normalize",
+  "viewports": {
+    "desktop": {
+      "width": 1440,
+      "height": 900
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "isMobile": true,
+      "deviceScaleFactor": 2
+    }
+  },
+  "pages": [
+    {
+      "id": "home",
+      "path": "/board.html",
+      "title": "Доска"
+    },
+    {
+      "id": "task",
+      "path": "/task.html",
+      "title": "Карточка задачи"
+    },
+    {
+      "id": "kit",
+      "path": "/kit.html",
+      "title": "UI-кит: детали и состояния"
+    }
+  ],
+  "components": [
+    {
+      "id": "header",
+      "group": "layout",
+      "page": "home",
+      "selector": "header",
+      "title": "Шапка"
+    },
+    {
+      "id": "nav",
+      "group": "layout",
+      "page": "home",
+      "selector": "nav",
+      "title": "Навигация"
+    }
+  ],
+  "themes": {
+    "light": {
+      "htmlAttr": {
+        "data-theme": "light"
+      }
+    }
+  },
+  "parts": {
+    "1nsbyv8": {
+      "status": "canon",
+      "name": "Кнопка основная"
+    },
+    "91zl6r": {
+      "status": "canon",
+      "name": "Переключатель темы"
+    },
+    "1n537io": {
+      "status": "canon",
+      "name": "Кнопка опасная"
+    },
+    "wnqgba": {
+      "status": "canon",
+      "name": "Кнопка вторичная"
+    },
+    "1ybo7fw": {
+      "status": "canon",
+      "name": "Кнопка основная маленькая"
+    },
+    "zh09zq": {
+      "status": "canon",
+      "name": "Кнопка текстовая"
+    },
+    "kqbmiv": {
+      "status": "canon",
+      "name": "Флажок"
+    },
+    "1d6xyos": {
+      "status": "canon",
+      "name": "Поле ввода"
+    },
+    "rf1c78": {
+      "status": "canon",
+      "name": "Многострочное поле"
+    },
+    "13ws6ci": {
+      "status": "canon",
+      "name": "Поле с ошибкой"
+    },
+    "821o7f": {
+      "status": "canon",
+      "name": "Тумблер"
+    },
+    "124mjqv": {
+      "status": "canon",
+      "name": "Карточка задачи"
+    },
+    "bf30h6": {
+      "status": "canon",
+      "name": "Ссылка в тексте"
+    },
+    "1h950cg": {
+      "status": "canon",
+      "name": "Метка"
+    },
+    "1qco8tn": {
+      "status": "canon",
+      "name": "Метка успех"
+    },
+    "149ctjx": {
+      "status": "canon",
+      "name": "Код встроенный"
+    },
+    "1b21rqi": {
+      "status": "canon",
+      "name": "Метка акцентная"
+    },
+    "k0lkio": {
+      "status": "canon",
+      "name": "Метка ошибка"
+    },
+    "x56uax": {
+      "status": "canon",
+      "name": "Колонка доски"
+    },
+    "15nexgh": {
+      "status": "canon",
+      "name": "Фастлайн"
+    },
+    "uv7q0h": {
+      "status": "canon",
+      "name": "Карточка задачи"
+    },
+    "d9juvb": {
+      "status": "canon",
+      "name": "Карточка"
+    },
+    "hrvw7m": {
+      "status": "canon",
+      "name": "Пустое состояние"
+    },
+    "zertex": {
+      "status": "canon"
+    },
+    "73uixi": {
+      "status": "canon"
+    },
+    "5ync5g": {
+      "status": "canon"
+    },
+    "gtlsd2": {
+      "status": "canon"
+    },
+    "1jbrrct": {
+      "status": "canon"
+    },
+    "s4kkl8": {
+      "status": "canon"
+    },
+    "1t7yr81": {
+      "status": "canon"
+    },
+    "ybttvx": {
+      "status": "canon"
+    },
+    "x0jwaj": {
+      "status": "canon"
+    }
+  }
+}

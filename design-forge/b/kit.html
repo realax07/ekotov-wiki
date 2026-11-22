@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UI-кит — Трекер задач ekotov-wiki</title>
+  <!-- UI-кит направления: каждая деталь и состояние, которые понадобятся дальше. После утверждения wd-scan снимает
+       этот экран, и детали становятся каноном для wd-fit: чего нет здесь — того не будет в дизайн-контексте.
+       data-part="…" — имя детали в каноне; не удаляй и не переименовывай без причины (lint.mjs проверяет обязательные).
+       АДАПТИРУЙ под направление (PLAN.md): форма кнопок, вес шрифта, регистр, толщина границ, тени, плотность —
+       кит должен выглядеть как этот дизайн, а не как нейтральная заготовка. Только var(--…) из tokens.css. -->
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <style>
+    .wrap { max-width: 1120px; margin: 0 auto; padding: var(--space-6, 48px) var(--space-4); display: grid; gap: var(--space-6, 48px); }
+    .kit-sec { display: grid; gap: var(--space-3); }
+    .kit-sec > h2 { font-size: var(--text-xl); }
+    .row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+    .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+
+    /* Кнопки */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 44px; min-width: 44px;
+      padding: 0 var(--space-4); border-radius: var(--radius-sm); border: 1px solid transparent; font-family: var(--font-ui);
+      font-size: var(--text-md); font-weight: 500; text-decoration: none; cursor: pointer; transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease); }
+    /* Движение статичное: никакой трансформации, состояние — только цвет фона/рамки/текста */
+    .btn-primary { background: var(--color-accent); color: var(--color-on-accent); }
+    .btn-primary:hover { background: var(--color-accent); }
+    .btn-secondary { background: var(--color-surface); color: var(--color-link); border-color: var(--color-accent); }
+    .btn-secondary:hover { background: var(--color-bg); }
+    .btn-ghost { background: transparent; color: var(--color-text); }
+    .btn-danger { background: var(--color-danger); color: var(--color-on-danger); }
+    /* Тихая опасная: текстом, приглушённо — для второстепенных действий в подвалах карточек */
+    .btn-ghost.danger { color: var(--color-muted); }
+    .btn-ghost.danger:hover { color: var(--color-danger); }
+    .btn-sm { min-height: 36px; padding: 0 var(--space-3); font-size: var(--text-sm); }
+    .iconbtn { width: 44px; padding: 0; }
+    .btn[disabled] { opacity: .45; cursor: not-allowed; }
+    .link { color: var(--color-link); text-underline-offset: 3px; }
+
+    /* Поля */
+    .field { display: grid; gap: var(--space-1, 4px); font-family: var(--font-ui); }
+    .field label, .field .label { font-size: var(--text-sm); font-weight: 600; }
+    .field .hint { font-size: var(--text-sm); color: var(--color-muted); }
+    .input { min-height: 44px; padding: 0 var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      background: var(--color-surface); color: var(--color-text); width: 100%; }
+    textarea.input { padding: var(--space-2) var(--space-3); min-height: 96px; resize: vertical; }
+    .field.is-error .input { border-color: var(--color-danger); }
+    .field.is-error .hint { color: var(--color-danger); }
+    .choice { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; padding-right: var(--space-2); cursor: pointer; font-family: var(--font-ui); }
+    .choice input { width: 20px; height: 20px; accent-color: var(--color-accent); margin: 0; }
+    .switch { appearance: none; width: 40px !important; height: 24px !important; border-radius: 999px; background: var(--color-border); position: relative; transition: background-color var(--dur) var(--ease); }
+    .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--color-surface); transition: transform var(--dur) var(--ease); }
+    .switch:checked { background: var(--color-accent); }
+    .switch:checked::after { transform: translateX(16px); }
+
+    /* Метки-чипы: светло-серые капсулы с тёмным текстом */
+    .badge { display: inline-flex; align-items: center; min-height: 24px; padding: 0 var(--space-2); border-radius: var(--radius-pill);
+      font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500; background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); }
+    .badge-accent { background: var(--color-accent); color: var(--color-on-accent); border-color: transparent; }
+    .badge-success { background: var(--color-success-soft); color: var(--color-success); border-color: transparent; }
+    .badge-danger { background: var(--color-danger-soft); color: var(--color-danger); border-color: transparent; }
+
+    /* Карточка, таблица, вкладки: линейки вместо рамок-коробок, без теней и зебры */
+    .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); display: grid; gap: var(--space-2); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-family: var(--font-ui); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); }
+    th { color: var(--color-muted); font-weight: 600; }
+    tr:last-child td { border-bottom: 0; }
+    .tabs { display: flex; gap: var(--space-1, 4px); border-bottom: 1px solid var(--color-border); }
+    .tab { min-height: 44px; padding: 0 var(--space-3); background: none; border: 0; border-bottom: 2px solid transparent; font-family: var(--font-ui); color: var(--color-muted); cursor: pointer; }
+    .tab[aria-selected="true"] { color: var(--color-text); border-bottom-color: var(--color-accent); }
+
+    /* Сообщения и состояния */
+    .alert { display: grid; gap: var(--space-1, 4px); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid; font-family: var(--font-ui); }
+    .alert-success { background: var(--color-success-soft); border-color: var(--color-success); }
+    .alert-danger { background: var(--color-danger-soft); border-color: var(--color-danger); }
+    .alert-warning { background: var(--color-warning-soft); border-color: var(--color-warning); }
+    .empty { display: grid; justify-items: start; gap: var(--space-2); padding: var(--space-5, 32px); border: 1px dashed var(--color-border); border-radius: var(--radius-lg); }
+    .empty p { color: var(--color-muted); max-width: var(--measure); margin: 0; }
+    .skeleton { display: grid; gap: var(--space-2); }
+    .skeleton i { display: block; height: 14px; border-radius: var(--radius-sm); background: var(--color-border); }
+    .skeleton i:nth-child(2) { width: 80%; } .skeleton i:nth-child(3) { width: 60%; }
+    /* Движение статичное: скелетон — статичные полосы, без пульсации */
+    .dialog { max-width: 440px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-4); display: grid; gap: var(--space-3); }
+
+    /* Строки-записи (основа доски): нижняя линейка, hover — фон, без движения */
+    .task-row { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: var(--space-2); border-bottom: 1px solid var(--color-border); color: var(--color-text); text-decoration: none; min-width: 0; }
+    .task-row:hover { background: var(--color-bg); }
+    .task-row .task-title { flex: 1 1 auto; min-width: 0; }
+    .task-row.is-active .task-title { color: var(--color-link); font-weight: 600; }
+    .task-row.is-done .task-title { color: var(--color-muted); }
+    .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--color-border); }
+    .dot-high { background: var(--color-accent); }
+    .dot-mid { background: var(--color-muted); }
+    .dot-low { background: var(--color-border); }
+    .due { flex: none; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-muted); }
+    .due.overdue { color: var(--color-danger); font-weight: 600; }
+    .mono { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-muted); }
+    .codeline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; }
+    .codeline code { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-text); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); overflow-wrap: anywhere; }
+
+    @media (max-width: 760px) { .btn-sm { min-height: 44px; } .grid2 { grid-template-columns: 1fr; } .wrap { padding: var(--space-5, 32px) var(--space-3); } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="kit-sec">
+      <h1>UI-кит</h1>
+      <p>Детали и состояния направления. Тексты — примеры.</p>
+    </header>
+
+    <section class="kit-sec" aria-labelledby="k-btn">
+      <h2 id="k-btn">Кнопки</h2>
+      <div class="row">
+        <button class="btn btn-primary" data-part="Кнопка основная">Сохранить</button>
+        <button class="btn btn-secondary" data-part="Кнопка вторичная">Отмена</button>
+        <button class="btn btn-ghost" data-part="Кнопка текстовая">Подробнее</button>
+        <button class="btn btn-danger" data-part="Кнопка опасная">Удалить</button>
+        <button class="btn btn-primary btn-sm" data-part="Кнопка основная маленькая">Добавить</button>
+        <button class="btn btn-primary" disabled data-part="Кнопка неактивная">Недоступно</button>
+        <button class="btn btn-ghost danger" data-part="Кнопка опасная тихая">
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2M6.5 6l.8 10h5.4l.8-10"/></svg>
+          Удалить
+        </button>
+        <button class="btn btn-secondary iconbtn" data-part="Переключатель темы" aria-label="Переключить тему">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.6 12.4A6.2 6.2 0 0 1 7.6 4.4a6.2 6.2 0 1 0 8 8Z"/></svg>
+        </button>
+      </div>
+      <p>Ссылка в тексте: <a class="link" href="#" data-part="Ссылка в тексте">условия сервиса</a>.</p>
+    </section>
+
+    <section class="kit-sec" aria-labelledby="k-form">
+      <h2 id="k-form">Поля</h2>
+      <div class="grid2">
+        <div class="field"><label for="f1">Имя</label><input class="input" id="f1" placeholder="Как к вам обращаться" data-part="Поле ввода"><span class="hint">Подсказка под полем</span></div>
+        <div class="field is-error"><label for="f2">Эл. почта</label><input class="input" id="f2" value="name@" aria-invalid="true" data-part="Поле с ошибкой"><span class="hint">Проверьте адрес</span></div>
+        <div class="field"><label for="f3">Тариф</label><select class="input" id="f3" data-part="Список выбора"><option>Базовый</option><option>Расширенный</option></select></div>
+        <div class="field"><label for="f4">Комментарий</label><textarea class="input" id="f4" data-part="Многострочное поле"></textarea></div>
+      </div>
+      <div class="row">
+        <label class="choice"><input type="checkbox" checked data-part="Флажок"> Согласен с условиями</label>
+        <label class="choice"><input type="radio" name="r" checked data-part="Переключатель"> Вариант 1</label>
+        <label class="choice"><input type="radio" name="r"> Вариант 2</label>
+        <label class="choice"><input type="checkbox" class="switch" role="switch" checked data-part="Тумблер"> Уведомления</label>
+      </div>
+    </section>
+
+    <section class="kit-sec" aria-labelledby="k-badge">
+      <h2 id="k-badge">Метки</h2>
+      <div class="row">
+        <span class="badge" data-part="Метка">Черновик</span>
+        <span class="badge badge-accent" data-part="Метка акцентная">Новое</span>
+        <span class="badge badge-success" data-part="Метка успех">Оплачено</span>
+        <span class="badge badge-danger" data-part="Метка ошибка">Просрочено</span>
+      </div>
+    </section>
+
+    <section class="kit-sec" aria-labelledby="k-card">
+      <h2 id="k-card">Карточка и таблица</h2>
+      <div class="grid2">
+        <article class="card" data-part="Карточка">
+          <h3>Заголовок карточки</h3>
+          <p>Короткое описание объекта в две строки — пример текста.</p>
+          <div class="row"><a class="btn btn-secondary btn-sm" href="#">Открыть</a></div>
+        </article>
+        <div class="table-wrap" data-part="Таблица">
+          <table>
+            <thead><tr><th>Объект</th><th>Статус</th><th>Сумма</th></tr></thead>
+            <tbody>
+              <tr><td>Пример 1</td><td><span class="badge badge-success">Готово</span></td><td>1 200</td></tr>
+              <tr><td>Пример 2</td><td><span class="badge">В работе</span></td><td>860</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="tabs" role="tablist" data-part="Вкладки">
+        <button class="tab" role="tab" aria-selected="true">Все</button>
+        <button class="tab" role="tab" aria-selected="false">Активные</button>
+        <button class="tab" role="tab" aria-selected="false">Архив</button>
+      </div>
+    </section>
+
+    <section class="kit-sec" aria-labelledby="k-state">
+      <h2 id="k-state">Сообщения и состояния</h2>
+      <div class="grid2">
+        <div class="alert alert-success" role="status" data-part="Сообщение успех"><strong>Сохранено</strong><span>Изменения применены.</span></div>
+        <div class="alert alert-danger" role="alert" data-part="Сообщение ошибка"><strong>Не удалось сохранить</strong><span>Проверьте соединение и повторите.</span></div>
+        <div class="alert alert-warning" data-part="Сообщение предупреждение"><strong>Осталось 3 дня</strong><span>Пример предупреждения.</span></div>
+        <div class="skeleton" aria-label="Загрузка" data-part="Загрузка"><i></i><i></i><i></i></div>
+      </div>
+      <div class="empty" data-part="Пустое состояние">
+        <h3>Здесь пока пусто</h3>
+        <p>Когда появятся записи, они будут здесь. Начните с первой.</p>
+        <button class="btn btn-primary">Создать</button>
+      </div>
+      <div class="dialog" role="dialog" aria-labelledby="k-dlg" data-part="Диалог">
+        <h3 id="k-dlg">Удалить запись?</h3>
+        <p>Действие нельзя отменить.</p>
+        <div class="row"><button class="btn btn-danger">Удалить</button><button class="btn btn-secondary">Отмена</button></div>
+      </div>
+    </section>
+
+    <section class="kit-sec" aria-labelledby="k-row">
+      <h2 id="k-row">Строки-записи и код</h2>
+      <div data-part="Строка-запись">
+        <a class="task-row" href="#"><span class="dot dot-high" data-part="Точка приоритета" aria-label="Приоритет высокий"></span><span class="task-title">Переработать дизайн канбан-доски</span><span class="due">24.11</span></a>
+        <a class="task-row is-active" href="#"><span class="dot dot-high" aria-hidden="true"></span><span class="task-title">Активная задача — синяя строка</span><span class="due">FST-01</span></a>
+        <a class="task-row" href="#"><span class="dot dot-mid" aria-hidden="true"></span><span class="task-title">Миграция базы задач на PostgreSQL 16</span><span class="due">28.11</span></a>
+        <a class="task-row" href="#"><span class="dot dot-low" aria-hidden="true"></span><span class="task-title">Добавить фильтр по тегам на доске</span><span class="due">02.12</span></a>
+        <a class="task-row is-done" href="#"><span class="dot dot-low" aria-hidden="true"></span><span class="task-title">Выполненная запись — приглушённая</span><span class="due">сегодня 14:05</span></a>
+        <a class="task-row" href="#"><span class="dot dot-mid" aria-hidden="true"></span><span class="task-title">Просроченный срок — красноватый</span><span class="due overdue">19.11 · просрочено</span></a>
+      </div>
+      <p class="codeline"><code data-part="Код моноширинный">flowctl session open</code>
+        <button class="btn btn-secondary btn-sm" data-copy="flowctl session open" data-part="Кнопка копирования">
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7.5" y="7.5" width="8" height="8" rx="1.5"/><path d="M12.5 7.5v-2a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2"/></svg>
+          Копировать
+        </button>
+      </p>
+    </section>
+  </main>
+  <script>
+    // Отраслевое правило: код и идентификаторы — с кнопкой копирования
+    document.querySelectorAll('[data-copy]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        try { navigator.clipboard.writeText(btn.getAttribute('data-copy')); } catch (e) { /* мокап */ }
+      });
+    });
+  </script>
+</body>
+</html>

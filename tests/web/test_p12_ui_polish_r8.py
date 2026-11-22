@@ -41,6 +41,15 @@ from tests.web.pages.task_form import TaskForm
 
 pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
+from tests.web._redesign_a_theme import force_dark_theme as _force_dark_theme_impl
+
+
+@pytest.fixture(autouse=True)
+def _dark_theme(request):
+    """Визуальные ассерты — на dark-каноне A (см. _redesign_a_theme)."""
+    _force_dark_theme_impl(request)
+
+
 
 def _rgb_to_hex(rgb: str) -> str:
     """'rgb(238, 242, 246)' → '#eef2f6' (computed style → значение токена)."""
@@ -90,9 +99,9 @@ def test_fast_row_v3_geometry_and_priority_lock(board_page):
           const cbcs = getComputedStyle(cb);
           return {
             bg: cs.backgroundColor,
-            bgToken: root.getPropertyValue("--p-amber-900").trim(),
+            bgToken: root.getPropertyValue("--color-accent-soft").trim(),
             border: cs.borderTopColor,
-            borderToken: root.getPropertyValue("--p-amber-400").trim(),
+            borderToken: root.getPropertyValue("--color-accent").trim(),
             radius: cs.borderRadius,
             radiusToken: root.getPropertyValue("--radius-field").trim(),
             marginBottom: cs.marginBottom,
@@ -108,8 +117,8 @@ def test_fast_row_v3_geometry_and_priority_lock(board_page):
     # Токен-значения непусты (стиль ряда строится на var(--…), не литералах)
     # и computed bg/border РАВНЫ значениям токенов (review-004 nit-2:
     # литеральный hex, совпадающий с видимым цветом, больше не проходит).
-    assert styles["bgToken"], "--p-amber-900 пуст"
-    assert styles["borderToken"], "--p-amber-400 пуст"
+    assert styles["bgToken"], "--color-accent-soft пуст"
+    assert styles["borderToken"], "--color-accent пуст"
     assert _rgb_to_hex(styles["bg"]) == styles["bgToken"].lower(), styles
     assert _rgb_to_hex(styles["border"]) == styles["borderToken"].lower(), styles
 
@@ -164,7 +173,7 @@ def test_search_action_buttons_single_btn_action_pattern(logged_in_page, web_bas
             }""",
             [bid],
         )
-        assert styles["radius"] == "6px", (bid, styles)  # var(--radius-field)
+        assert styles["radius"] == "10px", (bid, styles)  # var(--radius-field)
         assert styles["bg"] != "rgba(0, 0, 0, 0)", (bid, styles)
         # 8px-сетка вертикальных отступов (var(--space-N) = 8/16px).
         for key in ("padTop", "padBottom"):

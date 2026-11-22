@@ -7,10 +7,10 @@
   {# BUG-010 (FR-95) + redesign-console 1.2: login.html — standalone-шаблон
      вне base.html, поэтому favicon-`<link>` из base.html здесь не
      наследовался (консоль 404 на /favicon.ico). Копия ДОСЛОВНАЯ из base.html
-     (тот же inline SVG data-URI с маркером <!--cache:v=2-->, палитра
-     «Пульта»): кеш-политика design §D4 единая — при любом изменении иконки
+     (тот же inline SVG data-URI с маркером <!--cache:v=3-->, палитра
+     A): кеш-политика design §D4 единая — при любом изменении иконки
      бампить маркер в ОБОИХ местах. #}
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><!--cache:v=2--><rect x='1' y='1' width='30' height='30' rx='7' fill='%230e1621'/><path d='M11 6h8l5 5v14a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z' fill='%23f0b45c'/><path d='M19 6l5 5h-5z' fill='%23172335'/><rect x='12' y='15' width='9' height='2' rx='1' fill='%23172335'/><rect x='12' y='19' width='6' height='2' rx='1' fill='%23172335'/></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><!--cache:v=3--><rect x='1' y='1' width='30' height='30' rx='7' fill='%231e0f14'/><path d='M11 6h8l5 5v14a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z' fill='%23d6a85c'/><path d='M19 6l5 5h-5z' fill='%232a161d'/><rect x='12' y='15' width='9' height='2' rx='1' fill='%232a161d'/><rect x='12' y='19' width='6' height='2' rx='1' fill='%232a161d'/></svg>">
   <link rel="stylesheet" href="/static/css/login.css?v={{ static_v }}">
 </head>
 <body>

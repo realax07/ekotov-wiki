@@ -29,6 +29,15 @@ from tests.web.pages.task_form import TaskForm
 
 pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
 
+from tests.web._redesign_a_theme import force_dark_theme as _force_dark_theme_impl
+
+
+@pytest.fixture(autouse=True)
+def _dark_theme(request):
+    """Визуальные ассерты — на dark-каноне A (см. _redesign_a_theme)."""
+    _force_dark_theme_impl(request)
+
+
 
 def _open_form(page, web_base_url):
     board = BoardPage(page)
@@ -125,8 +134,8 @@ def test_combobox_highlights_match_fragment(
     # (impact.md п.2).
     accent = marks.first.evaluate("m => getComputedStyle(m).color")
     bg = marks.first.evaluate("m => getComputedStyle(m).backgroundColor")
-    assert accent == "rgb(240, 180, 92)", accent  # --color-accent
-    assert bg == "rgb(58, 44, 18)", bg  # --color-accent-soft
+    assert accent == "rgb(214, 168, 92)", accent  # --color-accent
+    assert bg == "rgb(78, 49, 36)", bg  # --color-accent-soft
 
 
 # regression: keep — r6 FR-58: исключение уже введенных тегов (СЦ-2).

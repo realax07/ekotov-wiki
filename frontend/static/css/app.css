@@ -1,86 +1,315 @@
-/* Каркас интерфейса. Редизайн «Пульт 2.0» (change redesign-console, задачи 1.1/2.1):
- * направление B «Пульт» (dark professional console, high-tech / mission-control),
- * источник правды — design/redesign-pro/tokens-console.html + board-console.html
- * (базлайн PR #242, утвержден Заказчиком 2026-10-23). Токены перенесены в :root
- * ДОСЛОВНО из tokens-console.html (без «улучшений» значений); семантические
- * имена сохранены (design §D1). Токен-дисциплина: новые hex вне :root запрещены.
- * Страница целиком на системных шрифтах (ОГР-8: без внешних зависимостей).
- * focus-visible, prefers-reduced-motion — на всех контролах. */
 
+/* ======================================================================
+   Каркас интерфейса — направление A «Доска и поток» (change redesign-ui-a,
+   sdd-redesign-ui-a.md §1). Токены перенесены в :root из канона
+   design-forge/a/tokens.css (46 переменных) ДОСЛОВНО; светлая тема —
+   вторым блоком :root[data-theme="light"] (только переменные — одна
+   разметка, обе темы; литералы цвета вне токен-блока запрещены).
+   Производные тона — color-mix() от канон-токенов (ноль новых hex).
+   Примитивы --p-* «Пульта» сохранены как legacy-слой: на них ссылаются
+   CSS страниц вне объема (login/settings/search/profile-settings,
+   weather-снапshot, wiki/gallery до своих волн) — значения не меняются.
+   Декор «Пульта» (HUD-уголки, микро-сетка, glow, cyan) удален вместе с
+   токенами; класс .hud сохранен в DOM как нейтральная обертка (ОГР-28).
+   Шрифты — self-host woff2 (ОГР-8: без Google-@import), font-display:swap.
+   Токен-дисциплина: новые hex вне :root запрещены.
+   ====================================================================== */
+
+/* --- Самохостинг шрифтов направления A (PT Serif / Golos Text / JetBrains
+   Mono; OFL). Нужные начертания из design-context/assets/fonts: PT Serif
+   400/700, Golos Text 400–900 (variable font, ось wght 400–900 —
+   500/600 рендерятся нативно, без синтетического bold), JetBrains Mono
+   400–800 (variable font, ось wght 400–800 — 600 нативно).
+   unicode-range — подмножества cyrillic/cyrillic-ext/latin/latin-ext/greek
+   из cmap. --- */
+
+/* PT Serif 700 (self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "PT Serif";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/static/fonts/ejrsqgyozzy2vcfuvant66qcvyvhpa-fe24eb27.woff2") format("woff2");
+  unicode-range: U+20,U+A0,U+100-109,U+10C-113,U+116-11F,U+122-127,U+12A-12B,U+12E-130,U+134-137,U+139-13E,U+141-148,U+14C-14D,U+150-151,U+154-165,U+16A-173,U+178-17F,U+192,U+1F4-1F5,U+218-21B,U+237,U+2BC,U+2C7,U+2C9,U+2DD,U+301,U+1E30-1E31,U+1E3E-1E3F,U+1E54-1E55,U+1E9E,U+2020,U+20B4,U+20B6-20B7,U+20B9-20C0,U+2113,U+2C67-2C68;
+}
+
+/* PT Serif 700 (self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "PT Serif";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/static/fonts/ejrsqgyozzy2vcfuvant66qfvyvhpa-bba3db27.woff2") format("woff2");
+  unicode-range: U+20,U+A0,U+462-463,U+472-475,U+48A-48F,U+492-4AF,U+4B2-4C0,U+4C3-4F9,U+4FC-4FD,U+510-513,U+51C-51D,U+524-527,U+20B4;
+}
+
+/* PT Serif 700 (self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "PT Serif";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/static/fonts/ejrsqgyozzy2vcfuvant66qsvys-0480db00.woff2") format("woff2");
+  unicode-range: U+20-7E,U+A0-FF,U+131,U+152-153,U+2BC,U+2C6,U+2DA,U+2DC,U+301,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2039-203A,U+2044,U+20AC,U+2122,U+2212,U+2215;
+}
+
+/* PT Serif 700 (self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "PT Serif";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/static/fonts/ejrsqgyozzy2vcfuvant66qwvyvhpa-845fc18b.woff2") format("woff2");
+  unicode-range: U+20,U+A0,U+301,U+401-40C,U+40E-44F,U+451-45C,U+45E-45F,U+490-491,U+4B0-4B1,U+2116;
+}
+
+/* PT Serif 400 (self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "PT Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/static/fonts/ejrvqgyozzy2vcfuvafbzr-tdg-19d702fe.woff2") format("woff2");
+  unicode-range: U+20,U+A0,U+462-463,U+472-475,U+48A-48F,U+492-4AF,U+4B2-4C0,U+4C3-4F9,U+4FC-4FD,U+510-513,U+51C-51D,U+524-527,U+20B4;
+}
+
+/* PT Serif 400 (self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "PT Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/static/fonts/ejrvqgyozzy2vcfuvafszr-tdg-2d73e1c0.woff2") format("woff2");
+  unicode-range: U+20,U+A0,U+301,U+401-40C,U+40E-44F,U+451-45C,U+45E-45F,U+490-491,U+4B0-4B1,U+2116;
+}
+
+/* PT Serif 400 (self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "PT Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/static/fonts/ejrvqgyozzy2vcfuvafwzr8-12e1e0d3.woff2") format("woff2");
+  unicode-range: U+20-7E,U+A0-FF,U+131,U+152-153,U+2BC,U+2C6,U+2DA,U+2DC,U+301,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2039-203A,U+2044,U+20AC,U+2122,U+2212,U+2215;
+}
+
+/* PT Serif 400 (self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "PT Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/static/fonts/ejrvqgyozzy2vcfuvafyzr-tdg-d198c382.woff2") format("woff2");
+  unicode-range: U+20,U+A0,U+100-109,U+10C-113,U+116-11F,U+122-127,U+12A-12B,U+12E-130,U+134-137,U+139-13E,U+141-148,U+14C-14D,U+150-151,U+154-165,U+16A-173,U+178-17F,U+192,U+1F4-1F5,U+218-21B,U+237,U+2BC,U+2C7,U+2DD,U+301,U+1E30-1E31,U+1E3E-1E3F,U+1E54-1E55,U+1E9E,U+2020,U+20B4,U+20B6-20B7,U+20B9-20C0,U+2113,U+2C67-2C68;
+}
+
+/* Golos Text 400–900 (variable, self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "Golos Text";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/static/fonts/q5ucsoe9lv5t7meb31ecex18hlxr-e3bbd782.woff2") format("woff2");
+  unicode-range: U+0,U+D,U+20,U+41,U+A0,U+C1,U+100-107,U+10A-113,U+116-11B,U+11E-123,U+126-127,U+12A-12B,U+12E-130,U+132-133,U+136-137,U+139-13E,U+141-148,U+14A-14D,U+150-151,U+154-15B,U+15E-161,U+164-165,U+16A-17E,U+192,U+218-21B,U+237,U+2BC,U+2C7,U+2DD,U+300-301,U+303-304,U+308,U+1E80-1E85,U+1E9E,U+1EF2-1EF3,U+2020,U+20B4,U+20B8,U+20BD;
+}
+
+/* Golos Text 400–900 (variable, self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "Golos Text";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/static/fonts/q5ucsoe9lv5t7meb31ecex58hlxr-6a3bedff.woff2") format("woff2");
+  unicode-range: U+0,U+D,U+20,U+41,U+A0,U+C1,U+102,U+492-49D,U+4A0-4A5,U+4AA-4AB,U+4AE-4AF,U+4B2-4B3,U+4B6-4BB,U+4C0,U+4C3-4C4,U+4C7-4C8,U+4CB-4CC,U+4CF-4DF,U+4E2-4EB,U+4EE-4F5,U+4F8-4F9,U+512-513,U+20B4;
+}
+
+/* Golos Text 400–900 (variable, self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "Golos Text";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/static/fonts/q5ucsoe9lv5t7meb31ecexd8hlxr-720bcf67.woff2") format("woff2");
+  unicode-range: U+0,U+D,U+20,U+41,U+A0,U+C1,U+102,U+301,U+401-40C,U+40E-44F,U+451-45C,U+45E-45F,U+490-491,U+4B0-4B1,U+2116;
+}
+
+/* Golos Text 400–900 (variable, self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "Golos Text";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/static/fonts/q5ucsoe9lv5t7meb31ecexn8ha-6e2de38e.woff2") format("woff2");
+  unicode-range: U+0,U+D,U+20-7E,U+A0-FF,U+102,U+131,U+152-153,U+2BC,U+2C6,U+2DA,U+2DC,U+300-301,U+303-304,U+308,U+2009,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2039-203A,U+2044,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF;
+}
+
+/* JetBrains Mono 400–800 (variable, self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/static/fonts/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-06ad3600.woff2") format("woff2");
+  unicode-range: U+D,U+20,U+41,U+A0,U+C1,U+100-130,U+134-151,U+154-17F,U+18F,U+192,U+1A0-1A1,U+1AF-1B0,U+1CD-1CE,U+1E6-1E7,U+1EA-1EB,U+1F4-1F5,U+1FC-1FF,U+218-21B,U+232-233,U+237,U+259,U+2B9-2BA,U+2BC,U+2C7,U+2C9,U+2DD,U+2F3,U+2F7,U+300-301,U+303-304,U+308-309,U+323,U+1E80-1E85,U+1E9E,U+1EF2-1EF9,U+2020,U+20AB,U+20AE,U+20BD,U+20BF,U+2113;
+}
+
+/* JetBrains Mono 400–800 (variable, self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/static/fonts/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-326a88b4.woff2") format("woff2");
+  unicode-range: U+D,U+20,U+41,U+A0,U+C1,U+102-103,U+110-111,U+128-129,U+168-169,U+1A0-1A1,U+1AF-1B0,U+300-301,U+303-304,U+308-309,U+323,U+1EA0-1EF9,U+20AB;
+}
+
+/* JetBrains Mono 400–800 (variable, self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/static/fonts/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-4f27206c.woff2") format("woff2");
+  unicode-range: U+D,U+20-7E,U+A0-FF,U+102,U+131,U+152-153,U+2BC,U+2C6,U+2DA,U+2DC,U+300-301,U+303-304,U+308-309,U+323,U+2013-2014,U+2018-201A,U+201C-201E,U+2022,U+2026,U+2032-2033,U+2039-203A,U+2044,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF;
+}
+
+/* JetBrains Mono 400–800 (variable, self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/static/fonts/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-9d8db2e8.woff2") format("woff2");
+  unicode-range: U+D,U+20,U+41,U+A0,U+C1,U+102,U+301,U+401-40C,U+40E-44F,U+451-45C,U+45E-45F,U+490-491,U+2116;
+}
+
+/* JetBrains Mono 400–800 (variable, self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/static/fonts/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-bcedb9e2.woff2") format("woff2");
+  unicode-range: U+D,U+20,U+41,U+A0,U+C1,U+102,U+374-375,U+37E,U+384-38A,U+38C,U+38E-3A1,U+3A3-3CF,U+3D7;
+}
+
+/* JetBrains Mono 400–800 (variable, self-host, OFL; design-context/assets/fonts) */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/static/fonts/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-feae5721.woff2") format("woff2");
+  unicode-range: U+D,U+20,U+41,U+A0,U+C1,U+102,U+4AE-4AF,U+4E8-4E9;
+}
 :root {
   color-scheme: dark;
 
-  /* primitives */
-  --p-bg-000:    #0e1621;   /* фон страницы, глубокий сине-графитовый */
-  --p-bg-100:    #172335;   /* панель (сайдбар, шапка) */
-  --p-bg-200:    #1d2b40;   /* приподнятая поверхность (карточка) */
-  --p-bg-300:    #26354d;   /* hover / вдавленная зона */
-  --p-border:    #33435c;   /* обычная граница */
-  --p-border-2:  #4d607c;   /* сильная граница / HUD-уголки панелей */
-  --p-text-900:  #e7edf4;   /* основной текст (15.4:1) */
-  --p-text-600:  #a7b7c8;   /* вторичный текст (8.87:1) */
-  --p-text-500:  #8496a8;   /* подписи (5.98:1) */
-  --p-amber-400: #f0b45c;   /* сигнальный янтарь — fast line (9.86:1) */
-  --p-amber-900: #3a2c12;   /* янтарная подложка */
-  --p-cyan-300:  #4fd8eb;   /* второй акцент: актив/фокус (10.7:1 на 000) */
-  --p-teal-400:  #57c4b0;   /* success / активный раздел (8.59:1) */
-  --p-coral-400: #ef7b6a;   /* error / приоритет high (6.67:1) */
-  --p-violet-300:#b9a8e8;   /* приоритет medium (7.5:1) */
+  /* --- Канон направления A (design-forge/a/tokens.css, dark; дословно) --- */
+  --scheme: dark;
+  --color-bg: #1e0f14;
+  --color-surface: #2a161d;
+  --color-raised: #371f28;
+  --color-text: #f7ece4;
+  --color-muted: #c6ad9f;
+  --color-border: #3d2229;
+  --color-accent: #d6a85c;
+  --color-on-accent: #1e0f14;
+  --color-accent-2: #c4505c;
+  --color-link: #d6a85c;
+  --color-success: #5ad88e;
+  --color-success-soft: #333931;
+  --color-warning: #f0aa42;
+  --color-warning-soft: #4e3124;
+  --color-danger: #e9817f;
+  --color-danger-soft: #4c292f;
+  --color-on-danger: #111111;
+  --font-display: "PT Serif", Georgia, "Times New Roman", serif;
+  --font-body: "Golos Text", system-ui, "Segoe UI", sans-serif;
+  --font-ui: "Golos Text", system-ui, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --radius-sm: 10px;
+  --radius-md: 18px;
+  --radius-lg: 28px;
+  --radius-pill: 999px;
+  --shadow-1: 0 1px 3px rgb(0 0 0 / .08), 0 4px 12px rgb(0 0 0 / .06);
+  --shadow-2: 0 4px 8px rgb(0 0 0 / .08), 0 18px 40px rgb(0 0 0 / .10);
+  --dur: 160ms;
+  --ease: cubic-bezier(.2,.7,.2,1);
 
-  /* semantic */
-  --color-text-primary:   var(--p-text-900);
-  --color-text-secondary: var(--p-text-600);
-  --color-text-muted:     var(--p-text-500);
-  --color-text-on-accent: #0e1621;
-  --color-bg-page:    var(--p-bg-000);
-  --color-bg-surface: var(--p-bg-200);
-  --color-bg-subtle:  var(--p-bg-100);
-  --color-border-default: var(--p-border);
-  --color-border-strong:  var(--p-border-2);
-  --color-accent:      var(--p-amber-400);
-  --color-accent-hover:#f6c17a;
-  --color-accent-soft: var(--p-amber-900);
-  --color-focus:       var(--p-cyan-300);
-  --fastline:      var(--p-amber-400);
-  --fastline-tint: var(--p-amber-900);
-  --status-error:  var(--p-coral-400);
-  --status-success:var(--p-teal-400);
-  --priority-high:   var(--p-coral-400);
-  --priority-medium: var(--p-violet-300);
-  --priority-low:    var(--p-teal-400);
-  /* Статус-подложки (аддитивно к снимку tokens-console.html; прежние семантические
-   * имена сохранены — login/board CSS ссылаются на них до своих волн 2.2/2.4):
-   * полупрозрачные подложки статусов на dark, БЕЗ новых hex (токен-дисциплина). */
-  --status-error-bg: color-mix(in srgb, var(--p-coral-400) 12%, transparent);
-  --priority-high-soft: color-mix(in srgb, var(--p-coral-400) 12%, transparent);
-  --priority-medium-soft: color-mix(in srgb, var(--p-violet-300) 12%, transparent);
-  --priority-low-soft: color-mix(in srgb, var(--p-teal-400) 12%, transparent);
+  /* --- legacy-примитивы «Пульта» (страницы вне объема; значения прежние) --- */
+  --p-bg-000:    #0e1621;
+  --p-bg-100:    #172335;
+  --p-bg-200:    #1d2b40;
+  --p-bg-300:    #26354d;
+  --p-border:    #33435c;
+  --p-border-2:  #4d607c;
+  --p-text-900:  #e7edf4;
+  --p-text-600:  #a7b7c8;
+  --p-text-500:  #8496a8;
+  --p-amber-400: #f0b45c;
+  --p-amber-900: #3a2c12;
+  --p-cyan-300:  #4fd8eb;
+  --p-teal-400:  #57c4b0;
+  --p-coral-400: #ef7b6a;
+  --p-violet-300:#b9a8e8;
 
-  /* glow: тонкое свечение только на сигнале (янтарь) и активе/фокусе (cyan) */
-  --glow-amber: 0 0 0 1px rgba(240,180,92,.18), 0 0 20px -6px rgba(240,180,92,.28);
-  --glow-cyan:  0 0 0 1px rgba(79,216,235,.22), 0 0 20px -6px rgba(79,216,235,.32);
+  /* --- Каркасный семантический слой (маппинг §1.3 sdd-redesign-ui-a):
+   * прежние имена, значения направления A; производные — color-mix от
+   * канон-токенов (ни одного нового hex). --- */
+  --color-text-primary:   var(--color-text);
+  --color-text-secondary: var(--color-muted);
+  --color-text-muted:     color-mix(in srgb, var(--color-muted) 85%, var(--color-bg));
+  --color-text-on-accent: var(--color-on-accent);
+  --color-bg-page:    var(--color-bg);
+  --color-bg-surface: var(--color-raised);
+  --color-bg-subtle:  var(--color-surface);
+  --color-border-default: var(--color-border);
+  --color-border-strong:  color-mix(in srgb, var(--color-muted) 30%, var(--color-border));
+  --color-accent-hover: color-mix(in srgb, var(--color-accent) 90%, var(--color-text));
+  --color-accent-soft: var(--color-warning-soft);
+  --color-focus:       var(--color-accent);
+  --fastline:      var(--color-accent);
+  --fastline-tint: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+  --status-error:  var(--color-danger);
+  --status-success:var(--color-success);
+  --priority-high:   var(--color-accent-2);
+  --priority-medium: var(--color-warning);
+  --priority-low:    var(--color-border);
+  /* Статус-подложки (полупрозрачные, без новых hex — токен-дисциплина). */
+  --status-error-bg: color-mix(in srgb, var(--color-accent-2) 12%, transparent);
+  --priority-high-soft: color-mix(in srgb, var(--color-accent-2) 12%, transparent);
+  --priority-medium-soft: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  --priority-low-soft: color-mix(in srgb, var(--color-border) 12%, transparent);
 
-  /* фоновая микро-сетка: 1px линии, ячейка 32px (кратна сетке 8px) */
-  --grid-line: rgba(167,183,200,.05);
-  --texture-grid:
-    linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 100% 32px,
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 32px 100%;
+  /* Аддитивные (замена cyan-семейства «Пульта»; с.м. §1.3): */
+  --accent-border: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  --overlay: color-mix(in srgb, var(--color-bg) 65%, transparent);
+  --fastline-track: color-mix(in srgb, var(--color-accent) 16%, transparent);
 
-  /* spacing — сетка 8px */
+  /* legacy cyan-токены «Пульта» (значения прежние): еще ссылаются
+   * wiki.css (спойлер — до волны 3.3 sdd), удаляются вместе с местами
+   * использования в волну wiki. */
+  --accent-cyan: var(--p-cyan-300);
+  --cyan-border: rgba(79,216,235,.45);
+  --glow-cyan: 0 0 0 1px rgba(79,216,235,.22), 0 0 20px -6px rgba(79,216,235,.32);
+
+  /* spacing — сетка 8px (шкала A --space-1…6 НЕ переносится, §1.5 sdd) */
   --space-05: 4px; --space-1: 8px; --space-2: 16px; --space-3: 24px; --space-4: 32px; --space-6: 48px;
 
   /* geometry */
-  --radius-field: 6px;
-  --radius-card:  8px;
+  --radius-field: var(--radius-sm);   /* 10px */
+  --radius-card:  var(--radius-md);   /* 18px */
 
-  /* elevation: на тёмном тень почти не видна — глубину дают ступени фона */
-  --shadow-soft: 0 1px 2px rgba(0,0,0,.4);
-  --shadow-modal: 0 24px 56px rgba(0,0,0,.55);
+  /* elevation: тени направления A (tokens.css --shadow-1/--shadow-2) */
+  --shadow-soft:  var(--shadow-1);
+  --shadow-modal: var(--shadow-2);
 
-  /* typography: sans для UI, mono — данные, readouts и микро-лейблы капсом */
-  --font-family:        -apple-system, 'Segoe UI', system-ui, sans-serif;
-  --font-family-display: -apple-system, 'Segoe UI', system-ui, sans-serif;
-  --font-family-data:   ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, monospace;
+  /* typography: Golos Text — UI/текст, PT Serif — display-заголовки,
+   * JetBrains Mono — данные (счетчики, readout, коды). */
+  --font-family:        var(--font-body);
+  --font-family-display: var(--font-display);
+  --font-family-data:   var(--font-mono);
   --font-size-display: 30px;
   --font-size-h1: 22px;
   --font-size-h2: 17px;
@@ -90,37 +319,57 @@
   --lh-body: 1.5;
   --lh-display: 1.2;
   --tracking-caps: .06em;
-  --tracking-micro: .14em;   /* SYS/FST-лейблы капсом */
+  --tracking-micro: .14em;   /* сохранен: страницы вне объема */
 
-  /* focus + motion */
-  --focus-ring: 0 0 0 2px var(--p-bg-000), 0 0 0 4px var(--p-cyan-300), 0 0 14px rgba(79,216,235,.35);
-  --speed-fast: 140ms;
+  /* focus + motion (замена cyan-ринг «Пульта» — золото, NFR-42 дельта) */
+  --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent), 0 0 12px color-mix(in srgb, var(--color-accent) 30%, transparent);
+  --speed-fast: var(--dur);   /* 160ms */
   --speed-modal: 200ms;
+}
 
-  /* --- аддитивно (2.1, design §D1 + токен-дисциплина: декоративные rgba
-   * вынесены в :root, новых цветов вне токенов нет) --- */
-  --accent-cyan: var(--p-cyan-300);            /* второй акцент: актив/фокус */
-  --cyan-border: rgba(79,216,235,.45);         /* рамка активного пункта навигации */
-  --led-glow-teal: 0 0 6px rgba(87,196,176,.7);  /* бренд, выполнено, readout */
-  --led-glow-amber: 0 0 8px rgba(240,180,92,.9); /* в работе (blink), фастлайн */
-  --led-glow-cyan: 0 0 6px rgba(79,216,235,.8);  /* LED активного пункта */
-  --overlay: rgba(14,22,33,.6);                /* подложка модалок (bg-000) */
-  --fastline-track: rgba(240,180,92,.16);      /* фон трека отсчета фастлайна */
-
-  /* V3-алиасы «Бумага» удалены (задача 2.7, design §D1): все
-     поверхности фронта мигрировали на токены «Пульта» в волнах 2.1–2.6. */
+/* Вторая тема (светлая): выведена из палитры, контраст проверен. Включается
+   атрибутом на <html data-theme="light"> (инлайн-инициализатор в head —
+   анти-FOUC). Вёрстка та же — только переменные. --color-accent-2 включен
+   явно (одинаков в обеих темах — wd-scan-снимок его терял). Производные
+   токены (color-mix) из :root пересчитываются автоматически. --p-* legacy
+   в light-теме не переопределяются (известный хвост: страницы вне объема
+   в light частично темные — ОВ-4, вне объема). */
+:root[data-theme="light"] {
+  --scheme: light;
+  color-scheme: light;
+  --color-bg: #f9f8f6;
+  --color-surface: #ffffff;
+  --color-raised: #f3f0ea;
+  --color-text: #282115;
+  --color-muted: #6b6050;
+  --color-border: #e0ddd6;
+  --color-accent: #b7842e;
+  --color-on-accent: #111111;
+  --color-accent-2: #c4505c;
+  --color-link: #8a631f;
+  --color-success: #1c7842;
+  --color-success-soft: #e8f2ec;
+  --color-warning: #975f0c;
+  --color-warning-soft: #f5efe7;
+  --color-danger: #b62520;
+  --color-danger-soft: #f8e9e9;
+  --color-on-danger: #ffffff;
+  /* derived-переопределение (sdd §1.4): производный muted-mix dark-правила
+   * на светлой палитре дает 4.16:1 — ниже AA (NFR-41); в light подписи —
+   * plain muted (#6b6050, 5.8:1 на bg). */
+  --color-text-muted: var(--color-muted);
 }
 
 * { box-sizing: border-box; }
 
 /* ======================================================================
-   2.1 redesign-console: каркас «Пульт» (мокап design/redesign-pro/
-   board-console.html). Grid-раскладка 232px + 1fr; сайдбар — панель bg1;
-   глобально: cyan-фокус-ринг (focus-visible), cyan-selection,
-   prefers-reduced-motion, skip-link, фоновая микро-сетка.
+   Каркас направления A. Grid-раскладка 232px + 1fr (геометрия прежняя,
+   ассерты сайдбара сохранены); сайдбар — поверхность --color-surface;
+   глобально: золотой focus-visible-ринг, золотое ::selection,
+   prefers-reduced-motion, skip-link. Фон страницы — плоский
+   --color-bg-page (микро-сетка «Пульта» удалена, §1.3 sdd).
    ====================================================================== */
 
-/* Фон страницы: микро-сетка 32px (кратна 8px-сетке) поверх bg-000. */
 body.app-shell {
   margin: 0;
   font-family: var(--font-family);
@@ -132,14 +381,10 @@ body.app-shell {
    * закрывает дропдаун (контракт r6 FR-62/СЦ-9). Токен --lh-body остается
    * в :root для точечного применения. */
   color: var(--color-text-primary);
-  background:
-    linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 100% 32px,
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 32px 100%,
-    var(--color-bg-page);
-  /* Grid-раскладка «Пульта» (мокап .layout): сайдбар 232px + контент 1fr.
-     Реализована на body.app-shell без новой обертки: DOM-хуки каркаса
-     (.sidebar, .content) не переезжают (ОГР-28); мобильная шапка/оверлей
-     вне потока (display:none / position:fixed) и ячеек не занимают. */
+  background: var(--color-bg-page);
+  /* Grid-раскладка: сайдбар 232px + контент 1fr. Реализована на body.app-shell
+   * без новой обертки: DOM-хуки каркаса (.sidebar, .content) не переезжают
+   * (ОГР-28); мобильная шапка/оверлей вне потока. */
   display: grid;
   grid-template-columns: 232px 1fr;
   min-height: 100vh;
@@ -147,42 +392,21 @@ body.app-shell {
 
 a { color: inherit; }
 
-/* HUD-уголки (design §D1 п.1; мокап .hud): 8 градиентных отрезков 12×1px /
-   1×12px по углам панели; цвет --hc (по умолчанию border-2, на сигнальных
-   панелях — янтарь: .fastline.hud::after в board.css). Общий паттерн
-   каркаса — применяется панелями волн 2.2+ (фастлайн, колонки, спойлер,
-   login/settings). */
+/* Класс .hud сохранен в DOM (ОГР-28) как нейтральная обертка — визуальных
+ * правил (HUD-уголки «Пульта») больше нет (§1.3 sdd-redesign-ui-a). */
 .hud { position: relative; }
 
-.hud::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  --hc: var(--p-border-2);
-  background:
-    linear-gradient(var(--hc) 0 0) no-repeat 0 0/12px 1px,
-    linear-gradient(var(--hc) 0 0) no-repeat 0 0/1px 12px,
-    linear-gradient(var(--hc) 0 0) no-repeat 100% 0/12px 1px,
-    linear-gradient(var(--hc) 0 0) no-repeat 100% 0/1px 12px,
-    linear-gradient(var(--hc) 0 0) no-repeat 0 100%/12px 1px,
-    linear-gradient(var(--hc) 0 0) no-repeat 0 100%/1px 12px,
-    linear-gradient(var(--hc) 0 0) no-repeat 100% 100%/12px 1px,
-    linear-gradient(var(--hc) 0 0) no-repeat 100% 100%/1px 12px;
-}
-
-/* Глобальный клавиатурный фокус: двойное cyan-кольцо (design §D7). */
+/* Глобальный клавиатурный фокус: двойное золотое кольцо (--focus-ring). */
 :focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
   border-radius: 4px;
 }
 
-/* Выделение текста — cyan (design §D7). */
+/* Выделение текста — золото (дельта NFR-42). */
 ::selection {
-  background: var(--p-cyan-300);
-  color: var(--p-bg-000);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
 }
 
 /* NFR-43: сокращенное движение отключает всю анимацию/переходы фронта. */
@@ -193,8 +417,8 @@ a { color: inherit; }
   }
 }
 
-/* --- Skip-link (NFR-44; мокап .skip): вне фокуса за экраном, при фокусе —
-   панель bg1 в левом верхнем углу над контентом. --- */
+/* --- Skip-link (NFR-44): вне фокуса за экраном, при фокусе — панель
+   --color-surface в левом верхнем углу над контентом. --- */
 .skip-link {
   position: absolute;
   left: -9999px;
@@ -213,10 +437,10 @@ a { color: inherit; }
   top: var(--space-1);
 }
 
-/* --- Сайдбар «Пульта»: панель bg1, правая граница, бренд с LED. --- */
+/* --- Сайдбар: поверхность --color-surface, правая граница, бренд с LED. --- */
 .sidebar {
-  background: var(--p-bg-100);
-  border-right: 1px solid var(--p-border);
+  background: var(--color-bg-subtle);
+  border-right: 1px solid var(--color-border-default);
   padding: var(--space-3) 12px;
   display: flex;
   flex-direction: column;
@@ -228,13 +452,14 @@ a { color: inherit; }
   overflow-y: auto;
 }
 
-/* Бренд (мокап .brand): teal-LED со свечением + имя + mono-подзаголовок. */
+/* Бренд: LED-точка статуса (static success-цвет, свечение удалено) +
+ * serif-имя + mono-подзаголовок. */
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 0 12px var(--space-2);
-  border-bottom: 1px solid var(--p-border);
+  border-bottom: 1px solid var(--color-border-default);
   margin-bottom: 12px;
 }
 
@@ -243,26 +468,26 @@ a { color: inherit; }
   height: 8px;
   flex: none;
   border-radius: 50%;
-  background: var(--p-teal-400);
-  box-shadow: var(--led-glow-teal);
+  background: var(--color-success);
 }
 
 .brand-text { display: flex; flex-direction: column; min-width: 0; }
 
 .brand-name {
+  font-family: var(--font-family-display);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: .01em;
-  color: var(--p-text-900);
+  color: var(--color-text-primary);
 }
 
-/* Микро-лейбл капсом: mono + --tracking-micro (design §D2 п.5). */
+/* Микро-лейбл капсом: mono (трекинг сохранен — за пределами объема A). */
 .brand-sub {
   font-family: var(--font-family-data);
   font-size: var(--font-size-micro);
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--p-text-500);
+  color: var(--color-text-muted);
 }
 
 .sidebar-nav {
@@ -271,7 +496,9 @@ a { color: inherit; }
   gap: 2px;
 }
 
-/* Пункт навигации: иконка 16px + подпись t600; hover — bg2 + t900. */
+/* Пункт навигации: иконка 16px + подпись muted; hover — поверхность
+ * --color-bg-subtle + text (ступени фона: hover bg2→surface, активная
+ * bg3→raised — маппинг §1.3). */
 .nav-item {
   display: flex;
   align-items: center;
@@ -280,36 +507,37 @@ a { color: inherit; }
   min-height: 40px;
   font-size: var(--font-size-body);
   text-decoration: none;
-  color: var(--p-text-600);
+  color: var(--color-text-secondary);
   border: 1px solid transparent;
   border-radius: var(--radius-field);
   transition: background var(--speed-fast), color var(--speed-fast);
 }
 
 .nav-item:hover {
-  background: var(--p-bg-200);
-  color: var(--p-text-900);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
 }
 
 .nav-item .nav-icon {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-  color: var(--p-text-500);
+  color: var(--color-text-muted);
 }
 
-/* Активный раздел (design §D2): aria-current="page" (класс .active сохранен) —
-   фон bg2, текст t900, cyan-рамка 45%, иконка cyan, cyan-LED справа. */
+/* Активный раздел (aria-current="page", класс .active сохранен):
+ * фон raised, текст primary, золотая рамка 45%, иконка — золото,
+ * золотая LED справа (статичная — свечение удалено). */
 .nav-item[aria-current="page"],
 .nav-item.active {
-  background: var(--p-bg-200);
-  color: var(--p-text-900);
-  border-color: var(--cyan-border);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border-color: var(--accent-border);
   font-weight: 600;
 }
 
 .nav-item[aria-current="page"] .nav-icon,
-.nav-item.active .nav-icon { color: var(--accent-cyan); }
+.nav-item.active .nav-icon { color: var(--color-accent); }
 
 .nav-item[aria-current="page"]::after,
 .nav-item.active::after {
@@ -318,8 +546,7 @@ a { color: inherit; }
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent-cyan);
-  box-shadow: var(--led-glow-cyan);
+  background: var(--color-accent);
 }
 
 /* Пункт «Мониторинг» (owner, рисуется profile.js) — тот же паттерн. */
@@ -327,14 +554,14 @@ a { color: inherit; }
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--p-text-600);
+  color: var(--color-text-secondary);
 }
 
 .nav-item-monitoring .nav-icon {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-  color: var(--p-text-500);
+  color: var(--color-text-muted);
 }
 
 .nav-item-monitoring .nav-label {
@@ -344,26 +571,25 @@ a { color: inherit; }
 }
 
 .nav-item-monitoring:hover {
-  background: var(--p-bg-200);
-  color: var(--p-text-900);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
 }
 
-/* Нажатие (mouse-down) — следующая ступень фона (преемственность P12:
-   у пункта есть видимая press-реакция). */
-.nav-item-monitoring:active { background: var(--p-bg-300); }
+/* Нажатие (mouse-down) — следующая ступень фона (преемственность P12). */
+.nav-item-monitoring:active { background: var(--color-bg-surface); }
 
 .nav-item-monitoring.active,
 .nav-item-monitoring[aria-current="page"] {
-  background: var(--p-bg-200);
-  color: var(--p-text-900);
-  border-color: var(--cyan-border);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border-color: var(--accent-border);
 }
 
-/* Футер сайдбара: Настройки + Выйти + блок профиля. */
+/* Футер сайдбара: тумблер темы + Настройки + Выйти + блок профиля. */
 .sidebar-footer {
   margin-top: auto;
   padding: var(--space-2) 12px 0;
-  border-top: 1px solid var(--p-border);
+  border-top: 1px solid var(--color-border-default);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -377,13 +603,46 @@ a { color: inherit; }
 
 .sidebar-footer .nav-item-settings:active { transform: none; }
 
+/* --- Переключатель темы (redesign-ui-a §1.6): первый элемент
+ * .sidebar-footer, 44×44 (NFR-23), иконка inline-SVG 20px; видимая
+ * иконка управляется CSS по data-theme (JS иконку не меняет). --- */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  transition: color var(--speed-fast);
+}
+
+.theme-toggle:hover { color: var(--color-text-primary); }
+
+.theme-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.theme-toggle svg { width: 20px; height: 20px; }
+
+.theme-icon-sun { display: none; }
+
+:root[data-theme="light"] .theme-icon-moon { display: none; }
+:root[data-theme="light"] .theme-icon-sun { display: block; }
+
 .logout-button {
   width: 100%;
   min-height: 36px;
   padding: var(--space-1);
   background: transparent;
-  color: var(--p-text-600);
-  border: 1px solid var(--p-border);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-default);
   border-radius: var(--radius-field);
   cursor: pointer;
   font: inherit;
@@ -391,18 +650,18 @@ a { color: inherit; }
 }
 
 .logout-button:hover {
-  background: var(--p-bg-200);
-  color: var(--p-text-900);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-primary);
 }
 
-/* Блок профиля (преемственность FR-33/Д-7): имя t900, служебные t500. */
+/* Блок профиля (преемственность FR-33/Д-7): имя primary, служебные muted. */
 .sidebar-profile {
   display: none;
   align-items: center;
   gap: var(--space-1);
   padding-top: var(--space-1);
-  border-top: 1px solid var(--p-border);
-  color: var(--p-text-900);
+  border-top: 1px solid var(--color-border-default);
+  color: var(--color-text-primary);
 }
 
 .sidebar-profile.profile-filled {
@@ -412,7 +671,7 @@ a { color: inherit; }
 
 .sidebar-profile.profile-filled:hover .profile-badge,
 .sidebar-profile.profile-filled:hover .profile-avatar {
-  box-shadow: 0 0 0 2px var(--accent-cyan);
+  box-shadow: 0 0 0 2px var(--color-accent);
 }
 
 .profile-avatar {
@@ -441,11 +700,11 @@ a { color: inherit; }
 
 .profile-name {
   font-size: var(--font-size-label);
-  color: var(--p-text-900);
+  color: var(--color-text-primary);
   overflow-wrap: anywhere;
 }
 
-/* --- Единый tooltip (преемственность FR-43/ОГР-17) — на токенах «Пульта». --- */
+/* --- Единый tooltip (преемственность FR-43/ОГР-17) — на токенах A. --- */
 .app-tooltip {
   position: fixed;
   z-index: 20;
@@ -521,21 +780,22 @@ a { color: inherit; }
   min-width: 0;
 }
 
-/* Заголовки страниц — sans «Пульта» (pagehead-паттерн мокапа). */
+/* Заголовки страниц — serif направления A (2.3 БА: --font-family-display
+ * на h1.page-title, h1 разделов; размеры прежние — §1.5 sdd). */
 .content h1 {
-  font-family: var(--font-family);
+  font-family: var(--font-family-display);
   font-size: var(--font-size-h1);
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: -.01em;
   margin: 0 0 var(--space-2);
 }
 
 .content h2 {
-  font-family: var(--font-family);
-  font-weight: 600;
+  font-family: var(--font-family-display);
+  font-weight: 700;
 }
 
-/* --- Единая кнопка действия (amber, мокап .btn): сигнальный янтарь. --- */
+/* --- Единая кнопка действия (золото, мокап .btn-primary): фон --color-accent. --- */
 .btn-action {
   font: inherit;
   font-size: var(--font-size-body);
@@ -557,20 +817,19 @@ a { color: inherit; }
 .btn-action:hover {
   background: var(--color-accent-hover);
   border-color: var(--color-accent-hover);
-  box-shadow: 0 0 16px -4px rgba(240,180,92,.5);
 }
 
 .btn-action:active { background: var(--color-accent-hover); }
 
-/* Техно-заметки (todo): amber-токены на dark. */
+/* Техно-заметки (todo): warning-подложка/золото на dark. */
 .todo-badge,
 .todo-note {
   display: inline-block;
   padding: 1px 6px;
   font-size: var(--font-size-micro);
   font-weight: normal;
-  background: var(--p-amber-900);
-  color: var(--p-amber-400);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
   border-radius: 4px;
 }
 
@@ -578,10 +837,9 @@ a { color: inherit; }
 .todo-note { padding: 2px 8px; font-weight: bold; }
 
 /* --- Мобильная разметка прежнего каркаса (mobile-header/burger/backdrop):
-   DOM и JS-хуки сохранены (ОГР-28: #burger-button, aria-expanded, класс
-   sidebar-open, .sidebar-backdrop — app.js работает), но по утвержденному
-   мокапу мобильной раскладки сайдбар ≤860px переезжает наверх ВИДИМЫМ
-   (горизонтальная nav-строка) — drawer не предусмотрен, элементы скрыты. */
+   DOM и JS-хуки сохранены (ОГР-28), но по утвержденному мокапу мобильной
+   раскладки сайдбар ≤860px переезжает наверх ВИДИМЫМ (горизонтальная
+   nav-строка) — drawer не предусмотрен, элементы скрыты. */
 .mobile-header,
 .sidebar-backdrop,
 .burger {
@@ -593,11 +851,10 @@ a { color: inherit; }
 body.modal-shell-open { overflow: hidden; }
 
 /* ======================================================================
-   2.1/2.7 redesign-console (FR-131; мокап @media (max-width:860px)):
-   сайдбар наверх одной колонкой, nav — горизонтальная строка с переносом,
-   LED активного пункта скрыт, содержимое — отступы 16px, hit-targets ≥44px.
-   Брейкпоинты зон доски/фастлайна (480/768, board.css) не трогаются —
-   контракт p23 (ряд колонок на 481–768px) сохраняется.
+   Мобильная разметка ≤860px (FR-131): сайдбар наверх одной колонкой,
+   nav — горизонтальная строка с переносом, LED активного пункта скрыт,
+   содержимое — отступы 16px, hit-targets ≥44px. Брейкпоинты зон
+   доски/фастлайна (480/768, board.css) не трогаются.
    ====================================================================== */
 @media (max-width: 860px) {
   body.app-shell { grid-template-columns: 1fr; }
@@ -606,7 +863,7 @@ body.modal-shell-open { overflow: hidden; }
     position: static;
     height: auto;
     border-right: none;
-    border-bottom: 1px solid var(--p-border);
+    border-bottom: 1px solid var(--color-border-default);
     padding: 12px;
     overflow-y: visible;
   }
@@ -628,7 +885,7 @@ body.modal-shell-open { overflow: hidden; }
     min-height: 44px; /* NFR-23/FR-131: тач-таргет */
   }
 
-  /* LED активного пункта на мобильной строке скрыт (мокап). */
+  /* LED активного пункта на мобильной строке скрыт. */
   .nav-item[aria-current="page"]::after,
   .nav-item.active::after { display: none; }
 
@@ -642,6 +899,7 @@ body.modal-shell-open { overflow: hidden; }
   }
 
   .sidebar-footer .nav-item-settings { min-height: 44px; }
+  .theme-toggle { min-width: 44px; min-height: 44px; width: 44px; height: 44px; }
   .logout-button { width: auto; min-height: 44px; }
   .sidebar-profile.profile-filled { min-height: 44px; }
 

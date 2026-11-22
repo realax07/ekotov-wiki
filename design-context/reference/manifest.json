@@ -1,0 +1,389 @@
+{
+  "generator": "wd-scan",
+  "layout": "context",
+  "source": "сборка ../design-forge/a",
+  "createdAt": "2026-11-21T15:48:30.615Z",
+  "plan": "plan.json",
+  "viewports": {
+    "desktop": {
+      "width": 1440,
+      "height": 900
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "isMobile": true,
+      "deviceScaleFactor": 2
+    }
+  },
+  "primaryViewport": "desktop",
+  "cssBundle": true,
+  "items": [
+    {
+      "id": "home",
+      "baseId": "home",
+      "kind": "page",
+      "group": "pages",
+      "title": "Доска",
+      "viewport": "desktop",
+      "section": "board.html",
+      "pagePath": "/board.html",
+      "file": "board.html/index.html",
+      "screenshot": "board.html/index.jpg",
+      "sourceUrl": "/board.html",
+      "size": null
+    },
+    {
+      "id": "header",
+      "baseId": "header",
+      "kind": "component",
+      "group": "layout",
+      "title": "Шапка",
+      "viewport": "desktop",
+      "section": "board.html",
+      "pagePath": "/board.html",
+      "file": "board.html/_components/layout/header.html",
+      "screenshot": "board.html/_components/layout/header.png",
+      "sourceUrl": "/board.html",
+      "selector": "header",
+      "size": {
+        "width": 1240,
+        "height": 109
+      }
+    },
+    {
+      "id": "nav",
+      "baseId": "nav",
+      "kind": "component",
+      "group": "layout",
+      "title": "Навигация",
+      "viewport": "desktop",
+      "section": "board.html",
+      "pagePath": "/board.html",
+      "file": "board.html/_components/layout/nav.html",
+      "screenshot": "board.html/_components/layout/nav.png",
+      "sourceUrl": "/board.html",
+      "selector": "nav",
+      "size": {
+        "width": 317,
+        "height": 44
+      }
+    },
+    {
+      "id": "task",
+      "baseId": "task",
+      "kind": "page",
+      "group": "pages",
+      "title": "Карточка задачи",
+      "viewport": "desktop",
+      "section": "task.html",
+      "pagePath": "/task.html",
+      "file": "task.html/index.html",
+      "screenshot": "task.html/index.jpg",
+      "sourceUrl": "/task.html",
+      "size": null
+    },
+    {
+      "id": "kit",
+      "baseId": "kit",
+      "kind": "page",
+      "group": "pages",
+      "title": "UI-кит: детали и состояния",
+      "viewport": "desktop",
+      "section": "kit.html",
+      "pagePath": "/kit.html",
+      "file": "kit.html/index.html",
+      "screenshot": "kit.html/index.jpg",
+      "sourceUrl": "/kit.html",
+      "size": null
+    },
+    {
+      "id": "home--mobile",
+      "baseId": "home",
+      "kind": "page",
+      "group": "pages",
+      "title": "Доска",
+      "viewport": "mobile",
+      "section": "board.html",
+      "pagePath": "/board.html",
+      "file": "board.html/index.html",
+      "sameMarkupAs": "board.html/index.html",
+      "screenshot": "board.html/index--mobile.jpg",
+      "sourceUrl": "/board.html",
+      "size": null
+    },
+    {
+      "id": "header--mobile",
+      "baseId": "header",
+      "kind": "component",
+      "group": "layout",
+      "title": "Шапка",
+      "viewport": "mobile",
+      "section": "board.html",
+      "pagePath": "/board.html",
+      "file": "board.html/_components/layout/header--mobile.html",
+      "screenshot": "board.html/_components/layout/header--mobile.png",
+      "sourceUrl": "/board.html",
+      "selector": "header",
+      "size": {
+        "width": 390,
+        "height": 213
+      }
+    },
+    {
+      "id": "nav--mobile",
+      "baseId": "nav",
+      "kind": "component",
+      "group": "layout",
+      "title": "Навигация",
+      "viewport": "mobile",
+      "section": "board.html",
+      "pagePath": "/board.html",
+      "file": "board.html/_components/layout/nav--mobile.html",
+      "screenshot": "board.html/_components/layout/nav--mobile.png",
+      "sourceUrl": "/board.html",
+      "selector": "nav",
+      "size": {
+        "width": 317,
+        "height": 44
+      }
+    },
+    {
+      "id": "task--mobile",
+      "baseId": "task",
+      "kind": "page",
+      "group": "pages",
+      "title": "Карточка задачи",
+      "viewport": "mobile",
+      "section": "task.html",
+      "pagePath": "/task.html",
+      "file": "task.html/index--mobile.html",
+      "screenshot": "task.html/index--mobile.jpg",
+      "sourceUrl": "/task.html",
+      "size": null
+    },
+    {
+      "id": "kit--mobile",
+      "baseId": "kit",
+      "kind": "page",
+      "group": "pages",
+      "title": "UI-кит: детали и состояния",
+      "viewport": "mobile",
+      "section": "kit.html",
+      "pagePath": "/kit.html",
+      "file": "kit.html/index--mobile.html",
+      "screenshot": "kit.html/index--mobile.jpg",
+      "sourceUrl": "/kit.html",
+      "size": null
+    }
+  ],
+  "generated": [
+    "README.md",
+    "_catalog.html",
+    "_css/styles.css",
+    "_media/ejrsqgyozzy2vcfuvant66qcvyvhpa-fe24eb27.woff2",
+    "_media/ejrsqgyozzy2vcfuvant66qfvyvhpa-bba3db27.woff2",
+    "_media/ejrsqgyozzy2vcfuvant66qsvys-0480db00.woff2",
+    "_media/ejrsqgyozzy2vcfuvant66qwvyvhpa-845fc18b.woff2",
+    "_media/ejrvqgyozzy2vcfuvafbzr-tdg-19d702fe.woff2",
+    "_media/ejrvqgyozzy2vcfuvafszr-tdg-2d73e1c0.woff2",
+    "_media/ejrvqgyozzy2vcfuvafwzr8-12e1e0d3.woff2",
+    "_media/ejrvqgyozzy2vcfuvafyzr-tdg-d198c382.woff2",
+    "_media/q5ucsoe9lv5t7meb31ecex18hlxr-e3bbd782.woff2",
+    "_media/q5ucsoe9lv5t7meb31ecex58hlxr-6a3bedff.woff2",
+    "_media/q5ucsoe9lv5t7meb31ecexd8hlxr-720bcf67.woff2",
+    "_media/q5ucsoe9lv5t7meb31ecexn8ha-6e2de38e.woff2",
+    "_media/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-06ad3600.woff2",
+    "_media/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-326a88b4.woff2",
+    "_media/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-4f27206c.woff2",
+    "_media/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-9d8db2e8.woff2",
+    "_media/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-bcedb9e2.woff2",
+    "_media/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-feae5721.woff2",
+    "board.html/README.md",
+    "board.html/_components/layout/header--mobile.html",
+    "board.html/_components/layout/header--mobile.png",
+    "board.html/_components/layout/header.html",
+    "board.html/_components/layout/header.png",
+    "board.html/_components/layout/nav--mobile.html",
+    "board.html/_components/layout/nav--mobile.png",
+    "board.html/_components/layout/nav.html",
+    "board.html/_components/layout/nav.png",
+    "board.html/_css/styles.css",
+    "board.html/index--mobile.jpg",
+    "board.html/index.html",
+    "board.html/index.jpg",
+    "kit.html/README.md",
+    "kit.html/_css/styles.css",
+    "kit.html/index--mobile.html",
+    "kit.html/index--mobile.jpg",
+    "kit.html/index.html",
+    "kit.html/index.jpg",
+    "task.html/README.md",
+    "task.html/_css/styles.css",
+    "task.html/index--mobile.html",
+    "task.html/index--mobile.jpg",
+    "task.html/index.html",
+    "task.html/index.jpg"
+  ],
+  "contextGenerated": [
+    "GUIDE.md",
+    "assets/fonts/ejrsqgyozzy2vcfuvant66qcvyvhpa-fe24eb27.woff2",
+    "assets/fonts/ejrsqgyozzy2vcfuvant66qfvyvhpa-bba3db27.woff2",
+    "assets/fonts/ejrsqgyozzy2vcfuvant66qsvys-0480db00.woff2",
+    "assets/fonts/ejrsqgyozzy2vcfuvant66qwvyvhpa-845fc18b.woff2",
+    "assets/fonts/ejrvqgyozzy2vcfuvafbzr-tdg-19d702fe.woff2",
+    "assets/fonts/ejrvqgyozzy2vcfuvafszr-tdg-2d73e1c0.woff2",
+    "assets/fonts/ejrvqgyozzy2vcfuvafwzr8-12e1e0d3.woff2",
+    "assets/fonts/ejrvqgyozzy2vcfuvafyzr-tdg-d198c382.woff2",
+    "assets/fonts/q5ucsoe9lv5t7meb31ecex18hlxr-e3bbd782.woff2",
+    "assets/fonts/q5ucsoe9lv5t7meb31ecex58hlxr-6a3bedff.woff2",
+    "assets/fonts/q5ucsoe9lv5t7meb31ecexd8hlxr-720bcf67.woff2",
+    "assets/fonts/q5ucsoe9lv5t7meb31ecexn8ha-6e2de38e.woff2",
+    "assets/fonts/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-06ad3600.woff2",
+    "assets/fonts/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-326a88b4.woff2",
+    "assets/fonts/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-4f27206c.woff2",
+    "assets/fonts/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-9d8db2e8.woff2",
+    "assets/fonts/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-bcedb9e2.woff2",
+    "assets/fonts/tdbv2o-fleeny0fzhsfku5wu4zr3e-bx0pnt8rd8-feae5721.woff2",
+    "assets/icons/icon-14iobj.svg",
+    "assets/icons/icon-1pzp4oi.svg",
+    "assets/icons/icon-u7ty99.svg",
+    "assets/icons/переключить-тему-1q6mmt3.svg",
+    "assets/tokens.css",
+    "compositions/board.html.md",
+    "compositions/kit.html.md",
+    "compositions/task.html.md",
+    "foundations.md",
+    "parts/badges.md",
+    "parts/buttons.md",
+    "parts/cards.md",
+    "parts/components.md",
+    "parts/inputs.md",
+    "parts/links.md"
+  ],
+  "sections": [
+    {
+      "folder": ".",
+      "path": "/",
+      "title": null,
+      "url": null,
+      "parent": null,
+      "children": [
+        "board.html",
+        "kit.html",
+        "task.html"
+      ],
+      "readme": "README.md",
+      "captured": false,
+      "counts": {
+        "pages": 0,
+        "states": 0,
+        "modals": 0,
+        "components": 0,
+        "css": 3,
+        "media": 18
+      }
+    },
+    {
+      "folder": "board.html",
+      "path": "/board.html",
+      "title": "Доска",
+      "url": "/board.html",
+      "parent": ".",
+      "children": [],
+      "readme": "board.html/README.md",
+      "captured": true,
+      "counts": {
+        "pages": 2,
+        "states": 0,
+        "modals": 0,
+        "components": 4,
+        "css": 1,
+        "media": 0
+      }
+    },
+    {
+      "folder": "kit.html",
+      "path": "/kit.html",
+      "title": "UI-кит: детали и состояния",
+      "url": "/kit.html",
+      "parent": ".",
+      "children": [],
+      "readme": "kit.html/README.md",
+      "captured": true,
+      "counts": {
+        "pages": 2,
+        "states": 0,
+        "modals": 0,
+        "components": 0,
+        "css": 1,
+        "media": 0
+      }
+    },
+    {
+      "folder": "task.html",
+      "path": "/task.html",
+      "title": "Карточка задачи",
+      "url": "/task.html",
+      "parent": ".",
+      "children": [],
+      "readme": "task.html/README.md",
+      "captured": true,
+      "counts": {
+        "pages": 2,
+        "states": 0,
+        "modals": 0,
+        "components": 0,
+        "css": 1,
+        "media": 0
+      }
+    }
+  ],
+  "hasSource": false,
+  "stats": {
+    "pages": 3,
+    "noise": {
+      "цвета текста": {
+        "variants": 6,
+        "for80": 2
+      },
+      "фоны": {
+        "variants": 10,
+        "for80": 4
+      },
+      "типографика": {
+        "variants": 20,
+        "for80": 8
+      },
+      "Кнопки": {
+        "variants": 10,
+        "for80": 6
+      },
+      "Поля ввода": {
+        "variants": 5,
+        "for80": 4
+      },
+      "Ссылки": {
+        "variants": 6,
+        "for80": 3
+      },
+      "Бейджи и метки": {
+        "variants": 6,
+        "for80": 2
+      },
+      "Карточки": {
+        "variants": 5,
+        "for80": 4
+      }
+    },
+    "parts": {
+      "buttons": 10,
+      "inputs": 5,
+      "links": 6,
+      "badges": 6,
+      "cards": 5
+    },
+    "icons": 4,
+    "fonts": 18
+  }
+}

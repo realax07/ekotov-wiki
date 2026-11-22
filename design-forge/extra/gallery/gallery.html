@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Галерея — ekotov-wiki</title>
+  <!-- Направление A «Доска и поток»: бордо и золото, PT Serif / Golos Text.
+       Золото — только действие («Загрузить», открытый фильтр). Детали — теми же классами, что в a/kit.html. -->
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <style>
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 0 var(--space-4) var(--space-6); }
+
+    /* Верхняя полоса — как на board.html */
+    .topbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-4);
+      border-bottom: 1px solid var(--color-border); }
+    .brand { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px;
+      font-family: var(--font-display); font-weight: 700; font-size: var(--text-lg);
+      color: var(--color-text); text-decoration: none; }
+    .board-tabs { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+    .board-tab { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--space-3);
+      background: none; border: 0; border-bottom: 2px solid transparent;
+      font-family: var(--font-ui); font-weight: 500; font-size: var(--text-md);
+      color: var(--color-muted); text-decoration: none; cursor: pointer; }
+    .board-tab:hover { color: var(--color-text); }
+    .board-tab[aria-current="page"] { color: var(--color-text); border-bottom-color: var(--color-accent-2); }
+    .theme-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px;
+      margin-left: auto; background: none; border: 0; border-radius: var(--radius-sm);
+      color: var(--color-muted); cursor: pointer; }
+    .theme-btn:hover { color: var(--color-text); }
+    .theme-btn svg { width: 20px; height: 20px; }
+
+    /* Шапка галереи: serif-заголовок · поиск · золотая загрузка */
+    .gal-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3);
+      padding: var(--space-4) 0 var(--space-5); }
+    .gal-head h1 { font-size: var(--text-2xl); }
+    .gal-sub { color: var(--color-muted); font-size: var(--text-md); }
+    .search { position: relative; flex: 1 1 260px; max-width: 420px; }
+    .search svg { position: absolute; top: 50%; left: var(--space-3); transform: translateY(-50%);
+      width: 18px; height: 18px; color: var(--color-muted); pointer-events: none; }
+    .search .input { padding-left: var(--space-5); }
+    .gal-head .btn { margin-left: auto; }
+
+    /* Фильтры-чипы: те же чипы из кита, но цель нажатия 44px */
+    .filters { display: flex; flex-wrap: wrap; gap: var(--space-2); padding-bottom: var(--space-4); }
+    .filter-chip { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px;
+      padding: 0 var(--space-4); border-radius: var(--radius-pill); border: 1px solid var(--color-border);
+      background: transparent; color: var(--color-muted); font-family: var(--font-ui);
+      font-size: var(--text-sm); line-height: 1; font-weight: 500; cursor: pointer;
+      transition: transform var(--dur) var(--ease), background-color var(--dur) var(--ease); }
+    .filter-chip:hover { color: var(--color-text); }
+    .filter-chip:active { transform: translateY(1px); }
+    .filter-chip[aria-pressed="true"] { background: var(--color-accent); color: var(--color-on-accent); border-color: transparent; }
+    /* Счётчик в активном чипе: --color-muted сливается с золотом (1.0–1.9:1) — гасим on-accent до 75%,
+       контраст к фону ≥4:1 в обеих темах, счётчик остаётся тише основного текста */
+    .filter-chip[aria-pressed="true"] .count { color: var(--color-on-accent); opacity: 0.75; }
+    /* Счётчик и метка — на одной строке: line-height 1 убирает лишнюю полуразводку
+       и разные метрики моно-шрифта, цифра садится в середину строки метки */
+    .filter-chip .count { margin-left: 0; margin-right: 0; line-height: 1; vertical-align: baseline; }
+
+    /* Альбом-секция: шапка колонки из кита + сетка снимков */
+    .album { margin: 0 0 var(--space-5); }
+    .album-head { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; margin-bottom: var(--space-2); }
+    .album-title { font-family: var(--font-display); font-weight: 700; font-size: var(--text-lg);
+      color: var(--color-text); margin: 0; }
+    .album-head .count { margin-left: auto; }
+    .album-note { font-size: var(--text-sm); color: var(--color-muted); margin: 0 var(--space-2) var(--space-3); }
+
+    /* Masonry (CSS columns): у снимков разные пропорции, колонки складываются независимо,
+       ряды не выравниваются — как в проде */
+    .gal-grid { columns: 3; column-gap: var(--space-4); }
+
+    /* Снимок: кнопка-карточка с заглушкой .ph и подписью (блок под картинкой, не абсолют) */
+    .shot { display: grid; gap: var(--space-2); padding: 0; min-width: 0; width: 100%; text-align: left;
+      background: none; border: 0; cursor: pointer; font: inherit; color: inherit;
+      border-radius: var(--radius-md);
+      break-inside: avoid; -webkit-column-break-inside: avoid; margin-bottom: var(--space-4); }
+    /* Пропорция плитки — естественная, задаётся в разметке через --ph-ratio (16:9, 4:3, 1:1, 3:4) */
+    .shot .ph { width: 100%; border-radius: var(--radius-md);
+      transition: transform var(--dur) var(--ease), border-color var(--dur) var(--ease); }
+    .shot:hover .ph, .shot:focus-visible .ph { transform: translateY(-2px); border-color: var(--color-accent-2); }
+    .shot:hover .shot-name, .shot:focus-visible .shot-name { color: var(--color-accent); }
+    .shot-name { font-family: var(--font-body); font-weight: 500; font-size: var(--text-md);
+      line-height: 1.35; color: var(--color-text); margin: 0; }
+    .shot-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2);
+      font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-muted);
+      font-variant-numeric: tabular-nums; min-height: 1.5em; }
+    .shot-size { margin-left: auto; }
+
+    /* Лайтбокс: подложка + диалог поверх */
+    .lb-backdrop { position: fixed; inset: 0; background: var(--color-bg); opacity: .92; z-index: 40; }
+    .lb { position: fixed; z-index: 50; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: min(880px, calc(100vw - var(--space-6)));
+      max-height: calc(100vh - var(--space-6));
+      overflow: auto; display: grid; gap: var(--space-3);
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-2); padding: var(--space-4); }
+    .lb-head { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; }
+    .lb-title { font-family: var(--font-display); font-weight: 700; font-size: var(--text-lg);
+      color: var(--color-text); margin: 0; }
+    .lb-head .badge { margin-left: auto; }
+    .lb-close { margin-left: var(--space-2); }
+    .lb .ph { width: 100%; }
+    .lb-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3);
+      font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-muted);
+      font-variant-numeric: tabular-nums; }
+    .lb-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    .lb-actions .spacer { flex: 1; }
+    body.lb-open { overflow: hidden; }
+    .lb[hidden], .lb-backdrop[hidden] { display: none; }
+
+    /* Хвост страницы: счётчик и «Показать ещё» */
+    .gal-foot { display: flex; flex-direction: column; align-items: center; gap: var(--space-3);
+      padding-top: var(--space-4); }
+    .gal-foot .stats { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-muted);
+      font-variant-numeric: tabular-nums; }
+    .gal-foot .stats b { color: var(--color-text); font-weight: 600; }
+
+    /* Кнопки, чипы, поля — как в kit.html */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+      min-height: 44px; min-width: 44px; padding: 0 var(--space-4); border-radius: var(--radius-sm);
+      border: 1px solid transparent; font-family: var(--font-ui); font-size: var(--text-md); font-weight: 600;
+      text-decoration: none; cursor: pointer;
+      transition: transform var(--dur) var(--ease), background-color var(--dur) var(--ease); }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--color-accent); color: var(--color-on-accent); }
+    .btn-secondary { background: transparent; color: var(--color-text); border-color: var(--color-accent-2); }
+    .btn-ghost { background: transparent; color: var(--color-text); }
+    .btn-sm { min-height: 36px; padding: 0 var(--space-3); font-size: var(--text-sm); }
+    .input { min-height: 44px; padding: 0 var(--space-3); border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm); background: var(--color-raised); color: var(--color-text); width: 100%; }
+    .input:focus-visible { border-color: var(--color-accent); }
+    .input::placeholder { color: var(--color-muted); }
+    .badge { display: inline-flex; align-items: center; min-height: 24px; padding: 0 var(--space-2);
+      border-radius: var(--radius-sm); font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500;
+      background: var(--color-raised); color: var(--color-muted); border: 1px solid var(--color-border); }
+    .count { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-muted);
+      font-variant-numeric: tabular-nums; }
+
+    @media (max-width: 900px) {
+      .gal-grid { columns: 2; column-gap: var(--space-3); }
+      .shot { margin-bottom: var(--space-3); }
+      .gal-head .btn { margin-left: 0; width: 100%; }
+      .search { max-width: none; }
+      /* Лайтбокс на весь экран */
+      .lb { top: 0; left: 0; transform: none; width: 100vw; max-height: 100vh;
+        height: 100vh; height: 100dvh; border-radius: 0; border-left: 0; border-right: 0; }
+      .filter-chip { flex: 1 1 auto; justify-content: center; }
+    }
+
+    @media (max-width: 560px) {
+      .gal-grid { columns: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar wrap">
+    <a class="brand" href="../../a/board.html">ekotov-wiki</a>
+    <nav class="board-tabs" aria-label="Разделы">
+      <a class="board-tab" href="../../a/board.html">Доска</a>
+      <a class="board-tab" href="gallery.html" aria-current="page">Галерея</a>
+    </nav>
+    <button class="theme-btn" type="button" aria-label="Переключить тему" aria-pressed="false" onclick="toggleTheme()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>
+      </svg>
+    </button>
+  </header>
+
+  <main class="wrap">
+    <div class="gal-head">
+      <h1>Галерея</h1>
+      <span class="gal-sub">14 файлов в 3 альбомах</span>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+        </svg>
+        <input class="input" type="search" placeholder="Поиск по названию и альбому" aria-label="Поиск по галерее">
+      </div>
+      <button class="btn btn-primary" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>
+        </svg>
+        Загрузить
+      </button>
+    </div>
+
+    <div class="filters" role="group" aria-label="Фильтр по типу">
+      <button class="filter-chip" type="button" aria-pressed="true">Все <span class="count">14</span></button>
+      <button class="filter-chip" type="button" aria-pressed="false">Скриншоты <span class="count">6</span></button>
+      <button class="filter-chip" type="button" aria-pressed="false">Мокапы <span class="count">4</span></button>
+      <button class="filter-chip" type="button" aria-pressed="false">Схемы <span class="count">4</span></button>
+    </div>
+
+    <section class="album" aria-labelledby="al-1">
+      <div class="album-head">
+        <h2 class="album-title" id="al-1">Скриншоты интерфейса</h2>
+        <span class="count">6</span>
+      </div>
+      <p class="album-note">Рабочие экраны трекера: доска, задача, фастлайн. Обновляются после каждого релиза.</p>
+      <div class="gal-grid">
+        <button class="shot" type="button" data-open="0">
+          <div class="ph" role="img" aria-label="Канбан-доска с тремя колонками и фастлайном" style="--ph-ratio: 16 / 9">доска, 16:9</div>
+          <p class="shot-name">Канбан-доска, спринт 24</p>
+          <div class="shot-meta"><span>12.11.2026</span><span class="shot-size">1920×1080</span></div>
+        </button>
+        <button class="shot" type="button" data-open="1">
+          <div class="ph" role="img" aria-label="Карточка задачи с приоритетом и чипами тегов" style="--ph-ratio: 4 / 3">карточка задачи, 4:3</div>
+          <p class="shot-name">Карточка задачи, состояние «В работе»</p>
+          <div class="shot-meta"><span>09.11.2026</span><span class="shot-size">1440×1080</span></div>
+        </button>
+        <button class="shot" type="button" data-open="2">
+          <div class="ph" role="img" aria-label="Страница задачи с чеклистом и комментарием" style="--ph-ratio: 3 / 4">страница задачи, 3:4</div>
+          <p class="shot-name">Задача BUG-031 после правок</p>
+          <div class="shot-meta"><span>05.11.2026</span><span class="shot-size">1080×1440</span></div>
+        </button>
+        <button class="shot" type="button" data-open="3">
+          <div class="ph" role="img" aria-label="Мобильная версия доски в две колонки" style="--ph-ratio: 3 / 4">мобильная доска, 3:4</div>
+          <p class="shot-name">Доска на 390 px</p>
+          <div class="shot-meta"><span>02.11.2026</span><span class="shot-size">878×1170</span></div>
+        </button>
+      </div>
+    </section>
+
+    <section class="album" aria-labelledby="al-2">
+      <div class="album-head">
+        <h2 class="album-title" id="al-2">Мокапы канбана</h2>
+        <span class="count">4</span>
+      </div>
+      <p class="album-note">Дизайн-макеты доски из direction A: бордо и золото, PT Serif и Golos Text.</p>
+      <div class="gal-grid">
+        <button class="shot" type="button" data-open="4">
+          <div class="ph" role="img" aria-label="Мокап доски направления A в тёмной теме" style="--ph-ratio: 16 / 9">мокап доски, 16:9</div>
+          <p class="shot-name">Направление A, тёмная тема</p>
+          <div class="shot-meta"><span>18.11.2026</span><span class="shot-size">1600×900</span></div>
+        </button>
+        <button class="shot" type="button" data-open="5">
+          <div class="ph" role="img" aria-label="Мокап доски направления A в светлой теме" style="--ph-ratio: 4 / 3">мокап доски, 4:3</div>
+          <p class="shot-name">Направление A, светлая тема</p>
+          <div class="shot-meta"><span>18.11.2026</span><span class="shot-size">1600×1200</span></div>
+        </button>
+        <button class="shot" type="button" data-open="6">
+          <div class="ph" role="img" aria-label="Мокап фастлайна с золотой линией штаба" style="--ph-ratio: 1 / 1">фастлайн, 1:1</div>
+          <p class="shot-name">Фастлайн и гейт занятости</p>
+          <div class="shot-meta"><span>15.11.2026</span><span class="shot-size">1200×1200</span></div>
+        </button>
+      </div>
+    </section>
+
+    <section class="album" aria-labelledby="al-3">
+      <div class="album-head">
+        <h2 class="album-title" id="al-3">Инфраструктура</h2>
+        <span class="count">4</span>
+      </div>
+      <p class="album-note">Схемы развёртывания и мониторинга ekotov-wiki: VPS, PostgreSQL, бэкапы.</p>
+      <div class="gal-grid">
+        <button class="shot" type="button" data-open="7">
+          <div class="ph" role="img" aria-label="Схема развёртывания: VPS, nginx, приложение, PostgreSQL" style="--ph-ratio: 3 / 4">схема развёртывания, 3:4</div>
+          <p class="shot-name">Развёртывание на VPS</p>
+          <div class="shot-meta"><span>20.11.2026</span><span class="shot-size">1050×1400</span></div>
+        </button>
+        <button class="shot" type="button" data-open="8">
+          <div class="ph" role="img" aria-label="График дашборда мониторинга за неделю" style="--ph-ratio: 16 / 9">дашборд мониторинга, 16:9</div>
+          <p class="shot-name">Мониторинг, неделя 46</p>
+          <div class="shot-meta"><span>16.11.2026</span><span class="shot-size">1920×1080</span></div>
+        </button>
+        <button class="shot" type="button" data-open="9">
+          <div class="ph" role="img" aria-label="Схема ночных бэкапов PostgreSQL с хранилищем" style="--ph-ratio: 4 / 3">схема бэкапов, 4:3</div>
+          <p class="shot-name">Ночные бэкапы PostgreSQL</p>
+          <div class="shot-meta"><span>10.11.2026</span><span class="shot-size">1400×1050</span></div>
+        </button>
+      </div>
+    </section>
+
+    <div class="gal-foot">
+      <span class="stats">Показано <b>10</b> из <b>14</b></span>
+      <button class="btn btn-secondary" type="button">Показать ещё</button>
+    </div>
+  </main>
+
+  <!-- Лайтбокс: на мокапе открыт снимок «Канбан-доска, спринт 24» -->
+  <div class="lb-backdrop" id="lb-backdrop" hidden></div>
+  <div class="lb" id="lb" role="dialog" aria-modal="true" aria-labelledby="lb-title" hidden>
+    <div class="lb-head">
+      <h2 class="lb-title" id="lb-title">Канбан-доска, спринт 24</h2>
+      <span class="badge">Скриншоты интерфейса</span>
+      <button class="btn btn-ghost btn-sm lb-close" type="button" data-close aria-label="Закрыть">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+          <path d="M6 6l12 12M18 6 6 18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="ph" role="img" aria-label="Канбан-доска с тремя колонками и фастлайном" style="--ph-ratio: 16 / 9">доска, 16:9</div>
+    <div class="lb-meta"><span>12.11.2026</span><span>1920×1080</span><span>PNG, 486 КБ</span></div>
+    <div class="lb-actions">
+      <button class="btn btn-secondary" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m15 6-6 6 6 6"/>
+        </svg>
+        Предыдущая
+      </button>
+      <button class="btn btn-secondary" type="button">
+        Следующая
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m9 6 6 6-6 6"/>
+        </svg>
+      </button>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" type="button" data-close>Закрыть</button>
+    </div>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      var r = document.documentElement;
+      var light = r.dataset.theme === "light";
+      if (light) { delete r.dataset.theme; } else { r.dataset.theme = "light"; }
+      var b = document.querySelector(".theme-btn");
+      b.setAttribute("aria-pressed", String(!light));
+    }
+    var lb = document.getElementById("lb");
+    var lbBackdrop = document.getElementById("lb-backdrop");
+    function openLb() {
+      lb.hidden = false; lbBackdrop.hidden = false;
+      document.body.classList.add("lb-open");
+      lb.querySelector("[data-close]").focus();
+    }
+    function closeLb() {
+      lb.hidden = true; lbBackdrop.hidden = true;
+      document.body.classList.remove("lb-open");
+    }
+    document.querySelectorAll("[data-open]").forEach(function (s) {
+      s.addEventListener("click", openLb);
+    });
+    lb.querySelectorAll("[data-close]").forEach(function (b) {
+      b.addEventListener("click", closeLb);
+    });
+    lbBackdrop.addEventListener("click", closeLb);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !lb.hidden) closeLb();
+    });
+  </script>
+</body>
+</html>

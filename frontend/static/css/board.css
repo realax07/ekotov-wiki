@@ -1,7 +1,9 @@
-/* Доска (redesign-console 2.2; FR-132; эталон design/redesign-pro/
- * board-console.html §board, токены — app.css :root «Пульт»). Прежний
- * единый стиль V3 заменен по утвержденному мокапу; DOM-хуки (карточки,
- * колонки, форма, fastline) сохранены (ОГР-28, design §D2).
+/* Доска (redesign-ui-a, волна 3.2 sdd; FR-132 дельта; эталон
+ * design-forge/a/board.html + kit.html, токены — app.css :root направления
+ * A). Прежний стиль «Пульта» заменен по утвержденному мокапу A; DOM-хуки
+ * (карточки, колонки, форма, fastline) сохранены (ОГР-28). Токен-дисциплина:
+ * только семантические var() из app.css (color, priority, fastline, radius),
+ * производные — color-mix; HUD-уголки/микро-сетка/glow удалены.
  * 5.1: крестик закрытия формы — правый верхний угол, зона 40×40px (FR-28).
  * 5.2: приоритеты — цвет + inline SVG + текст, в форме и на карточке (FR-29,
  * ОГР-8/Д-4); различимость без цвета — иконка ↓/=/↑ + текст всегда.
@@ -21,10 +23,10 @@
 .board-column {
   flex: 1;
   min-width: 220px;
-  background: var(--p-bg-100);
-  border: 1px solid var(--p-border);
-  border-radius: var(--radius-card);
-  padding: var(--space-1) 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
 }
 
 /* Шапка колонки: flex-ряд (LED + title + код + счетчик). */
@@ -35,25 +37,24 @@
   padding: 4px var(--space-1) 12px;
 }
 
-/* LED-статус колонки (design §D2 п.4): t500 ожидает / amber blink в работе /
- * teal выполнено; классы ставит разметка (декоративная точка aria-hidden). */
+/* LED-статус колонки (мокап .dot 10px; маппинг 2.2 БА): mute ожидает /
+ * warning blink в работе / success выполнено; свечение «Пульта» удалено —
+ * статичные цвета; классы ставит разметка (декоративная точка aria-hidden). */
 .col-led {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
   flex: none;
   border-radius: 50%;
-  background: var(--p-text-500);
+  background: var(--color-text-muted);
 }
 
 .col-led-run {
-  background: var(--fastline);
-  box-shadow: var(--led-glow-amber);
+  background: var(--color-warning);
   animation: led-blink 2s step-end infinite;
 }
 
 .col-led-done {
-  background: var(--status-success);
-  box-shadow: var(--led-glow-teal);
+  background: var(--color-success);
 }
 
 @keyframes led-blink {
@@ -68,50 +69,57 @@
   font-weight: 600;
   letter-spacing: .06em;
   text-transform: uppercase;
-  color: var(--p-text-600);
+  color: var(--color-text-secondary);
 }
 
 /* Mono-код колонки (QUE-01/RUN-02/DN-03 стиль) и mono-счетчик справа. */
+/* Mono-счетчики/коды — JetBrains Mono, tabular-nums (2.4 БА). */
 .col-code {
   font-family: var(--font-family-data);
   font-size: 10px;
-  letter-spacing: var(--tracking-micro);
-  color: var(--p-text-500);
+  letter-spacing: .04em;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .col-count {
   margin-left: auto;
   font-family: var(--font-family-data);
   font-size: 12px;
-  color: var(--p-text-500);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Выполненные карточки — зачеркнутый заголовок t500 (мокап .done). */
 .board-column-done .task-card-title,
 .fastline-column-done .task-card-title {
-  color: var(--p-text-500);
+  color: var(--color-text-muted);
   text-decoration: line-through;
-  text-decoration-color: var(--p-border-2);
+  text-decoration-color: var(--color-border-strong);
 }
 
 .board-error { color: var(--status-error); }
 
-/* --- Карточка «Пульта» (мокап .task): поверхность bg2, граница border;
- * hover — граница border-2 + фон bg3 (ступени фона, design §D2). --- */
+/* --- Карточка A (мокап .task-card): поверхность raised, граница border,
+ * КРОМКА ПРИОРИТЕТА слева 3px (2.1 БА: окраска по существующим классам
+ * приоритета и task-card-fast — ставит cards.js); hover — золото на
+ * границе и заголовке, фон НЕ меняется (FR-132 дельта). --- */
 
 .task-card {
-  background: var(--p-bg-200);
-  border: 1px solid var(--p-border);
-  border-radius: var(--radius-card);
-  padding: var(--space-1) 10px;
+  background: var(--color-raised);
+  border: 1px solid var(--color-border);
+  border-left-width: 3px;
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
   margin-bottom: var(--space-1);
-  transition: border-color var(--speed-fast), background var(--speed-fast),
-    box-shadow var(--speed-fast);
+  transition: border-color var(--speed-fast), background var(--speed-fast);
 }
 
 .task-card:hover {
-  border-color: var(--p-border-2);
-  background: var(--p-bg-300);
+  border-top-color: var(--color-accent);
+  border-right-color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+  /* кромка приоритета (border-left) на hover сохраняет свой цвет */
 }
 
 .task-card-header {
@@ -123,11 +131,16 @@
 
 .task-card-title {
   margin: 0;
-  font-family: var(--font-family);
+  font-family: var(--font-family-display);
   font-size: var(--font-size-body);
-  font-weight: 500;
-  line-height: 1.4;
-  color: var(--p-text-900);
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--color-text-primary);
+}
+
+/* Serif-заголовок: hover — золото (мокап a.task-card:hover .t-title). */
+.task-card:hover .task-card-title {
+  color: var(--color-accent);
 }
 
 .task-card-meta {
@@ -135,19 +148,16 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  font-family: var(--font-family-data);
+  font-family: var(--font-family);
   font-size: var(--font-size-micro);
-  color: var(--p-text-500);
+  color: var(--color-text-muted);
   flex-wrap: wrap;
 }
 
-/* AA (мокап): на hover-подложке bg3 подписи t500 дают 4.07:1 — до t600. */
-.task-card:hover .task-card-meta,
-.task-card:hover .task-card-users { color: var(--p-text-600); }
-
 .task-category {
   background: var(--color-bg-subtle);
-  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
   padding: 1px 8px;
 }
 
@@ -161,9 +171,9 @@
   display: flex;
   gap: 4px;
   align-items: baseline;
-  font-family: var(--font-family-data);
+  font-family: var(--font-family);
   font-size: var(--font-size-micro);
-  color: var(--p-text-500);
+  color: var(--color-text-muted);
 }
 
 .task-card-unassigned {
@@ -191,6 +201,9 @@
 .task-priority-badge .prio-icon { flex-shrink: 0; display: block; }
 
 .task-priority-badge.priority-low { color: var(--priority-low); }
+/* Различимость без цвета (FR-29): low-кромка в border-цвет, подпись бейджа
+ * читаемая — muted; кромка при этом остается в --color-border. */
+.task-priority-badge.priority-low { border-color: var(--color-border-strong); }
 .task-priority-badge.priority-medium { color: var(--priority-medium); }
 .task-priority-badge.priority-high { color: var(--priority-high); }
 
@@ -199,7 +212,7 @@
   font-weight: 700;
   color: var(--fastline);
   border: 1px solid var(--fastline);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0 8px;
 }
 
@@ -223,7 +236,7 @@
   gap: var(--space-2);
   flex-wrap: wrap;
   padding: var(--space-3) 0 var(--space-2);
-  border-bottom: 1px solid var(--p-border);
+  border-bottom: 1px solid var(--color-border-default);
   margin-bottom: var(--space-3);
 }
 
@@ -239,36 +252,41 @@
   font-family: var(--font-family-data);
   font-size: 12px;
   letter-spacing: .06em;
-  color: var(--p-text-500);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .readout-led {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   flex: none;
   border-radius: 50%;
-  background: var(--status-success);
-  box-shadow: var(--led-glow-teal);
+  background: var(--color-success);
 }
 
-.readout-sep { color: var(--p-border-2); }
+.readout-sep { color: var(--color-border-strong); }
 
 /* FST-код рядом с заголовком зоны — mono t500 (декор). */
 .fastline-code {
   font-family: var(--font-family-data);
   font-size: 10px;
-  letter-spacing: var(--tracking-micro);
-  color: var(--p-text-500);
+  letter-spacing: .04em;
+  color: var(--color-text-muted);
 }
 
-/* --- Fast-карточка (FR-3 + мокап .task-fast): янтарная граница, подложка
- * --p-amber-900, мягкое янтарное свечение, маркер «▲» в заголовке.
- * Единственное отличие от обычной карточки — сигнальный янтарь. */
+/* --- Fast-карточка (FR-3 + мокап p-fst): золотой сигнал — золотая
+ * граница/кромка, подложка --color-accent-soft, маркер «▲» в заголовке.
+ * Свечение «Пульта» удалено. */
+
+/* Кромка приоритета слева 3px по существующим классам cards.js (2.1 БА):
+ * high — бордо, medium — warning, low — border, fast — золото. */
+.task-card.task-priority-high:not(.task-card-fast) { border-left-color: var(--priority-high); }
+.task-card.task-priority-medium:not(.task-card-fast) { border-left-color: var(--priority-medium); }
+.task-card.task-priority-low:not(.task-card-fast) { border-left-color: var(--priority-low); }
 
 .task-card-fast {
-  background: var(--p-amber-900);
+  background: var(--color-accent-soft);
   border-color: var(--fastline);
-  box-shadow: var(--glow-amber);
 }
 
 .task-card-fast .task-card-title::before {
@@ -277,9 +295,12 @@
   font-size: 11px;
 }
 
-/* T-отсчет fast-карточки (decor, cards.js): mono янтарь справа в мете. */
+/* T-отсчет fast-карточки (decor, cards.js): mono золото справа в мете
+ * (данные — mono, 2.4 БА; мета карточки — UI-шрифт A). */
 .task-due-t {
   margin-left: auto;
+  font-family: var(--font-family-data);
+  font-variant-numeric: tabular-nums;
   color: var(--fastline);
   letter-spacing: .06em;
 }
@@ -291,7 +312,7 @@
   height: 2px;
   margin-top: var(--space-1);
   border-radius: 1px;
-  background: var(--fastline-tint);
+  background: var(--fastline-track);
   overflow: hidden;
 }
 
@@ -299,8 +320,8 @@
   display: block;
   height: 100%;
   border-radius: 1px;
-  background: linear-gradient(90deg, var(--fastline), var(--accent-cyan));
-  box-shadow: 0 0 8px rgba(79,216,235,.4);
+  /* градиент на данных (трек отсчета) — золото→светлое золото */
+  background: linear-gradient(90deg, var(--fastline), var(--color-accent-hover));
 }
 
 /* --- 3.1+3.2 (FR-32, ОГР-12): пресет В «Выразительный» (утвержден
@@ -335,7 +356,7 @@
 
 .preset-v .task-card {
   transition: transform var(--speed-fast) cubic-bezier(0.2, 0.8, 0.3, 1.2),
-    box-shadow var(--speed-fast) ease;
+    border-color var(--speed-fast) ease;
   /* backwards, не both: fill both вечно держит кадр «to» (transform:
    * none) и ЗАБИВАЕТ hover-transform :hover после отыгрыша анимации —
    * в мокапе это не замечено, т.к. hover-проверка шла по цвету. */
@@ -347,15 +368,11 @@
   to   { opacity: 1; transform: none; }
 }
 
-/* Hover карточки «Пульта» — ступени фона bg2→bg3 + граница border-2,
- * без теней-«глубины» (design §D2, FR-132). */
-.preset-v .task-card:hover {
-  border-color: var(--p-border-2);
-  background: var(--p-bg-300);
-}
+/* Hover карточки A — золото на границе/заголовке (базовое .task-card:hover
+ * выше); фон НЕ меняется (FR-132 дельта). */
 
-/* Приоритет кодируется контурным бейджем (FR-29, выше); окраска столбца
- * и цветных кромок нет (FR-132: окраска столбца запрещена). */
+/* Приоритет кодируется кромкой 3px (выше) + контурным бейджем (FR-29);
+ * окраска столбца запрещена. */
 
 .preset-v .board-column {
   transition: background var(--speed-fast) ease;
@@ -365,9 +382,11 @@
  * чем в пресетах А/Б (слова мокапа «зона приема»). Класс ставит
  * cards.js в задаче 2.1; CSS готов заранее, на отсутствие класса не
  * влияет. */
+/* Подсветка зоны-приемника при перетаскивании (dragover) — бордо
+ * (2.1 БА: бордо вне кромок high — только dnd-состояния). */
 .preset-v .board-column.drop-target {
-  background: var(--p-bg-300);
-  outline: 2px dashed var(--p-border-2);
+  background: var(--color-bg-surface);
+  outline: 2px dashed var(--priority-high);
   outline-offset: -4px;
 }
 
@@ -377,11 +396,12 @@
   transform: rotate(3deg) scale(1.02);
 }
 
-/* Пустой state — пунктир border-токеном + ступень фона bg3 внизу
- * (глубина ступенями фона, не тенью). */
+/* Пустой state — пунктир border-токеном + мягкая raised-ступень внизу
+ * (color-mix от канон-токена, без новых hex). */
 .preset-v .board-column-empty {
-  border-color: var(--p-border);
-  background: linear-gradient(180deg, transparent, var(--p-bg-300));
+  border-color: var(--color-border-default);
+  background: linear-gradient(180deg, transparent,
+    color-mix(in srgb, var(--color-raised) 60%, transparent));
 }
 
 /* FR-32 (обязательное условие): при включенном уменьшении движения
@@ -427,7 +447,7 @@
   position: relative;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-md);
   padding: var(--space-3);
   width: 100%;
   max-width: 520px;
@@ -465,7 +485,7 @@
   font: inherit;
 }
 
-.modal-close:hover { background: var(--p-bg-300); color: var(--color-text-primary); }
+.modal-close:hover { background: var(--color-bg-surface); color: var(--color-text-primary); }
 
 .modal-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
@@ -671,7 +691,7 @@
   cursor: pointer;
 }
 
-.task-form .combobox-popup .option:hover { background: var(--p-bg-300); }
+.task-form .combobox-popup .option:hover { background: var(--color-bg-subtle); }
 
 /* Активный с клавиатуры пункт (aria-selected=true; input держит его id
  * в aria-activedescendant): мягкая терракотовая плашка + терракота. */
@@ -746,7 +766,7 @@
   gap: var(--space-1);
   align-items: flex-start;
   padding: var(--space-1);
-  background: var(--p-amber-900);
+  background: var(--color-accent-soft);
   border: 1px solid var(--fastline);
   border-radius: var(--radius-field);
   font-size: var(--font-size-label);
@@ -805,7 +825,6 @@
 
 #task-form-submit:hover {
   background: var(--color-accent-hover);
-  box-shadow: var(--glow-amber);
 }
 
 /* Первичные кнопки доски — янтарные, по мокапу .btn (radius 6px, 36px). */
@@ -825,7 +844,6 @@
 #create-task-button:hover {
   background: var(--color-accent-hover);
   border-color: var(--color-accent-hover);
-  box-shadow: var(--glow-amber);
 }
 
 #create-task-button:focus-visible {
@@ -859,7 +877,7 @@
 #task-delete-button:hover,
 .task-view-actions button:hover,
 .comment-form button[type="submit"]:hover,
-.task-comments button[type="submit"]:hover { background: var(--p-bg-300); }
+.task-comments button[type="submit"]:hover { background: var(--color-bg-subtle); }
 
 /* Хотфикс Р5 (Заказчик): кнопка «Добавить комментарий» — не вплотную
  * к textarea, зазор по 8px-сетке. Только эта кнопка — общие селекторы
@@ -1146,7 +1164,7 @@
 /* Fast line — янтарные токены «Пульта» (те же, что у .task-fast-badge
  * и .task-card-fast). */
 .badge-fast {
-  background: var(--p-amber-900);
+  background: var(--color-accent-soft);
   color: var(--fastline);
 }
 
@@ -1780,7 +1798,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--color-border-strong);
+    background: var(--color-text-muted);
     opacity: 0.4;
     transition: background var(--speed-fast, 150ms) ease,
       opacity var(--speed-fast, 150ms) ease;
@@ -1820,7 +1838,7 @@
     transition: background var(--speed-fast, 150ms) ease;
   }
 
-  .task-quick-done:hover { background: var(--priority-low-soft); }
+  .task-quick-done:hover { background: var(--color-bg-subtle); }
 
   .task-quick-done:focus-visible {
     outline: none;
@@ -1842,25 +1860,24 @@
 }
 
 /* =====================================================================
- * P23 «Фастлайн» × redesign-console 2.2 (fastline дельта; эталон
- * board-console.html §fastline). Сигнальный канал: янтарная граница,
- * подложка --p-amber-900, glow --glow-amber, HUD-уголки янтарные;
- * FST-микро-лейбл mono капсом с LED-blink. Структура зоны (3 столбца-
- * этапа, .fastline-column + data-fastline-stage, шапка FASTLINE без
- * счетчика — ОВ-2) сохранена — контракт p23-тестов (ОГР-28).
+ * P23 «Фастлайн» × redesign-ui-a (fastline дельта; эталон
+ * design-forge/a/board.html §fastlane «золотая линия штаба»):
+ * поверхность surface + золотая линия сверху 3px; производный тон
+ * подложки — color-mix (--fastline-tint). Свечение/HUD удалены.
+ * Структура зоны (3 столбца-этапа, .fastline-column +
+ * data-fastline-stage, шапка FASTLINE без счетчика — ОВ-2) сохранена —
+ * контракт p23-тестов (ОГР-28).
  * ===================================================================== */
 .fastline {
   margin: 0 0 var(--space-2);
   padding: 12px var(--space-2) var(--space-2);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-md);
 }
 .fastline-a {
-  background: var(--p-amber-900);
-  border: 1px solid var(--fastline);
-  box-shadow: var(--glow-amber);
+  background: var(--fastline-tint);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--fastline);
 }
-/* HUD-уголки зоны — янтарные (мокап .fastline.hud::after). */
-.fastline.hud::after { --hc: var(--fastline); }
 .fastline-head {
   display: flex; align-items: baseline; gap: var(--space-1);
   margin: 0 0 var(--space-2);
@@ -1871,7 +1888,7 @@
   font-family: var(--font-family-data);
   font-size: var(--font-size-micro);
   font-weight: 600;
-  letter-spacing: var(--tracking-micro);
+  letter-spacing: .04em;
   text-transform: uppercase;
   color: var(--fastline);
   display: inline-flex;
@@ -1885,25 +1902,24 @@
   flex: none;
   border-radius: 50%;
   background: var(--fastline);
-  box-shadow: var(--led-glow-amber);
   animation: led-blink 2s step-end infinite;
 }
 .fastline-note {
   font-size: var(--font-size-micro);
-  color: var(--p-text-600);
+  color: var(--color-text-secondary);
   margin-left: auto;
 }
 .fastline-board { display: flex; gap: var(--space-2); align-items: flex-start; }
 
-/* Столбцы зоны — панель bg1 на янтарной подложке. */
+/* Столбцы зоны — поверхность surface (на золотой линии зоны). */
 .fastline-column {
   flex: 1; min-width: 220px;
-  background: var(--p-bg-100);
-  border: 1px solid var(--p-border);
-  border-radius: var(--radius-card);
-  padding: var(--space-1) 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
 }
-.fastline-column-done { background: var(--p-bg-100); }
+.fastline-column-done { background: var(--color-surface); }
 
 /* Пустые столбцы зоны БЕЗ подсказок (ОВ-3, v2-empty): ни пунктира, ни
  * «Пока пусто…» (класс board-column-empty в зоне не ставится — cards.js);
@@ -1926,9 +1942,9 @@
 }
 .fastline-add:disabled {
   cursor: not-allowed;
-  border-color: var(--p-border-2);
+  border-color: var(--color-border-strong);
   background: transparent;
-  color: var(--p-text-500);
+  color: var(--color-text-muted);
   opacity: 0.75;
 }
 
@@ -1944,11 +1960,11 @@
 }
 .fastline-blocked-hint svg { flex-shrink: 0; display: block; }
 
-/* Приемник зоны — янтарный пунктир (сигнальный цвет фастлайна); канбан —
- * ступень bg3 + dashed border-2 (.preset-v .board-column.drop-target выше).
+/* Приемник зоны — золотой пунктир (сигнальный цвет фастлайна); канбан —
+ * бордо-пунктир (.preset-v .board-column.drop-target выше).
  * Класс ставит cards.js. */
 .fastline-column.drop-target {
-  background: var(--p-bg-300);
+  background: var(--color-bg-surface);
   outline: 2px dashed var(--fastline);
   outline-offset: -4px;
 }
@@ -1974,7 +1990,7 @@
 /* Цвета SVG-знака запрета — токенами: фон круга — панель bg1,
  * контур — статус-коралл. */
 .drop-forbidden-badge circle {
-  fill: var(--p-bg-100);
+  fill: var(--color-surface);
   stroke: var(--status-error);
   stroke-width: 2;
 }

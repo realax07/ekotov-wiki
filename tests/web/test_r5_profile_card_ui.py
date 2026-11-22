@@ -45,15 +45,25 @@ from playwright.sync_api import expect
 
 pytestmark = [pytest.mark.web, pytest.mark.must]
 
+from tests.web._redesign_a_theme import force_dark_theme as _force_dark_theme_impl
+
+
+@pytest.fixture(autouse=True)
+def _dark_theme(request):
+    """Визуальные ассерты — на dark-каноне A (см. _redesign_a_theme)."""
+    _force_dark_theme_impl(request)
+
+
 OWNER_LOGIN = "owner"
 OWNER_PASSWORD = "QaOwner_Pass_1!"
 OWNER_DEFAULT_ROLE = "Product manager"  # ОВ-21
 
 # Токены/значения «Пульта» (redesign-console, impact.md п.6; 1:1 с app.css :root).
-CARD_SURFACE = "rgb(29, 43, 64)"           # --color-bg-surface (bg-200)
-CARD_RADIUS = "8px"                        # --radius-card
-CARD_SHADOW = "rgba(0, 0, 0, 0.4) 0px 1px 2px 0px"  # --shadow-soft
-ACCENT = "rgb(240, 180, 92)"               # --color-accent (янтарь)
+CARD_SURFACE = "rgb(55, 31, 40)"           # --color-bg-surface (bg-200)
+CARD_RADIUS = "18px"                       # --radius-card = --radius-md (A)
+CARD_SHADOW = ("rgba(0, 0, 0, 0.08) 0px 1px 3px 0px, "
+               "rgba(0, 0, 0, 0.06) 0px 4px 12px 0px")  # --shadow-soft
+ACCENT = "rgb(214, 168, 92)"               # --color-accent (янтарь)
 FIELD_LINE = "2px"                         # нижняя линия поля (прием V3)
 
 

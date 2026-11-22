@@ -1,0 +1,74 @@
+/* Направление C — Таблица-рабочий стол · Полночный бирюзовый · Literata / Literata
+   Сгенерировано deal.mjs. Меняй осознанно и отражай в PLAN.md: lint.mjs сверяет страницы с этими токенами. */
+@import url("https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600;7..72,700&family=Commissioner:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap");
+:root {
+  --scheme: dark;
+  --color-bg: #0e1a24;
+  --color-surface: #152837;
+  --color-text: #e8f1f5;
+  --color-muted: #9cb2bf;
+  --color-border: #254053;
+  --color-accent: #3fd0c9;
+  --color-on-accent: #062023;
+  --color-accent-2: #f2b84b;
+  --color-link: #3fd0c9;
+  --color-success: #5ad88e;
+  --color-success-soft: #214847;
+  --color-warning: #f0aa42;
+  --color-warning-soft: #3c3f39;
+  --color-danger: #ea8987;
+  --color-danger-soft: #3b3945;
+  --color-on-danger: #111111;
+  --font-display: "Literata", Georgia, "Times New Roman", serif;
+  --font-body: "Literata", Georgia, "Times New Roman", serif;
+  --font-ui: "Commissioner", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 29px;
+  --text-4xl: 31px;
+  --leading-body: 1.65;
+  --measure: 68ch;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius-sm: 0px;
+  --radius-md: 2px;
+  --radius-lg: 4px;
+  --radius-pill: 999px;
+  --shadow-1: none;
+  --shadow-2: 0 0 0 1px var(--color-border);
+  --dur: 160ms;
+  --ease: cubic-bezier(.2,.7,.2,1);
+  --track: 0.08em; /* разрядка mono-капса */
+}
+
+/* Вторая тема (светлая): выведена из палитры, контраст проверен. Включается атрибутом на <html>:
+   <html data-theme="light">. Вёрстка та же — только переменные, поэтому литерал цвета сломает одну из тем. */
+:root[data-theme="light"] {
+  --scheme: light;
+  --color-bg: #f6f9f9;
+  --color-surface: #ffffff;
+  --color-text: #152827;
+  --color-muted: #5a7776;
+  --color-border: #d6e0e0;
+  --color-accent: #27a09b;
+  --color-on-accent: #111111;
+  --color-accent-2: #bf810e;
+  --color-link: #17706c;
+  --color-success: #1c7842;
+  --color-success-soft: #e8f2ec;
+  --color-warning: #975f0c;
+  --color-warning-soft: #f5efe7;
+  --color-danger: #b62520;
+  --color-danger-soft: #f8e9e9;
+  --color-on-danger: #ffffff;
+}

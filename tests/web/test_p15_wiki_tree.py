@@ -35,7 +35,18 @@ import re
 import pytest
 from playwright.sync_api import expect
 
+from tests.web._redesign_a_theme import force_dark_theme
+
 pytestmark = [pytest.mark.e2e, pytest.mark.web, pytest.mark.must]
+
+
+@pytest.fixture(autouse=True)
+def _dark_theme_for_visual_asserts(request):
+    """Визуальный ассерт <mark> — на dark-каноне A (--color-warning-soft
+    #4e3124): headless chromium предпочитает light, и анти-FOUC инициализатор
+    включает светлую тему (для темозависимых значений — общий хелпер
+    redesign-ui-a; паттерн test_redesign_console)."""
+    force_dark_theme(request)
 
 
 @pytest.fixture
@@ -270,9 +281,9 @@ def test_wiki_search_title_and_snippet_mark(
     mark = results.locator(".result-snippet mark").first
     expect(mark).to_have_text("кварцит")
 
-    # подсветка «Пульта» (impact.md п.5): фон --p-amber-900 (#3a2c12)
+    # подсветка направления A (redesign-ui-a): фон --color-warning-soft (#4e3124)
     bg = mark.evaluate("node => getComputedStyle(node).backgroundColor")
-    assert bg == "rgb(58, 44, 18)", f"фон <mark>: {bg}"
+    assert bg == "rgb(78, 49, 36)", f"фон <mark>: {bg}"
 
     # совпадение по тексту (в контенте, не в заголовке)
     search.fill("отделке")

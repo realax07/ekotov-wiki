@@ -50,13 +50,37 @@ WEATHER_DIR = REPO_ROOT / "services" / "weather"
 if str(WEATHER_DIR) not in sys.path:
     sys.path.insert(0, str(WEATHER_DIR))
 
+# Коллизия полной коллекции tests/ (regress-final redesign-ui-a, итерация 1):
+# tests/api импортируют монолит backend/app как пакет `app` еще на этапе
+# коллекции, и `from app import provider` здесь резолвится в backend-монолит
+# → ImportError (cannot import name 'provider'). Погодный пакет внутренне
+# использует абсолютные self-импорты (`from app.x import …`) — переименовать
+# его нельзя. Решение (итерация 2): выселяем backend `app` из sys.modules
+# ТОЛЬКО на момент импорта погодного пакета, связываем нужные объекты и
+# СРАЗУ возвращаем монолит: ленивые runtime-импорты API-тестов (fixture
+# setup, `import error in app.config`) обязаны видеть backend-пакет.
+# Все обращения к погодному `app` ниже — только через связанные объекты
+# (provider_mod/wcache/weather_asgi_app/weather_routes): monkeypatch-строки
+# вида "app.provider.fetch" после восстановления резолвились бы в монолит,
+# поэтому заменены на setattr по объекту модуля. Выселение безопасно для
+# уже импортированных api-модулей: они держат прямые ссылки на свои объекты.
+_saved_app = {k: mod for k, mod in sys.modules.items()
+              if k == "app" or k.startswith("app.")}
+for _k in _saved_app:
+    del sys.modules[_k]
+try:
+    from app import provider as provider_mod  # noqa: E402
+    from app import cache as wcache  # noqa: E402
+    from app.main import app as weather_asgi_app  # noqa: E402
+    from app import routes as weather_routes  # noqa: E402
+    from app.middleware import SESSION_COOKIE_NAME  # noqa: E402
+    from app.provider import ProviderError, fetch, normalize  # noqa: E402
+finally:
+    sys.modules.update(_saved_app)
+del _saved_app
+
 import httpx  # noqa: E402
 from playwright.sync_api import expect  # noqa: E402
-
-from app import provider as provider_mod  # noqa: E402
-from app import cache as wcache  # noqa: E402
-from app.middleware import SESSION_COOKIE_NAME  # noqa: E402
-from app.provider import ProviderError, fetch, normalize  # noqa: E402
 
 pytestmark = pytest.mark.must
 
@@ -193,9 +217,10 @@ def wclient(wenv):
     """TestClient над app.main weather-сервиса (изолированные env)."""
     from fastapi.testclient import TestClient
 
-    from app.main import app
-
-    return TestClient(app)
+    # Погодный ASGI-приложение связано на импорте файла (окно выселения
+    # backend `app`, см. шапку) — ленивый `from app.main import app` здесь
+    # вернул бы монолит.
+    return TestClient(weather_asgi_app)
 
 
 def _cookies():
@@ -459,7 +484,7 @@ def test_tc_weather_005_missing_metric_api_variants(wclient, wenv, monkeypatch):
         raw = provider_raw()
         mutate(raw)
         monkeypatch.setattr(
-            "app.provider.fetch", _stub_fetch([], result=normalize(raw))
+            provider_mod, "fetch", _stub_fetch([], result=normalize(raw))
         )
         response = wclient.get("/api/weather", cookies=_cookies())
         assert response.status_code == 200
@@ -478,7 +503,7 @@ def test_tc_weather_006_seven_days_contract(wclient, monkeypatch):
     """TC-weather-006, API-часть: days — ровно 7 с полным набором полей
     (дата, код/описание WMO, день/ночь, осадки %, ветер), порядок
     строго по возрастанию даты, fetched_at — московский offset."""
-    monkeypatch.setattr("app.provider.fetch", _stub_fetch([], result=payload()))
+    monkeypatch.setattr(provider_mod, "fetch", _stub_fetch([], result=payload()))
     body = wclient.get("/api/weather", cookies=_cookies()).json()
     days = body["days"]
     assert len(days) == 7
@@ -502,7 +527,7 @@ def test_tc_weather_007_today_matches_first_day(wclient, monkeypatch):
     max/min первой карточки == max/min карточки «Сегодня» (тот же
     daily[0], заведомо отличный от остальных), окно ровно [X .. X+6]."""
     monkeypatch.setattr(
-        "app.provider.fetch", _stub_fetch([], result=payload(payload_id=7))
+        provider_mod, "fetch", _stub_fetch([], result=payload(payload_id=7))
     )
     body = wclient.get("/api/weather", cookies=_cookies()).json()
     today, days = body["today"], body["days"]
@@ -580,7 +605,7 @@ def test_tc_weather_015_broken_json_keeps_cache(wclient, wenv, monkeypatch):
     before_bytes = wenv.read_bytes()
     calls: list = []
     monkeypatch.setattr(
-        "app.provider.fetch", _stub_fetch(calls, fail_times=99)
+        provider_mod, "fetch", _stub_fetch(calls, fail_times=99)
     )
     response = wclient.get("/api/weather", cookies=_cookies())
     assert response.status_code == 200
@@ -598,7 +623,7 @@ def test_tc_weather_016_empty_cache_provider_down_is_503(wclient, wenv, monkeypa
     попыткой НЕ создан; карточек с нулевыми/выдуманными данными нет
     (UI-часть — в test_..._honest_error_ui)."""
     calls: list = []
-    monkeypatch.setattr("app.provider.fetch", _stub_fetch(calls, fail_times=99))
+    monkeypatch.setattr(provider_mod, "fetch", _stub_fetch(calls, fail_times=99))
     response = wclient.get("/api/weather", cookies=_cookies())
     assert response.status_code == 503
     assert response.json() == {"error": "weather_unavailable"}
@@ -813,7 +838,7 @@ def test_tc_weather_025_responsiveness_on_provider_failure(
     try:
         monkeypatch.setattr(provider_mod, "PROVIDER_URL", hang.url())
 
-        from app import routes
+        routes = weather_routes
 
         result: dict = {}
 

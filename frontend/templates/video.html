@@ -15,53 +15,24 @@
    файлы — nginx /videos/<id>/… (NFR-36/38: всё только по сессии).
    Плеер — нативный <video>, иконки — inline-SVG, внешних библиотек/CDN
    НЕТ (ОГР-8). Стили — в этом шаблоне (запись 1.5/2.4: video.html/
-   base.html/video.js/pages.py — app.css не трогается), токены V3
-   «Бумага» — дословно из мокапов. #}
+   base.html/video.js/pages.py — app.css не трогается), направление A —
+   наследование семантического слоя app.css (снимок «Пульт» удален,
+   redesign-ui-a). #}
 {% extends "base.html" %}
 {% block content %}
 <style>
-/* ===== Токены «Пульт» — снимок design/redesign-pro/tokens-console.html
-   (redesign-console 2.5; дословно, скоуп .video-page как прежде) ===== */
-.video-page {
-  color-scheme: dark;
-  --color-text-primary: #e7edf4;
-  --color-text-secondary: #a7b7c8;
-  --color-text-on-accent: #0e1621;
-  --color-bg-page: #0e1621;
-  --color-bg-surface: #1d2b40;
-  --color-bg-subtle: #172335;
-  --color-border-default: #33435c;
-  --color-border-strong: #4d607c;
-  --color-accent: #f0b45c;
-  --color-accent-hover: #f6c17a;
-  --color-accent-soft: #3a2c12;
-  --status-error: #ef7b6a;
-  --status-error-bg: rgba(239,123,106,.12);
-  --status-success: #57c4b0;
-  --priority-medium: #b9a8e8;
-  --priority-medium-soft: rgba(185,168,232,.12);
-  --priority-low-soft: rgba(87,196,176,.12);
-  --fastline: #f0b45c;
-  --space-05: 4px;
-  --space-1: 8px;
-  --space-2: 16px;
-  --space-3: 24px;
-  --space-4: 32px;
-  --radius-field: 6px;
-  --radius-card: 8px;
-  --shadow-modal: 0 24px 56px rgba(0,0,0,.55);
-  --shadow-soft: 0 1px 2px rgba(0,0,0,.4);
-  --font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
-  --font-size-body: 14px;
-  --font-size-label: 12px;
-  --font-size-micro: 11px;
-  --focus-ring: 0 0 0 2px #0e1621, 0 0 0 4px #4fd8eb, 0 0 14px rgba(79,216,235,.35);
-  --speed-fast: 140ms;
-}
+/* ===== Направление A «Доска и поток» (redesign-ui-a, sdd §5.5; эталон
+   design-forge/extra/video/video.html). Снимок токенов «Пульт» УДАЛЕН —
+   страница наследует каркасный семантический слой app.css :root (dark +
+   data-theme="light"; одна разметка — обе темы, литералы цвета запрещены).
+   Золото — действие (play/upload/прогресс) и бейдж «Новое» (мокап
+   .badge-accent.v-new → статус «uploaded» = свежая запись); статусы
+   конвертации — warning/success/danger A (LED-семантика сохранена,
+   blink converting не тронут). Селекторы DOM прежние (ОГР-28). ===== */
 .video-page h1 {
   font-family: var(--font-family-display);
-  font-weight: 400;
-  font-size: 26px;
+  font-weight: 700;
+  font-size: var(--font-size-h1);
   margin: 0 0 var(--space-2);
 }
 
@@ -115,8 +86,8 @@
   border-radius: 0;
   font: inherit;
   font-family: var(--font-family-display);
-  font-size: 26px; /* поле заменяет h1 (#player-title) — мокапное значение */
-  font-weight: 400;
+  font-size: var(--font-size-h1); /* поле заменяет h1 (#player-title) */
+  font-weight: 700;
   color: var(--color-text-primary);
   background: transparent;
 }
@@ -246,7 +217,7 @@
   cursor: pointer;
   transition: transform var(--speed-fast) ease, box-shadow var(--speed-fast) ease;
 }
-.v-card:hover { border-color: var(--color-border-strong); background: rgba(38,53,77,.55); }
+.v-card:hover { border-color: var(--color-border-strong); }
 .v-card:hover .v-card-title { color: var(--color-accent); }
 .v-card:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .v-card:active { transform: translateY(0); }
@@ -279,7 +250,7 @@
   position: absolute;
   width: 44px; height: 44px;
   border-radius: 50%;
-  background: rgba(14, 22, 33, 0.72);
+  background: color-mix(in srgb, var(--color-bg) 72%, transparent);
   display: grid; place-items: center;
   color: var(--color-text-primary);
 }
@@ -301,6 +272,7 @@
 .v-card-body { padding: var(--space-1) 10px 10px; display: flex; flex-direction: column; gap: 6px; }
 .v-card-title {
   margin: 0;
+  font-family: var(--font-family-display);
   font-size: var(--font-size-body);
   font-weight: 600;
   line-height: 1.35;
@@ -313,6 +285,7 @@
   display: flex; align-items: center; gap: var(--space-1);
   flex-wrap: wrap;
   font-size: var(--font-size-micro); color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 .status-badge {
   display: inline-flex; align-items: center; gap: 4px;
@@ -323,9 +296,13 @@
   line-height: 1.8;
   white-space: nowrap;
 }
-.status-uploaded   { background: var(--priority-medium-soft); color: var(--priority-medium); }
-.status-converting { background: var(--color-accent-soft); color: var(--fastline); }
-.status-ready      { background: var(--priority-low-soft); color: var(--status-success); }
+/* Статусы конвертации — LED-семантика на токенах A (sdd §2.2):
+ * «uploaded» (свежая запись) — золотой бейдж «Новое» (мокап
+ * .badge-accent.v-new), «converting» — warning + blink, «ready» —
+ * success, «error» — danger (остаток строки — status-* каркаса). */
+.status-uploaded   { background: var(--color-accent); color: var(--color-on-accent); }
+.status-converting { background: var(--color-warning-soft); color: var(--color-warning); }
+.status-ready      { background: var(--color-success-soft); color: var(--status-success); }
 .status-error      { background: var(--status-error-bg); color: var(--status-error); }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 /* Кусок B (мокап video-list.html «конвертируется»): точка бейджа пульсирует,
@@ -713,7 +690,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(61, 54, 48, 0.45);
+  background: var(--overlay);
   display: grid;
   place-items: center;
   z-index: 50;

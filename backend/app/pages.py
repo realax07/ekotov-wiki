@@ -60,7 +60,7 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # redesign-1e — дельта base.html: пункт сайдбара «Манчкин» (/manchkin/, standalone).
 # redesign-1d — дельта gallery.js: снятие реакции из UI (BUG-029, паритет
 # видео TD-B2/BUG-027).
-templates.env.globals["static_v"] = "redesign-1e"
+templates.env.globals["static_v"] = "redesign-a"
 
 
 @router.get("/login")

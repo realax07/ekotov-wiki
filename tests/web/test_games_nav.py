@@ -70,12 +70,12 @@ def test_games_nav_sidebar_item(logged_in_page, web_base_url):
     assert box and abs(box["width"] - 16) <= 1 and abs(box["height"] - 16) <= 1, box
 
 
-def test_games_sidebar_munchkin_after_games(logged_in_page, base_url):
+def test_games_sidebar_munchkin_after_games(logged_in_page, web_base_url):
     """TC-games-web-002: пункт «Манчкин» в сайдбаре, href /manchkin/,
     СТРОГО после «Игры» (решение Заказчика 2026-11-16 — отдельный раздел
     standalone-манчкина, репо realax07/manchkin)."""
     page = logged_in_page
-    page.goto(f"{base_url}/board")
+    page.goto(f"{web_base_url}/board")
     manchkin_link = page.locator(".sidebar-nav .nav-item-manchkin")
     games_link = page.locator(".sidebar-nav .nav-item-games")
     assert manchkin_link.count() == 1
