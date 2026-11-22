@@ -1,4 +1,0 @@
-<nav class="board-tabs" aria-label="Доски">
- <a class="board-tab" href="board.html" aria-current="page">Разработка</a>
- <!-- …повтор ×2 -->
-</nav>
