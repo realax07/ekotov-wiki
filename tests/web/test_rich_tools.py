@@ -93,12 +93,20 @@ def wiki_ui_pages_cleanup(web_base_url):
     хвосты ломают wiki-empty-state (test_p15_wiki_tree TC-wiki-004/005)
     СЛЕДУЮЩЕГО полного прогона на той же БД. Снапшот id на входе сессии,
     удаление созданных файлом страниц в teardown (листья раньше родителей —
-    FK RESTRICT на parent_id). Чужие хвосты прошлых прогонов не трогает."""
+    FK RESTRICT на parent_id). Чужие хвосты прошлых прогонов не трогает.
+    Сессия — LocalhostSession (коррекция Secure-cookie, паритет
+    web_owner_session): голый requests.Session не отправляет Secure-куку
+    по http — GET после login дает 401 (итерация 4: setup-error всего файла)."""
     import requests as _rq
 
-    from tests.web.conftest import OWNER_LOGIN, OWNER_PASSWORD
+    from tests.web.conftest import (  # пакетный импорт, не голый
+        # «from conftest import» запрещен — см. tests/api/conftest §297
+        LocalhostSession,
+        OWNER_LOGIN,
+        OWNER_PASSWORD,
+    )
 
-    http = _rq.Session()
+    http = LocalhostSession()
     try:
         resp = http.post(
             f"{web_base_url}/api/auth/login",
@@ -107,12 +115,12 @@ def wiki_ui_pages_cleanup(web_base_url):
         assert resp.status_code == 200, f"seed-вход owner не удался: {resp.status_code}"
         before = {
             p["id"]: p.get("parent_id")
-            for p in http.get(f"{web_base_url}/api/wiki/pages").json()
+            for p in http.get(f"{web_base_url}/api/wiki/pages").json()["pages"]
         }
         yield
         added = [
             (p["id"], p.get("parent_id"))
-            for p in http.get(f"{web_base_url}/api/wiki/pages").json()
+            for p in http.get(f"{web_base_url}/api/wiki/pages").json()["pages"]
             if p["id"] not in before
         ]
         # листья раньше родителей: сортировка по глубине цепочки parent_id
