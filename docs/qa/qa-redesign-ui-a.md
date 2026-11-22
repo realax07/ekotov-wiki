@@ -77,6 +77,18 @@
    функциональные сьюты §3.3 (fastline, dnd, форма, комментарии, wiki,
    галерея, видео-каркас) — зеленые без правок логики.
 
+3. **Переименование 3 тест-функций `test_redesign_console.py` (cyan→gold,
+   фикс по code-review minor-4)** — правомерно по смыслу (имена зашивали
+   цвет «Пульта»), но ID тестов изменились; старые QA-отчеты/ссылки на эти
+   TC-имена относятся к прежним именам:
+   - `test_tc_redesign_002_focus_visible_gold_and_mouse_no_ring`
+     (было `test_tc_redesign_002_focus_visible_cyan_and_mouse_no_ring`);
+   - `test_tc_redesign_012_accent_roles_gold_signal_no_cyan`
+     (было `test_tc_redesign_012_accent_roles_amber_signal_cyan_active`);
+   - `test_tc_redesign_019_sidebar_visual_gold_active`
+     (было `test_tc_redesign_019_sidebar_visual_cyan_active`).
+   В прогоне 2 фигурируют уже новые имена.
+
 ### 2.2 Средовые / предсуществующие (не трогались)
 
 Все завязаны на **живой nginx-стенд `127.0.0.1:18443`** (EKOTOV_WIKI_BASE_URL),
