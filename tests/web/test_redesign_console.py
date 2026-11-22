@@ -927,7 +927,7 @@ def test_tc_redesign_011_v3_tokens_removed_cache_invalidated():
     """TC-redesign-011 (CHK-011, FR-128/2.7): V3-токены удалены — grep
     --p-paper/--p-ink/--p-clay/--p-blue/--p-red/--p-olive/--p-amber-700 по
     css+шаблонам = 0; ни один селектор не ссылается на несуществующий токен
-    (все var() резолвятся в определения); static_v=redesign-a в pages.py
+    (все var() резолвятся в определения); static_v=redesign-a-m1 в pages.py
     (бамп redesign-ui-a, sdd §1.7); все static-подключения base.html с ?v=;
     favicon-маркер <!--cache:v=3--> бампнут в ОБОИХ местах (base + login,
     BUG-010)."""
@@ -943,7 +943,7 @@ def test_tc_redesign_011_v3_tokens_removed_cache_invalidated():
     dangling = sorted(refs - defined)
     assert dangling == [], dangling
     pages_py = (REPO / "backend/app/pages.py").read_text()
-    assert 'static_v"] = "redesign-a"' in pages_py
+    assert 'static_v"] = "redesign-a-m1"' in pages_py
     base_html = (REPO / "frontend/templates/base.html").read_text()
     static_links = re.findall(r'(?:href|src)="(/static/[^"]+)"', base_html)
     assert static_links, static_links
@@ -1478,10 +1478,17 @@ def test_tc_redesign_023_mobile_frame_860(logged_in_page, web_base_url):
         assert toggle_box["height"] >= 44 and toggle_box["width"] >= 44, toggle_box
         page.locator(".nav-item-wiki").click()
         page.wait_for_url(f"{web_base_url}/wiki")
-        # 375px: каркас в одну колонку сохраняется.
+        # 375px (redesign-ui-a мобайл-волна, эталон design-forge/extra/
+        # mobile-v1 «Таб-бар»): каркас в одну колонку сохраняется; сайдбар
+        # ≤760px скрыт CSS (DOM сохранен, ОГР-28), навигация — нижний
+        # таб-бар, вкладки ≥44px (NFR-23).
         page.set_viewport_size({"width": 375, "height": 800})
         page.reload()
-        expect(page.locator("#sidebar")).to_be_visible()
+        expect(page.locator("#sidebar")).to_be_hidden()
+        tabbar = page.locator(".tabbar-nav")
+        expect(tabbar).to_be_visible()
+        tab_box = tabbar.locator(".tabbar-item").first.bounding_box()
+        assert tab_box["height"] >= 44, tab_box
         assert page.evaluate(
             "() => document.documentElement.scrollWidth <= window.innerWidth + 1")
     finally:
