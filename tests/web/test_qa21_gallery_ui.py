@@ -595,11 +595,12 @@ def test_tc_gal_119_sidebar_gallery_fourth_parity_and_no_tracker_links(
         ]
         # 1.5 video-hosting: пункт «Видео»; weather-service: «Погода» —
         # 6-й пункт сайдбара, СТРОГО после «Видео» (дельта specs/weather-service);
-        # P26 games: «Игры» — 7-й, СТРОГО после «Погода» (см. test_games_nav.py).
+        # P26 games: «Игры» — 7-й, СТРОГО после «Погода» (см. test_games_nav.py);
+        # «Манчкин» — 8-й (5c9ab55, standalone-хаб — разрыв апстрима).
         assert labels == [
-            "Доска", "Поиск", "Wiki", "Галерея", "Видео", "Погода", "Игры",
+            "Доска", "Поиск", "Wiki", "Галерея", "Видео", "Погода", "Игры", "Манчкин",
         ], labels
-        expect(page.locator(".sidebar-nav .nav-item")).to_have_count(7)
+        expect(page.locator(".sidebar-nav .nav-item")).to_have_count(8)
         sidebar = Sidebar(page)
         expect(sidebar.video_link).to_be_visible()
         expect(sidebar.weather_link).to_be_visible()

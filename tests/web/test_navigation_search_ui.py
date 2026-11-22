@@ -47,9 +47,11 @@ def test_sidebar_all_pages_and_wiki_stub(logged_in_page, web_base_url):
         # P26 game-portal: «Игры» — 7-й пункт, после «Погода» (без иконки —
         # P21 п.9; href — прокси-префикс внешнего хаба, RUNBOOK §9).
         expect(sidebar.games_link).to_be_visible()
-        # Ровно 7 пунктов навигации (по образцу test_p12_nav_icons_favicon_r8):
-        # «Погода» — 6-м пунктом (weather-service), «Игры» — 7-м (P26).
-        expect(page.locator(".sidebar-nav .nav-item")).to_have_count(7)
+        # Ровно 8 пунктов навигации (по образцу test_p12_nav_icons_favicon_r8):
+        # «Погода» — 6-м пунктом (weather-service), «Игры» — 7-м (P26),
+        # «Манчкин» — 8-м (5c9ab55, standalone-хаб; разрыв апстрима,
+        # досинхронен в test_redesign_console CHK-011 — тоже 8).
+        expect(page.locator(".sidebar-nav .nav-item")).to_have_count(8)
         # Бейдж todo снят (решение Заказчика 2026-10-11, 4.5 add-wiki).
 
     # Доска → Поиск.
