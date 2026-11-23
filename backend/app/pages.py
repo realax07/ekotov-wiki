@@ -63,7 +63,10 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # redesign-a-m1 — мобайл-волна V1: таб-бар + шторка «Ещё» (base.html,
 # mobile-tabbar.js — НОВЫЙ файл), app.css/board.css брейкпоинты ≤760px,
 # video-лента 1 колонка (video.html).
-templates.env.globals["static_v"] = "redesign-a-m1"
+# form-f1-m1 — форма F1 «Быстрый поток»: board.html (сегмент приоритета,
+# quick-чипы срока, счётчик, липкий футер), board.css (боксы полей,
+# bottom-sheet ≤760px), task-form.js (render-слой).
+templates.env.globals["static_v"] = "form-f1-m1"
 
 
 @router.get("/login")

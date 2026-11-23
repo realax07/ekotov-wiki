@@ -1,13 +1,12 @@
-"""r6 волна 2: единая зона действий (3.1, FR-63), Escape-закрытие формы
+"""r6 волна 2: зона действий (3.1, FR-63), Escape-закрытие формы
 (4.2, FR-61), адаптив формы ≤480px (4.3, FR-62).
 
-3.1 (FR-63, ОГР-28, эталон design/tag-combobox-v3.html «Единая зона
-действий»): в режиме редактирования селект «Столбец», «Сохранить»,
-«Отмена», «Удалить» — в ОДНОМ визуальном ряду-блоке внизу формы; порядок
-по макету; «Удалить» — destructive, прижата вправо (margin-left:auto) и
-отделена разделителем ::before; в создании блок #task-actions (режимная
-часть) скрыт — ряд [Создать][Отмена]. id прежние (ОГР-28):
-task-move-select, task-delete-button, task-form-submit, task-form-cancel.
+UPDATE F1 (PLAN-FORM-F1, эталон design-forge/extra/form-v1/edit.html):
+зона действий стала ЛИПКИМ ФУТЕРОМ (.task-actions, position:sticky):
+в редактировании [Столбец ▾][Удалить] слева и [Отмена][Сохранить]
+справа (спейсер между группами); в создании ряд [Отмена][Создать]
+(сабмит прижат вправо). id прежние (ОГР-28): task-move-select,
+task-delete-button, task-form-submit, task-form-cancel.
 
 4.2 (FR-61): Escape закрывает форму (аналог «Отмены», на сервер ничего
 не уходит): чистая — сразу, грязная — после confirm (диалог мокается
@@ -36,9 +35,8 @@ def _open_edit_form(page, title: str):
     page.locator("#task-detail-overlay").wait_for(state="visible")
     page.get_by_role("button", name="Редактировать").click()
     expect(page.locator(FORM_OVERLAY)).to_be_visible()
-    expect(
-        page.get_by_role("heading", name="Редактирование задачи")
-    ).to_be_visible()
+    # F1 (эталон edit.html): заголовок режима — «Редактирование».
+    expect(page.get_by_role("heading", name="Редактирование")).to_be_visible()
     return card
 
 
@@ -47,17 +45,20 @@ def _open_edit_form(page, title: str):
 # --------------------------------------------------------------------------
 # regression: keep — r6 FR-63: единая зона действий; id не менялись.
 def test_actions_zone_single_row_order_and_ids(board_page):
-    """TC-r6-wave2-001: в редактировании все управление задачей — один
-    ряд-блок .task-actions: [Столбец][Сохранить][Отмена][Удалить] —
-    bbox-ряд (одна высота, сверху вниз в порядке макета), все элементы —
-    внутри одного контейнера; id прежние (ОГР-28)."""
+    """TC-r6-wave2-001 (F1): в редактировании все управление задачей —
+    липкий футер .task-actions (position:sticky): [Столбец][Удалить] …
+    [Отмена][Сохранить] — bbox-ряд (одна высота, слева направо в порядке
+    эталона edit.html), все элементы — внутри одного контейнера; id
+    прежние (ОГР-28)."""
     page = board_page
     create_task_via_ui(page, "QAT-зона-действий")
     _open_edit_form(page, "QAT-зона-действий")
 
-    # Один контейнер: ряд + режимная часть.
+    # Один контейнер: ряд + режимная часть; F1 — ряд прилипает к низу
+    # (position:sticky).
     row = page.locator(".task-actions")
     expect(row).to_be_visible()
+    assert row.evaluate("el => getComputedStyle(el).position") == "sticky"
     task_actions = page.locator("#task-actions")
     expect(task_actions).to_be_visible()
 
@@ -77,10 +78,10 @@ def test_actions_zone_single_row_order_and_ids(board_page):
             "el => !!el.closest('.task-actions')"
         ), f"{desc} вне единой зоны действий"
 
-    # Порядок по макету: Столбец → Сохранить → Отмена → Удалить.
+    # Порядок по эталону F1: Столбец → Удалить → Отмена → Сохранить.
     boxes = [
         locator.bounding_box()
-        for locator in (move_select, submit, cancel, delete)
+        for locator in (move_select, delete, cancel, submit)
     ]
     assert all(box is not None for box in boxes)
     lefts = [box["x"] for box in boxes]
@@ -100,10 +101,10 @@ def test_actions_zone_single_row_order_and_ids(board_page):
 # --------------------------------------------------------------------------
 # regression: keep — r6 FR-63: destructive отдельно; создание без зоны.
 def test_actions_zone_delete_separated_and_create_mode(board_page):
-    """TC-r6-wave2-002: «Удалить» прижата к правому краю ряда
-    (margin-left:auto — зазор слева больше межэлементного) и несет
-    destructive-цвет токена --status-error; в режиме создания #task-actions
-    скрыт, виден только ряд [Создать][Отмена]."""
+    """TC-r6-wave2-002 (F1): «Удалить» — destructive-цвет токена
+    --status-error, слева в липком футере, отделена спейсером от правой
+    группы [Отмена][Сохранить]; в режиме создания #task-actions скрыт,
+    виден только ряд [Отмена][Создать] (сабмит прижат вправо)."""
     page = board_page
 
     # Режим создания: режимная часть скрыта.
@@ -117,38 +118,47 @@ def test_actions_zone_delete_separated_and_create_mode(board_page):
     page.get_by_role("button", name="Отмена").click()
     expect(page.locator(FORM_OVERLAY)).to_be_hidden()
 
-    # Режим редактирования: «Удалить» — destructive и прижата вправо.
+    # Режим редактирования: «Удалить» — destructive, слева в футере,
+    # отделена спейсером от правой группы [Отмена][Сохранить].
     create_task_via_ui(page, "QAT-зона-удалить")
     _open_edit_form(page, "QAT-зона-удалить")
 
     delete = page.locator("#task-delete-button")
     cancel = page.locator("#task-form-cancel")
+    submit = page.locator("#task-form-submit")
+    move_select = page.locator("#task-move-select")
     row_box = page.locator(".task-actions").bounding_box()
     delete_box = delete.bounding_box()
     cancel_box = cancel.bounding_box()
     assert row_box and delete_box and cancel_box
 
-    # Прижата к правому краю ряда (±8px — padding контейнера);
-    # двусторонний ассерт (review-001 №1): переполнение ряда (отрицательный
-    # зазор) раньше проходило одностороннюю проверку.
-    row_right = row_box["x"] + row_box["width"]
-    delete_right = delete_box["x"] + delete_box["width"]
-    assert abs(row_right - delete_right) <= 8, (row_right, delete_right)
+    # Левая группа прижата к левому краю ряда (паддинг ±8px): первый
+    # элемент — label «Столбец» с селектом, за ним «Удалить»
+    # (эталон edit.html).
+    move_label = page.locator(".task-actions .move-label")
+    move_box = move_label.bounding_box()
+    assert move_box and move_box["x"] - row_box["x"] <= 32, (row_box, move_box)
+    assert delete_box["x"] > move_box["x"], (move_box, delete_box)
 
-    # Зазор слева больше межкнопочного gap (8px): разделитель/отступ.
-    gap = delete_box["x"] - (cancel_box["x"] + cancel_box["width"])
-    assert gap >= 16, f"«Удалить» не отделена отступом: gap={gap}"
+    # Зазор от «Удалить» до правой группы больше межкнопочного gap
+    # (8px): спейсер.
+    gap = cancel_box["x"] - (delete_box["x"] + delete_box["width"])
+    assert gap >= 16, f"«Удалить» не отделена спейсером: gap={gap}"
 
-    # Разделитель ::before существует и отрисован.
-    divider = delete.evaluate(
-        """el => {
-          const s = getComputedStyle(el, '::before');
-          return {content: s.content, width: s.width, bg: s.backgroundColor};
-        }"""
+    # Спейсер (.foot-spacer) — гибкий заполнитель между группами.
+    spacer = page.locator(".task-actions .foot-spacer")
+    spacer_box = spacer.bounding_box()
+    assert spacer_box and spacer_box["width"] >= 16, spacer_box
+
+    # Сабмит — у правого края ряда (±8px от КОНТЕНТНОГО края: у футера
+    # свой паддинг 24px = --space-3 поверх full-bleed ряда).
+    submit_box = submit.bounding_box()
+    row_content_right = row_box["x"] + row_box["width"] - 24
+    submit_right = submit_box["x"] + submit_box["width"]
+    assert abs(row_content_right - submit_right) <= 8, (
+        row_content_right,
+        submit_right,
     )
-    assert divider["content"] not in ("none", "normal"), divider
-    assert divider["width"] == "1px", divider
-    assert divider["bg"] != "rgba(0, 0, 0, 0)", divider
 
     # Destructive-цвет: контур кнопки = токен --status-error.
     colors = page.evaluate(

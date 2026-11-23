@@ -247,9 +247,27 @@ def test_close_restores_exact_board_scroll(browser):
         page.reload()
         expect(page.locator("#board")).to_have_attribute("data-loaded", "true")
 
-        page.evaluate("window.scrollTo(0, 250)")
+        # m1 app-shell (redesign-ui-a мобайл-волна, ≤760px): скроллер доски —
+        # main.content (каркас таб-бара, window.scrollY не меняется —
+        # overflow-x:hidden на main вычисляет overflow-y в auto). Скроллим
+        # фактический контейнер — интент кейса (точное восстановление
+        # позиции доски после закрытия модалки) сохранен; на desktop-ветке
+        # (>760px) скроллером остается документ — ветка ниже совместима.
+        _SCROLL_TOP = """() => {
+          const m = document.querySelector('main.content');
+          return (m && m.scrollHeight > m.clientHeight + 1)
+            ? m.scrollTop : window.scrollY;
+        }"""
+        page.evaluate(
+            """() => {
+              const m = document.querySelector('main.content');
+              const sc = (m && m.scrollHeight > m.clientHeight + 1)
+                ? m : document.scrollingElement;
+              sc.scrollTo(0, 250);
+            }"""
+        )
         page.wait_for_timeout(50)
-        before = page.evaluate("window.scrollY")
+        before = page.evaluate(_SCROLL_TOP)
         assert before == 250, "доска должна проскроллиться (задач много)"
 
         # JS-клик по карточке: без автоскролла Playwright к карточке —
@@ -269,7 +287,7 @@ def test_close_restores_exact_board_scroll(browser):
         page.get_by_role("button", name="Закрыть", exact=True).click()
         expect(page.locator(VIEW_OVERLAY)).to_be_hidden()
         page.wait_for_timeout(50)
-        after = page.evaluate("window.scrollY")
+        after = page.evaluate(_SCROLL_TOP)
         assert after == before, f"scrollY: до={before}, после={after}"
 
         # и через крестик (повторное открытие — тот же сохран)
@@ -285,7 +303,7 @@ def test_close_restores_exact_board_scroll(browser):
         page.locator("#task-view-close").click()
         expect(page.locator(VIEW_OVERLAY)).to_be_hidden()
         page.wait_for_timeout(50)
-        assert page.evaluate("window.scrollY") == before
+        assert page.evaluate(_SCROLL_TOP) == before
     finally:
         context.close()
 
@@ -404,11 +422,12 @@ def test_desktop_modals_unchanged(browser, web_base_url):
         assert 39 < close_box["width"] < 41, close_box  # desktop 40×40 (FR-28)
         assert page.evaluate("getComputedStyle(document.body).overflow") == "visible"
 
-        # форма: max-width 520
+        # форма: max-width 720 (F1, PLAN-FORM-F1 — эталон create.html
+        # .sheet 720px; прежний лимит 520 мокапа V3 заменен).
         page.get_by_role("button", name="Редактировать").click()
         expect(page.locator(FORM_OVERLAY)).to_be_visible()
         modal_form = _rect(page, f"{FORM_OVERLAY} .modal")
-        assert modal_form["width"] <= 520 + 2, modal_form
+        assert modal_form["width"] <= 720 + 2, modal_form
         assert page.evaluate("getComputedStyle(document.body).overflow") == "visible"
     finally:
         context.close()

@@ -22,13 +22,19 @@
    (класс field-invalid, текст в task-category-error).
    2.5 (FR-28, FR-29, Д-5): единый стиль V3 «Бумага» на всю доску
    (app.css/board.css); крестик закрытия формы 40×40px в правом
-   верхнем углу (task-form-close, board-init.js); селект приоритета —
-   в пилюле .priority-field-pill с цветом выбранного значения;
-   SVG-иконки/бейджи приоритетов на карточках — cards.js (5.2).
-   4.1 (FR-34, DEF-005): зоны формы по мокапу V3 — обязательная
-   звезда .req цветом ошибки; подсказка и чипы выбранных тегов
-   (.hint/.chips, рендер task-form.js, только textContent); SVG-иконка
-   выбранного приоритета в пилюле (.prio-pill-icon, priority-icons.js).
+   верхнем углу (task-form-close, board-init.js); SVG-иконки/бейджи
+   приоритетов на карточках — cards.js (5.2).
+   F1 «Быстрый поток» (PLAN-FORM-F1, эталон design-forge/extra/
+   form-v1/create.html + edit.html): форма переверстана по мокапу —
+   сегмент приоритета из 3 кнопок поверх СОХРАНЕННОГО нативного
+   select (контракт task-form.js 4.5 и e2e), quick-чипы срока поверх
+   нативного date-инпута, счётчик 0/500 у названия, НЕЙТРАЛЬНАЯ
+   подсказка под названием, категория+исполнитель в одну строку
+   (desktop), фастлайн — тумблер-карточка с подписью гейта, липкий
+   футер: Отмена + Сохранить (золото); в редактировании — «Удалить».
+   4.1 (FR-34, DEF-005): зоны формы по мокапу V3 — подсказка и чипы
+   выбранных тегов (.hint/.chips, рендер task-form.js, только
+   textContent). #}
    3.1+3.2 (FR-32, ОГР-12): пресет В «Выразительный» (утвержден
    Заказчиком 2026-09-27; мокап design/p8-presets.html) — класс
    preset-v на контейнере доски (включает базу 3.1: hover тень,
@@ -128,26 +134,24 @@
 </div>
 <p id="board-error" class="board-error" hidden></p>
 
-{# Форма создания/редактирования задачи (4.5; FR-5, FR-7, FR-9).
-   Одна форма в двух режимах; is_fast — только при создании (sdd §3.2:
-   is_fast — опциональный флаг только при создании, PATCH его не принимает).
-   5.2 (FR-3): при 409 «fast line occupied» в task-form-error (над
-   формой, рядом с чекбоксом fast) показывается «fast line занята»,
-   задача НЕ создается — обработка в board.js. #}
+{# Форма создания/редактирования задачи (4.5; FR-5, FR-7, FR-9) —
+   F1 «Быстрый поток» (PLAN-FORM-F1; эталон design-forge/extra/form-v1/
+   create.html + edit.html). Одна форма в двух режимах; is_fast — только
+   при создании (sdd §3.2: PATCH его не принимает). 5.2 (FR-3): при 409
+   «fast line occupied» в task-form-error показывается «fast line
+   занята», задача НЕ создается — обработка в board.js/task-form.js.
+   Контракты сохранены (ОГР-28): все id/name полей прежние —
+   task-title, task-description, task-priority (НАТИВНЫЙ select, скрытый
+   внутри сегмента приоритета), task-category, task-assigned,
+   task-due-date, task-tags, is_fast, task-form-error; подписи label —
+   прежние (контракт get_by_label e2e). #}
 <div id="task-form-overlay" class="modal-overlay" hidden>
   {# Комментарии режима редактирования (4.1) — внутри .modal-контейнера:
-     #task-comments соседствует с #task-form внутри одного «листа» модалки.
-     Прежде секция была соседним элементом form.modal в .modal-overlay —
-     flex-контейнере (без flex-wrap): она вставала в ряд с формой,
-     сжималась до ~225px и уезжала по вертикали (прод-дефект вёрстки
-     блока комментария). Обертка .modal.sheet держит фон/скругление/тень
-     модалки, форма внутри — без собственной рамки (task-form--bare).
-     Клик-вне-закрытие (board-init.js: event.target === overlay) работает
-     как прежде — обертка не меняет механизм. #}
-  {# Крестик .modal-close якорится к форме (ближайший .modal relative) —
-     отступ от края листа ~32px против прежних 8px: осознанно принято
-     (пороги TC-form-006 проходят); перенос на лист — при следующем
-     касании. #}
+     #task-comments соседствует с #task-form внутри одного «листа» модалки
+     (вложенные формы в HTML запрещены). Клик-вне-закрытие (board-init.js:
+     event.target === overlay) работает как прежде — обертка не меняет
+     механизм. #}
+  {# Крестик .modal-close якорится к форме (ближайший .modal relative). #}
   <div class="modal task-form-sheet">
     <form id="task-form" class="modal task-form task-form--bare">
     {# 5.1 (FR-28): крестик закрытия в правом верхнем углу, зона клика
@@ -159,57 +163,82 @@
       </svg>
     </button>
     <h2 id="task-form-heading">Создание задачи</h2>
-    <p id="task-form-error" class="form-error" hidden></p>
-    <label>Название <span class="req" aria-hidden="true">*</span>
-      <input type="text" id="task-title" name="title" required maxlength="500">
-    </label>
-    {# Р5 polish (прод-репорт): textarea описания — авто-высота (старт ~2
-       строки, рост по вводу, потолок ~10 строк + скролл; auto-textarea.js),
-       placeholder-подсказка внутри поля; label над полем — компактной. #}
-    <label class="field-compact">Описание
-      <textarea id="task-description" name="description" rows="2"
-                placeholder="Описание задачи…"></textarea>
-    </label>
-    {# 5.2 (FR-29): приоритеты — цвет + иконка. Нативный select сохранен
-       (контракт task-form.js 4.5 и e2e), обернут в .priority-field-pill:
-       цвет пилюли следует выбранному значению (:has(:checked)); текст
-       опций («Низкий/Средний/Высокий») — различимость без цвета. #}
-    <label>Приоритет
-      <span class="priority-field-pill">
-        {# 4.1 (FR-34/DEF-005, FR-29): иконка выбранного приоритета —
-           inline SVG (priority-icons.js, task-form.js); при пустом
-           выборе иконки нет (мокап: «—»). #}
-        <span class="prio-pill-icon" id="task-priority-pill-icon" aria-hidden="true"></span>
-        <select id="task-priority" name="priority">
+    {# Эталон F1: подпись под заголовком (.sheet-sub, create.html). #}
+    <p class="sheet-sub">Название, приоритет, срок — остальное можно дописать позже.</p>
+    <p id="task-form-error" class="form-error" role="alert" hidden></p>
+    {# Эталон F1 «Быстрый поток»: крупное поле названия (автофокус —
+       openCreateForm/openEditForm в task-form.js) и счётчик 0/500
+       (#title-counter, task-form.js); подсказка под названием —
+       НЕЙТРАЛЬНАЯ (.hint, правка дефекта мокапа: не красная). #}
+    <div class="f1-field">
+      <div class="f1-label-row">
+        <label for="task-title">Название</label>
+        <span class="f1-counter" id="title-counter" aria-live="polite">0/500</span>
+      </div>
+      <input type="text" id="task-title" name="title" required maxlength="500"
+             class="f1-input-title" placeholder="Например: Добавить фильтр по тегам">
+      <p class="hint" id="title-hint">По названию задачу легко найти на доске</p>
+    </div>
+    {# F1 (эталон create.html .segment): приоритет — СЕГМЕНТ из 3 кнопок
+       поверх СОХРАНЕННОГО нативного select (контракт task-form.js 4.5
+       и e2e: select_option/input_value/is_disabled живут). .f1-native
+       прячет select визуально (opacity:0, вне потока, pointer-events
+       нет), но оставляет ему неизменный id/name/label; значение держит
+       select, сегмент — только отображение (синхронизация
+       renderPrioritySegment в task-form.js). #}
+    <div class="f1-field">
+      <div class="f1-label-row">
+        <label for="task-priority">Приоритет</label>
+      </div>
+      <div class="f1-field-priority">
+        <div class="segment" id="task-priority-segment">
+          <button type="button" class="seg seg-low" data-priority-value="low" aria-pressed="false">Низкий</button>
+          <button type="button" class="seg seg-mid" data-priority-value="medium" aria-pressed="false">Средний</button>
+          <button type="button" class="seg seg-high" data-priority-value="high" aria-pressed="false">Высокий</button>
+        </div>
+        <select id="task-priority" name="priority" class="f1-native" tabindex="-1">
           <option value="">—</option>
           <option value="low">Низкий</option>
           <option value="medium">Средний</option>
           <option value="high">Высокий</option>
         </select>
-      </span>
-    </label>
-    <label>Категория
-      <select id="task-category" name="category">
-        {# Опции заполняются из GET /api/categories в task-form.js (3.1,
-           FR-19/FR-30: ровно содержимое справочника, без статических
-           значений — DEF-001). Пустое значение «—» = «категория не
-           задана» (nullable, Д-2). #}
-      </select>
-      <span id="task-category-error" class="field-error" hidden></span>
-    </label>
-    {# 5.1 (ОВ-26, Д-10): поле исполнителя — select из GET /api/users
-       (заполняется task-form.js при каждом открытии формы; состав —
-       данные, не код). Опция «Не назначено» (value="") = «без
-       исполнителя» (nullable, FR-37); подпись опции = display_name или
-       логин (Д-10). Поле сразу по мокапу V3 — наследует .task-form
-       select (4.2, DEF-005: новое поле не создает нового расхождения,
-       FR-48). Поле creator в форме НЕТ — creator ставит сервер
-       (FR-37, сценарий «Creator не выбирается в форме»). #}
-    <label>Исполнитель
-      <select id="task-assigned" name="assigned_to_id"></select>
-    </label>
-    <label>Срок
-      <input type="date" id="task-due-date" name="due_date">
+      </div>
+    </div>
+    {# F1 (эталон create.html .chips-row): quick-чипы срока —
+       «Сегодня/Завтра/+7 дней» ставят дату в нативный date-инпут
+       (контракт task-due-date не тронут); подсветку .is-checked ставит
+       task-form.js по совпадению с датой инпута (календарь — сам инпут). #}
+    <div class="f1-field">
+      <div class="f1-label-row">
+        <label for="task-due-date">Срок</label>
+      </div>
+      <div class="chips-row" id="task-due-chips">
+        <button type="button" class="qchip" data-due-quick="today">Сегодня</button>
+        <button type="button" class="qchip" data-due-quick="tomorrow">Завтра</button>
+        <button type="button" class="qchip" data-due-quick="week">+7 дней</button>
+        <input type="date" id="task-due-date" name="due_date" class="f1-input-date">
+      </div>
+    </div>
+    {# Эталон F1 (.duo): категория + исполнитель — два селекта в одну
+       строку на desktop (≤760px — столбиком, media-блок board.css).
+       Категория — select из GET /api/categories (3.1, FR-19/FR-30,
+       DEF-001); при 422 поле подсвечивается (field-invalid, текст в
+       task-category-error). Исполнитель — select из GET /api/users
+       (5.1, ОВ-26, Д-10); creator в форме НЕТ — ставит сервер (FR-37). #}
+    <div class="f1-duo">
+      <label>Категория
+        <select id="task-category" name="category"></select>
+        <span id="task-category-error" class="field-error" hidden></span>
+      </label>
+      <label>Исполнитель
+        <select id="task-assigned" name="assigned_to_id"></select>
+      </label>
+    </div>
+    {# Р5 polish (прод-репорт): textarea описания — авто-высота (старт ~2
+       строки, рост по вводу, потолок ~10 строк + скролл; auto-textarea.js). #}
+    <label class="field-compact">Описание <span class="opt">— необязательно</span>
+      <textarea id="task-description" name="description" rows="2"
+                placeholder="Описание задачи…"></textarea>
     </label>
     <label>Теги (через запятую)
       <input type="text" id="task-tags" name="tags" placeholder="home, urgent"
@@ -239,36 +268,38 @@
       <div id="task-tag-combobox-live" class="visually-hidden" aria-live="polite"></div>
     </div>
     <datalist id="task-tag-hints" hidden></datalist>
-    {# 4.1 (FR-34/DEF-005) + redesign-console 2.2: оформление fast line —
-       янтарный ряд-плашка .fast-row на токенах «Пульта»;
-       структура и текст сохранены (e2e get_by_label("fast line")). #}
-    <div class="fast-row">
-      <label class="task-form-checkbox">
-        <input type="checkbox" id="task-is-fast" name="is_fast"> fast line
+    {# F1 (эталон create.html .fast-card): фастлайн — тумблер-карточка
+       с подписью гейта; структура/тексты/aria сохранены (e2e
+       get_by_label("fast line") — aria-label на инпуте; гейт —
+       #task-is-fast-gate, ставит task-form.js). #}
+    <div class="fast-row fast-card">
+      <label class="task-form-checkbox fast-toggle">
+        <input type="checkbox" id="task-is-fast" name="is_fast" class="fast-switch" aria-label="fast line">
+        <span class="fast-text">
+          <strong class="fast-name2">Фастлайн</strong>
+          <span class="fast-cap">Одна задача за раз — гейт освободится, когда текущая закрыта</span>
+        </span>
       </label>
       {# P23 (2.5, design §4.2): причина гейта чекбокса fast в edit-форме —
-         третий путь вставки закрыт при занятой зоне (включение было бы 409 —
-         не даем стрелять). Тот же класс чипа, что у зоны; ставит task-form.js. #}
+         третий путь вставки закрыт при занятой зоне. Ставит task-form.js. #}
       <span id="task-is-fast-gate" class="fastline-blocked-hint" hidden>
         <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M5.8 5.8l12.4 12.4" stroke="currentColor" stroke-width="2.5"/></svg>
         В фастлайне уже есть задача — выполните текущую
       </span>
     </div>
-    {# r6 3.1 (FR-63, ОВ-4, ОГР-28; эталон design/tag-combobox-v3.html
-       «Единая зона действий задачи»): ЕДИНАЯ зона действий внизу формы —
-       один ряд-блок .task-actions (role=group): в режиме редактирования
-       [Столбец ▾][Сохранить][Отмена] │ [Удалить]; в создании ряд
-       [Создать][Отмена]. Ряд ВИДЕН всегда; режимная часть (.move-label
-       + «Удалить», контейнер .task-actions-task) скрыта в создании
-       (openCreateForm) — ее #task-actions хранит прежний id (ОГР-28,
-       скрытие openCreateForm/openEditForm работает как прежде). Прежние
-       ДВА блока (#task-actions + .form-actions) объединены: управление
-       задачей не разнесено по форме (ОВ-4). Механика прежняя: селект
-       «Столбец» → POST /{id}/move, «Удалить» → DELETE с confirm (FR-7).
-       id НЕ менялись (ОГР-28): task-move-select, task-delete-button,
-       task-form-submit, task-form-cancel — подписки task-form.js/
-       board-init.js и e2e живут. #}
+    {# F1 (эталон edit.html .sheet-foot): ЛИПКИЙ ФУТЕР — [Столбец ▾] и
+       «Удалить» слева (edit), [Отмена][Сохранить] справа; в создании
+       ряд [Отмена][Сохранить] (Сохранить/Создать — золото, справа).
+       Механика прежняя: селект «Столбец» → POST /{id}/move, «Удалить» →
+       DELETE с confirm (FR-6/FR-7). id НЕ менялись (ОГР-28):
+       task-move-select, task-delete-button, task-form-submit,
+       task-form-cancel — подписки task-form.js/board-init.js и e2e. #}
     <div class="task-actions" role="group" aria-label="Действия с задачей">
+      {# «Удалить» внутри режимной части #task-actions: в создании блок
+         скрыт (openCreateForm) — «Удалить» не видна (эталон create.html:
+         футер [Отмена][Сохранить]); в редактировании (openEditForm) —
+         видна слева, как в эталоне edit.html. Механика прежняя: DELETE
+         с confirm (FR-7, task-form.js). id прежние (ОГР-28). #}
       <div id="task-actions" class="task-actions-task" hidden>
         <label class="move-label">Столбец
           <select id="task-move-select">
@@ -277,13 +308,11 @@
             <option value="done">Выполнено</option>
           </select>
         </label>
+        <button type="button" id="task-delete-button" class="btn-destructive">Удалить</button>
       </div>
-      <button type="submit" id="task-form-submit">Создать</button>
+      <span class="foot-spacer" aria-hidden="true"></span>
       <button type="button" id="task-form-cancel">Отмена</button>
-      {# FR-63 (макет tag-combobox-v3): destructive «Удалить» — ПОСЛЕДНЕЙ,
-         прижата к правому краю ряда (margin-left:auto); в DOM после
-         submit/cancel. id прежние (ОГР-28). #}
-      <button type="button" id="task-delete-button" class="btn-destructive">Удалить</button>
+      <button type="submit" id="task-form-submit">Создать</button>
     </div>
   </form>
   {# Блок комментариев режима редактирования — СОСЕДНИЙ элемент с

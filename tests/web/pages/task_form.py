@@ -4,6 +4,12 @@
 ассерты остаются в тестах, PO — действия и возврат локаторов. Скрытые
 hidden-модалки не имеют ARIA-роли — id-локаторы разрешены кейсом
 (соглашение п.3, tests/web/test_board_tasks_ui.py).
+
+Трассировка change form-f1 (openspec/changes/form-f1): F1-компоненты —
+TC-FORM-001 (сегмент приоритета: segment_loc/seg_loc/checked_seg),
+TC-FORM-002 (quick-чипы срока: due_chip_loc), TC-FORM-003 (счётчик:
+counter_loc); ассерты — в test_r3_formv3_ui.py и
+test_settings_categories_ui.py.
 """
 
 from playwright.sync_api import expect
@@ -16,7 +22,9 @@ class TaskForm:
         self.page = page
         self.overlay = page.locator("#task-form-overlay")
         self.heading_create = page.get_by_role("heading", name="Создание задачи")
-        self.heading_edit = page.get_by_role("heading", name="Редактирование задачи")
+        # F1 (PLAN-FORM-F1, эталон edit.html): заголовок режима
+        # редактирования — «Редактирование».
+        self.heading_edit = page.get_by_role("heading", name="Редактирование")
         self.heading_comments = page.get_by_role("heading", name="Комментарии")
         self.title_input = page.get_by_label("Название")
         self.description = page.get_by_label("Описание")
@@ -101,9 +109,23 @@ class TaskForm:
         """Чипы выбранных тегов (.chip в #task-tags-chips)."""
         return self.page.locator("#task-tags-chips .chip")
 
-    def priority_pill_icon(self):
-        """Бокс inline-SVG-иконки пилюли приоритета."""
-        return self.page.locator("#task-priority-pill-icon")
+    def priority_segment(self):
+        """Сегмент приоритета F1 (контейнер #task-priority-segment)."""
+        return self.page.locator("#task-priority-segment")
+
+    def priority_seg_button(self, value: str):
+        """Кнопка сегмента приоритета F1 (low/medium/high)."""
+        return self.page.locator(
+            f'#task-priority-segment .seg[data-priority-value="{value}"]'
+        )
+
+    def title_counter(self):
+        """Счётчик 0/500 у названия (F1)."""
+        return self.page.locator("#title-counter")
+
+    def due_chip(self, quick: str):
+        """Quick-чип срока F1 (today/tomorrow/week)."""
+        return self.page.locator(f'#task-due-chips .qchip[data-due-quick="{quick}"]')
 
     def fast_row(self):
         """Ряд fast-задачи формы (.fast-row; hidden в старых версиях)."""
@@ -123,13 +145,9 @@ class TaskForm:
             "button", name="Закрыть форму без сохранения"
         )
 
-    def priority_pill(self):
-        """Пилюля поля приоритета (цвет следует выбранному значению)."""
-        return self.page.locator(".priority-field-pill")
-
-    def priority_pill_in_overlay(self):
-        """Пилюля приоритета, скоуп оверлея (для expect-автожидания)."""
-        return self.page.locator("#task-form-overlay .priority-field-pill")
+    def priority_checked_seg(self):
+        """Подсвеченная кнопка сегмента приоритета F1 (.seg.is-checked)."""
+        return self.page.locator("#task-priority-segment .seg.is-checked")
 
     def wait_category_options(self, min_names: int) -> None:
         """Автожидание загрузки именованных опций select «Категория»
