@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Редактирование задачи — Быстрый поток · Трекер задач ekotov-wiki</title>
+  <!-- V1 «Быстрый поток», режим редактирования: та же модалка, что в create.html (720px / bottom-sheet 390px),
+       заголовок «Редактирование», поля предзаполнены (FST-01), блок статуса с «Выполнить» сверху,
+       «Удалить» в липком футере. Контракт полей сохранён: task-title, task-description, task-priority,
+       task-category, task-assigned, task-due, is_fast, task-form-error. is_fast в редактировании
+       не меняется (PATCH его не принимает) — тумблер заблокирован с подписью гейта. -->
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="base.css">
+  <style>
+    /* ---------- Призрачная доска за модалкой ---------- */
+    .ghost { max-width: 1240px; margin: 0 auto; padding: 0 var(--space-4) var(--space-6); }
+    .topbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-4); border-bottom: 1px solid var(--color-border); }
+    .brand { display: inline-flex; align-items: center; min-height: 44px; font-family: var(--font-display); font-weight: 700; font-size: var(--text-lg); }
+    .tabs { display: flex; gap: var(--space-1); }
+    .tab { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--space-3); border-bottom: 2px solid transparent; font-family: var(--font-ui); font-weight: 500; color: var(--color-muted); }
+    .tab.on { color: var(--color-text); border-bottom-color: var(--color-accent-2); }
+    .ghost-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4) 0 var(--space-5); }
+    .ghost-head h1 { font-size: var(--text-2xl); }
+    .gdate { color: var(--color-muted); }
+    .gstats { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-muted); font-variant-numeric: tabular-nums; }
+    .fastlane-ghost { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3); background: var(--color-surface); border: 1px solid var(--color-border); border-top: 3px solid var(--color-accent); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); }
+    .glabel { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-sm); color: var(--color-link); letter-spacing: .04em; }
+    .gname { font-family: var(--font-display); font-weight: 700; font-size: var(--text-lg); }
+
+    /* ---------- Оверлей и модалка ---------- */
+    .overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: var(--space-5) var(--space-4);
+      background: color-mix(in srgb, var(--color-bg) 74%, transparent); }
+    .sheet { width: min(720px, 100%); max-height: calc(100vh - 96px); display: flex; flex-direction: column; overflow: hidden;
+      background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); }
+    .sheet-head { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4) var(--space-4) var(--space-3); border-bottom: 1px solid var(--color-border); }
+    .sheet-head h2 { font-size: var(--text-xl); }
+    .sheet-sub { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--color-muted); }
+    .head-actions { margin-left: auto; display: flex; gap: var(--space-1); }
+    .icon-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px;
+      background: none; border: 0; border-radius: var(--radius-sm); color: var(--color-muted); cursor: pointer; }
+    .icon-btn:hover { color: var(--color-text); }
+    .theme-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px;
+      background: none; border: 0; border-radius: var(--radius-sm); color: var(--color-muted); cursor: pointer; }
+    .theme-btn:hover { color: var(--color-text); }
+    .theme-btn svg, .icon-btn svg { width: 20px; height: 20px; }
+
+    .sheet-body { overflow-y: auto; padding: var(--space-4); display: grid; gap: var(--space-4); }
+    .sheet-foot { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+      border-top: 1px solid var(--color-border); background: var(--color-surface); }
+    .foot-spacer { flex: 1; }
+    .sheet-foot .btn-primary { min-width: 168px; }
+
+    [hidden] { display: none !important; }
+
+    /* ---------- Кнопки — классы кита ---------- */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 44px; min-width: 44px;
+      padding: 0 var(--space-4); border-radius: var(--radius-sm); border: 1px solid transparent; font-family: var(--font-ui);
+      font-size: var(--text-md); font-weight: 600; text-decoration: none; cursor: pointer;
+      transition: transform var(--dur) var(--ease), background-color var(--dur) var(--ease); }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--color-accent); color: var(--color-on-accent); }
+    .btn-secondary { background: transparent; color: var(--color-text); border-color: var(--color-accent-2); }
+    .btn-ghost { background: transparent; color: var(--color-text); }
+    .btn-danger { background: transparent; color: var(--color-danger); border-color: var(--color-accent-2); }
+    .btn-done { background: color-mix(in srgb, var(--color-success) 12%, transparent); color: var(--color-success); border-color: var(--color-success); }
+    .btn svg { width: 18px; height: 18px; flex: none; }
+
+    /* ---------- Поля ---------- */
+    .field { display: grid; gap: var(--space-1); font-family: var(--font-ui); min-width: 0; }
+    .label, .field > label { font-size: var(--text-sm); font-weight: 600; }
+    .label-row { display: flex; align-items: baseline; gap: var(--space-3); }
+    .counter { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-muted); font-variant-numeric: tabular-nums; }
+    .opt { font-weight: 400; color: var(--color-muted); }
+    .hint { margin: 0; font-size: var(--text-sm); color: var(--color-muted); }
+    .input { min-height: 44px; padding: 0 var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      background: var(--color-raised); color: var(--color-text); width: 100%; }
+    .input:focus-visible, .input:focus { border-color: var(--color-accent); outline: none; }
+    textarea.input { padding: var(--space-2) var(--space-3); min-height: 88px; resize: vertical; }
+    select.input { appearance: none; padding-right: var(--space-5); }
+    .select-wrap { position: relative; }
+    .select-wrap svg { position: absolute; right: var(--space-3); top: 50%; translate: 0 -50%; width: 16px; height: 16px; color: var(--color-muted); pointer-events: none; }
+    .field.is-error .input { border-color: var(--color-danger); }
+    .field-error { display: flex; align-items: center; gap: var(--space-1); font-size: var(--text-sm); color: var(--color-danger); }
+    .field-error svg { width: 14px; height: 14px; flex: none; }
+
+    /* Форма-ошибка верхнего уровня (контракт: task-form-error) */
+    .form-error { display: flex; align-items: flex-start; gap: var(--space-2); margin: 0; padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--color-danger); border-radius: var(--radius-md); background: var(--color-danger-soft);
+      color: var(--color-danger); font-size: var(--text-sm); }
+    .form-error svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+
+    /* Название */
+    .input-title { font-size: var(--text-xl); font-weight: 600; min-height: 56px; font-family: var(--font-body); }
+
+    /* Статус — блок с «Выполнить» сверху формы */
+    .status-card { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-3);
+      background: var(--color-raised); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+    .status-label { font-size: var(--text-sm); font-weight: 600; color: var(--color-muted); }
+    .status-meta { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-muted); font-variant-numeric: tabular-nums; }
+    .status-card .btn-done { margin-left: auto; }
+    .badge { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 24px; padding: 0 var(--space-2);
+      border-radius: var(--radius-sm); font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500;
+      background: var(--color-warning-soft); color: var(--color-warning); border: 1px solid transparent; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--color-warning); }
+
+    /* Приоритет — сегмент из трёх кнопок */
+    .segment { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+    .seg { position: relative; min-width: 0; }
+    .seg input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+    .seg-face { display: flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 48px; padding: 0 var(--space-2);
+      border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-raised);
+      color: var(--color-muted); font-weight: 500; font-size: var(--text-md); cursor: pointer; user-select: none; }
+    .seg-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--seg-c, var(--color-muted)); }
+    .seg-low { --seg-c: var(--color-muted); }
+    .seg-mid { --seg-c: var(--color-warning); }
+    .seg-high { --seg-c: var(--color-accent-2); }
+    .seg-check { width: 16px; height: 16px; flex: none; color: var(--seg-c); opacity: 0; transition: opacity var(--dur) var(--ease); }
+    .seg:has(:checked) .seg-face { color: var(--color-text); font-weight: 600;
+      border-color: color-mix(in srgb, var(--seg-c) 55%, var(--color-border));
+      background: color-mix(in srgb, var(--seg-c) 14%, var(--color-raised));
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--seg-c) 55%, var(--color-border)); }
+    .seg:has(:checked) .seg-check { opacity: 1; }
+    .seg input:focus-visible ~ .seg-face { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+    /* Срок — quick-чипы + календарь */
+    .chips-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+    .qchip { position: relative; }
+    .qchip input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+    .qchip-face { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 44px; padding: 0 var(--space-3);
+      border: 1px solid var(--color-border); border-radius: var(--radius-pill); background: var(--color-raised);
+      color: var(--color-muted); font-size: var(--text-sm); font-weight: 500; cursor: pointer; user-select: none; }
+    .qchip-face svg { width: 15px; height: 15px; }
+    .qchip:has(:checked) .qchip-face { color: var(--color-text); font-weight: 600; border-color: var(--color-accent);
+      background: color-mix(in srgb, var(--color-accent) 16%, var(--color-raised));
+      box-shadow: inset 0 0 0 1px var(--color-accent); }
+    .qchip input:focus-visible ~ .qchip-face { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+    .input-date { width: auto; min-width: 150px; font-family: var(--font-mono); font-size: var(--text-sm); margin-left: auto; }
+
+    /* Категория + исполнитель */
+    .duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+
+    /* Теги */
+    .tagbox { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-height: 48px; padding: var(--space-1) var(--space-2);
+      border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-raised); }
+    .tagbox:focus-within { border-color: var(--color-accent); }
+    .chip { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 36px; padding: 0 var(--space-1) 0 var(--space-2);
+      border-radius: var(--radius-pill); font-family: var(--font-ui); font-size: var(--text-xs); font-weight: 500;
+      color: var(--color-text); border: 1px solid var(--color-border); background: var(--color-surface); }
+    .chip-x { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin: 0;
+      background: none; border: 0; border-radius: var(--radius-pill); color: var(--color-muted); cursor: pointer; }
+    .chip-x:hover { color: var(--color-danger); }
+    .chip-x svg { width: 12px; height: 12px; }
+    .tagbox .input { border: 0; background: transparent; min-height: 40px; flex: 1; min-width: 120px; width: auto; padding: 0 var(--space-1); }
+
+    /* Фастлайн — тумблер-карточка; в редактировании is_fast не меняется */
+    .fast-card { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+      background: var(--color-raised); border: 1px solid var(--color-border); border-left: 3px solid var(--color-accent);
+      border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-accent) 8%, var(--color-raised)); }
+    .fast-toggle { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+    .switch { appearance: none; width: 40px; height: 24px; flex: none; margin: 0; border-radius: var(--radius-pill); background: var(--color-accent); position: relative; cursor: not-allowed; opacity: .9; }
+    .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--color-surface); transform: translateX(16px); }
+    .switch:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+    .fast-text { display: grid; gap: 2px; min-width: 0; }
+    .fast-name2 { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--font-ui); font-weight: 600; font-size: var(--text-md); }
+    .fast-name2 svg { width: 17px; height: 17px; color: var(--color-accent); }
+    .fast-cap { font-size: var(--text-sm); color: var(--color-muted); }
+    .fast-cap strong { color: var(--color-warning); font-weight: 600; }
+
+    /* ---------- Мобильный bottom-sheet ---------- */
+    @media (max-width: 760px) {
+      .overlay { align-items: end; padding: var(--space-4) 0 0; }
+      .sheet { width: 100%; max-height: calc(100dvh - var(--space-4)); border-radius: var(--radius-lg) var(--radius-lg) 0 0; border-bottom: 0; position: relative; }
+      .sheet::before { content: ""; position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 40px; height: 4px;
+        border-radius: var(--radius-pill); background: var(--color-border); }
+      .sheet-head { padding: var(--space-4) var(--space-3) var(--space-3); }
+      .sheet-head h2 { font-size: var(--text-lg); }
+      .sheet-body { padding: var(--space-3); gap: var(--space-3); }
+      .sheet-foot { flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3); padding-bottom: max(var(--space-3), env(safe-area-inset-bottom)); }
+      .foot-spacer { display: none; }
+      .sheet-foot .btn-ghost { flex: 0 0 auto; }
+      .sheet-foot .btn-primary { flex: 1 1 auto; min-width: 0; }
+      .sheet-foot .btn-danger { order: 3; flex: 1 0 100%; }
+      .duo { grid-template-columns: 1fr; }
+      .input-title { font-size: var(--text-lg); min-height: 52px; }
+      .chip { min-height: 44px; }
+      .chip-x { width: 36px; height: 36px; }
+      .input-date { margin-left: 0; width: 100%; }
+      .status-card .btn-done { margin-left: 0; flex: 1 0 100%; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Призрачная доска за оверлеем -->
+  <div class="ghost" aria-hidden="true" inert>
+    <header class="topbar">
+      <span class="brand">ekotov-wiki</span>
+      <nav class="tabs" aria-label="Доски">
+        <span class="tab on">Разработка</span>
+        <span class="tab">Контент</span>
+        <span class="tab">Инфра</span>
+      </nav>
+    </header>
+    <main>
+      <div class="ghost-head">
+        <h1>Доска</h1>
+        <span class="gdate">23 ноября, понедельник</span>
+        <span class="gstats">ACT 6 · DONE 3</span>
+        <a class="btn btn-primary" href="create.html" style="margin-left:auto">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Создать задачу
+        </a>
+      </div>
+      <div class="fastlane-ghost">
+        <span class="glabel">FST-01</span>
+        <span class="gname">Переработать дизайн канбан-доски</span>
+      </div>
+    </main>
+  </div>
+
+  <div class="overlay">
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+      <header class="sheet-head">
+        <div>
+          <h2 id="dlg-title">Редактирование</h2>
+          <p class="sheet-sub">FST-01 · задача на фастлайне — изменения применяются сразу после сохранения.</p>
+        </div>
+        <div class="head-actions">
+          <button class="theme-btn" type="button" aria-label="Переключить тему" aria-pressed="false" onclick="toggleTheme()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>
+            </svg>
+          </button>
+          <button class="icon-btn" type="button" aria-label="Закрыть форму без сохранения">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <form id="task-form" class="sheet-body" action="#">
+        <p id="task-form-error" class="form-error" role="alert" hidden></p>
+
+        <div class="status-card" role="group" aria-label="Статус задачи" data-part="Блок статуса">
+          <span class="status-label">Статус</span>
+          <span class="badge"><span class="dot" aria-hidden="true"></span>В работе</span>
+          <span class="status-meta">колонка «В работе» · фастлайн</span>
+          <button class="btn btn-done" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 12.5l5 5 10-11"/></svg>
+            Выполнить
+          </button>
+        </div>
+
+        <div class="field">
+          <div class="label-row">
+            <label for="task-title">Название</label>
+            <span class="counter" id="title-counter" aria-live="polite">37/500</span>
+          </div>
+          <input class="input input-title" id="task-title" name="title" type="text" maxlength="500" required
+                 value="Переработать дизайн канбан-доски">
+        </div>
+
+        <div class="field">
+          <label for="task-description">Описание <span class="opt">— необязательно</span></label>
+          <textarea class="input" id="task-description" name="description" rows="3">Собрать новый UI доски по канону направления A: фастлайн, три столбца, карточки с кромкой приоритета. Проверить drag&amp;drop и счётчики «Выполнено сегодня».</textarea>
+        </div>
+
+        <div class="field">
+          <span class="label" id="prio-label">Приоритет</span>
+          <div class="segment" role="radiogroup" aria-labelledby="prio-label" id="task-priority" data-part="Сегмент приоритета">
+            <label class="seg seg-low">
+              <input type="radio" name="priority" value="low">
+              <span class="seg-face"><i class="seg-dot" aria-hidden="true"></i>Низкий
+                <svg class="seg-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 12.5l5 5 10-11"/></svg>
+              </span>
+            </label>
+            <label class="seg seg-mid">
+              <input type="radio" name="priority" value="medium" checked>
+              <span class="seg-face"><i class="seg-dot" aria-hidden="true"></i>Средний
+                <svg class="seg-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 12.5l5 5 10-11"/></svg>
+              </span>
+            </label>
+            <label class="seg seg-high">
+              <input type="radio" name="priority" value="high">
+              <span class="seg-face"><i class="seg-dot" aria-hidden="true"></i>Высокий
+                <svg class="seg-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 12.5l5 5 10-11"/></svg>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label" id="due-label">Срок</span>
+          <div class="chips-row" role="group" aria-labelledby="due-label" data-part="Quick-чипы срока">
+            <label class="qchip">
+              <input type="radio" name="due_quick" value="today">
+              <span class="qchip-face">Сегодня</span>
+            </label>
+            <label class="qchip">
+              <input type="radio" name="due_quick" value="tomorrow">
+              <span class="qchip-face">Завтра</span>
+            </label>
+            <label class="qchip">
+              <input type="radio" name="due_quick" value="week" checked>
+              <span class="qchip-face">+7 дней</span>
+            </label>
+            <label class="qchip">
+              <input type="radio" name="due_quick" value="custom">
+              <span class="qchip-face">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17"/><path d="M8 2.5V6"/><path d="M16 2.5V6"/>
+                </svg>
+                Календарь
+              </span>
+            </label>
+            <input class="input input-date" type="date" id="task-due" name="due_date" value="2026-11-28" aria-label="Дата срока">
+          </div>
+        </div>
+
+        <div class="duo">
+          <div class="field">
+            <label for="task-category">Категория</label>
+            <span class="select-wrap">
+              <select class="input" id="task-category" name="category" data-part="Список выбора">
+                <option value="">— не задана —</option>
+                <option selected>Разработка</option>
+                <option>Инфраструктура</option>
+                <option>Контент</option>
+                <option>Баг</option>
+              </select>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg>
+            </span>
+          </div>
+          <div class="field">
+            <label for="task-assigned">Исполнитель</label>
+            <span class="select-wrap">
+              <select class="input" id="task-assigned" name="assigned_to_id" data-part="Список выбора">
+                <option value="">Не назначено</option>
+                <option selected>ekotov — это вы</option>
+                <option>maria</option>
+                <option>conveyor-bot</option>
+              </select>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg>
+            </span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="task-tags">Теги</label>
+          <div class="tagbox" data-part="Теги с комбобоксом">
+            <span class="chip">канбан
+              <button class="chip-x" type="button" aria-label="Убрать тег «канбан»">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+            </span>
+            <span class="chip">дизайн
+              <button class="chip-x" type="button" aria-label="Убрать тег «дизайн»">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+            </span>
+            <span class="chip">fe
+              <button class="chip-x" type="button" aria-label="Убрать тег «fe»">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+            </span>
+            <input class="input" id="task-tags" name="tags" type="text" autocomplete="off"
+                   placeholder="Добавить тег…" aria-describedby="tags-hint">
+          </div>
+          <p class="hint" id="tags-hint">Подсказки из заведённых тегов: kanban, be, postgres, tls, ops</p>
+        </div>
+
+        <div class="fast-card" data-part="Фастлайн-тумблер">
+          <div class="fast-toggle">
+            <input type="checkbox" id="task-is-fast" name="is_fast" class="switch" role="switch" checked
+                   aria-label="fast line" aria-describedby="fast-gate">
+            <span class="fast-text">
+              <strong class="fast-name2">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M13 2.5L4.5 13.5H11l-1 8L18.5 10H12l1-7.5Z"/>
+                </svg>
+                Фастлайн
+              </strong>
+              <span class="fast-cap" id="fast-gate"><strong>Гейт занят:</strong> is_fast меняется только при создании — освободите текущую задачу</span>
+            </span>
+          </div>
+        </div>
+      </form>
+
+      <footer class="sheet-foot" data-part="Липкий футер формы">
+        <button class="btn btn-danger" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4.5 6.5h15"/><path d="M9 6.5V4.8c0-.7.6-1.3 1.3-1.3h3.4c.7 0 1.3.6 1.3 1.3v1.7"/><path d="M6.5 6.5l.8 12.2c.1.9.8 1.5 1.7 1.5h6c.9 0 1.6-.6 1.7-1.5l.8-12.2"/><path d="M10 10.5v6"/><path d="M14 10.5v6"/>
+          </svg>
+          Удалить
+        </button>
+        <span class="foot-spacer" aria-hidden="true"></span>
+        <button class="btn btn-ghost" type="button">Отмена</button>
+        <button class="btn btn-primary" type="submit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 12.5l5 5 10-11"/></svg>
+          Сохранить
+        </button>
+      </footer>
+    </section>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      var r = document.documentElement;
+      var light = r.dataset.theme === "light";
+      if (light) { delete r.dataset.theme; } else { r.dataset.theme = "light"; }
+      var b = document.querySelector(".theme-btn");
+      b.setAttribute("aria-pressed", String(!light));
+    }
+    var titleEl = document.getElementById("task-title");
+    var counter = document.getElementById("title-counter");
+    function updCounter() { counter.textContent = titleEl.value.length + "/500"; }
+    titleEl.addEventListener("input", updCounter);
+    updCounter();
+    document.querySelectorAll('input[name="due_quick"]').forEach(function (r) {
+      r.addEventListener("change", function () {
+        if (r.value === "custom") document.getElementById("task-due").focus();
+      });
+    });
+  </script>
+</body>
+</html>
