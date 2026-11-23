@@ -55,6 +55,13 @@ def test_edit_comments_block_below_form(board_page, web_cleanup_created):
     card = _open_edit_form(page, "QAT-cmt-под-формой")
     web_cleanup_created(int(card.get_attribute("data-task-id")))
 
+    # Осадка верстки перед замером bbox: под нагрузкой серийного прогона
+    # подмена шрифта (font swap) меняет метрики между двумя snapshot-ами
+    # bounding_box (не-ассертное чтение без ретрая) — измеряем ПОСЛЕ
+    # готовности шрифтов (интент кейса — раскладка, не тайминги загрузки).
+    page.evaluate("async () => { await document.fonts.ready; }")
+    page.wait_for_timeout(50)
+
     bb_form = page.locator("#task-form").bounding_box()
     bb_comments = page.locator(COMMENTS).bounding_box()
     assert bb_form is not None and bb_comments is not None
