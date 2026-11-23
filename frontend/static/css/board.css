@@ -1707,6 +1707,9 @@
   color: var(--color-text-primary);
   width: auto;
   min-width: 85px;
+  /* F1 (липкий футер): margin-top формы (4px) снимается — иначе селект
+   * смещен вниз относительно кнопок ряда (центры ±4px, TC-r6-wave2-001). */
+  margin-top: 0;
   padding: var(--space-05) var(--space-05) 6px;
   border: none;
   border-bottom: 2px solid var(--color-border-default);

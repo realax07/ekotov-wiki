@@ -4,6 +4,12 @@
 ассерты остаются в тестах, PO — действия и возврат локаторов. Скрытые
 hidden-модалки не имеют ARIA-роли — id-локаторы разрешены кейсом
 (соглашение п.3, tests/web/test_board_tasks_ui.py).
+
+Трассировка change form-f1 (openspec/changes/form-f1): F1-компоненты —
+TC-FORM-001 (сегмент приоритета: segment_loc/seg_loc/checked_seg),
+TC-FORM-002 (quick-чипы срока: due_chip_loc), TC-FORM-003 (счётчик:
+counter_loc); ассерты — в test_r3_formv3_ui.py и
+test_settings_categories_ui.py.
 """
 
 from playwright.sync_api import expect
