@@ -36,8 +36,8 @@
  * отображение, без изменений логики/валидации:
  * - вид выбранных тегов: чипы .chip (крестик удаления) синхронно с
  *   input «Теги» (renderTagsChips; источник истины — input);
- * - выбранный приоритет: SVG-иконка в пилюле (renderPriorityPillIcon,
- *   priority-icons.js; цвет дает пилюля по :has(:checked));
+ * - выбранный приоритет: сегмент из 3 кнопок (renderPrioritySegment;
+ *   источник истины — скрытый нативный select, контракт не тронут);
  * - FR-89 (add-ui-polish-r8 2.7, design §2): ряд .fast-row ПОКАЗЫВАЕТСЯ
  *   и в редактировании — с текущим состоянием is_fast задачи; включение
  *   блокирует приоритет high (логика 4.3), выключение разблокирует;
@@ -66,7 +66,6 @@ import { refreshBoard } from "./cards.js";
  * импортирует task-form.js (только динамически по клику), к моменту
  * загрузки формы он уже вычислен; на /search форма не грузится вовсе. */
 import { openTaskDetail } from "./task-detail.js";
-import { createPriorityIcon, PRIORITY_LABELS } from "./priority-icons.js";
 
 /* --- Форма создания/редактирования (FR-5, FR-7, FR-9) --- */
 
@@ -88,29 +87,133 @@ function setPriorityLock(locked) {
     select.value = "high";
   }
   select.disabled = locked;
-  renderPriorityPillIcon();
+  renderPrioritySegment();
 }
 
-/* --- 4.1 (FR-34/DEF-005, зона «отображение выбранного приоритета»):
- * SVG-иконка выбранного приоритета внутри пилюли (мокап V3 — иконка +
- * текст; FR-29: различимость без цвета). Пилюля несет цвет по
- * :has(:checked) (board.css), иконка рисуется currentColor. Визуальный
- * отклик на выбор — только иконка; value/коллект payload не тронуты. */
+/* --- F1 (PLAN-FORM-F1, эталон design-forge/extra/form-v1/create.html
+ * .segment): приоритет — СЕГМЕНТ из 3 кнопок поверх СОХРАНЕННОГО
+ * нативного select (#task-priority: value, collectTaskForm, e2e
+ * select_option — контракт не тронут). Сегмент — только отображение:
+ * .is-checked/aria-pressed следят за value селекта; клик по кнопке
+ * пишет value в select (источник истины), programmatic-записи
+ * (fillTaskForm/setPriorityLock) перерисовываются явным
+ * renderPrioritySegment. Disabled-селект (fast line закрепила
+ * приоритет, FR-27) дизаблит кнопки сегмента. Пустой value («—»,
+ * создание) — ни одна кнопка не подсвечена (mockup-дефолт «средний»
+ * НЕ переносится: менял бы payload — priority: null легален). */
 
-var PRIORITY_PILL_ICON_ID = "task-priority-pill-icon";
+var PRIORITY_SEGMENT_ID = "task-priority-segment";
 
-function renderPriorityPillIcon() {
-  var iconBox = document.getElementById(PRIORITY_PILL_ICON_ID);
-  if (!iconBox) {
+function renderPrioritySegment() {
+  var segment = document.getElementById(PRIORITY_SEGMENT_ID);
+  if (!segment) {
     return;
   }
-  var priority = document.getElementById(PRIORITY_FIELD_ID).value;
-  iconBox.textContent = "";
-  if (priority && PRIORITY_LABELS[priority]) {
-    iconBox.appendChild(createPriorityIcon(priority, 14, 2));
-  }
-  /* Пустой выбор — иконки нет (мокап: «—»); :empty прячет бокс (css). */
+  var select = document.getElementById(PRIORITY_FIELD_ID);
+  var value = select.value;
+  Array.prototype.forEach.call(
+    segment.querySelectorAll(".seg"),
+    function (button) {
+      var on =
+        !!value && button.getAttribute("data-priority-value") === value;
+      button.classList.toggle("is-checked", on);
+      button.setAttribute("aria-pressed", on ? "true" : "false");
+      button.disabled = select.disabled;
+    }
+  );
 }
+
+/* Клик по кнопке сегмента → значение в нативный select + перерисовка.
+ * Логика отправки не задействована (collectTaskForm читает select). */
+document
+  .getElementById(PRIORITY_SEGMENT_ID)
+  .addEventListener("click", function (event) {
+    var button = event.target.closest(".seg");
+    if (!button || button.disabled) {
+      return;
+    }
+    var select = document.getElementById(PRIORITY_FIELD_ID);
+    if (select.disabled) {
+      return;
+    }
+    select.value = button.getAttribute("data-priority-value");
+    renderPrioritySegment();
+  });
+
+/* --- F1: счётчик 0/500 у названия (#title-counter, эталон create.html
+ * .counter). Только отображение: maxlength=500 уже ограничивает ввод;
+ * обновляется на ввод и при заполнении формы (fillTaskForm). */
+
+var TITLE_COUNTER_ID = "title-counter";
+
+function updateTitleCounter() {
+  var counter = document.getElementById(TITLE_COUNTER_ID);
+  if (!counter) {
+    return;
+  }
+  var length = document.getElementById("task-title").value.length;
+  counter.textContent = length + "/500";
+}
+
+document
+  .getElementById("task-title")
+  .addEventListener("input", updateTitleCounter);
+
+/* --- F1: quick-чипы срока (#task-due-chips, эталон create.html) —
+ * «Сегодня/Завтра/+7 дней» пишут дату в нативный date-инпут
+ * #task-due-date (источник истины; collectTaskForm не тронут).
+ * Подсветка .is-checked — по совпадению даты чипа со значением инпута:
+ * ручной ввод/календарь перерисовывают чипы тем же рендером; дата вне
+ * быстрых значений — ни один чип не подсвечен. */
+
+var DUE_INPUT_ID = "task-due-date";
+var DUE_CHIPS_ID = "task-due-chips";
+var DUE_QUICK_DAYS = { today: 0, tomorrow: 1, week: 7 };
+
+function quickChipDate(daysAhead) {
+  var date = new Date();
+  date.setDate(date.getDate() + daysAhead);
+  var month = String(date.getMonth() + 1).padStart(2, "0");
+  var day = String(date.getDate()).padStart(2, "0");
+  return date.getFullYear() + "-" + month + "-" + day;
+}
+
+function renderDueChips() {
+  var chipsRow = document.getElementById(DUE_CHIPS_ID);
+  if (!chipsRow) {
+    return;
+  }
+  var value = document.getElementById(DUE_INPUT_ID).value;
+  Array.prototype.forEach.call(
+    chipsRow.querySelectorAll(".qchip"),
+    function (chip) {
+      var days = DUE_QUICK_DAYS[chip.getAttribute("data-due-quick")];
+      var on =
+        !!value && days !== undefined && quickChipDate(days) === value;
+      chip.classList.toggle("is-checked", on);
+      chip.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+  );
+}
+
+document.getElementById(DUE_CHIPS_ID).addEventListener("click", function (event) {
+  var chip = event.target.closest(".qchip");
+  if (!chip) {
+    return;
+  }
+  var days = DUE_QUICK_DAYS[chip.getAttribute("data-due-quick")];
+  if (days === undefined) {
+    return;
+  }
+  document.getElementById(DUE_INPUT_ID).value = quickChipDate(days);
+  renderDueChips();
+});
+document
+  .getElementById(DUE_INPUT_ID)
+  .addEventListener("input", renderDueChips);
+document
+  .getElementById(DUE_INPUT_ID)
+  .addEventListener("change", renderDueChips);
 
 /* --- 4.1 (FR-34/DEF-005, зона «вид выбранных тегов»): чипы выбранных
  * тегов по мокапу V3 (.chip с крестиком удаления). Состояние
@@ -450,9 +553,12 @@ function fillTaskForm(task) {
    * (boardState.fastlineBusy) и признаку задачи. */
   document.getElementById(IS_FAST_FIELD_ID).disabled = false;
   document.getElementById("task-is-fast-gate").hidden = true;
-  /* 4.1 (DEF-005): визуальные зоны — иконка приоритета и чипы тегов —
-   * перерисовываются под заполненные значения (в т.ч. при очистке). */
-  renderPriorityPillIcon();
+  /* 4.1 (DEF-005): визуальные зоны — сегмент приоритета, счётчик,
+   * чипы срока и чипы тегов — перерисовываются под заполненные
+   * значения (в т.ч. при очистке). */
+  renderPrioritySegment();
+  updateTitleCounter();
+  renderDueChips();
   renderTagsChips();
 }
 
@@ -723,8 +829,10 @@ export function openEditForm(task) {
    * отсутствующему DOM — ранний return уже после сброса). Транзакция
    * «замена задачи в форме» начинается здесь, а не в helpers. */
   resetTagLedger();
+  /* F1 (эталон edit.html): заголовок режима редактирования —
+   * «Редактирование». */
   document.getElementById("task-form-heading").textContent =
-    "Редактирование задачи";
+    "Редактирование";
   document.getElementById("task-form-submit").textContent = "Сохранить";
   /* FR-89 (design §2): в режиме редактирования ряд fast line ПОКАЗЫВАЕТСЯ
    * с текущим состоянием is_fast (fillTaskForm ниже); переключение — теми
@@ -1013,11 +1121,12 @@ export function initTaskActions() {
 categoryField().addEventListener("change", clearCategoryInvalid);
 
 /* 4.1 (FR-34/DEF-005): живой отклик визуальных зон на ввод —
- * иконка приоритета (change) и чипы тегов (input). Логика значений
+ * сегмент приоритета (change: в т.ч. e2e select_option по скрытому
+ * select — контракт) и чипы тегов (input). Логика значений
  * (collectTaskForm) не задействована. */
 document
   .getElementById(PRIORITY_FIELD_ID)
-  .addEventListener("change", renderPriorityPillIcon);
+  .addEventListener("change", renderPrioritySegment);
 document
   .getElementById(TAGS_INPUT_ID)
   .addEventListener("input", renderTagsChips);

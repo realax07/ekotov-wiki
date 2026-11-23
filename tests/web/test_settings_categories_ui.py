@@ -771,9 +771,9 @@ def test_task_form_priorities_distinguished_color_and_icon(
 ):
     """TC-form-008 (CHK-119): приоритеты low/medium/high различимы и цветом
     (computed style бейджей попарно различен), и иконкой (svg у каждого
-    бейджа); в форме выбор приоритета сопровождается цветом пилюли
-    (.priority-field-pill :has(:checked)) и текстом опций «Низкий/Средний/
-    Высокий» (CHK-144: фактическая реализация в протоколе)."""
+    бейджа); в форме выбор приоритета сопровождается подсветкой сегмента
+    F1 (#task-priority-segment .seg.is-checked) и текстом кнопок
+    «Низкий/Средний/Высокий» (CHK-144: фактическая реализация в протоколе)."""
     page = logged_in_page
     board = BoardPage(page)
     form = TaskForm(page)
@@ -826,22 +826,31 @@ def test_task_form_priorities_distinguished_color_and_icon(
     for a, b in pairs:
         assert styles[a] != styles[b], f"стили {a!r} и {b!r} совпадают"
 
-    # Шаг 4: форма — select «Приоритет» (нативный select, контракт
-    # task-form.js 4.5/e2e); иконку внутри нативного select реализация не
-    # отрисовывает — различимость в форме дают цвет пилюли + текст опций.
+    # Шаг 4 (F1 UPDATE, PLAN-FORM-F1): форма — select «Приоритет»
+    # (нативный select, контракт task-form.js 4.5/e2e) под СЕГМЕНТОМ из
+    # 3 кнопок (эталон design-forge/extra/form-v1/create.html); различимость
+    # дают подсветка сегмента (.is-checked) + текст кнопок
+    # «Низкий/Средний/Высокий» (CHK-144).
     form.open_create()
-    pill = form.priority_pill()
     select = form.priority
     for value, label in (("low", "Низкий"), ("medium", "Средний"), ("high", "Высокий")):
         select.select_option(value)
-        expect(form.priority_pill_in_overlay()).to_be_visible()
-    # Цвет пилюли следует выбранному значению (computed style меняется).
+        expect(form.priority_checked_seg()).to_be_visible()
+        assert form.priority_checked_seg().get_attribute(
+            "data-priority-value"
+        ) == value, label
+    # Подсветка сегмента следует выбранному значению (computed style меняется;
+    # сравнение по рамке — 55%-микс цвета приоритета, различим надежно).
     select.select_option("low")
-    style_low = pill.evaluate("el => getComputedStyle(el).backgroundColor")
+    style_low = form.priority_checked_seg().evaluate(
+        "el => getComputedStyle(el).borderColor"
+    )
     select.select_option("high")
-    style_high = pill.evaluate("el => getComputedStyle(el).backgroundColor")
+    style_high = form.priority_checked_seg().evaluate(
+        "el => getComputedStyle(el).borderColor"
+    )
     assert style_low != style_high, (
-        f"цвет пилюли формы не меняется: {style_low!r} vs {style_high!r}"
+        f"подсветка сегмента не меняется: {style_low!r} vs {style_high!r}"
     )
     # Скриншот формы (шаг 5 — приложить к протоколу).
     page.screenshot(path="tests/web/artifacts/tc-form-008-form.png")

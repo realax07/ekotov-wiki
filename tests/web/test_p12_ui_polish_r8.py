@@ -78,47 +78,50 @@ def _seed_tagged_task(web_owner_session, web_base_url, title, tags):
 # TC-UIP-103 — .fast-row по макету V3: токены, 8px-сетка, блокировка
 # --------------------------------------------------------------------------
 def test_fast_row_v3_geometry_and_priority_lock(board_page):
-    """TC-UIP-103 (CHK-P12-3, FR-88): .fast-row формы создания — плашка на
-    голубых токенах V3 (var(--p-blue-*), без литеральных hex), отступы на
-    8px-сети, чекбокс 16px; отметка fast → приоритет high и заблокирован,
-    снятие — разблокирован (behavior-инвариант FR-88 сохранен)."""
+    """TC-UIP-103 (CHK-P12-3, FR-88; F1 UPDATE — PLAN-FORM-F1, эталон
+    design-forge/extra/form-v1/create.html .fast-card): .fast-row формы
+    создания — тумблер-карточка на токенах (фон --color-raised, рамка
+    --color-border-default, без литеральных hex), отступы на 8px-сети,
+    switch 40×24 (appearance:none); отметка fast → приоритет high и
+    заблокирован, снятие — разблокирован (behavior-инвариант FR-88
+    сохранен)."""
     page = board_page
     form = _open_board_form(page)
 
     row = form.fast_row()
     expect(row).to_be_visible()
 
-    # Токены V3: фон/бордер ряда резолвятся в значения :root-токенов
-    # (amber-900/amber-400 «Пульта», impact.md п.4), радиус = токен --radius-field.
+    # Токены: фон/бордер карточки резолвятся в значения :root-токенов
+    # (raised/border-default канона A), радиус = токен --radius-md.
     styles = page.evaluate(
         """() => {
           const row = document.querySelector("#task-form .fast-row");
-          const cb = row.querySelector("input");
+          const sw = row.querySelector("input");
           const root = getComputedStyle(document.documentElement);
           const cs = getComputedStyle(row);
-          const cbcs = getComputedStyle(cb);
+          const swcs = getComputedStyle(sw);
           return {
             bg: cs.backgroundColor,
-            bgToken: root.getPropertyValue("--color-accent-soft").trim(),
+            bgToken: root.getPropertyValue("--color-raised").trim(),
             border: cs.borderTopColor,
-            borderToken: root.getPropertyValue("--color-accent").trim(),
+            borderToken: root.getPropertyValue("--color-border-default").trim(),
             radius: cs.borderRadius,
-            radiusToken: root.getPropertyValue("--radius-field").trim(),
             marginBottom: cs.marginBottom,
-            cbW: cbcs.width,
-            cbH: cbcs.height,
+            swW: swcs.width,
+            swH: swcs.height,
+            swAppearance: swcs.appearance,
           };
         }"""
     )
     assert styles["bg"] != "rgba(0, 0, 0, 0)", styles
     assert styles["border"] != "rgba(0, 0, 0, 0)", styles
     assert styles["marginBottom"] in ("8px", "16px"), styles  # 8px-сетка
-    assert styles["cbW"] == "16px" and styles["cbH"] == "16px", styles
-    # Токен-значения непусты (стиль ряда строится на var(--…), не литералах)
-    # и computed bg/border РАВНЫ значениям токенов (review-004 nit-2:
-    # литеральный hex, совпадающий с видимым цветом, больше не проходит).
-    assert styles["bgToken"], "--color-accent-soft пуст"
-    assert styles["borderToken"], "--color-accent пуст"
+    assert styles["swW"] == "40px" and styles["swH"] == "24px", styles
+    assert styles["swAppearance"] == "none", styles  # кастомный switch
+    # Токен-значения непусты (стиль карточки строится на var(--…), не
+    # литералах) и computed bg/border РАВНЫ значениям токенов.
+    assert styles["bgToken"], "--color-raised пуст"
+    assert styles["borderToken"], "--color-border-default пуст"
     assert _rgb_to_hex(styles["bg"]) == styles["bgToken"].lower(), styles
     assert _rgb_to_hex(styles["border"]) == styles["borderToken"].lower(), styles
 

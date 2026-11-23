@@ -751,46 +751,110 @@
   .task-form .combobox-popup { max-height: 200px; }
 }
 
-/* Fast line — ряд-плашка на голубых токенах (мокап .fast-row, FR-3);
- * 2.1 add-ui-polish-r8 (FR-88): приведен к утвержденному макету V3
- * (design/archive/form-style-v3.html, приемка мокапов P12 —
- * design/polish-ticket-modal.html бейдж fast на тех же токенах):
- * чекбокс 16px с отступом-выравниванием по первой строке (margin-top
- * 1px мокапа), accent-color токеном, focus-visible кольцо на чекбоксе,
- * label полужирный как в макете; отступ ряда до следующего поля —
- * var(--space-2). Поведение блокировки приоритета (task-form.js,
- * FR-27) не менялось. При reduced-motion transition не заводились —
- * только цвета. */
+/* Fast line — тумблер-карточка (F1 «Быстрый поток», PLAN-FORM-F1;
+ * эталон design-forge/extra/form-v1/create.html .fast-card). Класс
+ * .fast-row на карточке СОХРАН (контракт PO/e2e fast_row, hidden-цикл
+ * openCreateForm/openEditForm). Нейтральная карточка; :has(:checked)
+ * подсвечивает золотом (--color-accent). Чекбокс — switch 40×24
+ * (appearance:none) — только отображение; логика блокировки приоритета
+ * (task-form.js, FR-27) не менялась. */
 .task-form .fast-row {
   display: flex;
-  gap: var(--space-1);
-  align-items: flex-start;
-  padding: var(--space-1);
-  background: var(--color-accent-soft);
-  border: 1px solid var(--fastline);
-  border-radius: var(--radius-field);
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-raised);
+  border: 1px solid var(--color-border-default);
+  border-left: 3px solid var(--color-border-default);
+  border-radius: var(--radius-md);
   font-size: var(--font-size-label);
   margin-bottom: var(--space-2);
+  transition:
+    border-color var(--speed-fast) ease,
+    background var(--speed-fast) ease;
 }
 
 .task-form .fast-row[hidden] { display: none; }
 
-.task-form .fast-row .task-form-checkbox input {
-  width: 16px;
-  height: 16px;
-  margin: 1px 0 0; /* выравнивание по первой строке label (мокап) */
-  accent-color: var(--fastline);
+.task-form .fast-row:has(.fast-switch:checked) {
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-raised));
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border-default));
+  border-left-color: var(--fastline);
 }
 
-.task-form .fast-row .task-form-checkbox input:focus-visible {
+.task-form .fast-toggle {
+  flex: 1;
+  min-width: 0;
+  gap: var(--space-2);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.task-form .fast-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.task-form .fast-name2 {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+.task-form .fast-cap {
+  font-size: var(--font-size-label);
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+/* Switch 40×24 (эталон create.html .switch): appearance:none; кольцо
+ * focus-visible; disabled (гейт фастлайна) — приглушение. */
+.task-form .fast-row .fast-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 40px;
+  height: 24px;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-border-strong);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--speed-fast) ease;
+}
+
+.task-form .fast-row .fast-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-bg-surface);
+  transition: transform var(--speed-fast) ease;
+}
+
+.task-form .fast-row .fast-switch:checked { background: var(--fastline); }
+
+.task-form .fast-row .fast-switch:checked::after { transform: translateX(16px); }
+
+.task-form .fast-row .fast-switch:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
 
-.task-form .fast-row .task-form-checkbox {
-  font-weight: 600;
-  color: var(--color-text-primary);
+.task-form .fast-row .fast-switch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
+
+.task-form .fast-row .fastline-blocked-hint { margin-left: auto; }
 
 /* r6 3.1 (FR-63): единая зона действий — прежние .form-actions объединены
  * с #task-actions (в разметке остался один блок .task-actions); геометрия
@@ -914,6 +978,16 @@
 }
 
 .form-error {
+  /* F1 (эталон .form-error): ошибка уровня формы — красный бокс
+   * (рамка+фон на токенах ошибки). Показ/скрытие — hidden (task-form.js). */
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--status-error);
+  border-radius: var(--radius-field);
+  background: var(--status-error-bg);
   color: var(--status-error);
   font-size: var(--font-size-label);
 }
@@ -938,89 +1012,251 @@
   margin-top: var(--space-05);
 }
 
-/* --- 5.2 (FR-29): приоритеты В ФОРМЕ — цвет + SVG + текст.
- * Нативный select приоритета сохранен (контракт task-form.js: value,
- * collectTaskForm, e2e select_option) и обернут в .priority-field-pill:
- * CSS рисует поверх него пилюлю-обертку с цветом выбранного значения
- * (:has(:checked)); 4.1 (FR-34/DEF-005): внутри пилюли — SVG-иконка
- * выбранного приоритета (.prio-pill-icon, рендер priority-icons.js),
- * различимость без цвета дают текст опций («Низкий/Средний/Высокий»)
- * и форма иконки ↓/=/↑. */
+/* === F1 «Быстрый поток» (PLAN-FORM-F1; эталон design-forge/extra/
+ * form-v1/create.html + edit.html) — компоненты формы. Только
+ * отображение: id/name полей, подписи label и collectTaskForm не
+ * тронуты. Все цвета/радиусы — var(--*) канона A (бордо/золото), обе
+ * темы (светлая переопределяет только значения :root-токенов). === */
 
-.priority-field-pill {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  width: 100%;
+/* Поля формы — боксы на raised (эталон .input): рамка + радиус вместо
+ * нижней линии V3. Переопределение ПОСЛЕ базового блока полей выше;
+ * textarea комментариев (.task-comments) не затронута. */
+.task-form input[type="text"],
+.task-form input[type="date"],
+.task-form select,
+.task-form textarea {
+  margin-top: var(--space-1);
+  padding: var(--space-1);
   border: 1px solid var(--color-border-default);
-  border-radius: 999px;
-  background: var(--color-bg-surface);
-  transition: border-color var(--speed-fast) ease;
+  border-radius: var(--radius-field);
+  background: var(--color-raised);
 }
 
-.priority-field-pill:hover { border-color: var(--color-border-strong); }
+.task-form input:hover,
+.task-form select:hover,
+.task-form textarea:hover {
+  border-bottom-color: var(--color-border-strong);
+  border-color: var(--color-border-strong);
+}
 
-.priority-field-pill:focus-within {
-  outline: none;
+.task-form input:focus-visible,
+.task-form select:focus-visible,
+.task-form textarea:focus-visible {
+  border-bottom-color: var(--color-accent);
   border-color: var(--color-accent);
+  box-shadow: none;
+}
+
+/* Подписи полей — полужирные (эталон .label), «— необязательно» —
+ * тихое (.opt). */
+.task-form label {
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-label);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.task-form .opt {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+/* Подпись под заголовком (эталон .sheet-sub). */
+.task-form .sheet-sub {
+  margin: calc(-1 * var(--space-1)) 0 var(--space-2);
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+}
+
+/* Поле-блок F1 (.f1-field) с строкой label+счётчик (.f1-label-row). */
+.task-form .f1-field { display: block; }
+
+.task-form .f1-label-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.task-form .f1-label-row label { margin-bottom: 0; }
+
+.task-form .f1-counter {
+  margin-left: auto;
+  font-family: var(--font-family-data);
+  font-size: var(--font-size-label);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Название — крупное поле быстрого потока (эталон .input-title). */
+.task-form .f1-input-title {
+  font-size: 22px;
+  font-weight: 600;
+  min-height: 52px;
+  font-family: var(--font-body);
+}
+
+.task-form .f1-input-title::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+/* --- Приоритет — СЕГМЕНТ из 3 кнопок (эталон .segment) поверх
+ * СОХРАНЕННОГО нативного select. Скрытие select — .f1-native: absolute
+ * во всю ширину поля, opacity:0, вне потока, без pointer-events.
+ * НЕ clip/width:1px: e2e select_option требует непустой bounding box,
+ * а мобильный тест FR-62 меряет rect.width full-width полей — он равен
+ * ширине поля. Значение держит select (контракт), сегмент —
+ * .is-checked ставит task-form.js. Цвета сегментов: низкий — muted,
+ * средний — warning, высокий — accent-2 (канон A). */
+
+.f1-field-priority { position: relative; }
+
+.task-form select.f1-native {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin-top: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.task-form .segment {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.task-form .seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-field);
+  background: var(--color-raised);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  /* Без transition на цветах: подсветка .is-checked должна применяться
+   * мгновенно и синхронно с value скрытого select (контракт e2e читает
+   * computed style сразу после select_option — переход рвал детерминизм). */
+}
+
+/* Точка-индикатор (эталон .seg-dot) — цвет по приоритету. */
+.task-form .seg::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--seg-c, var(--color-text-muted));
+}
+
+.task-form .seg-low { --seg-c: var(--color-text-muted); }
+.task-form .seg-mid { --seg-c: var(--priority-medium); }
+.task-form .seg-high { --seg-c: var(--priority-high); }
+
+.task-form .seg.is-checked {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  border-color: color-mix(in srgb, var(--seg-c) 55%, var(--color-border-default));
+  background: color-mix(in srgb, var(--seg-c) 14%, var(--color-raised));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--seg-c) 55%, var(--color-border-default));
+}
+
+.task-form .seg:focus-visible {
+  outline: none;
   box-shadow: var(--focus-ring);
 }
 
-.priority-field-pill select {
-  margin-top: 0 !important;
-  border-bottom: none !important;
-  flex: 1;
-  min-width: 0;
-  padding: 6px var(--space-1) 6px 6px !important;
-  appearance: none;
-  -webkit-appearance: none;
-  background: transparent;
-  font: inherit;
+.task-form .seg:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
-/* Цвет пилюли по выбранному приоритету: цвет + текст опций (без цвета —
- * текст; иконки — на карточке и в деталях). */
-.priority-field-pill:has(#task-priority option[value="low"]:checked) {
-  border-color: var(--priority-low);
-  background: var(--priority-low-soft);
-  color: var(--priority-low);
-}
-.priority-field-pill:has(#task-priority option[value="medium"]:checked) {
-  border-color: var(--priority-medium);
-  background: var(--priority-medium-soft);
-  color: var(--priority-medium);
-}
-.priority-field-pill:has(#task-priority option[value="high"]:checked) {
-  border-color: var(--priority-high);
-  background: var(--priority-high-soft);
-  color: var(--priority-high);
+/* fast закрепил приоритет (FR-27) — весь сегмент приглушен
+ * (преемник правила .priority-field-pill:has(#task-priority:disabled)). */
+.f1-field-priority:has(#task-priority:disabled) .seg {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
-/* 4.1 (FR-34/DEF-005, зона «отображение выбранного приоритета»):
- * иконка ↓/=/↑ внутри пилюли (мокап V3 — иконка + текст, FR-29);
- * SVG рендерит task-form.js (priority-icons.js, currentColor) —
- * цвет дает пилюля. Без выбора иконки нет (мокап: «—»). */
-.prio-pill-icon {
+/* --- Срок — quick-чипы (эталон .chips-row/.qchip) + нативный
+ * date-инпут (календарь; контракт task-due-date не тронут).
+ * .is-checked ставит task-form.js по совпадению даты. */
+
+.task-form .chips-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  padding-left: var(--space-05);
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
 }
 
-.prio-pill-icon:empty { display: none; }
-
-.prio-pill-icon .prio-icon {
-  width: 14px;
-  height: 14px;
-  display: block;
+.task-form .qchip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-pill);
+  background: var(--color-raised);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-label);
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  /* Без transition — детерминизм computed style для e2e (см. .seg). */
 }
 
-/* Disabled (fast line закрепила приоритет): приглушение пилюли
- * (мокап: disabled-состояние приоритетов). */
-.priority-field-pill:has(#task-priority:disabled) { opacity: 0.45; }
-.priority-field-pill:has(#task-priority:disabled) select { cursor: not-allowed; }
+.task-form .qchip.is-checked {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  border-color: var(--fastline);
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-raised));
+  box-shadow: inset 0 0 0 1px var(--fastline);
+}
+
+.task-form .qchip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.task-form input.f1-input-date {
+  width: auto;
+  min-width: 150px;
+  margin-top: 0;
+  flex: 0 1 auto;
+  font-family: var(--font-family-data);
+  font-size: var(--font-size-label);
+}
+
+/* --- Категория + исполнитель — два селекта в одну строку (эталон
+ * .duo); ≤760px — столбиком (media-блок в конце файла). */
+
+.task-form .f1-duo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.task-form .f1-duo label { margin-bottom: 0; }
 
 /* --- Детали задачи (карточка 4.5): серифный заголовок, поле приоритета
  * с бейджем цвет+SVG (значения рендерит task-detail.js) --- */
@@ -1387,28 +1623,52 @@
 }
 
 /* --- Действия с задачей в окне формы — r6 3.1 (FR-63, ОВ-4, ОГР-28):
- * ЕДИНАЯ зона действий внизу формы (эталон design/tag-combobox-v3.html
- * «Единая зона действий задачи»): один ряд-блок
- * [Столбец ▾][Сохранить][Отмена] │ [Удалить]. Прежние два блока
- * (#task-actions со статус-селектом и .form-actions с сабмитом)
- * объединены в разметке board.html в #task-actions; стили кнопок —
- * прежние пилюли V3 (ниже, селекторы по id не менялись). «Удалить» —
- * destructive: прижата вправо (margin-left:auto) и отделена
- * вертикальным разделителем ::before (токены --status-error*); ≤480px —
- * wrap (FR-62, media-блок в конце файла). Обработчики task-form.js /
- * board-init.js цепляются по прежним id — не тронуты (ОГР-28). --- */
+ * ЛИПКИЙ ФУТЕР формы (F1 «Быстрый поток», PLAN-FORM-F1; эталон
+ * design-forge/extra/form-v1/create.html + edit.html .sheet-foot):
+ * один ряд внизу окна — [Столбец ▾][Удалить] слева (edit),
+ * [Отмена][Сохранить] справа; в создании ряд [Отмена][Создать]
+ * (сабмит прижат вправо margin-left:auto). position:sticky держит ряд
+ * у низа скролла; negative-поля — full-bleed до краев листа. Класс
+ * .task-actions и все id СОХРАНЕНЫ (ОГР-28: подписки task-form.js /
+ * board-init.js и e2e живут); «Удалить» — destructive слева
+ * (--status-error). Обработчики прежние: селект «Столбец» →
+ * POST /{id}/move, «Удалить» → DELETE с confirm. --- */
 
 .task-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: flex;
   gap: var(--space-1);
   align-items: center;
-  margin-top: var(--space-3);
-  padding-top: var(--space-2);
+  margin: var(--space-2) calc(-1 * var(--space-3)) calc(-1 * var(--space-3));
+  padding: var(--space-1) var(--space-3) var(--space-2);
   border-top: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
   /* 4.3 (FR-62): перенос кнопок — только на узких экранах (media-блок
-   * в конце файла); на desktop ряд УЖАЕТСЯ (shrink), а не переносится —
-   * эталон макета: один ряд [Столбец][Сохранить][Отмена] │ [Удалить]. */
+   * в конце файла); на desktop ряд УЖАЕТСЯ (shrink), а не переносится. */
 }
+
+/* Спейсер между левой (Столбец/Удалить) и правой (Отмена/Сохранить)
+ * группами — только в режиме редактирования (#task-actions не hidden);
+ * в создании ряд [Отмена][Создать] с прижатием сабмита вправо. */
+.task-actions .foot-spacer { display: none; }
+
+.task-actions:not(:has(#task-actions[hidden])) .foot-spacer {
+  display: inline;
+  flex: 1 1 auto;
+}
+
+#task-form-submit { margin-left: auto; }
+
+.task-actions:not(:has(#task-actions[hidden])) #task-form-submit {
+  margin-left: 0;
+}
+
+/* Липкий футер уходит full-bleed negative-полями — следующий сосед
+ * (#task-comments режима редактирования) обязан отступить, иначе
+ * заезжает под футер (прод-геометрия r4-теста «комментарии под формой»). */
+.task-form-sheet #task-comments { margin-top: var(--space-3); }
 
 /* Режимная часть ряда: селект «Столбец» + «Удалить» — единый inline
  * контейнер со своим id #task-actions (ОГР-28: скрытие из
@@ -1463,13 +1723,11 @@
   box-shadow: 0 1px 0 var(--color-accent);
 }
 
-/* Destructive «Удалить»: контур цветом ошибки (--status-error), hover —
- * мягкий красный фон (--status-error-bg); новых цветов нет (ОГР-8).
- * Отдельная зона справа: margin-left:auto + вертикальный разделитель
- * ::before (эталон макета .btn-destructive). Приоритет селектора —
- * перекрывает прежний вторичный контур группы ниже. */
+/* Destructive «Удалить» (F1, эталон edit.html .btn-danger): слева в
+ * футере, контур цветом ошибки (--status-error), hover — мягкий красный
+ * фон (--status-error-bg); новых цветов нет (ОГР-8). Приоритет
+ * селектора — перекрывает вторичный контур группы ниже. */
 .task-actions #task-delete-button {
-  margin-left: auto;
   position: relative;
   color: var(--status-error);
   border-color: var(--status-error);
@@ -1478,16 +1736,6 @@
 
 .task-actions #task-delete-button:hover {
   background: var(--status-error-bg);
-}
-
-.task-actions #task-delete-button::before {
-  content: "";
-  position: absolute;
-  left: calc(-1 * var(--space-2));
-  top: 4px;
-  bottom: 4px;
-  width: 1px;
-  background: var(--color-border-default);
 }
 
 .task-detail h2 {
@@ -1522,7 +1770,8 @@
  * ширина — как у формы прежде; содержимое — колонкой. */
 .task-form-sheet {
   width: 100%;
-  max-width: 520px;
+  /* F1 (эталон create.html .sheet): десктоп-модалка 720px. */
+  max-width: 720px;
 }
 
 /* Форма внутри листа — без собственной «модальной» упаковки (иначе
@@ -1584,14 +1833,28 @@
     max-width: 100%;
   }
 
-  /* Кнопки зоны — в ряд с переносом (эталон макета); label «Столбец»
-   * на своей строке (width:100% от media-правила выше), разделитель
-   * destructive при переносе не нужен. */
+  /* Кнопки зоны — в ряд с переносом (FR-62, эталон tag-combobox-v3);
+   * F1 (эталон edit.html media-блок): «Удалить» — третьей строкой во
+   * всю ширину, label «Столбец» на своей строке, спейсер скрыт
+   * (порядок: Столбец → Отмена/Сохранить → Удалить). */
   .task-actions { flex-wrap: wrap; }
   .task-actions .move-label { width: 100%; }
   .task-actions button { flex: 1 1 auto; }
-  .task-actions #task-delete-button { margin-left: 0; }
+  .task-actions .foot-spacer { display: none !important; }
+  .task-actions #task-form-cancel { flex: 0 0 auto; }
+  .task-actions #task-form-submit { flex: 1 1 auto; margin-left: 0; }
+  .task-actions #task-delete-button { order: 3; flex: 1 0 100%; margin-left: 0; }
   .task-actions #task-delete-button::before { display: none; }
+
+  /* F1 на мобильном (эталон create.html media-блок): duo — столбиком,
+   * крупное поле названия — 18px (NFR-24 ≥16px сохранен). */
+  .task-form .f1-duo { grid-template-columns: 1fr; }
+  #task-form-overlay .task-form .f1-input-title {
+    font-size: 18px;
+    min-height: 52px;
+  }
+  /* Quick-чипы и сегмент — тач-таргеты ≥44px уже в базовых правилах;
+   * date-инпут — на всю ширину строки чипов (правило выше). */
 
   /* Доска под оверлеем тоже без горизонтальной прокрутки (FR-62:
    * «без горизонтальной прокрутки» — про страницу; flex-ряд колонок

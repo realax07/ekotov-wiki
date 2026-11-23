@@ -404,11 +404,12 @@ def test_desktop_modals_unchanged(browser, web_base_url):
         assert 39 < close_box["width"] < 41, close_box  # desktop 40×40 (FR-28)
         assert page.evaluate("getComputedStyle(document.body).overflow") == "visible"
 
-        # форма: max-width 520
+        # форма: max-width 720 (F1, PLAN-FORM-F1 — эталон create.html
+        # .sheet 720px; прежний лимит 520 мокапа V3 заменен).
         page.get_by_role("button", name="Редактировать").click()
         expect(page.locator(FORM_OVERLAY)).to_be_visible()
         modal_form = _rect(page, f"{FORM_OVERLAY} .modal")
-        assert modal_form["width"] <= 520 + 2, modal_form
+        assert modal_form["width"] <= 720 + 2, modal_form
         assert page.evaluate("getComputedStyle(document.body).overflow") == "visible"
     finally:
         context.close()
